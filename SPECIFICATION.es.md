@@ -1,5 +1,5 @@
 # UCA — Unidad Cognitiva Autónoma (Autonomous Cognitive Unit)
-*Especificación de Arquitectura (Open Specification RFC)*
+*Especificación de Primitiva Funcional (Open Specification RFC)*
 
 [ [English](SPECIFICATION.md) | Español ]
 
@@ -87,7 +87,7 @@ Los conceptos que puedan expresarse mediante Purpose, Action, Outcome o composic
 
 ## 2. UCA Core
 
-El UCA Core define las propiedades necesarias y suficientes para identificar una unidad funcional como Unidad Cognitiva Autónoma.
+El UCA Core define las propiedades mínimas requeridas para identificar una unidad funcional como Unidad Cognitiva Autónoma.
 
 ---
 
