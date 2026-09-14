@@ -134,73 +134,114 @@ Es estable, persistente e independiente de ejecuciones concretas o mecanismos es
 
 ### 2.3 Disposition (D) y Primitive Capabilities
 
-Una UCA es una unidad concreta constituida por capacidades concretas. Una UCA no debe modelarse como una abstracción que oculta las características y parámetros de sus capacidades.
+Una UCA es una unidad concreta constituida por capacidades concretas. Una UCA no debe modelarse como una abstracción que oculta las características, constitución o parámetros de sus capacidades.
 
-#### Definición Canónica de Disposition
+#### Estructura Canónica de una Primitive Capability
 
-> **Disposition es el conjunto de parámetros concretos que determinan cómo se comporta una Capability dentro de las posibilidades ofrecidas por su mecanismo.**
-
-Para una Primitive Capability:
+Una Primitive Capability se define formalmente mediante:
 
 ```text
 Primitive Capability
+│
 ├── Mechanism
+│   └── procedimiento concreto que proporciona la capacidad
+│
 └── Disposition
+    │
+    ├── Configuration
+    │   └── cómo está constituido el Mechanism (dimensión constitutiva)
+    │
+    └── Parametrization
+        └── cómo está ajustado el Mechanism (dimensión de ajuste)
 ```
 
-- El **Mechanism** (Mecanismo) determina qué puede hacer la capacidad.
-- La **Disposition** (Disposición) determina los parámetros concretos bajo los cuales ese mecanismo se comporta.
-- Ambos forman parte inseparable de la identidad funcional de la capacidad.
+En forma resumida:
+- **Mechanism** = cómo funciona (qué procedimiento proporciona la capacidad).
+- **Configuration** = cómo está constituido.
+- **Parametrization** = cómo está ajustado.
+- **Disposition** = `Configuration` + `Parametrization` (composición conceptual).
 
-#### Definición de Primitive Capability
+#### Definición de Mechanism
 
-> **Una Primitive Capability es una capacidad concreta que, dentro del modelo actual, ya no se descompone en capacidades funcionales menores y cuyo comportamiento está determinado por un mecanismo concreto y su Disposition.**
+> **Mechanism es el procedimiento concreto mediante el cual una Primitive Capability produce su capacidad funcional.**
 
-- **Atomicidad y Nivel de Modelado**: La atomicidad es relativa al nivel de modelado del sistema. No se deben crear UCAs adicionales simplemente porque internamente una biblioteca o componente utilice múltiples algoritmos. La descomposición se detiene cuando el elemento ya puede considerarse un mecanismo funcional primitivo para la arquitectura.
-- **Identidad de una Primitive Capability**: Dos mecanismos que realizan funciones similares no son necesariamente la misma Capability.
+El Mechanism describe el principio/procedimiento operativo. No representa:
+- su configuración concreta;
+- sus parámetros actuales;
+- una clase o transform de software;
+- el estado actual de comportamiento.
 
 Ejemplo:
+Para `SherpaRecognition`, el Mechanism es el *reconocimiento online de voz mediante un modelo neuronal transductor ejecutado por Sherpa-ONNX*. La implementación software puede materializar ese Mechanism mediante clases, transforms, providers o bibliotecas.
+
+#### Definición Canónica de Disposition
+
+> **Disposition es el conjunto de condiciones constitutivas y paramétricas que predisponen cómo una Capability puede comportarse mediante su Mechanism.**
+
+La Disposition responde a la pregunta:
+> *Dado este Mechanism, ¿cómo está constituido y ajustado para comportarse?*
+
+La Disposition comprende dos dimensiones conceptuales inseparables:
+
+1. **Configuration (Dimensión Constitutiva)**:
+   > **Configuration es la parte de la Disposition que determina cómo está constituido concretamente el Mechanism.**
+   Determina decisiones estructurales y recursos del mecanismo (ej. modelo utilizado, backend, arquitectura, formato de entrada, dimensiones estructurales o componentes concretos).
+
+2. **Parametrization (Dimensión de Ajuste)**:
+   > **Parametrization es la parte de la Disposition que determina cómo está ajustada la Configuration concreta de un Mechanism.**
+   Determina valores numéricos, umbrales operativos, número de hilos, tolerancias, pesos de decodificación y temporizadores.
+
+#### Ejemplo Canónico: SherpaRecognition
+
 ```text
-SherpaRecognition ≠ WhisperRecognition
+Primitive Capability: SherpaRecognition
+│
+├── Mechanism
+│   └── reconocimiento online de voz mediante
+│       Sherpa-ONNX y un modelo neuronal transductor
+│
+└── Disposition
+    │
+    ├── Configuration
+    │   ├── modelDir: ".extensio/models/stt-es"
+    │   ├── modelType: "zipformer2"
+    │   ├── provider: "cpu"
+    │   ├── sampleRate: 16000
+    │   └── featureDim: 80
+    │
+    └── Parametrization
+        ├── numThreads: 4
+        ├── enableEndpoint: true
+        ├── rule1MinTrailingSilence: 2.4
+        ├── rule2MinTrailingSilence: 0.4
+        ├── rule3MinUtteranceLength: 20.0
+        ├── decodingMethod: "modified_beam_search"
+        └── hotwordsScore: 2.5
 ```
 
-Aunque ambas puedan pertenecer conceptualmente a la categoría funcional `Speech Recognition`, son capacidades primitivas diferentes porque:
-- utilizan mecanismos diferentes;
-- poseen características y posibilidades operacionales diferentes;
-- tienen parámetros de comportamiento diferentes;
-- sus Dispositions no son necesariamente equivalentes;
-- pueden producir Outcomes con propiedades diferentes.
+#### Dos Profundidades de Cambio y Adaptación en Disposition
 
-Por tanto, `Speech Recognition` puede utilizarse como categoría descriptiva o de clasificación, pero no debe ocultar la identidad de la Primitive Capability concreta:
+Una Disposition puede cambiar a dos niveles de profundidad:
+- **Cambio Constitutivo (`Disposition.Configuration`)**: Modifica cómo está constituida la Capability (ej. `provider: cpu ──► cuda`, o cambio a otro modelo neuronal compatible).
+- **Cambio Paramétrico (`Disposition.Parametrization`)**: Modifica cómo está ajustada la Capability (ej. `rule2MinTrailingSilence: 0.4 ──► 0.6`, o `hotwordsScore: 2.5 ──► 3.0`).
 
-```text
-Speech Recognition (Categoría Funcional)
-        │
-        ├── SherpaRecognition
-        │   ├── Mechanism: Sherpa OnlineRecognizer
-        │   └── Disposition: Parámetros específicos de Sherpa
-        │
-        └── WhisperRecognition
-            ├── Mechanism: Whisper
-            └── Disposition: Parámetros específicos de Whisper
-```
+Ambos constituyen modificaciones legítimas de la `Disposition`.
+
+#### Identidad de una Primitive Capability
+
+- **Identidad basada en Mechanism**: La identidad de una Primitive Capability está determinada principalmente por su `Mechanism`. Un cambio de `Disposition` (sea constitutivo o paramétrico) modifica la constitución o ajuste de la capacidad sin crear automáticamente una nueva Capability.
+- **Diferencia entre Mecanismos**: Sólo cuando cambia el Mechanism funcional debe evaluarse si estamos ante otra Capability.
+  Ejemplo:
+  ```text
+  SherpaRecognition ≠ WhisperRecognition
+  ```
+  `SherpaRecognition` y `WhisperRecognition` son capacidades primitivas diferentes porque utilizan mecanismos y procedimientos operativos distintos (transductor neuronal streaming vs modelo encoder-decoder autoregresivo), aunque ambas pertenezcan a la categoría funcional `Speech Recognition`.
 
 #### No Abstraer la Disposition de una Primitive Capability
 
-Se descarta cualquier regla que obligue a convertir parámetros concretos de una Primitive Capability en propiedades semánticas abstractas:
+Se descarta cualquier regla que obligue a convertir parámetros concretos de una Primitive Capability en propiedades semánticas abstractas (ej. `hotwordsScore` pertenece directamente a `SherpaRecognition.disposition.parametrization` y no necesita convertirse en `contextualBias`).
 
-```text
-Ejemplo incorrecto:
-Sherpa: hotwordsScore ──► adapter abstracto ──► contextualBias
-```
-
-Para `SherpaRecognition`, un parámetro como `hotwordsScore: 2.5` forma directamente parte de su `Disposition`. No necesita convertirse artificialmente en `contextualBias: 2.5`. La segunda propiedad podría pertenecer a otra Capability con otro mecanismo, pero no define necesariamente la misma capacidad.
-
-> **Regla de Atomicidad**: No abstraer una Primitive Capability hasta el punto de ocultar las propiedades que determinan su comportamiento. Si para conseguir una abstracción común es necesario ocultar su mecanismo, parámetros, restricciones, posibilidades o comportamiento, dicha abstracción no debe sustituir a la Capability concreta.
-
-> **Regla de Cambio de Mecanismo**: Si cambia el mecanismo de una Primitive Capability de forma que cambian sus propiedades, posibilidades o Disposition, debe considerarse otra Capability, aunque realice una función semejante.
-
-Por tanto, `SherpaRecognition` no debe modelarse como `SpeechRecognition(provider = Sherpa)` si esa abstracción oculta las propiedades específicas que caracterizan a Sherpa. De igual forma, `WhisperRecognition` no es simplemente `SpeechRecognition(provider = Whisper)`.
+> **Regla de Atomicidad**: No abstraer una Primitive Capability hasta el punto de ocultar las propiedades y constitución que determinan su comportamiento. Si para conseguir una abstracción común es necesario ocultar su mecanismo, parámetros, restricciones, posibilidades o comportamiento, dicha abstracción no debe sustituir a la Capability concreta.
 
 #### Composición de la Disposition de una UCA
 
@@ -210,47 +251,53 @@ Una UCA concreta está constituida por capacidades concretas. La Disposition efe
 Disposition(Ear)
         │
         ├── Disposition(EchoCancellation)
+        │   ├── Configuration
+        │   └── Parametrization
         ├── Disposition(AudioFraming)
+        │   ├── Configuration
+        │   └── Parametrization
         ├── Disposition(PcmToFloat)
+        │   ├── Configuration
+        │   └── Parametrization
         ├── Disposition(SherpaRecognition)
+        │   ├── Configuration
+        │   └── Parametrization
         ├── Disposition(EchoTextFilter)
+        │   ├── Configuration
+        │   └── Parametrization
         └── Disposition(EarCoherence)
+            ├── Configuration
+            └── Parametrization
 ```
 
 No se duplican innecesariamente estos parámetros en una segunda estructura abstracta. La UCA conoce la constitución concreta de sus capacidades y sus respectivas Dispositions.
-
-Estas capacidades no se convierten automáticamente en UCAs independientes mientras no exista un `Purpose` autónomo que justifique tratarlas como tales.
 
 #### Armonización de Dispositions respecto al Purpose
 
 Las Dispositions de las capacidades que forman una UCA no deben entenderse como configuraciones independientes. Su combinación determina el comportamiento emergente de la UCA respecto a su `Purpose`:
 
 ```text
-Primitive Capability
-├── Mechanism
-└── Disposition
-        │
-        ▼
-composición de Primitive Capabilities
-        │
-        ▼
-UCA
-├── Purpose
-└── Capabilities
-        │
-        ▼
-armonización de sus Dispositions
-        │
-        ▼
-Action
-        │
-        ▼
-Outcome
+Dispositions de las Capabilities (Configuration + Parametrization)
+                         │
+                         ▼
+                    armonización
+                         │
+                         ▼
+                 comportamiento UCA
+                         │
+                         ▼
+                      Action
+                         │
+                         ▼
+                      Outcome
+                         │
+                         ▼
+                      Purpose
 ```
 
-> **La efectividad de una UCA depende no sólo de las Dispositions individuales de sus capacidades, sino de que dichas Dispositions estén armonizadas respecto al Purpose de la UCA.**
+> **Armonizar una UCA puede requerir modificar tanto la Configuration como la Parametrization de las capacidades que la constituyen.**
 
-El `Purpose` proporciona el criterio superior respecto al cual puede evaluarse la armonización de las capacidades.
+El `Purpose` proporciona el criterio superior respecto al cual se evalúa la armonización de las capacidades.
 
 #### Consecuencia Arquitectónica
 
@@ -259,11 +306,11 @@ Dos UCAs pueden compartir exactamente el mismo `Purpose` y, sin embargo, ser fun
 ```text
 Ear A
 ├── Purpose: transcribir continuamente voz humana
-└── SherpaRecognition + Disposition A
+└── SherpaRecognition + Disposition A (Configuration A + Parametrization A)
 
 Ear B
 ├── Purpose: transcribir continuamente voz humana
-└── WhisperRecognition + Disposition B
+└── WhisperRecognition + Disposition B (Configuration B + Parametrization B)
 ```
 
 Ambas son `Ear`. Pero no poseen necesariamente las mismas capacidades ni la misma Disposition efectiva. Su comportamiento y efectividad pueden ser distintos.
@@ -933,41 +980,64 @@ Purpose
 Capabilities (Pipeline de Capacidades Primitivas Concretas)
 │
 ├── EchoCancellation
+│   ├── Mechanism: Reducción y cancelación acústica adaptativa de eco
 │   └── Disposition:
-│       ├── suppressionGain: 0.0
-│       ├── bargeInThresholdRms: 160
-│       ├── echoLeakRatio: 0.25
-│       ├── maxThresholdRms: 450
-│       ├── decayMs: 350
-│       └── bargeInHoldMs: 400
+│       ├── Configuration: { sampleRate: 16000 }
+│       └── Parametrization:
+│           ├── suppressionGain: 0.0
+│           ├── bargeInThresholdRms: 160
+│           ├── echoLeakRatio: 0.25
+│           ├── maxThresholdRms: 450
+│           ├── decayMs: 350
+│           └── bargeInHoldMs: 400
 │
 ├── AudioFraming
+│   ├── Mechanism: Materialización temporal de la señal en fragmentos discretos
 │   └── Disposition:
-│       ├── frameSize: 1600
-│       └── emitPartialOnFlush: false
+│       ├── Configuration: { sampleRate: 16000 }
+│       └── Parametrization:
+│           ├── frameSize: 1600
+│           └── emitPartialOnFlush: false
 │
 ├── PcmToFloat
+│   ├── Mechanism: Normalización y conversión de enteros Int16 a coma flotante Float32
 │   └── Disposition:
-│       └── scale: 32768.0
+│       ├── Configuration: { inputType: "Int16", outputType: "Float32" }
+│       └── Parametrization:
+│           └── scale: 32768.0
 │
 ├── SherpaRecognition
+│   ├── Mechanism: Reconocimiento online de voz mediante modelo neuronal transductor (Sherpa-ONNX)
 │   └── Disposition:
-│       ├── numThreads: 4
-│       ├── enableEndpoint: true
-│       ├── rule1MinTrailingSilence: 2.4
-│       ├── rule2MinTrailingSilence: 0.4
-│       ├── rule3MinUtteranceLength: 20.0
-│       ├── decodingMethod: modified_beam_search
-│       └── hotwordsScore: 2.5
+│       ├── Configuration:
+│       │   ├── modelDir: ".extensio/models/stt-es"
+│       │   ├── modelType: "zipformer2"
+│       │   ├── provider: "cpu"
+│       │   ├── sampleRate: 16000
+│       │   └── featureDim: 80
+│       └── Parametrization:
+│           ├── numThreads: 4
+│           ├── enableEndpoint: true
+│           ├── rule1MinTrailingSilence: 2.4
+│           ├── rule2MinTrailingSilence: 0.4
+│           ├── rule3MinUtteranceLength: 20.0
+│           ├── decodingMethod: "modified_beam_search"
+│           └── hotwordsScore: 2.5
 │
 ├── EchoTextFilter
+│   ├── Mechanism: Filtrado y atenuación léxica de transcripciones autogeneradas
 │   └── Disposition:
-│       ├── decayMs: 2500
-│       ├── mismatchThreshold: 1
-│       └── minWordLength: 3
+│       ├── Configuration: { caseSensitive: false }
+│       └── Parametrization:
+│           ├── decayMs: 2500
+│           ├── mismatchThreshold: 1
+│           └── minWordLength: 3
 │
 └── EarCoherence
-    └── Disposition
+    ├── Mechanism: Normalización estructural y preservación de continuidad temporal de Chunks
+    └── Disposition:
+        ├── Configuration: { outputSchema: "Chunk" }
+        └── Parametrization: {}
 
 Outcome (Stream continuo)
 │

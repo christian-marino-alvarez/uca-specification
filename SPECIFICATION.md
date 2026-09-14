@@ -134,73 +134,114 @@ It is stable, persistent, and independent of specific executions or mechanisms. 
 
 ### 2.3 Disposition (D) and Primitive Capabilities
 
-A UCA is a concrete unit constituted by concrete capabilities. A UCA must not be modeled as an abstraction that obscures the concrete characteristics and parameters of its capabilities.
+A UCA is a concrete unit constituted by concrete capabilities. A UCA must not be modeled as an abstraction that obscures the concrete characteristics, constitution, or parameters of its capabilities.
 
-#### Canonical Definition of Disposition
+#### Canonical Structure of a Primitive Capability
 
-> **Disposition is the set of concrete parameters that determine how a Capability behaves within the possibilities offered by its mechanism.**
-
-For a Primitive Capability:
+A Primitive Capability is formally defined by:
 
 ```text
 Primitive Capability
+│
 ├── Mechanism
+│   └── concrete procedure providing the capability
+│
 └── Disposition
+    │
+    ├── Configuration
+    │   └── how the Mechanism is constituted (constitutive dimension)
+    │
+    └── Parametrization
+        └── how the Mechanism is tuned (tuning dimension)
 ```
 
-- The **Mechanism** determines what the capability can do.
-- The **Disposition** determines the concrete parameters under which that mechanism behaves.
-- Both form an inseparable part of the functional identity of the capability.
+In summary:
+- **Mechanism** = how it operates (which procedure provides the capability).
+- **Configuration** = how it is constituted.
+- **Parametrization** = how it is tuned.
+- **Disposition** = `Configuration` + `Parametrization` (conceptual composition).
 
-#### Definition of Primitive Capability
+#### Definition of Mechanism
 
-> **A Primitive Capability is a concrete capability that, within the current model, is no longer decomposed into smaller functional capabilities and whose behaviour is determined by a concrete mechanism and its Disposition.**
+> **Mechanism is the concrete procedure by which a Primitive Capability produces its functional capability.**
 
-- **Atomicity and Modeling Level**: Atomicity is relative to the system modeling level. Additional UCAs should not be created simply because a library or component internally uses multiple algorithms. Decomposition stops when the element can be treated as a primitive functional mechanism for the architecture.
-- **Identity of a Primitive Capability**: Two mechanisms that perform similar functions are not necessarily the same Capability.
+The Mechanism describes the operating principle/procedure. It does not represent:
+- its concrete configuration;
+- its current parameters;
+- a software class or transform;
+- the current behavioral state.
 
 Example:
+For `SherpaRecognition`, the Mechanism is *online speech recognition via a transducer neural model executed by Sherpa-ONNX*. Software implementations may materialize this Mechanism via classes, transforms, providers, or libraries.
+
+#### Canonical Definition of Disposition
+
+> **Disposition is the set of constitutive and parametric conditions that predispose how a Capability can behave through its Mechanism.**
+
+Disposition answers the question:
+> *Given this Mechanism, how is it constituted and tuned to behave?*
+
+Disposition encompasses two inseparable conceptual dimensions:
+
+1. **Configuration (Constitutive Dimension)**:
+   > **Configuration is the part of the Disposition that determines how the Mechanism is concretely constituted.**
+   Determines structural decisions and mechanism resources (e.g., model used, backend, architecture, input format, structural dimensions, or concrete components).
+
+2. **Parametrization (Tuning Dimension)**:
+   > **Parametrization is the part of the Disposition that determines how the concrete Configuration of a Mechanism is tuned.**
+   Determines numerical values, operational thresholds, thread counts, tolerances, decoding weights, and timers.
+
+#### Canonical Example: SherpaRecognition
+
 ```text
-SherpaRecognition ≠ WhisperRecognition
+Primitive Capability: SherpaRecognition
+│
+├── Mechanism
+│   └── online speech recognition via
+│       Sherpa-ONNX and a transducer neural model
+│
+└── Disposition
+    │
+    ├── Configuration
+    │   ├── modelDir: ".extensio/models/stt-es"
+    │   ├── modelType: "zipformer2"
+    │   ├── provider: "cpu"
+    │   ├── sampleRate: 16000
+    │   └── featureDim: 80
+    │
+    └── Parametrization
+        ├── numThreads: 4
+        ├── enableEndpoint: true
+        ├── rule1MinTrailingSilence: 2.4
+        ├── rule2MinTrailingSilence: 0.4
+        ├── rule3MinUtteranceLength: 20.0
+        ├── decodingMethod: "modified_beam_search"
+        └── hotwordsScore: 2.5
 ```
 
-Although both conceptually belong to the functional category `Speech Recognition`, they are distinct primitive capabilities because:
-- they utilize different mechanisms;
-- they possess different operational characteristics and possibilities;
-- they have different behavioral parameters;
-- their Dispositions are not necessarily equivalent;
-- they may produce Outcomes with different properties.
+#### Two Depths of Change and Adaptation in Disposition
 
-Therefore, `Speech Recognition` may be used as a descriptive classification or category, but it must not obscure the identity of the concrete Primitive Capability:
+A Disposition can change at two distinct depth levels:
+- **Constitutive Change (`Disposition.Configuration`)**: Modifies how the Capability is constituted (e.g., `provider: cpu ──► cuda`, or swapping to another compatible neural model).
+- **Parametric Change (`Disposition.Parametrization`)**: Modifies how the Capability is tuned (e.g., `rule2MinTrailingSilence: 0.4 ──► 0.6`, or `hotwordsScore: 2.5 ──► 3.0`).
 
-```text
-Speech Recognition (Functional Category)
-        │
-        ├── SherpaRecognition
-        │   ├── Mechanism: Sherpa OnlineRecognizer
-        │   └── Disposition: Sherpa-specific parameters
-        │
-        └── WhisperRecognition
-            ├── Mechanism: Whisper
-            └── Disposition: Whisper-specific parameters
-```
+Both constitute legitimate modifications of the `Disposition`.
+
+#### Identity of a Primitive Capability
+
+- **Identity based on Mechanism**: The identity of a Primitive Capability is primarily determined by its `Mechanism`. A change in `Disposition` (whether constitutive or parametric) modifies the constitution or tuning of the capability without automatically creating a new Capability.
+- **Difference between Mechanisms**: Only when the functional Mechanism changes must it be evaluated whether a different Capability exists.
+  Example:
+  ```text
+  SherpaRecognition ≠ WhisperRecognition
+  ```
+  `SherpaRecognition` and `WhisperRecognition` are distinct primitive capabilities because they utilize different operating procedures and mechanisms (streaming neural transducer vs autoregressive encoder-decoder model), even though both belong to the functional category `Speech Recognition`.
 
 #### Do Not Abstract the Disposition of a Primitive Capability
 
-Any rule that forces converting concrete parameters of a Primitive Capability into abstract semantic properties is rejected:
+Any rule forcing concrete parameters of a Primitive Capability into abstract semantic properties is rejected (e.g., `hotwordsScore` belongs directly to `SherpaRecognition.disposition.parametrization` and does not need to be converted to `contextualBias`).
 
-```text
-Incorrect example:
-Sherpa: hotwordsScore ──► abstract adapter ──► contextualBias
-```
-
-For `SherpaRecognition`, a parameter like `hotwordsScore: 2.5` forms directly part of its `Disposition`. It does not need to be artificially converted into `contextualBias: 2.5`. The second property might belong to another Capability with another mechanism, but does not define the same capability.
-
-> **Atomicity Rule**: Do not abstract a Primitive Capability to the point of obscuring the properties that determine its behaviour. If achieving a common abstraction requires hiding its mechanism, parameters, constraints, possibilities, or behaviour, that abstraction must not replace the concrete Capability.
-
-> **Mechanism Change Rule**: If the mechanism of a Primitive Capability changes such that its properties, possibilities, or Disposition change, it must be considered a different Capability, even if it performs a similar function.
-
-Therefore, `SherpaRecognition` must not be modeled as `SpeechRecognition(provider = Sherpa)` if that abstraction hides the specific properties characterizing Sherpa. Similarly, `WhisperRecognition` is not simply `SpeechRecognition(provider = Whisper)`.
+> **Atomicity Rule**: Do not abstract a Primitive Capability to the point of obscuring the properties and constitution that determine its behaviour. If achieving a common abstraction requires hiding its mechanism, parameters, constraints, possibilities, or behaviour, that abstraction must not replace the concrete Capability.
 
 #### Composition of a UCA's Disposition
 
@@ -210,45 +251,51 @@ A concrete UCA is constituted by concrete capabilities. The effective Dispositio
 Disposition(Ear)
         │
         ├── Disposition(EchoCancellation)
+        │   ├── Configuration
+        │   └── Parametrization
         ├── Disposition(AudioFraming)
+        │   ├── Configuration
+        │   └── Parametrization
         ├── Disposition(PcmToFloat)
+        │   ├── Configuration
+        │   └── Parametrization
         ├── Disposition(SherpaRecognition)
+        │   ├── Configuration
+        │   └── Parametrization
         ├── Disposition(EchoTextFilter)
+        │   ├── Configuration
+        │   └── Parametrization
         └── Disposition(EarCoherence)
+            ├── Configuration
+            └── Parametrization
 ```
 
 These parameters are not duplicated unnecessarily into a second abstract structure. The UCA knows the concrete constitution of its capabilities and their respective Dispositions.
-
-These capabilities are not automatically turned into independent UCAs as long as no autonomous `Purpose` exists to justify treating them as such.
 
 #### Harmonization of Dispositions with Respect to Purpose
 
 The Dispositions of the capabilities forming a UCA should not be understood as independent configurations. Their combination determines the emergent behaviour of the UCA with respect to its `Purpose`:
 
 ```text
-Primitive Capability
-├── Mechanism
-└── Disposition
-        │
-        ▼
-composition of Primitive Capabilities
-        │
-        ▼
-UCA
-├── Purpose
-└── Capabilities
-        │
-        ▼
-harmonization of their Dispositions
-        │
-        ▼
-Action
-        │
-        ▼
-Outcome
+Dispositions of Capabilities (Configuration + Parametrization)
+                         │
+                         ▼
+                    harmonization
+                         │
+                         ▼
+                    UCA behaviour
+                         │
+                         ▼
+                      Action
+                         │
+                         ▼
+                      Outcome
+                         │
+                         ▼
+                      Purpose
 ```
 
-> **The effectiveness of a UCA depends not only on the individual Dispositions of its capabilities, but also on whether those Dispositions are harmonized with respect to the Purpose of the UCA.**
+> **Harmonizing a UCA may require modifying both the Configuration and the Parametrization of its constituent capabilities.**
 
 The `Purpose` provides the overarching criterion against which the harmonization of capabilities is evaluated.
 
@@ -259,11 +306,11 @@ Two UCAs can share the exact same `Purpose` and yet be functionally distinct due
 ```text
 Ear A
 ├── Purpose: continuously transcribe human speech
-└── SherpaRecognition + Disposition A
+└── SherpaRecognition + Disposition A (Configuration A + Parametrization A)
 
 Ear B
 ├── Purpose: continuously transcribe human speech
-└── WhisperRecognition + Disposition B
+└── WhisperRecognition + Disposition B (Configuration B + Parametrization B)
 ```
 
 Both are `Ear`. But they do not necessarily possess the same capabilities nor the same effective Disposition. Their behaviour and effectiveness may differ.
@@ -933,41 +980,64 @@ Purpose
 Capabilities (Pipeline of Concrete Primitive Capabilities)
 │
 ├── EchoCancellation
+│   ├── Mechanism: Adaptive acoustic echo reduction and cancellation
 │   └── Disposition:
-│       ├── suppressionGain: 0.0
-│       ├── bargeInThresholdRms: 160
-│       ├── echoLeakRatio: 0.25
-│       ├── maxThresholdRms: 450
-│       ├── decayMs: 350
-│       └── bargeInHoldMs: 400
+│       ├── Configuration: { sampleRate: 16000 }
+│       └── Parametrization:
+│           ├── suppressionGain: 0.0
+│           ├── bargeInThresholdRms: 160
+│           ├── echoLeakRatio: 0.25
+│           ├── maxThresholdRms: 450
+│           ├── decayMs: 350
+│           └── bargeInHoldMs: 400
 │
 ├── AudioFraming
+│   ├── Mechanism: Temporal chunking of continuous signal into discrete frames
 │   └── Disposition:
-│       ├── frameSize: 1600
-│       └── emitPartialOnFlush: false
+│       ├── Configuration: { sampleRate: 16000 }
+│       └── Parametrization:
+│           ├── frameSize: 1600
+│           └── emitPartialOnFlush: false
 │
 ├── PcmToFloat
+│   ├── Mechanism: Normalization and conversion of Int16 integers to Float32 floating-point
 │   └── Disposition:
-│       └── scale: 32768.0
+│       ├── Configuration: { inputType: "Int16", outputType: "Float32" }
+│       └── Parametrization:
+│           └── scale: 32768.0
 │
 ├── SherpaRecognition
+│   ├── Mechanism: Real-time speech recognition via transducer neural model (Sherpa-ONNX)
 │   └── Disposition:
-│       ├── numThreads: 4
-│       ├── enableEndpoint: true
-│       ├── rule1MinTrailingSilence: 2.4
-│       ├── rule2MinTrailingSilence: 0.4
-│       ├── rule3MinUtteranceLength: 20.0
-│       ├── decodingMethod: modified_beam_search
-│       └── hotwordsScore: 2.5
+│       ├── Configuration:
+│       │   ├── modelDir: ".extensio/models/stt-es"
+│       │   ├── modelType: "zipformer2"
+│       │   ├── provider: "cpu"
+│       │   ├── sampleRate: 16000
+│       │   └── featureDim: 80
+│       └── Parametrization:
+│           ├── numThreads: 4
+│           ├── enableEndpoint: true
+│           ├── rule1MinTrailingSilence: 2.4
+│           ├── rule2MinTrailingSilence: 0.4
+│           ├── rule3MinUtteranceLength: 20.0
+│           ├── decodingMethod: "modified_beam_search"
+│           └── hotwordsScore: 2.5
 │
 ├── EchoTextFilter
+│   ├── Mechanism: Lexical filtering and attenuation of autogenerated transcriptions
 │   └── Disposition:
-│       ├── decayMs: 2500
-│       ├── mismatchThreshold: 1
-│       └── minWordLength: 3
+│       ├── Configuration: { caseSensitive: false }
+│       └── Parametrization:
+│           ├── decayMs: 2500
+│           ├── mismatchThreshold: 1
+│           └── minWordLength: 3
 │
 └── EarCoherence
-    └── Disposition
+    ├── Mechanism: Structural normalization and temporal continuity preservation of Chunks
+    └── Disposition:
+        ├── Configuration: { outputSchema: "Chunk" }
+        └── Parametrization: {}
 
 Outcome (Continuous stream)
 │
