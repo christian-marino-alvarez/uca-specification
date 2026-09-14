@@ -132,59 +132,141 @@ It is stable, persistent, and independent of specific executions or mechanisms. 
 
 ---
 
-### 2.3 Disposition (D)
+### 2.3 Disposition (D) and Primitive Capabilities
 
-> **Disposition is the set of parameters that condition how a UCA uses its capabilities to fulfill its Purpose.**
+A UCA is a concrete unit constituted by concrete capabilities. A UCA must not be modeled as an abstraction that obscures the concrete characteristics and parameters of its capabilities.
 
-A `Disposition`:
-- belongs to the UCA;
-- conditions how it uses its `Capabilities`;
-- may affect the effectiveness with which it fulfills its `Purpose`;
-- can exist in deterministic UCAs as well as inference-based UCAs;
-- does not imply learning;
-- does not imply reasoning;
-- does not imply perception;
-- does not imply the use of language models (LLMs);
-- may be modified subsequently as a consequence of adaptation mechanisms.
+#### Canonical Definition of Disposition
 
-#### Capability vs Technological Implementation
+> **Disposition is the set of concrete parameters that determine how a Capability behaves within the possibilities offered by its mechanism.**
 
-It is essential to distinguish between architectural levels of abstraction:
+For a Primitive Capability:
 
 ```text
-Library / Model / Algorithm
-            ↓
-      implements/enables
-            ↓
-        Capability
-            ↓
-         used by
-            ↓
-           UCA
-            ↓
-      fulfills Purpose
+Primitive Capability
+├── Mechanism
+└── Disposition
 ```
+
+- The **Mechanism** determines what the capability can do.
+- The **Disposition** determines the concrete parameters under which that mechanism behaves.
+- Both form an inseparable part of the functional identity of the capability.
+
+#### Definition of Primitive Capability
+
+> **A Primitive Capability is a concrete capability that, within the current model, is no longer decomposed into smaller functional capabilities and whose behaviour is determined by a concrete mechanism and its Disposition.**
+
+- **Atomicity and Modeling Level**: Atomicity is relative to the system modeling level. Additional UCAs should not be created simply because a library or component internally uses multiple algorithms. Decomposition stops when the element can be treated as a primitive functional mechanism for the architecture.
+- **Identity of a Primitive Capability**: Two mechanisms that perform similar functions are not necessarily the same Capability.
 
 Example:
 ```text
-Sherpa-ONNX ──► Speech Recognition ──► Ear UCA ──► Continuously transcribe human speech
-(Technology)       (Capability)         (UCA)                 (Purpose)
+SherpaRecognition ≠ WhisperRecognition
 ```
 
-`Sherpa-ONNX` is a library or technological implementation. `Speech Recognition` is a primitive capability. `Ear` is the UCA because it possesses an autonomous `Purpose`.
+Although both conceptually belong to the functional category `Speech Recognition`, they are distinct primitive capabilities because:
+- they utilize different mechanisms;
+- they possess different operational characteristics and possibilities;
+- they have different behavioral parameters;
+- their Dispositions are not necessarily equivalent;
+- they may produce Outcomes with different properties.
 
-#### Criterion for Determining a Disposition
+Therefore, `Speech Recognition` may be used as a descriptive classification or category, but it must not obscure the identity of the concrete Primitive Capability:
 
-A parameter is not classified as `Disposition` simply because it is configurable, technical, cognitive, or learned. The following criterion applies:
+```text
+Speech Recognition (Functional Category)
+        │
+        ├── SherpaRecognition
+        │   ├── Mechanism: Sherpa OnlineRecognizer
+        │   └── Disposition: Sherpa-specific parameters
+        │
+        └── WhisperRecognition
+            ├── Mechanism: Whisper
+            └── Disposition: Whisper-specific parameters
+```
 
-> **Does this parameter condition how the UCA uses its capabilities to fulfill its Purpose?**
+#### Do Not Abstract the Disposition of a Primitive Capability
 
-- If the answer is **YES**, it conceptually belongs to its `Disposition`.
-- If the answer is **NO**, purely internal details required to implement a Capability remain encapsulated within that implementation (e.g., `modelPath`, `libraryVersion`, `binaryPath`).
+Any rule that forces converting concrete parameters of a Primitive Capability into abstract semantic properties is rejected:
 
-Example: `Ear.disposition.framingMs` determines the temporal granularity with which Ear uses Speech Recognition and produces its Outcomes. The effectiveness of a Disposition is always evaluated relative to the UCA's Purpose, without prescribing that any specific value is universally superior.
+```text
+Incorrect example:
+Sherpa: hotwordsScore ──► abstract adapter ──► contextualBias
+```
 
-The Core defines that Disposition conditions behavior. Policies governing who may modify Disposition, when, and how belong to **Cognitive Architecture** (§4).
+For `SherpaRecognition`, a parameter like `hotwordsScore: 2.5` forms directly part of its `Disposition`. It does not need to be artificially converted into `contextualBias: 2.5`. The second property might belong to another Capability with another mechanism, but does not define the same capability.
+
+> **Atomicity Rule**: Do not abstract a Primitive Capability to the point of obscuring the properties that determine its behaviour. If achieving a common abstraction requires hiding its mechanism, parameters, constraints, possibilities, or behaviour, that abstraction must not replace the concrete Capability.
+
+> **Mechanism Change Rule**: If the mechanism of a Primitive Capability changes such that its properties, possibilities, or Disposition change, it must be considered a different Capability, even if it performs a similar function.
+
+Therefore, `SherpaRecognition` must not be modeled as `SpeechRecognition(provider = Sherpa)` if that abstraction hides the specific properties characterizing Sherpa. Similarly, `WhisperRecognition` is not simply `SpeechRecognition(provider = Whisper)`.
+
+#### Composition of a UCA's Disposition
+
+A concrete UCA is constituted by concrete capabilities. The effective Disposition of a UCA emerges from the direct composition of the Dispositions of its constituent capabilities:
+
+```text
+Disposition(Ear)
+        │
+        ├── Disposition(EchoCancellation)
+        ├── Disposition(AudioFraming)
+        ├── Disposition(PcmToFloat)
+        ├── Disposition(SherpaRecognition)
+        ├── Disposition(EchoTextFilter)
+        └── Disposition(EarCoherence)
+```
+
+These parameters are not duplicated unnecessarily into a second abstract structure. The UCA knows the concrete constitution of its capabilities and their respective Dispositions.
+
+These capabilities are not automatically turned into independent UCAs as long as no autonomous `Purpose` exists to justify treating them as such.
+
+#### Harmonization of Dispositions with Respect to Purpose
+
+The Dispositions of the capabilities forming a UCA should not be understood as independent configurations. Their combination determines the emergent behaviour of the UCA with respect to its `Purpose`:
+
+```text
+Primitive Capability
+├── Mechanism
+└── Disposition
+        │
+        ▼
+composition of Primitive Capabilities
+        │
+        ▼
+UCA
+├── Purpose
+└── Capabilities
+        │
+        ▼
+harmonization of their Dispositions
+        │
+        ▼
+Action
+        │
+        ▼
+Outcome
+```
+
+> **The effectiveness of a UCA depends not only on the individual Dispositions of its capabilities, but also on whether those Dispositions are harmonized with respect to the Purpose of the UCA.**
+
+The `Purpose` provides the overarching criterion against which the harmonization of capabilities is evaluated.
+
+#### Architectural Consequence
+
+Two UCAs can share the exact same `Purpose` and yet be functionally distinct due to their concrete constitution:
+
+```text
+Ear A
+├── Purpose: continuously transcribe human speech
+└── SherpaRecognition + Disposition A
+
+Ear B
+├── Purpose: continuously transcribe human speech
+└── WhisperRecognition + Disposition B
+```
+
+Both are `Ear`. But they do not necessarily possess the same capabilities nor the same effective Disposition. Their behaviour and effectiveness may differ.
 
 ---
 
@@ -195,7 +277,7 @@ The Core defines that Disposition conditions behavior. Policies governing who ma
 > **A UCA selects and uses its available Capabilities as required to perform an Action toward its Goal under its Purpose. Other UCAs may be among those Capabilities.**
 
 Capabilities may include:
-- deterministic algorithms, parsers, and heuristics;
+- concrete primitive capabilities (deterministic algorithms, transforms, parsers, ASR);
 - storage engines, databases, and indices;
 - external tools, APIs, and drivers;
 - predictive models, embeddings, and language models;
@@ -839,7 +921,7 @@ The examples in this section are non-normative. They illustrate how cognitive re
 
 ### 7.1 Atomic Deterministic and Streaming UCA (Ear UCA)
 
-A UCA may be fully deterministic and require no inference or language models to fulfill its Purpose:
+A UCA may be fully deterministic and require no inference or language models to fulfill its Purpose. `Ear UCA` illustrates how a concrete UCA is constituted through a composition of concrete primitive capabilities with their respective harmonized Dispositions:
 
 ```text
 EAR UCA
@@ -848,18 +930,90 @@ Purpose
 │
 └── Continuously transcribe human speech.
 
-Capability
+Capabilities (Pipeline of Concrete Primitive Capabilities)
 │
-└── Speech Recognition (e.g., implemented using a local ASR engine, Whisper, or an audio pipeline)
-
-Disposition
+├── EchoCancellation
+│   └── Disposition:
+│       ├── suppressionGain: 0.0
+│       ├── bargeInThresholdRms: 160
+│       ├── echoLeakRatio: 0.25
+│       ├── maxThresholdRms: 450
+│       ├── decayMs: 350
+│       └── bargeInHoldMs: 400
 │
-└── framingMs (temporal granularity of processing, e.g., 50ms vs 500ms)
+├── AudioFraming
+│   └── Disposition:
+│       ├── frameSize: 1600
+│       └── emitPartialOnFlush: false
+│
+├── PcmToFloat
+│   └── Disposition:
+│       └── scale: 32768.0
+│
+├── SherpaRecognition
+│   └── Disposition:
+│       ├── numThreads: 4
+│       ├── enableEndpoint: true
+│       ├── rule1MinTrailingSilence: 2.4
+│       ├── rule2MinTrailingSilence: 0.4
+│       ├── rule3MinUtteranceLength: 20.0
+│       ├── decodingMethod: modified_beam_search
+│       └── hotwordsScore: 2.5
+│
+├── EchoTextFilter
+│   └── Disposition:
+│       ├── decayMs: 2500
+│       ├── mismatchThreshold: 1
+│       └── minWordLength: 3
+│
+└── EarCoherence
+    └── Disposition
 
 Outcome (Continuous stream)
 │
 └── Chunk { startAt, endAt, text }
 ```
+
+Canonical signal processing flow:
+
+```text
+Mic
+ │
+ ▼
+EchoCancellation (Disposition)
+ │
+ ▼
+AudioFraming (Disposition)
+ │
+ ▼
+PcmToFloat (Disposition)
+ │
+ ▼
+SherpaRecognition (Disposition)
+ │
+ ▼
+EchoTextFilter (Disposition)
+ │
+ ▼
+EarCoherence (Disposition)
+ │
+ ▼
+Chunk {
+    startAt,
+    endAt,
+    text
+}
+```
+
+#### Harmonization of Parameters in Ear
+
+The Dispositions of the individual primitive capabilities interact harmoniously to determine the emergent behaviour of Ear toward its Purpose:
+- `AudioFraming.frameSize: 1600` (audio chunk frame size).
+- `EchoCancellation.decayMs: 350` and `bargeInHoldMs: 400` (echo threshold and gating management).
+- `SherpaRecognition.rule2MinTrailingSilence: 0.4` (silence seconds for segment boundary detection).
+- `EchoTextFilter.decayMs: 2500` (temporal window for text echo attenuation).
+
+None of these primitive capabilities becomes an independent UCA as long as it does not possess a distinct autonomous Purpose. They remain primitive capabilities of Ear.
 
 Example of partial Outcomes emitted:
 ```text

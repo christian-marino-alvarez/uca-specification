@@ -100,7 +100,7 @@ U = (P, D, C)
 ```
 Where:
 - **`P` (Purpose)**: Why the UCA exists — stable, implementation-independent identity.
-- **`D` (Disposition)**: Parameters conditioning how the UCA uses its capabilities to fulfill its Purpose (e.g., operational thresholds, framing granularity).
+- **`D` (Disposition)**: Concrete parameters determining how its capabilities behave within the possibilities offered by their mechanisms to fulfill its Purpose. A UCA's effective Disposition emerges from the composition and harmonization of its constituent capabilities' Dispositions.
 - **`C` (Capabilities)**: Accessible resources (algorithms, tools, models, other UCAs). A UCA may use other UCAs as Capabilities when their autonomous Purposes provide functionality required by its Action. Composition is recursive and does not require a central coordinator.
 
 An activation is defined by:

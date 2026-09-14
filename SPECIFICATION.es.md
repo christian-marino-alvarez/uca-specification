@@ -132,59 +132,141 @@ Es estable, persistente e independiente de ejecuciones concretas o mecanismos es
 
 ---
 
-### 2.3 Disposition (D)
+### 2.3 Disposition (D) y Primitive Capabilities
 
-> **Disposition es el conjunto de parámetros que condicionan cómo una UCA utiliza sus capacidades para cumplir su Purpose.**
+Una UCA es una unidad concreta constituida por capacidades concretas. Una UCA no debe modelarse como una abstracción que oculta las características y parámetros de sus capacidades.
 
-Una `Disposition`:
-- pertenece a la UCA;
-- condiciona cómo utiliza sus `Capabilities`;
-- puede afectar a la efectividad con la que cumple su `Purpose`;
-- puede existir tanto en UCAs deterministas como basadas en inferencia;
-- no implica aprendizaje;
-- no implica razonamiento;
-- no implica percepción;
-- no implica uso de modelos de lenguaje (LLM);
-- puede ser modificada posteriormente como consecuencia de mecanismos de adaptación.
+#### Definición Canónica de Disposition
 
-#### Capability frente a Implementación Tecnológica
+> **Disposition es el conjunto de parámetros concretos que determinan cómo se comporta una Capability dentro de las posibilidades ofrecidas por su mecanismo.**
 
-Es fundamental distinguir los niveles de abstracción:
+Para una Primitive Capability:
 
 ```text
-Library / Model / Algorithm
-            ↓
-      implements/enables
-            ↓
-        Capability
-            ↓
-         used by
-            ↓
-           UCA
-            ↓
-      fulfills Purpose
+Primitive Capability
+├── Mechanism
+└── Disposition
 ```
+
+- El **Mechanism** (Mecanismo) determina qué puede hacer la capacidad.
+- La **Disposition** (Disposición) determina los parámetros concretos bajo los cuales ese mecanismo se comporta.
+- Ambos forman parte inseparable de la identidad funcional de la capacidad.
+
+#### Definición de Primitive Capability
+
+> **Una Primitive Capability es una capacidad concreta que, dentro del modelo actual, ya no se descompone en capacidades funcionales menores y cuyo comportamiento está determinado por un mecanismo concreto y su Disposition.**
+
+- **Atomicidad y Nivel de Modelado**: La atomicidad es relativa al nivel de modelado del sistema. No se deben crear UCAs adicionales simplemente porque internamente una biblioteca o componente utilice múltiples algoritmos. La descomposición se detiene cuando el elemento ya puede considerarse un mecanismo funcional primitivo para la arquitectura.
+- **Identidad de una Primitive Capability**: Dos mecanismos que realizan funciones similares no son necesariamente la misma Capability.
 
 Ejemplo:
 ```text
-Sherpa-ONNX ──► Speech Recognition ──► Ear UCA ──► Transcribir continuamente voz humana
-(Tecnología)       (Capability)         (UCA)               (Purpose)
+SherpaRecognition ≠ WhisperRecognition
 ```
 
-`Sherpa-ONNX` es una biblioteca o implementación tecnológica. `Speech Recognition` es una capacidad primitiva. `Ear` es la UCA porque posee un `Purpose` autónomo.
+Aunque ambas puedan pertenecer conceptualmente a la categoría funcional `Speech Recognition`, son capacidades primitivas diferentes porque:
+- utilizan mecanismos diferentes;
+- poseen características y posibilidades operacionales diferentes;
+- tienen parámetros de comportamiento diferentes;
+- sus Dispositions no son necesariamente equivalentes;
+- pueden producir Outcomes con propiedades diferentes.
 
-#### Criterio para Determinar una Disposition
+Por tanto, `Speech Recognition` puede utilizarse como categoría descriptiva o de clasificación, pero no debe ocultar la identidad de la Primitive Capability concreta:
 
-No se clasifica un parámetro como `Disposition` simplemente porque sea configurable, técnico, cognitivo o aprendido. Se aplica el siguiente criterio:
+```text
+Speech Recognition (Categoría Funcional)
+        │
+        ├── SherpaRecognition
+        │   ├── Mechanism: Sherpa OnlineRecognizer
+        │   └── Disposition: Parámetros específicos de Sherpa
+        │
+        └── WhisperRecognition
+            ├── Mechanism: Whisper
+            └── Disposition: Parámetros específicos de Whisper
+```
 
-> **¿Este parámetro condiciona cómo la UCA utiliza sus capacidades para cumplir su Purpose?**
+#### No Abstraer la Disposition de una Primitive Capability
 
-- Si la respuesta es **SÍ**, forma parte conceptualmente de su `Disposition`.
-- Si la respuesta es **NO**, los detalles exclusivamente internos necesarios para implementar una Capability permanecen encapsulados en dicha implementación (ej. `modelPath`, `libraryVersion`, `binaryPath`).
+Se descarta cualquier regla que obligue a convertir parámetros concretos de una Primitive Capability en propiedades semánticas abstractas:
 
-Ejemplo: `Ear.disposition.framingMs` determina la granularidad temporal con la que Ear utiliza Speech Recognition y emite sus Outcomes. La efectividad de una Disposition siempre se evalúa respecto al Purpose de la UCA, sin prescribir que un valor sea universalmente mejor que otro.
+```text
+Ejemplo incorrecto:
+Sherpa: hotwordsScore ──► adapter abstracto ──► contextualBias
+```
 
-El Core define que la Disposition condiciona el comportamiento. Las políticas sobre quién puede modificar la Disposition, cuándo y cómo pertenecen a la **Arquitectura Cognitiva** (§4).
+Para `SherpaRecognition`, un parámetro como `hotwordsScore: 2.5` forma directamente parte de su `Disposition`. No necesita convertirse artificialmente en `contextualBias: 2.5`. La segunda propiedad podría pertenecer a otra Capability con otro mecanismo, pero no define necesariamente la misma capacidad.
+
+> **Regla de Atomicidad**: No abstraer una Primitive Capability hasta el punto de ocultar las propiedades que determinan su comportamiento. Si para conseguir una abstracción común es necesario ocultar su mecanismo, parámetros, restricciones, posibilidades o comportamiento, dicha abstracción no debe sustituir a la Capability concreta.
+
+> **Regla de Cambio de Mecanismo**: Si cambia el mecanismo de una Primitive Capability de forma que cambian sus propiedades, posibilidades o Disposition, debe considerarse otra Capability, aunque realice una función semejante.
+
+Por tanto, `SherpaRecognition` no debe modelarse como `SpeechRecognition(provider = Sherpa)` si esa abstracción oculta las propiedades específicas que caracterizan a Sherpa. De igual forma, `WhisperRecognition` no es simplemente `SpeechRecognition(provider = Whisper)`.
+
+#### Composición de la Disposition de una UCA
+
+Una UCA concreta está constituida por capacidades concretas. La Disposition efectiva de una UCA surge de la composición directa de las Dispositions de las capacidades que la constituyen:
+
+```text
+Disposition(Ear)
+        │
+        ├── Disposition(EchoCancellation)
+        ├── Disposition(AudioFraming)
+        ├── Disposition(PcmToFloat)
+        ├── Disposition(SherpaRecognition)
+        ├── Disposition(EchoTextFilter)
+        └── Disposition(EarCoherence)
+```
+
+No se duplican innecesariamente estos parámetros en una segunda estructura abstracta. La UCA conoce la constitución concreta de sus capacidades y sus respectivas Dispositions.
+
+Estas capacidades no se convierten automáticamente en UCAs independientes mientras no exista un `Purpose` autónomo que justifique tratarlas como tales.
+
+#### Armonización de Dispositions respecto al Purpose
+
+Las Dispositions de las capacidades que forman una UCA no deben entenderse como configuraciones independientes. Su combinación determina el comportamiento emergente de la UCA respecto a su `Purpose`:
+
+```text
+Primitive Capability
+├── Mechanism
+└── Disposition
+        │
+        ▼
+composición de Primitive Capabilities
+        │
+        ▼
+UCA
+├── Purpose
+└── Capabilities
+        │
+        ▼
+armonización de sus Dispositions
+        │
+        ▼
+Action
+        │
+        ▼
+Outcome
+```
+
+> **La efectividad de una UCA depende no sólo de las Dispositions individuales de sus capacidades, sino de que dichas Dispositions estén armonizadas respecto al Purpose de la UCA.**
+
+El `Purpose` proporciona el criterio superior respecto al cual puede evaluarse la armonización de las capacidades.
+
+#### Consecuencia Arquitectónica
+
+Dos UCAs pueden compartir exactamente el mismo `Purpose` y, sin embargo, ser funcionalmente diferentes debido a su constitución concreta:
+
+```text
+Ear A
+├── Purpose: transcribir continuamente voz humana
+└── SherpaRecognition + Disposition A
+
+Ear B
+├── Purpose: transcribir continuamente voz humana
+└── WhisperRecognition + Disposition B
+```
+
+Ambas son `Ear`. Pero no poseen necesariamente las mismas capacidades ni la misma Disposition efectiva. Su comportamiento y efectividad pueden ser distintos.
 
 ---
 
@@ -195,7 +277,7 @@ Las `Capabilities` son los recursos operacionales que una UCA puede aprovechar p
 > **Una UCA selecciona y utiliza las Capabilities disponibles según sea necesario para realizar una Action hacia su Goal bajo su Purpose. Otras UCAs pueden estar entre esas Capabilities.**
 
 Pueden incluir:
-- algoritmos deterministas, parsers y heurísticas;
+- capacidades primitivas concretas (algoritmos deterministas, transforms, parsers, ASR);
 - motores de almacenamiento, bases de datos e índices;
 - herramientas externas, APIs y drivers;
 - modelos predictivos, embeddings y modelos de lenguaje;
@@ -839,7 +921,7 @@ Los ejemplos de esta sección son no normativos. Ilustran cómo las responsabili
 
 ### 7.1 UCA Atómica Determinista y Streaming (Ear UCA)
 
-Una UCA puede ser completamente determinista y no requerir inferencia ni modelos de lenguaje para cumplir su Purpose:
+Una UCA puede ser completamente determinista y no requerir inferencia ni modelos de lenguaje para cumplir su Purpose. `Ear UCA` ilustra cómo una UCA concreta se constituye mediante una composición de capacidades primitivas concretas con sus respectivas Dispositions armonizadas:
 
 ```text
 EAR UCA
@@ -848,18 +930,90 @@ Purpose
 │
 └── Transcribir continuamente voz humana.
 
-Capability
+Capabilities (Pipeline de Capacidades Primitivas Concretas)
 │
-└── Speech Recognition (ej. implementada mediante un motor de ASR local, Whisper, o pipeline de audio)
-
-Disposition
+├── EchoCancellation
+│   └── Disposition:
+│       ├── suppressionGain: 0.0
+│       ├── bargeInThresholdRms: 160
+│       ├── echoLeakRatio: 0.25
+│       ├── maxThresholdRms: 450
+│       ├── decayMs: 350
+│       └── bargeInHoldMs: 400
 │
-└── framingMs (granularidad temporal del procesamiento, ej. 50ms vs 500ms)
+├── AudioFraming
+│   └── Disposition:
+│       ├── frameSize: 1600
+│       └── emitPartialOnFlush: false
+│
+├── PcmToFloat
+│   └── Disposition:
+│       └── scale: 32768.0
+│
+├── SherpaRecognition
+│   └── Disposition:
+│       ├── numThreads: 4
+│       ├── enableEndpoint: true
+│       ├── rule1MinTrailingSilence: 2.4
+│       ├── rule2MinTrailingSilence: 0.4
+│       ├── rule3MinUtteranceLength: 20.0
+│       ├── decodingMethod: modified_beam_search
+│       └── hotwordsScore: 2.5
+│
+├── EchoTextFilter
+│   └── Disposition:
+│       ├── decayMs: 2500
+│       ├── mismatchThreshold: 1
+│       └── minWordLength: 3
+│
+└── EarCoherence
+    └── Disposition
 
 Outcome (Stream continuo)
 │
 └── Chunk { startAt, endAt, text }
 ```
+
+Flujo canónico de procesamiento de la señal:
+
+```text
+Mic
+ │
+ ▼
+EchoCancellation (Disposition)
+ │
+ ▼
+AudioFraming (Disposition)
+ │
+ ▼
+PcmToFloat (Disposition)
+ │
+ ▼
+SherpaRecognition (Disposition)
+ │
+ ▼
+EchoTextFilter (Disposition)
+ │
+ ▼
+EarCoherence (Disposition)
+ │
+ ▼
+Chunk {
+    startAt,
+    endAt,
+    text
+}
+```
+
+#### Armonización de Parámetros en Ear
+
+Las Dispositions de las capacidades primitivas individuales interactúan armónicamente para determinar el comportamiento emergente de Ear hacia su Purpose:
+- `AudioFraming.frameSize: 1600` (tamaño de fragmento de audio).
+- `EchoCancellation.decayMs: 350` y `bargeInHoldMs: 400` (gestión de umbral de eco y corte).
+- `SherpaRecognition.rule2MinTrailingSilence: 0.4` (segundos de silencio para cierre de segmento).
+- `EchoTextFilter.decayMs: 2500` (ventana temporal de atenuación de eco textual).
+
+Ninguna de estas capacidades primitivas se convierte en una UCA independiente mientras no posea un Purpose autónomo diferenciado. Permanecen como capacidades primitivas de Ear.
 
 Ejemplo de Outcomes parciales emitidos:
 ```text
