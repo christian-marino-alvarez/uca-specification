@@ -17,13 +17,43 @@ Muchas arquitecturas contemporáneas de agentes de Inteligencia Artificial se ap
 ```text
 Input ──► Estado Central / Snapshot ──► Prompt con Gran Contexto ──► Modelo Central ──► Output
 ```
-Este patrón suele concentrar responsabilidades dispares en estructuras globales masivas y delega la deliberación, coordinación y resolución de errores exclusivamente en llamadas opacas a modelos de lenguaje.
+Este patrón suele concentrar responsabilidades dispares en estructuras globales masivas y delega la planificación, coordinación y resolución de errores exclusivamente en inferencias de modelos individuales.
 
-La especificación abierta **UCA (Unidad Cognitiva Autónoma)** explora un principio alternativo de descomposición:
+La especificación abierta **UCA (Unidad Cognitiva Autónoma)** define una abstracción minimalista orientada a propósitos:
 - **Autonomía en el Purpose**: La funcionalidad cognitiva se divide según propósitos autónomos y acotados (`Purpose`).
-- **Reactividad en la ejecución**: Ninguna UCA se autoactiva; actúa estrictamente ante un estímulo recibido (`Stimulus = Goal + Context`).
-- **Cognición emergente**: La cognición no reside en una única unidad central ni en un modelo monolítico; **emerge de la interacción causal y contextual** entre unidades especializadas ($UCA_1, UCA_2, UCA_3$).
-- **Adaptación estructural sin reentrenamiento**: La interacción con el entorno exterior aporta evidencia que permite a unidades supervisoras diagnosticar desviaciones y adaptar las predisposiciones de comportamiento (`Dispositions`) de las unidades pertinentes, modificando la conducta futura sin alterar código fuente ni reentrenar pesos.
+- **Reactividad en la ejecución**: Una UCA actúa estrictamente ante un estímulo recibido (`Stimulus = Goal + Context`).
+- **Cognición emergente**: La cognición no reside en un único modelo central; **emerge de la interacción contextual** entre unidades especializadas.
+- **Adaptación estructural sin reentrenamiento**: Las disposiciones (`Dispositions`) pueden adaptarse en respuesta a la retroalimentación operacional, modificando la conducta futura sin alterar código fuente ni reentrenar pesos.
+
+---
+
+## 🏛️ La Arquitectura en Tres Niveles
+
+Para preservar un contrato mínimo y universal, la especificación separa estrictamente tres niveles:
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                           UCA CORE                              │
+│  Define qué es una UCA: identidad, contratos y activación.      │
+│  U = (P, D, C)  |  S = (G, X)  |  compat(P, G)  |  O = F_U(S)   │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    COGNITIVE ARCHITECTURE                       │
+│  Define cómo un sistema organiza y compone múltiples UCAs:     │
+│  Coordinación, supervisión, distribución de estado, causalidad. │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                            RUNTIME                              │
+│  Define la infraestructura de ejecución y transporte:           │
+│  Sobres Impulse, protocolos de mensajería, concurrencia, trazas.│
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Una unidad funcional es una UCA si y solo si satisface el **UCA Core**. La Arquitectura Cognitiva y el Runtime son decisiones de implementación y organización.
 
 ---
 
@@ -47,101 +77,84 @@ Esta especificación abierta define el contrato conceptual de una Unidad Cogniti
 - Una representación centralizada de estado global;
 - Un entorno de ejecución (runtime) específico.
 
-Cualquier sistema puede implementar los conceptos de UCA utilizando diferentes lenguajes de programación, modelos de actores, buses de eventos, runtimes distribuidos, modelos de lenguaje locales o remotos, y diversas topologías organizativas. Un proyecto o runtime de referencia (como Extensio) puede implementar la abstracción UCA, pero UCA permanece como una especificación abierta e independiente.
+Cualquier sistema puede implementar los conceptos de UCA utilizando diferentes lenguajes de programación, modelos de actores, buses de eventos, runtimes distribuidos, modelos locales o remotos, y diversas topologías organizativas.
 
 ---
 
-## 🏛️ Modelo Conceptual Mínimo (Core UCA)
+## 🔬 Modelo Conceptual Mínimo (UCA Core)
 
 Una UCA se compone persistentemente de:
 ```text
-UCA
-├── Purpose       (Por qué existe — persistente, independiente de la implementación)
-├── Disposition   (Predisposiciones de comportamiento — adaptables externamente)
-└── Capabilities  (Recursos disponibles: algoritmos, herramientas, modelos, otras UCAs)
+U = (P, D, C)
 ```
+Donde:
+- **$P$ (Purpose)**: Por qué existe la UCA (identidad estable e independiente de la implementación).
+- **$D$ (Disposition)**: Predisposiciones de comportamiento (umbrales de confianza, tolerancia a ambigüedad, sesgos).
+- **$C$ (Capabilities)**: Recursos accesibles (algoritmos, herramientas, modelos, UCAs subordinadas).
 
-### El Ciclo de Activación Canónico
+Una activación se define por:
+```text
+S = (G, X)
+```
+Donde:
+- **$G$ (Goal)**: Resultado objetivo para esta activación ($\text{compat}(P, G) = \text{true}$).
+- **$X$ (Context)**: Información contextual requerida para interpretar y alcanzar $G$.
 
-Una UCA reacciona estrictamente al recibir un **Estímulo**:
+La ejecución produce:
+```text
+O = F_U(S) = F(P, D, C, G, X)
+```
+Donde:
+- **$O$ (Outcome)**: Lo que la acción ejecutada produjo realmente (*pertenece a la unidad ejecutora*).
+
+Attainment ($T$):
+> El Outcome pertenece a quien ejecuta.
+> El Attainment pertenece a quien originó el Goal.
+
+### Flujo Canónico de Activación
 
 ```mermaid
 flowchart TD
-    EXT([Estímulo Externo]) --> IMP[Impulse: Sobre de Transporte]
-    IMP --> STIM[Stimulus: Goal + Context]
-    
-    subgraph UCA [Ciclo de Activación UCA]
-        STIM --> VAL{¿Goal compatible<br/>con Purpose?}
-        VAL -- No --> REJ[Outcome: Incompatible Goal]
-        VAL -- Sí --> OBS[Observation: Extracción de salience y contexto]
-        OBS --> DEC[Deliberación: Ponderación con Disposition y Capabilities]
-        DEC --> ACT[Action: Ejecución determinista o inferencial]
-        ACT --> OUT[Outcome: Resultado real producido]
-    end
-    
-    OUT --> RET[Impulse de Retorno vía Capa de Transporte]
-    RET --> ATT[Evaluación de Attainment por quien fijó el Goal]
+    STIM[Stimulus: Goal + Context] --> VAL{¿Goal compatible<br/>con Purpose?}
+    VAL -- No --> REJ[Outcome: Incompatible Goal]
+    VAL -- Sí --> OBS[Observation: Extracción de salience y contexto]
+    OBS --> DEC[Deliberación: Ponderación con Disposition y Capabilities]
+    DEC --> ACT[Action: Ejecución determinista o inferencial]
+    ACT --> OUT[Outcome: Resultado real producido]
+    OUT --> ATT[Evaluación de Attainment por quien fijó el Goal]
 ```
 
 ---
 
-## 📐 Conceptos Clave
+## 📜 Invariantes Fundamentales
 
-| Concepto | Definición |
-|---|---|
-| **Purpose** | Expresa **por qué existe** una UCA. Estable, independiente de una ejecución concreta. |
-| **Goal** | Qué **resultado concreto** necesita obtenerse en una activación determinada. Contextual y efímero. |
-| **Stimulus** | La activación cognitiva de una UCA. Contiene el `Goal` y el `Context`. |
-| **Impulse** | El sobre de transporte en la capa de comunicación (id, ttl, traceId, prioridad, stimulus/outcome). |
-| **Context** | La información relevante necesaria para interpretar el Goal (evidencias, outcomes previos). |
-| **Observation** | La información cognitivamente relevante que la UCA extrae de la entrada. |
-| **Disposition** | Predisposiciones de comportamiento (tolerancia a ambigüedad, umbrales de inferencia, etc.). |
-| **Capability** | Recursos instrumentales que una UCA puede invocar (algoritmos, LLMs, drivers, o **otras UCAs**). |
-| **Action** | La ejecución concreta que intenta satisfacer el Goal bajo su Purpose. |
-| **Outcome** | Lo que **realmente produjo** la acción (*pertenece a quien ejecuta*). |
-| **Attainment** | Grado en que el Outcome satisface la necesidad original (*pertenece a quien estableció el Goal*). |
+1. **Principio de Purpose**: Una UCA se define por un Purpose ($P$) autónomo y estable.
+2. **Principio de Especialización**: Una UCA solo acepta Goals compatibles con su Purpose ($\text{compat}(P, G) = \text{true}$).
+3. **Principio de Reactividad Local**: Ninguna UCA se autoactiva; opera estrictamente ante un Stimulus ($S$).
+4. **Principio de Composición**: Una UCA puede utilizar otra UCA como Capability (composición recursiva).
+5. **Principio de Terminación**: Cuando dejan de emerger propósitos autónomos y solo restan mecanismos, se han alcanzado capacidades terminales.
+6. **Principio de Outcome**: Una UCA produce Outcomes reales; no se autoevalúa en abstracto.
+7. **Principio de Attainment**: El Outcome pertenece a quien ejecuta; el Attainment a quien originó el Goal.
+8. **Invarianza del Purpose**: Una UCA no puede alterar su propio Purpose, ya que destruiría su identidad funcional.
+9. **Principio de Representación**: Poseer el dato producido por una capacidad cognitiva no equivale a poseer la capacidad que lo genera.
 
 ---
 
-## 📜 Principios Fundamentales
+## ✅ Criterios Mínimos de Conformidad (Conformance)
 
-1. **Principio de Purpose**: Una UCA existe porque posee un propósito autónomo y estable.
-2. **Principio de Especialización**: Solo acepta Goals compatibles con su Purpose.
-3. **Principio de Reactividad**: No existe autoactivación espontánea; solo opera ante un Stimulus.
-4. **Principio de Causalidad Externa**: Toda cadena cognitiva tiene su origen en el exterior del sistema cognitivo.
-5. **Principio de Composición**: Una UCA puede utilizar otra UCA como Capability (composición recursiva).
-6. **Principio de Terminación**: Cuando dejan de emerger propósitos autónomos y solo restan mecanismos, se han alcanzado capacidades terminales.
-7. **Principio de Outcome**: Una UCA produce Outcomes reales; no se autoevalúa en abstracto.
-8. **Principio de Attainment**: El Outcome pertenece a quien ejecuta; el Attainment a quien fijó el Goal.
-9. **Principio de No Autoadaptación**: Una UCA no altera su propia Disposition; la adaptación procede de una capacidad supervisora independiente.
-10. **Principio de Emergencia**: La cognición no reside en una unidad central; emerge de la interacción contextual entre unidades.
-11. **Principio de Proactividad**: La autonomía está en el Purpose, la reactividad en la ejecución y la proactividad emerge del encadenamiento causal.
-12. **Principio de Representación**: Un dato almacenado no sustituye a la capacidad cognitiva de producirlo.
+Un componente de software cumple con el **UCA Core** si y solo si:
 
----
+1. Define un **Purpose** ($P$) explícito, estable e independiente de la implementación.
+2. Acepta **Goals** ($G$) solo cuando son compatibles con su Purpose ($\text{compat}(P, G) = \text{true}$).
+3. Se ejecuta estrictamente al recibir un **Stimulus** activador ($S$).
+4. Consume el **Context** ($X$) requerido para su activación.
+5. Opera mediante un conjunto explícito de **Capabilities** ($C$).
+6. Su razonamiento o selección de acción puede estar condicionado por una **Disposition** ($D$).
+7. Ejecuta una **Action** ($A$) orientada hacia el Goal.
+8. Produce un **Outcome** ($O$) que representa lo que la acción produjo efectivamente.
+9. Trata a otro componente como UCA solo si dicho componente posee su propio Purpose autónomo.
 
-## 🧭 Organización de la Especificación
-
-El documento formal completo se estructura en tres niveles:
-
-1. **[Parte I: Core UCA](SPECIFICATION.es.md#parte-i--core-uca)**: La definición mínima e invariante de una UCA, su ciclo de activación, disposition, formulación de acción, producción de outcomes y evaluación de attainment.
-2. **[Parte II: Consecuencias Arquitectónicas y Patrones de Composición](SPECIFICATION.es.md#parte-ii--consecuencias-arquitectónicas-y-patrones-de-composición)**: Cadenas causales multi-UCA, el sobre de transporte Impulse, trazabilidad causal, patrones opcionales de composición (Coordinador, Supervisor, Identidad, Memoria) y síntesis dinámica de contexto.
-3. **[Parte III: Hipótesis Experimentales y Preguntas Abiertas](SPECIFICATION.es.md#parte-iii--hipótesis-experimentales-y-preguntas-abiertas)**: Cognición emergente, proactividad emergente, bucles de adaptación conductual, plasticidad relacional inter-unidad (Sinapsis) y criterios de validación empírica.
-
----
-
-## 🎯 Criterio de Validación Empírica
-
-El modelo UCA se valida cuando un conjunto reducido de unidades es capaz de:
-1. Recibir un estímulo externo;
-2. Reaccionar según sus propósitos especializados sin una entidad central omnisciente;
-3. Colaborar mediante intercambio de estímulos y outcomes;
-4. Producir una acción hacia el exterior;
-5. Recibir evidencia externa sobre el resultado de dicha acción;
-6. Emplear esa evidencia para diagnosticar desviaciones;
-7. Adaptar una o más `Dispositions`;
-8. **Reaccionar de forma adaptada y correcta ante un escenario futuro equivalente**;
-9. Lograrlo **sin alteración de código fuente, sin reentrenamiento de modelos y sin reglas ad-hoc para el caso**.
+**No-requisitos para la conformidad**: Una implementación *no* requiere un sobre Impulse, un Event Bus, un LLM, causalidad externa obligatoria, un snapshot de estado global ni un coordinador o supervisor centralizado para ser conforme con UCA.
 
 ---
 

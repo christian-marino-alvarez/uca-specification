@@ -5,357 +5,401 @@
 
 ---
 
-## Specification vs Implementation
+## Three-Tier Architecture: Core, Architecture, and Runtime
 
-This document defines the formal conceptual contract of an **Autonomous Cognitive Unit (UCA)**.
+To ensure that the Autonomous Cognitive Unit (UCA) remains a durable and universally implementable abstraction, this specification strictly differentiates three separate tiers:
 
-The specification deliberately defines:
-- What constitutes a UCA;
-- How a UCA is activated;
-- How it deliberates and acts;
-- How it composes with other capabilities and units;
-- The invariants that preserve its autonomy and bounded scope.
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                           UCA CORE                              │
+│  Defines what a UCA is: identity, contracts, and activation.   │
+│  U = (P, D, C)  |  S = (G, X)  |  compat(P, G)  |  O = F_U(S)   │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    COGNITIVE ARCHITECTURE                       │
+│  Defines how a system organizes and composes multiple UCAs:     │
+│  Coordination, supervision, state distribution, causality.     │
+└────────────────────────────────┬────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                            RUNTIME                              │
+│  Defines execution and transport infrastructure:                │
+│  Impulse envelopes, messaging protocols, concurrency, tracing. │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-This specification deliberately **does not** prescribe:
-- A mandatory cognitive topology or hierarchy;
-- Specific cognitive units that every system must instantiate;
-- Biological, neurological, or anatomical analogies;
-- A particular communication technology, bus, or protocol;
-- A specific language model, framework, or vendor;
-- A concrete memory or storage engine;
-- A centralized global state representation;
-- A specific runtime environment.
+A functional unit is a UCA if and only if it satisfies the **UCA Core**. 
 
-Systems may implement UCA concepts using diverse programming languages, actor models, event buses, distributed runtimes, local or remote language models, and varied architectural topologies. A reference project or runtime (such as Extensio) may implement the UCA abstraction, but UCA remains an independent, open specification.
+The Cognitive Architecture and the Runtime are implementation and organizational choices; they do not dictate the identity of an individual UCA.
 
 ---
 
-# PART I — UCA CORE
+# 1. UCA CORE
 
-The UCA Core establishes the minimal, necessary, and sufficient principles that define an Autonomous Cognitive Unit.
+The UCA Core contains strictly the necessary and sufficient properties to identify a functional unit as an Autonomous Cognitive Unit.
 
 ---
 
-## 1. Definition
+## 1.1 Definition
 
-An **Autonomous Cognitive Unit (UCA)** is a functional unit of a cognitive system defined by an **autonomous purpose (`Purpose`)**.
+An **Autonomous Cognitive Unit (UCA)** is a bounded functional unit defined by an **autonomous purpose (`Purpose`)**.
 
-A UCA is not defined by the algorithm it executes, the model it queries, or the data it processes.
+A UCA is not defined by the algorithm it executes, the model it queries, the programming language it is written in, or the data structures it manipulates.
 
-It is defined by **why it exists within the cognitive system**.
+It is defined by **why it exists within a cognitive system**.
 
 > A UCA is defined not by what it executes, but by the purpose it is responsible for fulfilling.
 
-A UCA may utilize deterministic algorithms, mathematical routines, storage engines, drivers, external tools, web services, Large Language Models (LLMs), or other subordinate UCAs to fulfill its purpose.
+Formal definition:
+
+```text
+U = (P, D, C)
+```
+
+Where:
+- $P$ = **Purpose**
+- $D$ = **Disposition**
+- $C$ = **Capabilities**
 
 ---
 
-## 2. Purpose
+## 1.2 Purpose ($P$)
 
 The `Purpose` expresses **why a UCA exists**.
 
-It is stable, persistent, and independent of specific executions and implementation mechanisms.
+It is stable, persistent, and independent of specific executions or mechanical details. It defines the operational boundary and identity of the unit.
 
-- **Valid Purpose**: Provide relevant previously acquired knowledge for an active operational need.
-- **Invalid Purpose**: Query a vector database using cosine similarity.
-
-Querying a vector database is a mechanism or capability; it is not an autonomous cognitive purpose.
-
-The Purpose must always remain independent of the underlying implementation machinery.
+- A Purpose defines what domain of responsibility belongs to the unit.
+- A UCA cannot arbitrarily alter its own Purpose, as doing so would destroy its functional identity.
+- A UCA must never be defined by its mechanisms (e.g. "query a vector database" or "call an LLM" are mechanisms, not cognitive purposes).
 
 ---
 
-## 3. Goal
+## 1.3 Goal ($G$)
 
 The `Goal` represents **what concrete outcome must be achieved in a given activation**.
 
 In contrast to Purpose:
 
 ```text
-PURPOSE
-Why does this UCA exist? (Stable, persistent, invariant)
+PURPOSE (P)
+Why does this UCA exist? (Persistent, invariant identity)
 
-GOAL
-What concrete outcome is required right now? (Contextual, transient, activation-specific)
+GOAL (G)
+What concrete outcome must be accomplished right now? (Contextual, activation-specific)
 ```
 
-A UCA always interprets a received Goal through the lens of its own Purpose.
+A UCA always interprets an incoming Goal through the lens of its own Purpose.
 
 ---
 
-## 4. Compatibility Between Goal and Purpose
+## 1.4 Purpose / Goal Compatibility: $\text{compat}(P, G)$
 
-A UCA must only accept Goals that are strictly compatible with its Purpose.
-
-- **Compatible**: A knowledge-oriented UCA receives a Goal to retrieve historical facts about a topic.
-- **Incompatible**: A knowledge-oriented UCA receives a Goal to synthesize audio waveforms and speak to a user.
-
-A Goal belonging to another operational domain must be rejected or routed elsewhere. This principle of specialization prevents UCAs from degenerating into unbounded, generic agents that attempt arbitrary tasks.
-
----
-
-## 5. Stimulus
-
-A UCA executes exclusively upon receiving a `Stimulus`.
-
-The Stimulus represents the **cognitive activation of the UCA**.
-
-Conceptually, it is composed of:
+A UCA must only accept Goals that are compatible with its Purpose:
 
 ```text
-Stimulus
-├── Goal
-└── Context
+compat(P, G) = true
 ```
 
-The Stimulus is a conceptual cognitive contract, distinct from network packets, messaging envelopes, or physical transport mechanisms.
+If an incoming Goal falls outside the unit's defined Purpose, the activation does not belong to the UCA's domain and must be rejected or redirected.
+
+This constraint ensures that a UCA remains bounded and specialized, preventing it from degenerating into an unconstrained, monolithic agent. The specification does not prescribe a specific algorithmic method or numerical threshold for evaluating compatibility.
 
 ---
 
-## 6. Context
+## 1.5 Stimulus ($S$)
 
-The `Context` contains the information strictly necessary for a UCA to interpret and resolve its Goal.
+A UCA executes strictly upon receiving a `Stimulus`.
 
-It must not represent the system's entire world-state or an unconstrained snapshot of all memory. It is bounded to what is relevant for the specific activation:
+The Stimulus represents the cognitive activation of the UCA. Formally:
 
 ```text
-Prior Outcomes
-      +
-Active Evidence
-      +
-Current Stimulus
-      ↓
-   Context
-      ↓
-Active Cognition
+S = (G, X)
 ```
 
-The contextual past conditions and modulates the interpretation of the immediate present.
+Where:
+- $G$ = **Goal** (the target outcome for this activation)
+- $X$ = **Context** (the relevant contextual data required to interpret and achieve $G$)
+
+The Stimulus is a cognitive abstraction. It does not prescribe any specific network envelope, wire protocol, or transport mechanism.
 
 ---
 
-## 7. Observation
+## 1.6 Context ($X$)
 
-Upon activation, the UCA processes the Stimulus and its Context.
+The `Context` contains the relevant information required for the UCA to interpret and resolve its Goal.
 
-The `Observation` represents the cognitively significant data (salience, detected constraints, key parameters) extracted from that input.
+Context must not represent an unconstrained, global snapshot of all system memory. It provides local cognitive continuity across interactions:
 
-Observation is not an introspective or moral self-evaluation phase. A UCA does not inspect itself to determine if it is "good"; it observes the incoming stimulus, context, external evidence, or outcomes produced by other units.
+```text
+Prior Outcomes + Active Evidence + Immediate Inputs ──► Context (X)
+```
 
 ---
 
-## 8. Disposition
+## 1.7 Observation
 
-The `Disposition` represents the behavioral predisposition of a UCA.
+When activated, a UCA extracts cognitively significant data from the Stimulus $(G, X)$ and any available evidence.
 
-It is not mere technical configuration; it weights and conditions how the UCA reasons, deliberates, and selects capabilities.
+The resulting `Observation` captures the salient facts, parameters, and constraints relevant to resolving the Goal.
+
+Observation is not a mandatory stage of moral self-reflection; it is the input-processing phase that prepares the UCA for deliberation and action.
+
+---
+
+## 1.8 Disposition ($D$)
+
+The `Disposition` represents the behavioral predispositions of the UCA.
+
+It is not generic technical configuration. It conditions how the UCA reasons, deliberates, and selects capabilities under its Purpose.
 
 Examples of behavioral parameters governed by Disposition:
 - tolerance to ambiguity;
 - sensitivity to contradiction;
 - required confidence threshold before emitting an outcome;
-- weighting of direct vs indirect evidence;
-- propensity to invoke computationally expensive capabilities;
+- capability selection preferences (e.g., preference for deterministic heuristics over probabilistic inference);
 - risk tolerance under uncertainty.
 
-The Disposition conditions how a UCA orchestrates its capabilities to fulfill its Purpose.
-
 ---
 
-## 9. Non-Self-Mutation of Disposition
+## 1.9 Capabilities ($C$)
 
-A UCA must not evaluate itself and directly mutate its own behavioral disposition during its execution cycle.
+`Capabilities` are the operational resources a UCA can leverage to satisfy its Purpose.
 
-If a UCA simultaneously acts, judges its own performance, and modifies its own rules, systemic drift and uncalibrated behavior emerge. Adaptation must proceed from an external supervisory capacity whose distinct Purpose justifies evaluating and adapting that disposition.
-
----
-
-## 10. Capabilities
-
-`Capabilities` are the operational resources a UCA can leverage to achieve its Purpose.
-
-They encompass:
-- deterministic algorithms and heuristics;
-- parsers, compilers, and serializes;
-- database indices and vector stores;
-- external APIs and tools;
-- predictive models and LLMs;
+Capabilities may encompass:
+- deterministic algorithms, parsers, and heuristics;
+- storage engines, databases, and indices;
+- external tools, APIs, and drivers;
+- predictive models, embeddings, and Large Language Models (LLMs);
 - other subordinate UCAs.
 
 A Capability is an instrument. A Capability is not automatically a UCA.
 
 ---
 
-## 11. Terminal Capabilities vs Autonomous Capabilities
+## 1.10 Terminal Capabilities vs Autonomous Capabilities
 
-A Capability becomes a UCA when an **autonomous Purpose** emerges in its design.
+A Capability becomes another UCA only when a **distinct autonomous Purpose** exists:
 
-Decomposition rule:
-> Decomposition into UCAs continues as long as distinct, autonomous cognitive purposes emerge.
+> A capability becomes another UCA only when a distinct autonomous Purpose exists.
 > When autonomous purposes cease to emerge and only mechanisms remain, terminal capabilities have been reached.
 
-If a capability only performs an algorithmic step (e.g., matrix multiplication, regex parsing, SQL execution) without an independent purpose within the cognitive system, it remains a terminal capability.
+If a component performs a mechanistic or algorithmic function without an independent, stable cognitive purpose, it remains a terminal capability.
 
 ---
 
-## 12. Recursive Composition
+## 1.11 Action ($A$)
+
+The `Action` represents what the UCA executes to satisfy the Goal under its Purpose, conditioned by its Disposition and available Capabilities:
+
+```text
+A = Action selected under (P, D, C, G, X)
+```
+
+An Action does not necessarily require language model inference. It may be deterministic computation, data retrieval, structural transformation, or invocation of a capability.
+
+---
+
+## 1.12 Outcome ($O$)
+
+The `Outcome` represents **what the Action actually produced**:
+
+```text
+O = execute(A)
+```
+
+Ontological distinction:
+```text
+GOAL (G): What was intended to be achieved.
+OUTCOME (O): What the executed action actually produced.
+```
+
+The Outcome belongs strictly to the executing unit.
+
+---
+
+## 1.13 Attainment ($T$)
+
+`Attainment` represents the degree to which an Outcome satisfies the Goal that triggered activation.
+
+Principle of Separation:
+> The Outcome belongs to the executor.
+> The Attainment belongs to the originator of the Goal.
+
+The executing UCA produces the Outcome. It is not required to self-evaluate whether its output satisfies the broader operational intent of the entity that invoked it. The originator of the Goal evaluates the Outcome to determine Attainment:
+
+```text
+O₂ = U₂(G, X)
+T₁ = Attainment_Evaluator₁(G, O₂, X)
+```
+
+Attainment is relative to the observer's Goal; there is no requirement for universal or absolute self-certification.
+
+---
+
+## 1.14 Local Reactivity
+
+A UCA is locally reactive:
+> No activation without a Stimulus.
+
+A UCA never executes spontaneously without an incoming Stimulus. Its internal state machine does not awaken without an activating event.
+
+*(Note: The ultimate origin of that Stimulus—whether external or internal—is a concern of Cognitive Architecture, not of the UCA Core).*
+
+---
+
+## 1.15 Recursive Composition
 
 UCAs can be composed hierarchically and recursively:
 
 ```text
-UCA₁
+UCA₁ (Purpose P₁)
 ├── Capability A (Algorithm)
-├── Capability B (External Tool)
-└── UCA₂ (Subordinate UCA with its own Purpose)
+├── Capability B (Tool)
+└── UCA₂ (Purpose P₂)
       ├── Capability C
       └── Capability D
 ```
 
-A UCA may invoke another UCA as one of its capabilities whenever that subordinate unit fulfills a distinct, bounded purpose.
+A UCA may utilize another UCA as one of its capabilities whenever that subordinate unit fulfills its own distinct, autonomous Purpose.
 
 ---
 
-## 13. Scope and Specialization
+## 1.16 Summary of UCA Core
 
-A specialized UCA is not an omnipotent mini-agent.
-
-A unit must not arbitrarily decide to trigger unrelated actions outside its domain unless coordination across domains explicitly constitutes its defined Purpose. Coordination belongs to units designed for that responsibility.
-
----
-
-## 14. Action
-
-The `Action` represents what a UCA executes to satisfy the received Goal under its Purpose:
+Conceptually, the UCA Core is formalized as:
 
 ```text
-Purpose + Goal + Context + Observation + Disposition + Capabilities ──► Action
-```
-
-An Action does not necessarily imply model inference; it may be deterministic execution, data retrieval, structural transformation, or invocation of a subordinate unit.
-
----
-
-## 15. LLMs as Capabilities
-
-A Large Language Model (LLM) is not a UCA; it is an instrumental Capability.
-
-A UCA may query an LLM when its Purpose requires probabilistic reasoning, natural language parsing, or semantic synthesis that cannot be resolved deterministically.
-
-Treating models as interchangeable capabilities allows upgrading, replacing, or mixing providers and local models without altering the cognitive architecture.
-
----
-
-## 16. Outcome
-
-The `Outcome` represents **what the Action actually produced in reality**.
-
-Ontological distinction:
-```text
-GOAL: What was intended to be accomplished?
-OUTCOME: What did the executed action actually produce?
-```
-
-The Outcome replaces purely technical abstractions like `Result` or `Response`. The Outcome belongs strictly to the executing unit.
-
----
-
-## 17. Attainment
-
-`Attainment` represents the degree to which an Outcome satisfies the Goal that triggered activation.
-
-Principle of separation:
-> The Outcome belongs to the executor.
-> The Attainment belongs to whoever set the Goal.
-
-The executing UCA produces the Outcome; it does not determine whether that Outcome fulfills the broader need of the invoking entity. The caller evaluates the Outcome against its original Goal to determine Attainment.
-
----
-
-## 18. Relativity of Attainment
-
-Attainment is not an absolute or universal value. It is assessed relative to the Goal of the entity observing and consuming the Outcome.
-
-A unit cannot unilaterally declare global success; success is measured by the originator of the demand.
-
----
-
-## 19. Reactivity
-
-A UCA never self-activates spontaneously.
-
-Rule:
-> A UCA executes its cycle strictly upon receiving a Stimulus.
-
-There is no internal state machine that wakes up a UCA without a cause. Every activation is locally reactive to a received stimulus.
-
----
-
-## 20. External Causality
-
-Every chain of cognitive activations must trace its origin to an event external to the cognitive system itself.
-
-External sources include:
-- user or interlocutor messages;
-- perceptual sensor or audio inputs;
-- environmental or system events;
-- scheduled timer notifications;
-- external tool responses;
-- system lifecycle events (startup / bootstrap).
-
-Internal units may chain subsequent activations as a causal consequence of that origin, but no chain arises ex nihilo.
-
----
-
-## 21. Minimal Conceptual Model of UCA
-
-The persistent definition of a UCA:
-
-```text
-UCA
-├── Purpose
-├── Disposition
-└── Capabilities
-```
-
-The canonical activation flow:
-
-```text
-Stimulus (Goal + Context)
-        ↓
-   Observation
-        ↓
-Disposition + Capabilities
-        ↓
-     Action
-        ↓
-    Outcome
+Unit:          U = (P, D, C)
+Stimulus:      S = (G, X)
+Contract:      compat(P, G) = true
+Execution:     O = F_U(S) = F(P, D, C, G, X)
 ```
 
 ---
 
-# PART II — ARCHITECTURAL CONSEQUENCES & COMPOSITION PATTERNS
+# 2. COGNITIVE ARCHITECTURE (Multi-UCA Systems)
 
-This section describes patterns and architectural consequences that arise when composing multiple UCAs. These patterns are illustrative and supportive; they are not mandatory constraints of the UCA Core.
+Cognitive Architecture defines how multiple UCAs are organized, connected, and governed within an overall cognitive system.
 
 ---
 
-## 22. Causal Chains and Multi-UCA Interaction
+## 2.1 Multi-UCA Interaction and Causal Chains
 
-When multiple UCAs interact, an initial stimulus triggers a causal chain:
+When multiple UCAs collaborate, the Outcome of one unit may form part of the Context or trigger a Stimulus for another unit:
 
 ```text
-External Stimulus ──► UCA₁ ──► Outcome₁ ──► Context₂ ──► UCA₂ ──► Outcome₂ ──► External Action
+UCA₁ ──► Stimulus(G₁, X₁) ──► UCA₂ ──► Outcome₂ ──► UCA₁
 ```
 
-Units collaborate by exchanging stimuli and outcomes. No monolithic central brain is required to dictate every intermediate state transition.
+Complex systemic behavior unfolds through chains of interactions between specialized units without requiring a single, omniscient central controller.
 
 ---
 
-## 23. The Impulse: Transport Envelope for Infrastructure
+## 2.2 Causality Sources
 
-The `Impulse` represents infrastructure, not cognition.
+While every UCA is locally reactive (requiring a Stimulus), a Cognitive Architecture may source initial stimuli from:
+- external human or machine interactions;
+- sensory and environmental events;
+- scheduled jobs or software timers;
+- internal homeostatic monitors or background loops;
+- system bootstrap events.
 
-It is a transport envelope used to route a `Stimulus`, an `Outcome`, or operational metadata across a communication layer:
+The constraint of *strictly external causality* is an architectural design choice for specific systems, not a universal requirement of the UCA Core.
+
+---
+
+## 2.3 Optional Pattern: Coordination and Dispatch
+
+A cognitive system **MAY** define a UCA whose Purpose is coordinating or dispatching stimuli across specialized units:
+
+```text
+                  UCA (Coordinator)
+                /        |        \
+               ↓         ↓         ↓
+             UCA₁      UCA₂      UCA₃
+```
+
+If present, a coordinator's scope is strictly bounded by its defined coordination Purpose. Systems may alternatively employ decentralized choreography, pipelines, or peer-to-peer topologies.
+
+---
+
+## 2.4 Optional Pattern: Supervision and Coherence Preservation
+
+A cognitive system **MAY** define one or more UCAs whose autonomous Purpose involves monitoring behavioral coherence, diagnosing deviations, or adapting dispositions:
+
+```text
+Supervisory UCA
+├── Diagnostic Capability / UCA (Identifies root causes of deviations)
+└── Adaptation Capability / UCA (Calculates disposition adjustments)
+```
+
+---
+
+## 2.5 Optional Pattern: Identity and Self-Representation
+
+A cognitive system **MAY** define a UCA whose Purpose is maintaining and articulating a coherent representation of the system's identity, role, and boundaries.
+
+Specialized or headless agent systems may operate without an explicit Identity UCA.
+
+---
+
+## 2.6 Optional Pattern: Knowledge and Memory Stores
+
+A cognitive system **MAY** define one or more UCAs whose Purpose is the curation, indexing, and contextual retrieval of acquired knowledge.
+
+---
+
+## 2.7 State Strategies: Dynamic Context vs Global State
+
+A Cognitive Architecture may choose how state is organized:
+- **Distributed State**: State emerges from the active UCAs, their individual Dispositions, and active Contexts.
+- **Synthesized Context**: Context is dynamically constructed on-demand from unit Outcomes.
+- **Global State / Blackboard**: A shared blackboard or state tree is maintained for tracking global operational variables.
+
+UCA does not mandate the elimination of global state, nor does it mandate its presence.
+
+---
+
+## 2.8 Adaptation Policies: Purpose Mutation vs Disposition Adaptation
+
+The UCA model distinguishes two levels of adaptation:
+
+1. **Purpose Mutation**: Changing what a unit exists for. This is **prohibited** within a stable UCA, as it alters the functional identity of the unit.
+2. **Disposition Adaptation**: Adjusting the behavioral predispositions ($D$) under an invariant Purpose ($P$).
+
+A Cognitive Architecture may adopt different adaptation policies:
+- **Supervised Adaptation**: Only dedicated supervisory units may alter the Disposition of target units.
+- **Self-Tuning Adaptation**: A unit may possess an internal learning capability that tunes its own Disposition parameters based on performance feedback, provided its Purpose remains strictly invariant.
+
+---
+
+# 3. RUNTIME CONSIDERATIONS (Infrastructure)
+
+The Runtime provides the technical execution and communication infrastructure. It is completely decoupled from cognitive definitions.
+
+---
+
+## 3.1 Transport Mechanisms
+
+The transfer of a Stimulus or Outcome may be implemented via:
+- direct asynchronous function calls;
+- actor model message passing;
+- event buses or publish-subscribe topics;
+- persistent message queues;
+- streaming sockets or HTTP/gRPC transports;
+- shared memory structures.
+
+The choice of transport technology does not affect UCA compliance.
+
+---
+
+## 3.2 The Impulse: Transport Envelope
+
+An `Impulse` is an optional infrastructure envelope used by transport layers to route activations and operational metadata:
 
 ```text
 Impulse
@@ -365,181 +409,108 @@ Impulse
 ├── ttl
 ├── traceId
 ├── sessionId
-└── payload (Stimulus | Outcome | data)
+└── payload (Stimulus | Outcome | metadata)
 ```
 
-Implementations may use an event bus, actor mailboxes, message queues, async function calls, or distributed protocols. The choice of transport does not affect UCA compliance.
+> **Impulse is infrastructure, not cognition.**
+
+A UCA implementation may operate with or without an explicit Impulse abstraction.
 
 ---
 
-## 24. Causal Traceability
+## 3.3 Tracing, Concurrency, and Fault Isolation
 
-In asynchronous or distributed multi-UCA systems, interactions should preserve causal traceability metadata:
-- `traceId`: Root transaction identifier;
-- `parentImpulseId`: Preceding envelope identifier;
-- `sessionId`: Interaction session scope;
-- `timestamp`: Event timing.
-
-This supports auditing, debugging, and post-hoc deviation diagnosis.
+Runtime implementations typically manage:
+- **Traceability**: Propagating transaction identifiers (`traceId`, `parentImpulseId`) across asynchronous boundaries to enable auditability;
+- **Concurrency**: Managing execution queues, thread pools, or actor schedulers;
+- **Fault Isolation**: Handling timeouts, retries, and failure containment without crashing the overall cognitive system.
 
 ---
 
-## 25. Optional Pattern: Coordination and Dispatch
+# 4. EXPERIMENTAL HYPOTHESES & OPEN QUESTIONS
 
-A cognitive system **MAY** define a UCA whose Purpose includes coordinating or dispatching stimuli across specialized units:
+The concepts in this section represent exploratory research hypotheses and open questions. They do not constitute demonstrated facts or normative requirements of UCA.
+
+---
+
+## 4.1 Hypothesis: Emergent Cognition
+
+It is hypothesized that complex cognitive behavior does not need to be centrally hosted in a single monolithic model. Useful, robust cognitive capability may **emerge** from the contextual, purpose-driven interaction among specialized units.
+
+---
+
+## 4.2 Hypothesis: Emergent Proactivity
+
+While each individual UCA is locally reactive to a Stimulus, an ensemble of interacting UCAs can exhibit behavior that appears proactive to an external observer as units trigger downstream activations in response to outcomes.
+
+---
+
+## 4.3 Hypothesis: Structural Learning via Interaction
+
+It is hypothesized that systems can achieve adaptive behavioral improvement without retraining model weights or rewriting code, by dynamically adjusting Dispositions in response to environmental feedback.
+
+---
+
+## 4.4 Exploration: Inter-UCA Plasticity (The Synapse Concept)
+
+Current adaptation focuses on **intra-unit adaptation** ($\Delta D$).
+
+An active area of research explores **inter-unit relational plasticity** (adjusting routing weights, affinity, or communication topology between units):
 
 ```text
-                  UCA (Coordinator)
-                /        |        \
-               ↓         ↓         ↓
-             UCA₁      UCA₂      UCA₃
+INTRA-UCA Plasticity:  ΔDisposition (Modifies internal unit thresholds)
+INTER-UCA Plasticity:  ΔRelation(UCA_i, UCA_j) (Modifies connectivity and affinity)
 ```
 
-If implemented, a coordinator must not become an omnipotent monolithic brain; its scope is bounded by its specific coordination Purpose. Systems may also use decentralized, choreography-based, or pipeline topologies.
+The formalization and stability of relational plasticity between cognitive units remains an open research question and is explicitly not part of the normative UCA Core.
 
 ---
 
-## 26. Optional Pattern: Supervision and Coherence Preservation
+## 4.5 Empirical Validation Criteria
 
-A cognitive system **MAY** define one or more UCAs whose autonomous Purpose involves monitoring behavioral coherence, diagnosing deviations, or adapting dispositions:
-
-```text
-Supervisory UCA
-├── Diagnostic UCA (Identifies root cause of deviations)
-└── Adaptation UCA (Computes required disposition adjustments)
-```
-
-Supervisory units do not micromanage operational decisions; they observe evidence over time and adapt the behavioral dispositions of target units.
-
----
-
-## 27. Optional Pattern: Self / Identity Representation
-
-A cognitive system **MAY** define a UCA whose Purpose is maintaining a coherent representation of the system's identity, role, and boundaries.
-
-This is an architectural option, not a universal requirement. Specialized utility agents (such as headless parsers or pipeline processors) may operate without an explicit Identity UCA.
-
----
-
-## 28. Optional Pattern: Knowledge and Memory Stores
-
-A cognitive system **MAY** define one or more UCAs whose Purpose is the curation, retrieval, and contextual provision of acquired knowledge.
-
-Storing data is a capability; actively interpreting and providing knowledge under a cognitive goal constitutes a UCA.
-
----
-
-## 29. Architectural Analysis: Decomposing Global Cognitive State
-
-Many conventional agent architectures maintain a single centralized state object (often referred to as a global snapshot or blackboard) that aggregates identity, memory, dialog history, task trees, and runtime flags.
-
-In a UCA-based architecture, global state can be analyzed and decomposed ontologically:
-- **Persistent facts**: Handled by knowledge/memory capabilities;
-- **Runtime execution flags**: Handled by transport and lifecycle infrastructure;
-- **Active reasoning context**: Synthesized dynamically on-demand from unit outcomes.
-
-A UCA implementation is not required to eliminate global state completely, nor is it required to adopt one; state distribution is an architectural implementation choice.
-
----
-
-## 30. Dynamic Context as Cognitive Synthesis
-
-Rather than propagating an unbounded global state to every unit, Context can be synthesized dynamically from the Outcomes of relevant capabilities:
-
-```text
-UCA (Requester)
-├── Knowledge Unit ──► Outcome (Relevant facts)
-├── Identity Unit  ──► Outcome (Role constraints)
-└── Interlocutor   ──► Outcome (User preferences)
-        ↓
-Focused, compact Context tailored to the immediate Goal
-```
-
-This reduces token overhead, eliminates noise, and minimizes attentional degradation.
-
----
-
-## 31. The External Environment in the Cognitive Loop
-
-The cognitive system acts upon the external environment, and the environment responds. That response becomes new external evidence:
-
-```text
-System Action ──► Environment ──► Feedback / Correction ──► New External Stimulus
-```
-
-The system does not need to simulate or predict all environmental consequences internally. The loop with the external world provides ground truth evidence.
-
----
-
-# PART III — EXPERIMENTAL HYPOTHESES & OPEN QUESTIONS
-
-The concepts in this section represent active research hypotheses and exploratory ideas. They are not demonstrated facts or normative requirements of the UCA Core.
-
----
-
-## 32. Hypothesis: Emergent Cognition
-
-It is hypothesized that complex cognitive behavior does not need to be centrally programmed or hosted in a single large model. Instead, useful cognitive capability may **emerge** from the structured, contextual interaction among small, purpose-bounded units.
-
----
-
-## 33. Hypothesis: Emergent Proactivity
-
-While individual UCAs are strictly reactive to received stimuli, an ensemble of interacting UCAs can exhibit behavior that appears proactive to an external observer.
-
-Because one unit's Outcome can form part of the Context or trigger a Stimulus for another unit, multi-step goal pursuit can unfold from an initial external prompt without requiring a monolithic planner.
-
----
-
-## 34. Hypothesis: Adaptive Cognitive Loops and Behavioral Learning
-
-It is hypothesized that structural learning can occur without weight retraining or code modification:
-1. A system produces an action toward the external environment;
-2. The environment provides feedback or corrections;
-3. A supervisory capability diagnoses the deviation;
-4. The supervisory capability adapts a target unit's `Disposition`;
-5. The system exhibits corrected behavior in equivalent future situations.
-
-Whether this adaptation can remain stable and avoid catastrophic drift over long horizons remains an open research question.
-
----
-
-## 35. Exploration: Inter-UCA Adaptation and Relational Plasticity (Synapse Concept)
-
-Current adaptation in UCA focuses on **intra-unit adaptation** (modifying a unit's `Disposition`).
-
-An exploratory area of research investigates **inter-unit adaptation** (the dynamic adjustment of communication topology, routing weights, or interaction affinity between units):
-
-```text
-INTRA-UCA Adaptation  ──► Disposition (Internal behavioral threshold)
-INTER-UCA Adaptation  ──► Relational Plasticity / Synapse (Connection weighting between units)
-```
-
-The formalization of relational plasticity and its stability characteristics is an active subject of study and is explicitly not part of the normative UCA Core.
-
----
-
-## 36. Empirical Validation Criteria
-
-To validate the UCA model empirically, a reference implementation should demonstrate that a minimal ensemble of units can:
-
-1. Receive an external stimulus;
-2. React via specialized Purposes without a monolithic controller;
+To validate the UCA model empirically, an implementation should demonstrate that an ensemble of units can:
+1. Receive a stimulus;
+2. React via specialized Purposes without a monolithic central brain;
 3. Collaborate via stimulus and outcome exchange;
 4. Produce an action toward the external environment;
 5. Receive external feedback or correction regarding that action;
 6. Use that evidence to diagnose deviations;
-7. Adapt one or more `Dispositions`;
+7. Adapt one or more Dispositions;
 8. React correctly in an equivalent future scenario;
-9. Accomplish this **without source code modification**;
+9. Accomplish this **without source code modifications**;
 10. Accomplish this **without model weight retraining**;
 11. Accomplish this **without ad-hoc hardcoded rules designed for the test case**.
 
-If an implementation achieves this, adaptive behavior has emerged from the architecture itself.
+---
+
+# 5. CONFORMANCE
+
+An entity or software component conforms to the **UCA Core** if and only if it satisfies all of the following criteria:
+
+1. **Autonomous Purpose**: It defines an explicit, stable, and implementation-independent Purpose ($P$).
+2. **Goal Compatibility**: It accepts Goals ($G$) only when compatible with its Purpose ($\text{compat}(P, G) = \text{true}$).
+3. **Local Reactivity**: It executes strictly upon receiving an activating Stimulus ($S$).
+4. **Contextual Ingestion**: It consumes the Context ($X$) required for its activation.
+5. **Bounded Capabilities**: It operates using an explicit set of capabilities ($C$).
+6. **Dispositional Conditioning**: Its reasoning or action selection may be conditioned by behavioral predispositions ($D$).
+7. **Action Formulation**: It executes an Action ($A$) directed toward satisfying the Goal.
+8. **Outcome Production**: It produces an Outcome ($O$) representing what the action achieved.
+9. **Purpose-Driven Decomposition**: It treats another component as a UCA only if that component possesses its own autonomous Purpose.
+
+**Non-requirements for Conformance**:
+A component or system does **not** need any of the following to conform to UCA:
+- an Impulse envelope;
+- an Event Bus or Nervous System;
+- a specific language model or LLM;
+- external causality;
+- a prohibition on self-tuning dispositions;
+- Synapses or relational plasticity;
+- global state or snapshots;
+- a centralized Coordinator or Supervisor.
 
 ---
 
-## 37. Core Thesis
+# 6. CORE THESIS
 
 > **A UCA is a functional cognitive unit defined by an autonomous Purpose.**
 >
