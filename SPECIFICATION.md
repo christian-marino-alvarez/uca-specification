@@ -1,146 +1,146 @@
-# UCA — Unidad Cognitiva Autónoma
+# UCA — Autonomous Cognitive Unit (Unidad Cognitiva Autónoma)
+*Architecture Specification (Experimental RFC)*
 
-## 1. Definición
-
-Una **UCA (Unidad Cognitiva Autónoma)** es una unidad funcional del sistema cognitivo definida por un **propósito autónomo**.
-
-Una UCA no se define por el algoritmo que ejecuta, por el modelo que utiliza ni por los datos que procesa.
-
-Se define por **para qué existe dentro del sistema cognitivo**.
-
-> Una UCA no se define por lo que ejecuta, sino por el propósito que es responsable de alcanzar.
-
-Ejemplos conceptuales:
-
-- saber quién soy;
-- reconocer con quién estoy interactuando;
-- proporcionar conocimiento adquirido relevante;
-- preservar la coherencia cognitiva;
-- expresar información hacia el exterior;
-- interpretar estímulos auditivos;
-- coordinar una reacción cognitiva.
-
-Una UCA puede utilizar algoritmos, modelos, almacenamiento, drivers, herramientas, servicios, LLMs o incluso otras UCAs para cumplir su propósito.
+[ English | [Español](SPECIFICATION.es.md) ]
 
 ---
 
-# 2. Purpose
+## 1. Definition
 
-El `Purpose` expresa **por qué existe una UCA**.
+An **Autonomous Cognitive Unit (UCA)** is a functional unit of a cognitive system defined by an **autonomous purpose (`Purpose`)**.
 
-Es estable y no depende de una ejecución concreta.
+A UCA is not defined by the algorithm it executes, the model it uses, or the data it processes.
 
-Ejemplo:
+It is defined by **why it exists within the cognitive system**.
 
-```text
-Memory UCA
+> A UCA is not defined by what it executes, but by the purpose it is responsible for fulfilling.
 
-Purpose:
-Proporcionar conocimiento previamente adquirido
-relevante para una necesidad cognitiva.
-```
+Conceptual examples of purpose:
 
-Incorrecto:
+- knowing who I am (maintaining and projecting own identity and role);
+- recognizing with whom I am interacting;
+- providing relevant acquired knowledge;
+- preserving cognitive stability and coherence;
+- expressing information toward the external environment;
+- interpreting incoming perceptual stimuli;
+- coordinating reaction across incoming stimuli streams.
 
-```text
-Purpose:
-Buscar vectores en Qdrant.
-```
-
-Buscar vectores es un mecanismo.
-
-No es necesariamente un propósito cognitivo.
-
-Otro ejemplo:
-
-```text
-Self UCA
-
-Purpose:
-Mantener una representación coherente
-de quién es el Agent.
-```
-
-El Purpose debe ser independiente de la implementación.
+A UCA may leverage deterministic algorithms, mathematical models, storage, drivers, external tools, web services, Large Language Models (LLMs), or other UCAs to fulfill its purpose.
 
 ---
 
-# 3. Goal
+## 2. Purpose
 
-El `Goal` representa **qué resultado concreto necesita obtenerse en una activación determinada**.
+The `Purpose` expresses **why a UCA exists**.
 
-A diferencia del Purpose:
+It is stable, persistent, and independent of specific executions and technical implementation details.
+
+Valid example:
+
+```text
+Knowledge / Memory UCA
+
+Purpose:
+Provide relevant previously acquired knowledge
+for a given cognitive need.
+```
+
+Invalid example:
+
+```text
+Purpose:
+Search vectors in a vector database.
+```
+
+Searching vectors is a mechanism or capability.
+
+It is not an autonomous cognitive purpose.
+
+Another valid example:
+
+```text
+Identity UCA (Self UCA)
+
+Purpose:
+Maintain a coherent representation
+of the agent's identity and boundaries.
+```
+
+The Purpose must always remain agnostic of the underlying implementation.
+
+---
+
+## 3. Goal (Contextual Objective)
+
+The `Goal` represents **what concrete outcome must be achieved in a given activation**.
+
+In contrast to Purpose:
 
 ```text
 PURPOSE
-¿Por qué existe esta UCA?
+Why does this UCA exist? (Stable and persistent)
 
 GOAL
-¿Qué necesito conseguir ahora?
+What concrete outcome is needed right now? (Contextual and transient)
 ```
 
-El Purpose es persistente.
-
-El Goal es contextual.
-
-Ejemplo:
+Example:
 
 ```text
-Memory UCA
+Knowledge / Memory UCA
 
 Purpose:
-Proporcionar conocimiento adquirido relevante.
+Provide relevant acquired knowledge.
 
 Goal:
-Obtener información relacionada
-con la decisión de utilizar WebRTC.
+Retrieve information related to the technical decision to adopt WebRTC.
 ```
 
-Una UCA interpreta el Goal siempre bajo su propio Purpose.
+A UCA always interprets the received Goal through the lens of its own Purpose.
 
 ---
 
-# 4. Compatibilidad entre Goal y Purpose
+## 4. Compatibility Between Goal and Purpose
 
-Una UCA solamente debería aceptar Goals compatibles con su Purpose.
+A UCA must only accept Goals that are strictly compatible with its Purpose.
 
-Ejemplo válido:
-
-```text
-Memory UCA
-
-Purpose:
-Proporcionar conocimiento adquirido.
-
-Goal:
-Recuperar información sobre Christian.
-```
-
-Ejemplo inválido:
+Compatible example:
 
 ```text
-Memory UCA
+Knowledge UCA
 
 Purpose:
-Proporcionar conocimiento adquirido.
+Provide acquired knowledge.
 
 Goal:
-Responder verbalmente al usuario.
+Retrieve stored information regarding the interlocutor.
 ```
 
-Ese Goal pertenece al dominio de otra UCA.
+Incompatible example:
 
-Esta restricción evita convertir las UCAs en agentes genéricos capaces de hacer cualquier cosa.
+```text
+Knowledge UCA
+
+Purpose:
+Provide acquired knowledge.
+
+Goal:
+Synthesize verbal output and reply to the user.
+```
+
+That Goal belongs to the domain of an egress or expression UCA.
+
+This compatibility restriction prevents degenerating UCAs into monolithic, generic agents that attempt arbitrary tasks.
 
 ---
 
-# 5. Stimulus
+## 5. Stimulus
 
-Una UCA solamente se ejecuta cuando recibe un `Stimulus`.
+A UCA only activates and executes upon receiving a `Stimulus`.
 
-El Stimulus representa **la activación cognitiva de la UCA**.
+The Stimulus represents the **cognitive activation of the UCA**.
 
-Conceptualmente contiene:
+Conceptually, it contains:
 
 ```text
 Stimulus
@@ -148,19 +148,19 @@ Stimulus
 └── Context
 ```
 
-El Stimulus no es el mecanismo de transporte.
+The Stimulus is a purely cognitive abstraction, not a physical network mechanism or packet.
 
-El transporte pertenece al `Impulse`.
+Physical transmission belongs to the infrastructure transport layer or `Impulse`.
 
 ---
 
-# 6. Impulse
+## 6. Impulse (Transport Carrier)
 
-El `Impulse` pertenece al sistema nervioso del Agent.
+The `Impulse` belongs to the system's transport and messaging layer.
 
-Es el mecanismo utilizado para transportar activaciones e información entre componentes.
+It is the technical vehicle used to route activations, stimuli, and results between components.
 
-Puede contener información técnica como:
+It carries operational and delivery metadata:
 
 ```text
 Impulse
@@ -173,35 +173,35 @@ Impulse
 └── stimulus
 ```
 
-Conceptualmente:
+Conceptually:
 
 ```text
 Impulse
-   ↓ transporta
+   ↓ transports
 Stimulus
-   ↓ activa
+   ↓ activates
 UCA
 ```
 
-Por tanto:
+Therefore:
 
-> UCA no es un mensaje.
+> A UCA is not a message.
 
-> Stimulus no es un Impulse.
+> A Stimulus is not an Impulse.
 
-> Impulse transporta un Stimulus.
+> An Impulse transports a Stimulus to activate a UCA.
 
 ---
 
-# 7. Context
+## 7. Context
 
-El `Context` contiene la información necesaria para que una UCA pueda interpretar correctamente su Goal.
+The `Context` contains the information strictly necessary for a UCA to correctly interpret and satisfy its Goal.
 
-No debería representar todo el conocimiento disponible del Agent.
+It must not represent the agent's entire world-state or a monolithic system snapshot.
 
-Debe contener únicamente aquello que resulte relevante para esa activación.
+It must be bounded to what is relevant for that specific activation.
 
-Conceptualmente:
+Conceptually:
 
 ```text
 Stimulus
@@ -209,1554 +209,701 @@ Stimulus
 └── Context
 ```
 
-El Context proporciona continuidad entre interacciones.
-
-Sin contexto:
+Context provides cognitive continuity across successive interactions:
 
 ```text
-Stimulus
-→ Reaction
-
-Stimulus
-→ Reaction
-
-Stimulus
-→ Reaction
+Prior Outcomes
+      +
+External Evidence
+      +
+Current Stimulus
+      ↓
+   Context
+      ↓
+Current Cognition
 ```
 
-Cada interacción sería prácticamente independiente.
-
-Con contexto:
-
-```text
-previous Outcomes
-        +
-external evidence
-        +
-current Stimulus
-        ↓
-     Context
-        ↓
-current cognition
-```
-
-El pasado puede modificar la interpretación del presente.
+The contextual past conditions and modulates the interpretation of the present.
 
 ---
 
-# 8. Observation
+## 8. Observation
 
-La UCA observa aquello que recibe a través del Stimulus y su Context.
+The UCA processes and extracts information from the received Stimulus and its Context.
 
-La Observation representa la información cognitivamente relevante que la UCA obtiene de esa entrada.
+The `Observation` represents the cognitively significant data (salience, patterns, key entities) that the UCA abstracts from that input.
 
-No debe entenderse como una fase obligatoria de introspección posterior a la ejecución.
+It should not be construed as an introspective self-judgment or moral evaluation phase.
 
-Una UCA no necesita observarse a sí misma para decidir si ha actuado correctamente.
-
-Puede observar:
-
-- el Stimulus actual;
-- información contextual;
-- Outcomes anteriores;
-- evidencia procedente de otras UCAs;
-- evidencia procedente del exterior.
+A UCA does not need to observe itself to decide if it acted properly; it observes the stimulus, context, external evidence, or outcomes produced by other units.
 
 ---
 
-# 9. Disposition
+## 9. Disposition (Behavioral Predisposition)
 
-La `Disposition` representa la predisposición de comportamiento de una UCA.
+The `Disposition` represents the behavioral predisposition of a UCA.
 
-No es simplemente configuración técnica.
+It is not mere technical configuration; it weights and conditions how the UCA reasons and selects actions.
 
-Puede afectar, por ejemplo, a:
+It may govern, for example:
 
-- tolerancia a ambigüedad;
-- sensibilidad a contradicciones;
-- confianza necesaria;
-- prioridad de determinadas evidencias;
-- utilización de capacidades costosas;
-- comportamiento ante incertidumbre.
+- tolerance to ambiguity;
+- sensitivity to contradiction;
+- required confidence threshold to emit an outcome;
+- weighting of direct vs indirect evidence;
+- propensity to invoke computationally expensive capabilities;
+- behavior under uncertainty.
 
-Ejemplo conceptual:
+Conceptual example:
 
 ```text
 Disposition
-├── ambiguityTolerance
-├── confidenceSensitivity
-└── inferenceThreshold
+├── ambiguityTolerance: 0.2
+├── confidenceSensitivity: 0.85
+└── inferenceThreshold: 0.7
 ```
 
-La Disposition condiciona cómo una UCA utiliza sus capacidades para cumplir su Purpose.
+The Disposition conditions how a UCA orchestrates its capabilities to fulfill its Purpose.
 
 ---
 
-# 10. Una UCA no modifica su propia Disposition
+## 10. A UCA Does Not Mutate Its Own Disposition
 
-Una UCA no debería autoevaluarse y modificar directamente su propio comportamiento.
+A UCA should not evaluate itself and directly mutate its own internal behavioral disposition.
 
-La adaptación debe proceder de otra capacidad cognitiva cuyo Purpose justifique dicha modificación.
-
-Por ejemplo:
+Adaptation must always proceed from a separate cognitive capacity whose Purpose justifies systemic supervision:
 
 ```text
-Cingulate
+Supervisory UCA (UCA₁)
     ↓
-Diagnosis
+Diagnostic UCA (UCA₂)
     ↓
-Adaptation
+Adaptation UCA (UCA₃)
     ↓
-Disposition de otra UCA
+Mutation of the Disposition of another UCA (e.g. Ingress or Knowledge UCA)
 ```
 
-Esto evita crear UCAs que simultáneamente:
-
-- actúan;
-- se evalúan;
-- se diagnostican;
-- se modifican.
+This prevents the failure mode of components that simultaneously act, judge their own performance, and mutate their behavior without external check.
 
 ---
 
-# 11. Capabilities
+## 11. Capabilities
 
-Las `Capabilities` son los recursos que una UCA puede utilizar para alcanzar su Purpose.
+`Capabilities` are the instrumental and executing resources a UCA can leverage to satisfy its Purpose.
 
-Pueden ser:
+They encompass:
 
 ```text
-algoritmos
-drivers
-parsers
+deterministic algorithms
+drivers and protocols
+parsers and lexers
+embedding models
+vector or relational indices
+network services
+predictive models or LLMs
+environment tools
+other UCAs
+```
+
+A Capability is not automatically a UCA.
+
+---
+
+## 12. When a Capability Becomes a UCA
+
+A Capability becomes a UCA when an **autonomous cognitive Purpose** emerges in its architectural design.
+
+Example:
+
+```text
+Knowledge / Memory UCA
+```
+
+may internally utilize:
+
+```text
+tokenizer
 embeddings
-vector stores
-bases de datos
-servicios
-modelos ML
-LLMs
-herramientas
-otras UCAs
-```
-
-Una Capability no es automáticamente una UCA.
-
----
-
-# 12. Cuándo una Capability se convierte en UCA
-
-Una Capability se convierte en UCA cuando aparece un **Purpose autónomo**.
-
-Ejemplo:
-
-```text
-Memory UCA
-```
-
-puede utilizar:
-
-```text
-parser
-embeddings
-Qdrant
+vector store
 cosine similarity
-ranking
-LLM fallback
+re-ranking algorithm
+inferential fallback
 ```
 
-Estos elementos son mecanismos.
+These elements are mechanisms or terminal capabilities.
 
-No necesitan convertirse en:
+They do not need to become separate UCAs unless one is found to genuinely hold an autonomous cognitive purpose.
 
-```text
-Parser UCA
-Embedding UCA
-Vector Search UCA
-Ranking UCA
-```
+Rule:
 
-a menos que descubramos que alguno posee realmente un Purpose cognitivo autónomo.
+> Decomposition into UCAs continues as long as autonomous purposes emerge.
 
-Regla:
-
-> La descomposición en UCAs continúa mientras exista un propósito autónomo.
-
-> Cuando dejan de aparecer nuevos propósitos y solamente quedan mecanismos, hemos llegado a capacidades terminales.
+> When autonomous purposes cease to emerge and only mechanisms remain, terminal capabilities have been reached.
 
 ---
 
-# 13. Una UCA puede ser Capability de otra UCA
+## 13. A UCA Can Serve as a Capability of Another UCA (Recursive Composition)
 
-Las UCAs pueden componerse recursivamente.
+UCAs can be composed hierarchically and recursively.
 
-Ejemplo:
+Example:
 
 ```text
-Cingulate UCA
-├── Diagnosis UCA
-└── Adaptation UCA
+Supervisory & Coherence UCA (UCA₁)
+├── Diagnostic UCA (UCA₂)
+└── Adaptation UCA (UCA₃)
 ```
 
-siempre que Diagnosis y Adaptation tengan propósitos autónomos reales.
-
-Por ejemplo:
+Provided `UCA₂` and `UCA₃` hold real, autonomous purposes:
 
 ```text
-Diagnosis UCA
+Diagnostic UCA (UCA₂)
+Purpose: Identify the root cause of a cognitive deviation based on evidence.
+
+Adaptation UCA (UCA₃)
+Purpose: Adjust behavioral dispositions in response to deviation evidence.
+```
+
+The supervisory UCA leverages both as subordinate capabilities to fulfill its own higher-level Purpose.
+
+---
+
+## 14. Specialized UCAs Are Not Omnipotent Mini-Agents
+
+A specialized UCA must not evolve into a generic mini-agent that arbitrarily decides its own course of action beyond its scope.
+
+A knowledge UCA may internally select which index or parser to query, but it must not arbitrarily decide to invoke a supervisory UCA or emit external responses, unless such orchestration explicitly constitutes its Purpose.
+
+Coordination across cognitive domains belongs to a UCA whose Purpose justifies that responsibility.
+
+---
+
+## 15. Action
+
+The `Action` represents what a UCA performs to satisfy the received Goal under its Purpose.
+
+Conceptually:
+
+```text
+Purpose + Goal + Context + Observation + Disposition + Capabilities ──► Action
+```
+
+An Action does not necessarily equal an LLM inference call; it can be a deterministic computation, a retrieval, a data transformation, or an invocation to another unit:
+
+```text
+retrieve knowledge record
+identify interlocutor traits
+parse data structure
+synthesize egress output
+cross-examine evidence
+invoke subordinate UCA
+```
+
+---
+
+## 16. LLMs as Capabilities, Not as UCAs
+
+A Large Language Model (LLM) is not a UCA by definition; it is an instrumental Capability.
+
+A UCA may leverage an LLM when its Purpose requires reasoning or unstructured interpretation that cannot be achieved deterministically.
+
+Therefore:
+
+> A UCA is not an LLM.
+
+> An LLM is merely one possible Capability serving the Purpose of a UCA.
+
+This enables swapping models, local runners, or algorithms without restructuring the system's cognitive architecture.
+
+---
+
+## 17. Outcome
+
+The `Outcome` represents **what the Action actually produced in reality**.
+
+Distinction:
+
+```text
+GOAL: What was intended to be accomplished?
+OUTCOME: What did the executed action actually produce?
+```
+
+The concept of Outcome supersedes purely computational abstractions like `Result` or `Response`.
+
+UCAs produce Outcomes; these Outcomes can be packaged into Impulses and transported across the system's communication bus.
+
+---
+
+## 18. Attainment (Goal Fulfillment Assessment)
+
+`Attainment` represents the degree to which an Outcome satisfies the Goal that triggered activation.
+
+An essential principle of ontological separation governs this relationship:
+
+> The Outcome belongs to the executor.
+
+> The Attainment belongs to whoever set the Goal.
+
+The UCA executing an action produces an Outcome and does not need to determine whether that Outcome satisfies the broader operational need of the requester.
+
+Example:
+
+```text
+UCA₁ (Coordinator)
+Goal: "Identify who decided to adopt technology X"
+        ↓
+UCA₂ (Knowledge / Memory)
+Outcome: "Christian decided to adopt technology X"
+        ↓
+UCA₁ (Coordinator)
+Attainment: Evaluates whether the Outcome satisfactorily meets its need.
+```
+
+---
+
+## 19. Attainment Is Relative to the Observer
+
+Attainment is not an absolute or universal metric; it is always assessed relative to the observer's Goal.
+
+System-level example:
+
+```text
+System Architect
+Purpose: Build an adaptive cognitive system.
+Goal: Implement the UCA specification.
+        ↓
+Cognitive System
+Outcome: Ensemble of interacting UCAs.
+        ↓
+System Architect
+Attainment: Does the resulting system fulfill the original design goal?
+```
+
+The system cannot unilaterally self-certify that it has achieved success; the originator of the goal assesses the Attainment.
+
+---
+
+## 20. Reactivity
+
+A UCA never self-activates spontaneously.
+
+Rule:
+
+> A UCA executes its cycle strictly upon receiving a Stimulus.
+
+There is no concept of a UCA "waking up" on its own without a cause. Every execution is locally reactive to a received stimulus.
+
+---
+
+## 21. External Causality
+
+Every chain of cognitive activations must originate outside the cognitive system itself.
+
+An external stimulus may stem from:
+
+```text
+message from an interlocutor
+voice or audio signal
+environment or operating system event
+timer notification
+tool execution return
+system lifecycle event (startup / initialization)
+```
+
+Internal UCAs may trigger subsequent activations as a direct causal consequence of that initial stimulus, but no cognitive chain appears spontaneously in a vacuum.
+
+---
+
+## 22. System Initialization as an External Stimulus
+
+The initial bootstrap of a cognitive agent is also an external causal stimulus:
+
+```text
+SYSTEM INITIALIZATION
+          ↓
+       Impulse
+          ↓
+       Stimulus
+          ↓
+Foundational UCAs (e.g. Identity UCA)
+```
+
+This guarantees foundational cognitive capacities (such as self-identity representation) are configured before any user dialogue occurs.
+
+---
+
+## 23. Identity UCA (Self UCA)
+
+A foundational UCA in any cognitive agent is that responsible for self-identity:
+
+```text
+Identity UCA
 
 Purpose:
-Identificar qué produjo una desviación cognitiva
-a partir de la evidencia disponible.
+Maintain and project a coherent representation
+of the system's identity, boundaries, and role.
 ```
 
-y:
+It may utilize as Capabilities:
 
 ```text
-Adaptation UCA
-
-Purpose:
-Adaptar las disposiciones cognitivas
-a partir de evidencia de comportamiento inadecuado.
+declared directives
+autobiographical records
+relationship history
+inference
 ```
 
-Cingulate puede utilizar ambas como Capabilities.
+The static string `"AgentName"` is not the UCA.
+
+The UCA is **the active cognitive capacity to maintain and articulate who the agent is**.
 
 ---
 
-# 14. Las UCAs especializadas no son mini-agentes
+## 24. Knowledge vs Cognitive Capacity
 
-Una UCA especializada no debe convertirse en un agente genérico capaz de decidir arbitrariamente qué hacer después.
+Storing data or representations is not equivalent to possessing a cognitive capacity.
 
-Por ejemplo, Memory puede decidir:
-
-```text
-usar parser
-usar embeddings
-buscar en vector store
-utilizar inferencia como fallback
-```
-
-porque son capacidades definidas para cumplir su Purpose.
-
-Pero Memory no debería decidir arbitrariamente:
+Example:
 
 ```text
-"He encontrado algo extraño.
-Voy a llamar a Cingulate."
+Knowledge Store:
+Contains structured data regarding user preferences or facts.
 ```
 
-salvo que dicha coordinación forme explícitamente parte de su Purpose.
+versus:
 
-La coordinación entre dominios corresponde a una UCA cuyo Purpose justifique esa responsabilidad.
+```text
+Identity / Social UCA:
+Active capacity to interpret, reason about, and apply situational relevance.
+```
+
+The storage supplies evidence; the UCA exercises a cognitive capacity directed by its Purpose.
 
 ---
 
-# 15. Action
+## 25. Emergent Proactivity
 
-La `Action` representa aquello que una UCA hace para intentar satisfacer el Goal recibido bajo su Purpose.
+An individual UCA is not proactive; it is strictly reactive to its stimulus.
 
-Conceptualmente:
-
-```text
-Purpose
-+
-Goal
-+
-Context
-+
-Observation
-+
-Disposition
-+
-Capabilities
-        ↓
-      Action
-```
-
-Una Action no tiene por qué ser una inferencia.
-
-Puede ser completamente determinista.
-
-Ejemplos:
-
-```text
-retrieve memory
-identify speaker
-parse language
-generate speech
-compare evidence
-invoke another UCA
-```
-
----
-
-# 16. LLM
-
-Un LLM no es una UCA por definición.
-
-Es una Capability.
-
-Una UCA puede utilizarlo cuando su Purpose requiere interpretación o inferencia que no puede resolverse adecuadamente mediante mecanismos deterministas.
-
-Por tanto:
-
-> Una UCA no es una inferencia.
-
-> Un LLM es solamente una posible Capability de una UCA.
-
-Esto permite sustituir modelos sin modificar la arquitectura cognitiva.
-
----
-
-# 17. Outcome
-
-El `Outcome` representa **lo que realmente produjo la Action**.
-
-Distinción:
-
-```text
-GOAL
-¿Qué quería obtener?
-
-OUTCOME
-¿Qué produjo realmente la acción?
-```
-
-Ejemplo:
-
-```text
-Goal:
-Obtener quién decidió utilizar WebRTC.
-
-Outcome:
-Christian decidió utilizar WebRTC.
-```
-
-Outcome sustituye conceptos más computacionales como `Result`.
-
-También evita introducir una abstracción independiente llamada `Response`.
-
-Las UCAs producen Outcomes.
-
-Los Outcomes pueden posteriormente ser transportados mediante Impulses.
-
----
-
-# 18. Attainment
-
-`Attainment` representa el grado en que un Outcome satisface el Goal que originó la ejecución.
-
-Pero existe una regla fundamental:
-
-> El Outcome pertenece a quien ejecuta.
-
-> El Attainment pertenece a quien estableció el Goal.
-
-La UCA ejecutora no necesita determinar si ha cumplido correctamente la necesidad global de quien la utilizó.
-
-Ejemplo:
-
-```text
-Thalamus
-
-Goal:
-Obtener conocimiento sobre quién decidió WebRTC.
-
-        ↓
-
-Memory UCA
-
-Outcome:
-Christian decidió utilizar WebRTC.
-
-        ↓
-
-Thalamus
-```
-
-Memory produce el Outcome.
-
-Thalamus, que estableció la necesidad, es quien puede utilizar ese Outcome respecto a su Goal.
-
----
-
-# 19. Attainment es relativo
-
-No existe necesariamente un Attainment absoluto.
-
-Existe respecto al Goal de quien observa un Outcome.
-
-Ejemplo global:
-
-```text
-Developer
-
-Purpose:
-Crear un sistema cognitivo.
-
-Goal:
-Construir Extensio.
-
-        ↓
-
-Extensio
-
-Outcome:
-Sistema cognitivo funcionando.
-
-        ↓
-
-Developer
-
-Attainment:
-¿El sistema obtenido satisface
-lo que pretendía construir?
-```
-
-Extensio no puede declarar legítimamente por sí mismo:
-
-```text
-"Soy un sistema cognitivo,
-por tanto el Goal está conseguido."
-```
-
-El sistema es el Outcome que está siendo evaluado desde un nivel superior.
-
----
-
-# 20. Reactividad
-
-Una UCA nunca se autoejecuta.
-
-Regla:
-
-> Una UCA solamente ejecuta su ciclo cuando recibe un Stimulus.
-
-No existe:
-
-```text
-UCA
-↓
-decide despertarse
-↓
-ejecuta
-```
-
-Existe:
-
-```text
-Stimulus
-↓
-UCA
-↓
-Action
-↓
-Outcome
-```
-
-Por tanto, una UCA es localmente reactiva.
-
----
-
-# 21. Causalidad externa
-
-Toda cadena cognitiva del Agent debe tener un origen externo al propio sistema cognitivo.
-
-Un estímulo externo puede ser:
-
-```text
-voz
-mensaje
-evento del entorno
-resultado de una herramienta
-cambio de aplicación
-timer
-evento del sistema
-startup
-birth
-```
-
-Por ejemplo:
+However, the complete system of UCAs can exhibit emergent proactive behavior:
 
 ```text
 External Stimulus
-      ↓
-Agent
-      ↓
-UCA
-      ↓
-UCA
-      ↓
-UCA
-      ↓
-Outcome
-      ↓
-Exterior
+       ↓
+UCA₁ (Ingress / Coordination)
+       ↓ Outcome
+UCA₂ (Analysis / Knowledge)
+       ↓ Outcome
+UCA₃ (Planning / Egress)
+       ↓
+Action toward the external world
 ```
 
-Las UCAs internas pueden generar nuevas activaciones como consecuencia causal de esa cadena.
+Even when the initial external stimulus is minimal, the causal chaining between autonomous units produces composed actions not explicitly demanded in the initial prompt.
 
-Pero ninguna cadena aparece espontáneamente sin una causa.
+> Autonomy resides in the Purpose.
+> Reactivity governs each unit's execution.
+> Proactivity emerges from inter-unit interaction.
 
 ---
 
-# 22. Birth
+## 26. Emergent Cognition
 
-El nacimiento o inicialización del Agent es también un estímulo externo al sistema cognitivo.
+Cognition does not reside in an isolated UCA or a central monolithic model.
 
-Conceptualmente:
-
-```text
-BIRTH
-  ↓
-Impulse
-  ↓
-Stimulus
-  ↓
-fundamental UCAs
-```
-
-Esto permite que determinadas capacidades cognitivas existan antes de cualquier conversación.
-
-Por ejemplo:
+It emerges from the causal, distributed, contextual interaction among specialized units:
 
 ```text
-Birth
- ↓
-Self UCA
- ↓
-Outcome:
-representación inicial de quién soy
-```
-
-El Agent no necesita esperar a que un usuario pregunte:
-
-```text
-"¿Quién eres?"
-```
-
-para poseer identidad.
-
-La conversación no crea necesariamente la identidad.
-
-La conversación puede proporcionar nueva evidencia capaz de modificarla.
-
----
-
-# 23. Self UCA
-
-Una posible UCA fundamental es aquella responsable de la identidad propia.
-
-Ejemplo conceptual:
-
-```text
-Self UCA
-
-Purpose:
-Mantener una representación coherente
-de quién es el Agent.
-```
-
-Puede utilizar como Capabilities:
-
-```text
-configuración
-memoria autobiográfica
-experiencias
-relaciones
-entorno
-historial
-inferencia
-```
-
-El dato:
-
-```text
-"Soy Extensio"
-```
-
-no es la UCA.
-
-La UCA es:
-
-```text
-la capacidad cognitiva de saber quién soy
-```
-
-Esta distinción es fundamental.
-
----
-
-# 24. Conocimiento vs capacidad cognitiva
-
-No debe confundirse almacenar información con poseer una capacidad cognitiva.
-
-Ejemplo:
-
-```text
-IDENTITY memory domain
-```
-
-puede almacenar información relacionada con identidad.
-
-Pero:
-
-```text
-Self UCA
-```
-
-representa la capacidad de construir, mantener y proporcionar una representación coherente de la propia identidad.
-
-Por tanto:
-
-```text
-Memory
-= conocimiento
-
-UCA
-= capacidad cognitiva con Purpose
-```
-
-Una UCA puede utilizar Memory como Capability.
-
----
-
-# 25. Proactividad emergente
-
-Una UCA no es proactiva.
-
-Sin embargo, el Agent completo puede exhibir comportamiento aparentemente proactivo.
-
-Esto ocurre porque un Stimulus externo puede desencadenar una cadena de interacciones internas.
-
-Ejemplo:
-
-```text
-External Stimulus
-      ↓
-UCA A
-      ↓ Outcome
-UCA B
-      ↓ Outcome
-UCA C
-      ↓
-acción hacia el exterior
-```
-
-Aunque el usuario solamente produjo el primer estímulo, la interacción entre UCAs puede generar nuevas acciones no solicitadas explícitamente.
-
-Por tanto:
-
-> La autonomía está en el Purpose.
-
-> La reactividad está en la ejecución.
-
-> La proactividad emerge de la interacción.
-
----
-
-# 26. Cognición emergente
-
-La cognición no reside necesariamente en una UCA concreta.
-
-No reside en Thalamus.
-
-No reside en Memory.
-
-No reside en Cingulate.
-
-Y no reside en un LLM.
-
-La cognición emerge de la interacción causal y contextual entre unidades especializadas.
-
-Conceptualmente:
-
-```text
-Cognition =
-interaction(
+Cognition = Interaction(
     Purposes,
     Goals,
-    Context,
+    Contexts,
     Dispositions,
     Capabilities,
     Actions,
     Outcomes,
-    external evidence
+    External Evidence
 )
 ```
 
-Cada UCA tiene una responsabilidad limitada.
-
-El comportamiento cognitivo pertenece al sistema resultante.
+Each UCA maintains bounded scope; cognitive behavior belongs to the emergent system.
 
 ---
 
-# 27. El exterior forma parte del circuito cognitivo
+## 27. The External Environment in the Cognitive Loop
 
-El Agent actúa sobre el exterior.
-
-El exterior responde.
-
-Esa respuesta se convierte en nueva evidencia.
-
-Ejemplo:
+The system acts upon the external environment, and the environment responds. That response becomes new evidence:
 
 ```text
-Agent:
-"Marco decidió utilizar WebRTC."
-
-        ↓
-
-User:
-"No. Te acabo de decir que fue Christian."
-
-        ↓
-
-nuevo Stimulus
+System emits Outcome
+         ↓
+External Environment
+         ↓
+External Response / Feedback
+         ↓
+New External Stimulus
 ```
 
-La corrección del usuario proporciona evidencia acerca del comportamiento anterior del Agent.
-
-No es necesario que el Agent haya calculado previamente:
-
-```text
-Attainment = FAILED
-```
-
-La interacción proporciona esa evidencia.
+The system does not need to precompute everything internally; continuous interaction provides the external evidence needed to confirm or adapt behavior.
 
 ---
 
-# 28. Aprendizaje mediante interacción
+## 28. Learning via Interaction and Disposition Adaptation
 
-El aprendizaje no requiere que cada UCA se evalúe y modifique a sí misma.
+Learning does not consist of units rewriting their own code or prompt in flight.
 
-Puede emerger mediante:
+It emerges through the loop:
 
 ```text
-Agent Outcome
-      ↓
-Exterior
-      ↓
-external evidence
-      ↓
-new Stimulus
-      ↓
-Context
-      ↓
-Cingulate
-      ↓
-Diagnosis
-      ↓
-Adaptation
-      ↓
-Disposition change
-      ↓
-future behaviour changes
+System Outcome
+       ↓
+External Environment
+       ↓
+External Evidence (correction or validation)
+       ↓
+New Stimulus
+       ↓
+Supervisory / Diagnostic UCA
+       ↓
+Adaptation UCA
+       ↓
+Mutation of the responsible UCA's Disposition
+       ↓
+Future behavior adapted
 ```
 
-Por tanto:
-
-> Aprender no consiste en que una UCA evalúe y modifique su propio comportamiento.
-
-> Consiste en que la interacción produzca evidencia que otras UCAs puedan utilizar para adaptar las Dispositions que condicionarán comportamientos futuros.
+Learning consists of interaction generating evidence that allows supervisory units to adapt the `Dispositions` governing future activations.
 
 ---
 
-# 29. Cingulate
+## 29. Supervisory and Coherence Preservation UCA
 
-Cingulate puede representar una capacidad cognitiva responsable de preservar la coherencia del Agent.
-
-Su Purpose exacto debe definirse independientemente de la implementación.
-
-Conceptualmente podría utilizar otras UCAs como Capabilities:
+A UCA-based architecture may feature one or more units dedicated to preserving coherence and diagnosing deviations:
 
 ```text
-Cingulate
-├── Diagnosis
-└── Adaptation
+Coherence & Supervision UCA (UCA₁)
+├── Diagnostic UCA (UCA₂)
+└── Adaptation UCA (UCA₃)
 ```
 
-Diagnosis podría determinar:
-
-```text
-¿Qué produjo la desviación?
-```
-
-Adaptation podría determinar:
-
-```text
-¿Qué disposición debe cambiar
-para reducir la probabilidad de repetirla?
-```
-
-Cingulate no necesita convertirse en un LLM que analiza todo el sistema.
+- `UCA₂ (Diagnosis)`: Evaluates discrepancies between expected and observed results to determine the root cause of an error.
+- `UCA₃ (Adaptation)`: Determines which `Disposition` must be updated on the target UCA to mitigate the issue in future occurrences.
 
 ---
 
-# 30. Thalamus
+## 30. Coordination and Dispatch UCA
 
-Thalamus tampoco debe convertirse en un agente monolítico.
-
-Su posible singularidad procede únicamente de su Purpose.
-
-Si su Purpose es coordinar la reacción cognitiva del Agent ante los estímulos, entonces puede ser legítimo que utilice diferentes UCAs como Capabilities.
-
-Ejemplo:
+In multi-channel or multi-domain systems, a UCA can hold the Purpose of coordinating and routing activations:
 
 ```text
-              Thalamus
-            /    |     \
-           /     |      \
-          ↓      ↓       ↓
-       Self    Memory   Cingulate
-        UCA      UCA       UCA
+              UCA₁ (Coordinator)
+            /         |         \
+           /          |          \
+          ↓           ↓           ↓
+     UCA₂ (Self)  UCA₃ (Memory)  UCA₄ (Egress)
 ```
 
-Thalamus no debe contener las capacidades cognitivas de esas UCAs.
-
-Debe coordinarlas cuando su Purpose lo requiera.
+The coordinator does not contain the domain logic of other units; it orchestrates their activation according to its coordination Purpose.
 
 ---
 
-# 31. Comunicación entre UCAs
+## 31. Inter-UCA Communication and the Transport Layer
 
-Las UCAs no necesitan dependencias directas entre sí.
+UCAs do not require hard-coded coupling or direct memory references to one another.
 
-La comunicación puede mantenerse sobre NervousSystem + Impulses.
-
-Conceptualmente:
+Interaction occurs across the system's transport layer (`Transport Layer` / `Event Bus`) via `Impulses`:
 
 ```text
-UCA A
- ↓
-Stimulus {
-    Goal,
-    Context
-}
- ↓
+UCA₁
+  ↓ emits
+Stimulus { Goal, Context }
+  ↓ transported via
 Impulse
- ↓
-NervousSystem
- ↓
-UCA B
- ↓
-Action
- ↓
+  ↓ over
+Transport Layer
+  ↓ delivered to
+UCA₂
+  ↓ executes cycle
 Outcome
- ↓
-Impulse
- ↓
-NervousSystem
- ↓
-UCA A
+  ↓ transported via
+Return Impulse
+  ↓ over
+Transport Layer
+  ↓ delivered to
+UCA₁
 ```
 
-Esto conserva la arquitectura reactiva de Extensio.
+This guarantees loose coupling, concurrency, and fault isolation.
 
 ---
 
-# 32. Trazabilidad causal
+## 32. Causal Traceability
 
-Aunque las UCAs sean independientes, debe poder reconstruirse la cadena causal de una interacción.
+Although UCAs are decoupled and asynchronous, the full causal interaction chain must remain traceable via impulse metadata:
 
-Por ejemplo mediante:
+- `traceId`: Unique identifier for the origin transaction.
+- `parentImpulseId`: Causal link to the preceding impulse.
+- `sessionId`: Interaction session scope.
+- `timestamp`: Event timing.
 
-```text
-traceId
-parentImpulse
-sessionId
-timestamp
-```
-
-Conceptualmente:
+Trace chain:
 
 ```text
-External Stimulus
-      ↓ trace X
-Ear
-      ↓ trace X
-Thalamus
-      ↓ trace X
-Memory
-      ↓ trace X
-Thalamus
-      ↓ trace X
-Mouth
-      ↓
-Exterior
-```
-
-Esto resulta especialmente importante para Diagnosis y aprendizaje.
-
----
-
-# 33. CognitiveSnapshot
-
-`CognitiveSnapshot` debe reconsiderarse dentro de la arquitectura UCA.
-
-Históricamente puede haber servido para materializar en un único objeto diferentes aspectos del estado cognitivo:
-
-```text
-CognitiveSnapshot
-├── self
-├── interlocutors
-├── relationships
-├── recentDialogs
-├── intentions
-├── tasks
-├── environment
-└── ...
-```
-
-Pero muchos de esos campos pueden estar representando artificialmente Outcomes de capacidades cognitivas que todavía no estaban modeladas como UCAs.
-
----
-
-# 34. Descomposición de CognitiveSnapshot
-
-Cada elemento del CognitiveSnapshot debería analizarse preguntando:
-
-```text
-¿Qué representa realmente este dato?
-```
-
-Existen al menos tres posibilidades:
-
-```text
-1. Conocimiento
-2. Estado técnico
-3. Resultado de una capacidad cognitiva
-```
-
-### Conocimiento
-
-Ejemplo:
-
-```text
-"Christian decidió utilizar WebRTC."
-```
-
-Puede pertenecer a Memory.
-
-### Estado técnico
-
-Ejemplo:
-
-```text
-activeAudioStream
-pendingImpulse
-traceId
-```
-
-Pertenece al runtime.
-
-No es cognición.
-
-### Capacidad cognitiva
-
-Ejemplo:
-
-```text
-snapshot.self
-```
-
-puede estar ocultando una capacidad:
-
-```text
-Self UCA
-
-Purpose:
-Saber quién soy.
+External Stimulus ──► Ingress UCA [trace X] ──► UCA₁ [trace X] ──► UCA₂ [trace X] ──► Egress UCA [trace X] ──► Exterior
 ```
 
 ---
 
-# 35. CognitiveSnapshot como síntoma arquitectónico
+## 33. Re-evaluating the Centralized Global Snapshot Pattern
 
-El CognitiveSnapshot puede estar actuando como sustituto de capacidades cognitivas todavía no identificadas.
+Many traditional agent architectures rely on a single monolithic state object (often named *CognitiveSnapshot* or *AgentState*) that amalgamates all variables: identity, users, task trees, dialogue history, and environment.
 
-Por ejemplo:
-
-```text
-CognitiveSnapshot.self
-        ↓
-Self UCA
-
-CognitiveSnapshot.interlocutors
-        ↓
-UCA responsable de reconocer
-con quién interactúa el Agent
-
-CognitiveSnapshot.relationships
-        ↓
-posible UCA responsable
-de comprender relaciones
-
-CognitiveSnapshot.recentDialogs
-        ↓
-Memory / conversational knowledge
-```
-
-Estas correspondencias son hipótesis.
-
-No debe crearse una UCA simplemente porque exista un campo.
-
-El Purpose autónomo debe justificarla.
+Within the UCA architecture, this pattern is understood as a design symptom: an aggregate container acting as a placeholder for cognitive capacities that have not yet been modeled as autonomous units.
 
 ---
 
-# 36. Posible desaparición de CognitiveSnapshot
+## 34. Decomposition of the Global State
 
-El objetivo no debe ser eliminar CognitiveSnapshot arbitrariamente.
-
-Debe ser **desgranarlo conceptualmente**.
-
-Para cada propiedad:
+Any property in a global snapshot can be analyzed ontologically:
 
 ```text
-CognitiveSnapshot.property
-        ↓
-¿conocimiento?
-        ↓
-Memory
-
-¿estado técnico?
-        ↓
-Runtime
-
-¿capacidad cognitiva?
-        ↓
-buscar Purpose
-        ↓
-posible UCA
+What does this data conceptually represent?
+├── 1. Persistent knowledge?  ──► Belongs to a Knowledge / Memory UCA.
+├── 2. Runtime execution state?──► Belongs to the Transport / Runtime Layer.
+└── 3. Active cognitive capacity?──► Identify its Purpose and formalize a UCA.
 ```
-
-Si todas sus responsabilidades encuentran un lugar más preciso, CognitiveSnapshot puede terminar desapareciendo de manera natural.
-
-No porque haya sido prohibido.
-
-Sino porque habrá perdido su Purpose.
 
 ---
 
-# 37. Estado cognitivo sin Snapshot global
+## 35. State Distributed Across the Cognitive Organization
 
-El estado cognitivo del Agent no necesita existir necesariamente como una fotografía global materializada.
+The state of a cognitive system does not need to reside in a single serialized object.
 
-Puede emerger de:
-
-```text
-UCAs existentes
-+
-sus Dispositions
-+
-conocimiento adquirido
-+
-Outcomes anteriores
-+
-Context actual
-+
-cadena causal actual
-```
-
-Por tanto, el Agent puede poseer estado cognitivo sin necesitar:
-
-```text
-const cognitiveSnapshot = {...todo...}
-```
-
-El estado puede estar distribuido en la propia organización cognitiva.
+It emerges from:
+- the active UCAs;
+- the current `Dispositions` in each UCA;
+- the accessible acquired knowledge;
+- relevant prior Outcomes;
+- the bounded Context of the active causal chain.
 
 ---
 
-# 38. Context como construcción cognitiva
+## 36. Dynamic Context as Cognitive Synthesis
 
-El Context necesario para una UCA puede construirse mediante Outcomes de otras capacidades.
-
-Ejemplo:
+The `Context` for an activation is not a raw clone of the entire system state; it is synthesized on-demand through Outcomes from relevant units:
 
 ```text
-Thalamus
-   │
-   ├── Self UCA
-   │      ↓
-   │   Outcome
-   │
-   ├── Memory UCA
-   │      ↓
-   │   Outcome
-   │
-   └── Interlocutor UCA
-          ↓
-       Outcome
-
-          ↓
-
-Context relevante
-para la acción actual
+Coordinator UCA
+├── Identity UCA ──► Outcome (Role context)
+├── Memory UCA   ──► Outcome (Relevant facts)
+└── Social UCA   ──► Outcome (Interlocutor data)
+        ↓
+Specialized, compact Context for the immediate action
 ```
-
-De esta forma el Context no necesita ser una copia del estado completo del Agent.
 
 ---
 
-# 39. Memoria no equivale a cognición
+## 37. Fundamental UCA Abstraction
 
-Una memoria perfectamente estructurada y recuperable no constituye por sí misma cognición.
+A UCA can be expressed through a minimal interface:
 
-Memory proporciona conocimiento.
+```typescript
+interface UCA<TGoal, TContext, TOutcome, TDisposition> {
+  readonly purpose: string;
+  disposition: TDisposition;
+  readonly capabilities: Capability[];
 
-Las UCAs proporcionan capacidades cognitivas.
-
-Ejemplo:
-
-```text
-Memory:
-"Christian es el usuario actual."
-
-vs.
-
-Interlocutor/Social UCA:
-"¿Con quién estoy interactuando
-y qué significa eso en esta situación?"
-```
-
-El almacenamiento proporciona evidencia.
-
-La capacidad cognitiva la utiliza bajo un Purpose.
-
----
-
-# 40. El dato no sustituye a la capacidad
-
-Principio general:
-
-> Tener almacenado el resultado de una capacidad cognitiva no equivale a poseer esa capacidad cognitiva.
-
-Ejemplo:
-
-```text
-{
-  "self": "Extensio"
+  execute(stimulus: Stimulus<TGoal, TContext>): Promise<Outcome<TOutcome>>;
 }
 ```
 
-no equivale a:
-
-```text
-Self UCA
-
-Purpose:
-Mantener una representación coherente
-de quién soy.
-```
-
-El primero es información.
-
-El segundo es una capacidad que puede utilizar información, experiencia y contexto para producir Outcomes.
+Where:
+- `Stimulus` groups `Goal` and `Context`.
+- `execute` performs observation, weights disposition and capabilities, runs the action, and returns the `Outcome`.
 
 ---
 
-# 41. UCA fundamental
+## 38. Separation Between UCA and Runtime
 
-Una UCA debería poder representarse mediante una abstracción extremadamente pequeña.
+The **Runtime** manages operational infrastructure:
+- impulse routing and delivery;
+- serialization, timeouts, and concurrency;
+- causal trace identifiers;
+- process lifecycle and bus reactivity.
 
-Conceptualmente:
-
-```typescript
-class UCA {
-  purpose
-  disposition
-  capabilities
-
-  execute(stimulus)
-}
-```
-
-Donde:
-
-```text
-Stimulus
-├── Goal
-└── Context
-```
-
-y la ejecución produce:
-
-```text
-Outcome
-```
-
-La infraestructura no debería contaminar la definición cognitiva.
+The **UCA** concentrates purely on cognitive semantics:
+- `Purpose`, `Disposition`, `Capabilities`, `Stimulus`, `Action`, and `Outcome`.
 
 ---
 
-# 42. Runtime UCA
+## 39. UCA Discovery and Boundary Formulation
 
-El runtime debe encargarse de aspectos técnicos como:
-
-```text
-Impulse routing
-NervousSystem
-storage
-reactivity
-subscriptions
-traceId
-serialization
-timeouts
-execution lifecycle
-```
-
-La UCA debería concentrarse en:
+UCAs must not be derived from rigid pre-baked taxonomies. They are discovered by identifying autonomous purposes:
 
 ```text
-Purpose
-Disposition
-Capabilities
-Stimulus
-Action
-Outcome
+Functional need in the system
+              ↓
+Does an autonomous, stable cognitive purpose exist?
+              ├── NO  ──► It is a Capability or ordinary mechanism.
+              └── YES ──► Formalize a new UCA.
+                              ↓
+                      What capabilities does it require?
+                              ↓
+              Do any of these capabilities possess an autonomous purpose?
+                              ├── YES ──► New subordinate UCA (Composition).
+                              └── NO  ──► Terminal capability (Algorithm, tool, LLM).
 ```
-
-Esto permite crear nuevas capacidades cognitivas sin volver a implementar infraestructura.
 
 ---
 
-# 43. Ejecución mínima
+## 40. Adaptation Example: Factual Correction
 
-Idealmente definir una UCA debería aproximarse a algo como:
-
-```typescript
-const memory = new UCA({
-  purpose: 'Provide relevant acquired knowledge',
-  disposition: {...},
-  capabilities: [...]
-});
-```
-
-Y ejecutarla debería ser conceptualmente tan simple como:
-
-```typescript
-await memory.act(stimulus);
-```
-
-La API exacta deberá diseñarse posteriormente.
-
-Lo importante es que la complejidad técnica permanezca en el runtime.
+1. **Initial Stimulus**: The interlocutor states: *"Christian decided to adopt WebRTC"*.
+2. The Ingress UCA receives the message and activates Coordinator UCA ($UCA_1$).
+3. $UCA_1$ queries Memory UCA ($UCA_2$) and outputs an incorrect response via Egress UCA: *"Marco decided to adopt WebRTC"*.
+4. **External Evidence**: The user corrects: *"No, I just told you it was Christian, not Marco"*.
+5. Coordinator UCA detects the contextual inconsistency and activates Supervisory UCA ($UCA_3$).
+6. $UCA_3$ diagnoses that recent memory weighting was insufficient under contradiction, and adapts the `Disposition` of the Memory UCA (increasing sensitivity to direct user corrections).
+7. In an equivalent future interaction, the Memory UCA operates under the updated disposition and provides the correct answer, **without code modification and without retraining any model**.
 
 ---
 
-# 44. Recursividad
+## 41. What Is NOT a UCA
 
-La arquitectura UCA es recursiva.
-
-Una UCA puede utilizar otra UCA.
-
-Esa segunda puede utilizar una tercera.
-
-Ejemplo:
+The following do not constitute a UCA on their own:
 
 ```text
-Agent
- ↓
-Thalamus
- ↓
-Cingulate
- ↓
-Diagnosis
- ↓
-Memory
- ↓
-terminal capabilities
+a message or event
+a network impulse
+a prompt or text template
+an LLM or model API
+a search algorithm or parser
+a database or vector index
+a state field or property
 ```
 
-La recursión termina cuando desaparecen los nuevos Purposes autónomos y solamente quedan mecanismos.
+All of these are valuable instrumental components (`Capabilities` or `Transport`), but a UCA only exists when organized around an autonomous `Purpose`.
 
 ---
 
-# 45. Agent como sistema de UCAs
+## 42. Fundamental Principles of the UCA Model
 
-El Agent puede entenderse como un sistema compuesto por UCAs especializadas.
-
-No debe asumirse:
-
-```text
-1 órgano biológico = 1 UCA
-```
-
-Los nombres actuales:
-
-```text
-Thalamus
-Hippocampus
-Cingulate
-Ear
-Mouth
-...
-```
-
-son hipótesis arquitectónicas.
-
-Cada uno debe superar la pregunta:
-
-```text
-¿Cuál es su Purpose autónomo?
-```
-
-Si no puede responderse claramente, quizá:
-
-- no es una UCA;
-- contiene varias UCAs;
-- es solamente infraestructura;
-- es una Capability;
-- o pertenece a otro dominio.
+1. **Principle of Purpose**: A UCA exists because it possesses an autonomous, stable Purpose.
+2. **Principle of Specialization**: A UCA only accepts Goals compatible with its Purpose.
+3. **Principle of Reactivity**: No spontaneous self-activation; a UCA executes strictly upon receiving a Stimulus.
+4. **Principle of External Causality**: Every cognitive chain originates outside the cognitive system.
+5. **Principle of Composition**: A UCA can leverage another UCA as a subordinate Capability.
+6. **Principle of Termination**: When autonomous purposes cease to emerge, terminal capabilities have been reached.
+7. **Principle of Outcome**: A UCA produces real Outcomes; it does not self-evaluate in the abstract.
+8. **Principle of Attainment**: The Outcome belongs to the executor; the Attainment belongs to whoever set the Goal.
+9. **Principle of Non-Self-Adaptation**: A UCA does not alter its own Disposition; adaptation proceeds from an independent supervisory capacity.
+10. **Principle of Emergence**: Cognition does not reside in a central unit; it emerges from contextual interaction among units.
+11. **Principle of Proactivity**: Autonomy resides in Purpose, reactivity in execution, and proactivity emerges from causal chaining.
+12. **Principle of Representation**: Possessing data produced by a cognitive capacity is not equivalent to possessing the capacity itself.
 
 ---
 
-# 46. Descubrimiento de UCAs
-
-Las UCAs no deberían inventarse desde una taxonomía previa.
-
-Deben descubrirse identificando propósitos cognitivos autónomos.
-
-Proceso:
-
-```text
-Necesidad cognitiva
-      ↓
-¿Existe un Purpose autónomo?
-      ↓
-     sí
-      ↓
-    UCA
-      ↓
-¿qué necesita para cumplirlo?
-      ↓
-Capabilities
-      ↓
-¿alguna Capability posee otro Purpose autónomo?
-      ↓
-     sí
-      ↓
- nueva UCA
-```
-
-Esto continúa hasta alcanzar mecanismos terminales.
-
----
-
-# 47. Ejemplo completo: corrección de identidad
-
-Usuario:
-
-```text
-"Christian fue quien decidió utilizar WebRTC."
-```
-
-Flujo conceptual:
-
-```text
-External Stimulus
-      ↓
-Ear
-      ↓
-Outcome:
-"Christian fue quien decidió utilizar WebRTC."
-      ↓
-Thalamus
-      ↓
-Memory / otras UCAs
-      ↓
-Thalamus
-      ↓
-Mouth
-      ↓
-Outcome:
-"Marco decidió utilizar WebRTC."
-      ↓
-Exterior
-```
-
-El Agent ha cometido un error.
-
-No necesita autoevaluarse.
-
-El usuario responde:
-
-```text
-"No. Te acabo de decir que fue Christian, no Marco."
-```
-
-Eso produce:
-
-```text
-new External Stimulus
-      ↓
-Ear
-      ↓
-Thalamus
-```
-
-Ahora existe evidencia contextual de incoherencia:
-
-```text
-previous user input:
-Christian
-
-previous Agent Outcome:
-Marco
-
-current user input:
-correction → Christian
-```
-
-Thalamus puede, si su Purpose lo justifica, activar Cingulate.
-
-```text
-Thalamus
- ↓
-Cingulate
- ↓
-Diagnosis
- ↓
-Outcome:
-causa probable de la desviación
- ↓
-Adaptation
- ↓
-Disposition change
-```
-
-Una interacción futura similar puede producir un comportamiento diferente.
-
----
-
-# 48. Qué NO es una UCA
-
-No es automáticamente una UCA:
-
-```text
-un mensaje
-un Impulse
-un Stimulus
-un prompt
-un LLM
-un parser
-una función
-una búsqueda
-un embedding
-un vector store
-un algoritmo
-un driver
-un endpoint
-una tabla
-un dominio de memoria
-un campo del CognitiveSnapshot
-```
-
-Cualquiera de ellos podría participar en una UCA.
-
-Pero solamente existe UCA cuando existe un Purpose autónomo.
-
----
-
-# 49. Principios fundamentales
-
-## Principio de Purpose
-
-> Una UCA existe porque posee un Purpose autónomo.
-
-## Principio de especialización
-
-> Una UCA solamente acepta Goals compatibles con su Purpose.
-
-## Principio de reactividad
-
-> Ninguna UCA se autoactiva; solamente ejecuta ante un Stimulus.
-
-## Principio de causalidad
-
-> Toda cadena cognitiva tiene un origen externo al sistema cognitivo.
-
-## Principio de composición
-
-> Una UCA puede utilizar otra UCA como Capability.
-
-## Principio de terminación
-
-> Cuando desaparecen los propósitos autónomos y solamente quedan mecanismos, termina la descomposición en UCAs.
-
-## Principio de Outcome
-
-> Una UCA produce Outcomes; no necesita autoevaluar globalmente su éxito.
-
-## Principio de Attainment
-
-> El Outcome pertenece a quien ejecuta; el Attainment pertenece a quien estableció el Goal.
-
-## Principio de adaptación
-
-> Una UCA no modifica su propia Disposition; la adaptación procede de otra capacidad cuyo Purpose lo justifica.
-
-## Principio de emergencia
-
-> La cognición no reside en una UCA individual; emerge de la interacción contextual y causal entre UCAs.
-
-## Principio de proactividad
-
-> La autonomía está en el Purpose, la reactividad está en la ejecución y la proactividad emerge de la interacción.
-
-## Principio de representación
-
-> Un dato producido por una capacidad cognitiva no sustituye a la capacidad cognitiva que permite producirlo.
-
----
-
-# 50. Modelo conceptual mínimo
-
-La definición persistente de una UCA puede reducirse a:
-
-```text
-UCA
-├── Purpose
-├── Disposition
-└── Capabilities
-```
-
-Una activación:
-
-```text
-Stimulus
-├── Goal
-└── Context
-
-        ↓
-
-Observation
-
-        ↓
-
-Disposition
-+
-Capabilities
-
-        ↓
-
-Action
-
-        ↓
-
-Outcome
-```
-
-El Outcome vuelve al sistema mediante un Impulse.
-
-Quien estableció el Goal puede utilizar dicho Outcome para determinar su propio Attainment y continuar la cadena cognitiva.
-
----
-
-# 51. Modelo global
+## 43. Global Interaction Model
 
 ```text
                          EXTERIOR
@@ -1765,17 +912,17 @@ Quien estableció el Goal puede utilizar dicho Outcome para determinar su propio
                             │
                             ▼
                     ┌───────────────┐
-                    │     AGENT     │
+                    │  UCA SYSTEM   │
                     │               │
-                    │      UCA      │
+                    │     UCA₁      │
                     │    /  |  \    │
-                    │   UCA UCA UCA │
+                    │  UCA₂ UCA₃ UCA₄│
                     │    \  |  /    │
                     │    Outcomes   │
                     │       │       │
                     │    Context    │
                     │       │       │
-                    │   new Actions │
+                    │   New Actions │
                     └───────┬───────┘
                             │
                          Outcome
@@ -1783,164 +930,41 @@ Quien estableció el Goal puede utilizar dicho Outcome para determinar su propio
                             ▼
                          EXTERIOR
                             │
-                     nueva evidencia
+                       New Evidence
                             │
-                            └──────────────►
+                            └──────────────► (Informs future adaptations)
 ```
-
-El exterior inicia cadenas causales.
-
-Las UCAs reaccionan de acuerdo con sus Purposes.
-
-Sus Outcomes modifican el contexto de otras UCAs.
-
-El Agent actúa sobre el exterior.
-
-El exterior proporciona nueva evidencia.
-
-La experiencia puede modificar Dispositions.
-
-Y el comportamiento futuro cambia.
 
 ---
 
-# 52. Hipótesis arquitectónica
+## 44. Empirical Validation Criteria
 
-La hipótesis de Extensio es que un comportamiento cognitivo útil puede emerger de la interacción entre unidades cognitivas pequeñas, especializadas y autónomas en Purpose, sin depender de un único modelo central que posea todo el estado y tome todas las decisiones.
+The UCA model is validated when an ensemble of units can:
 
-Por tanto, el objetivo no es construir:
-
-```text
-Input
- ↓
-Big Cognitive Snapshot
- ↓
-Big Prompt
- ↓
-LLM
- ↓
-Output
-```
-
-El objetivo es construir:
-
-```text
-Exterior
-   ↓
-Stimulus
-   ↓
-specialized UCAs
-   ↕
-Outcomes
-   ↕
-Context
-   ↕
-Memory
-   ↕
-Adaptation
-   ↓
-Exterior
-```
-
-donde los LLMs sean capacidades sustituibles y no el lugar donde reside la arquitectura cognitiva.
+1. Receive an external stimulus;
+2. React according to specialized purposes without an omniscient central entity;
+3. Collaborate via stimulus and outcome exchange;
+4. Produce an action toward the external environment;
+5. Receive external feedback/evidence regarding the outcome;
+6. Use that evidence to diagnose deviations;
+7. Adapt one or more `Dispositions`;
+8. React correctly in an equivalent future scenario;
+9. Accomplish this **without source code modifications**;
+10. Accomplish this **without retraining models**;
+11. Accomplish this **without ad-hoc hardcoded rules designed for the test case**.
 
 ---
 
-# 53. Consecuencia para Extensio
+## 45. Core Thesis
 
-Antes de continuar creando órganos, módulos o nuevos pipelines cognitivos, debe existir una abstracción UCA mínima y estable.
-
-Después, cada componente actual debe analizarse mediante su Purpose.
-
-Especialmente:
-
-```text
-CognitiveSnapshot
-Thalamus
-Hippocampus
-Cingulate
-Ear
-Mouth
-Prefrontal
-```
-
-La pregunta para cada uno no será:
-
-```text
-¿Qué hace actualmente este código?
-```
-
-sino:
-
-```text
-¿Qué Purpose cognitivo existe aquí?
-```
-
-A partir de esa respuesta podremos determinar si el componente:
-
-```text
-es una UCA
-contiene varias UCAs
-es una Capability
-es conocimiento
-es runtime
-o deja de ser necesario
-```
-
-En particular, `CognitiveSnapshot` deberá descomponerse propiedad por propiedad.
-
-Si sus responsabilidades terminan absorbidas por:
-
-```text
-UCAs
-+
-Memory
-+
-Runtime
-```
-
-entonces desaparecerá naturalmente porque habrá dejado de poseer una responsabilidad arquitectónica propia.
-
----
-
-# 54. Criterio de validación
-
-La arquitectura UCA no debe considerarse validada simplemente porque el código pueda implementarla.
-
-Debe demostrarse que un conjunto pequeño de UCAs puede:
-
-1. recibir un estímulo externo;
-2. reaccionar mediante Purposes especializados;
-3. colaborar sin compartir un cerebro monolítico;
-4. producir un Outcome hacia el exterior;
-5. recibir posteriormente evidencia externa sobre ese Outcome;
-6. utilizar dicha evidencia para diagnosticar una desviación;
-7. adaptar una Disposition;
-8. reaccionar de forma diferente ante una situación futura equivalente;
-9. hacerlo sin modificar código;
-10. hacerlo sin entrenar nuevamente el LLM;
-11. hacerlo sin reglas específicas diseñadas para el ejemplo.
-
-Si esto ocurre, el comportamiento adaptativo no estará programado explícitamente para el caso concreto.
-
-Habrá emergido de la arquitectura.
-
----
-
-# 55. Idea central
-
-La arquitectura puede resumirse finalmente así:
-
-> **Una UCA es una capacidad cognitiva autónoma en Purpose y reactiva en ejecución.**
-
-> **Recibe un Goal dentro de un Context, utiliza sus Dispositions y Capabilities, ejecuta una Action y produce un Outcome.**
-
-> **El Outcome es evaluable respecto al Goal por quien originó esa necesidad.**
-
-> **Las UCAs pueden utilizar otras UCAs cuando existen propósitos autónomos subordinados.**
-
-> **Toda actividad comienza causalmente en el exterior, pero la interacción interna entre UCAs puede producir comportamiento proactivo emergente.**
-
-> **La memoria aporta conocimiento; las UCAs aportan capacidades cognitivas; el runtime aporta infraestructura.**
-
-> **La cognición no reside en una UCA, en un CognitiveSnapshot ni en un LLM: emerge de la interacción entre capacidades cognitivas especializadas, memoria, contexto, experiencia y exterior.**
+> **A UCA is a functional unit autonomous in purpose and reactive in execution.**
+>
+> **It receives a Goal within a Context, applies its Dispositions and Capabilities, executes an Action, and produces an Outcome.**
+>
+> **The Outcome is evaluated relative to the Goal by the entity that originated the need (Attainment).**
+>
+> **All cognitive activity originates from external causes, but contextual interaction among units yields emergent cognition and proactivity.**
+>
+> **Knowledge supplies evidence; UCAs supply purpose-driven capabilities; runtime supplies transport and infrastructure.**
+>
+> **Cognition does not reside in a single UCA or central model: it emerges from dynamic interaction between specialized capabilities and their environment.**

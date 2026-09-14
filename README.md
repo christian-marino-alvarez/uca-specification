@@ -1,119 +1,133 @@
-# UCA — Unidad Cognitiva Autónoma (Autonomous Cognitive Unit)
+# UCA — Autonomous Cognitive Unit (Unidad Cognitiva Autónoma)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Status: Specification RFC](https://img.shields.io/badge/Status-Specification%20RFC-green.svg)](SPECIFICATION.md)
+[![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](LICENSE)
+[![Status: RFC Specification](https://img.shields.io/badge/Status-RFC%20Specification-orange.svg)](SPECIFICATION.md)
 
-> **Una UCA no se define por lo que ejecuta, sino por el propósito que es responsable de alcanzar.**
+[ English | [Español](README.es.md) ] &nbsp;•&nbsp; [ [Specification (EN)](SPECIFICATION.md) | [Especificación (ES)](SPECIFICATION.es.md) ]
+
+> **A UCA is defined not by what it executes, but by the purpose it is responsible for fulfilling.**
 >
-> *An Autonomous Cognitive Unit is defined not by the algorithm it executes, the model it uses, or the data it processes, but by why it exists within the cognitive system.*
+> *Una UCA no se define por lo que ejecuta, sino por el propósito que es responsable de alcanzar.*
 
 ---
 
-## 📖 Resumen Ejecutivo / Executive Summary
+## 📖 Executive Summary
 
-Las arquitecturas de agentes de Inteligencia Artificial actuales suelen basarse en un modelo monolítico:
+Many current Artificial Intelligence agent architectures rely on a monolithic pattern:
 ```text
-Input ──► Big Snapshot / Memory ──► Giant Prompt ──► Central LLM ──► Output
+Input ──► Central State / Snapshot ──► Large Context Prompt ──► Central Model ──► Output
 ```
-Este enfoque confunde **mecanismos** con **capacidades cognitivas** y **datos** con **conocimiento**. Obliga a centralizar el estado en estructuras masivas e inflexibles y delega toda la deliberación, coordinación y aprendizaje a llamadas ciegas a modelos de lenguaje.
+This pattern often concentrates disparate concerns into aggregate state objects and delegates deliberation, coordination, and error handling entirely to a single model inference.
 
-La arquitectura **UCA (Unidad Cognitiva Autónoma)** propone un cambio de paradigma:
-- **Autonomía en el Purpose**: Cada unidad existe para cumplir un propósito cognitivo autónomo y estable.
-- **Reactividad en la ejecución**: Ninguna UCA se autoactiva; solamente actúa ante un estímulo (`Stimulus`).
-- **Cognición emergente**: La cognición no reside en una unidad central, en un snapshot ni en un LLM, sino que **emerge de la interacción causal y contextual** entre unidades especializadas.
-- **Adaptación estructural sin reentrenamiento**: La interacción con el exterior genera evidencia que permite a unidades supervisoras diagnosticar desviaciones y adaptar las predisposiciones (`Dispositions`) de otras unidades, alterando su comportamiento futuro sin tocar código ni modificar los pesos del modelo.
+The **UCA (Autonomous Cognitive Unit)** architecture proposes a modular, purpose-oriented alternative:
+- **Autonomy in Purpose**: Each unit exists to fulfill an autonomous, bounded cognitive purpose (`Purpose`).
+- **Reactivity in Execution**: No UCA self-activates; it executes strictly upon receiving a stimulus (`Stimulus = Goal + Context`).
+- **Emergent Cognition**: Cognition does not reside in a single central unit or model; it **emerges from the causal, contextual interaction** among specialized units ($UCA_1, UCA_2, UCA_3$).
+- **Structural Adaptation Without Retraining**: Interaction with the external environment yields evidence that allows supervisory units to diagnose deviations and adapt the behavioral predispositions (`Dispositions`) of other units, altering future behavior without modifying code or retraining model weights.
+
+> **Note on Scope**: This repository documents the abstract UCA model. It is designed to be fully agnostic of specific runtimes, frameworks, or biological organ analogies.
 
 ---
 
-## 🏛️ Modelo Conceptual Mínimo
+## 🏛️ Minimal Conceptual Model
 
-Una UCA se compone persistentemente de:
+A UCA is persistently defined by:
 ```text
 UCA
-├── Purpose       (Por qué existe — persistente, independiente de la implementación)
-├── Disposition   (Predisposiciones de comportamiento — adaptables externamente)
-└── Capabilities  (Recursos disponibles: algoritmos, herramientas, modelos, otras UCAs)
+├── Purpose       (Why it exists — persistent, implementation-independent)
+├── Disposition   (Behavioral predispositions — externally adaptable)
+└── Capabilities  (Available resources: algorithms, tools, models, subordinate UCAs)
 ```
 
-### El Ciclo de Activación Canónico
+### The Canonical Activation Cycle
 
-Una UCA reacciona únicamente cuando recibe un **Estímulo**:
+A UCA reacts strictly upon receiving a **Stimulus**:
 
 ```mermaid
 flowchart TD
-    EXT([Estímulo Externo]) --> IMP[Impulse]
+    EXT([External Stimulus]) --> IMP[Impulse]
     IMP --> STIM[Stimulus: Goal + Context]
     
-    subgraph UCA [Ciclo de Activación UCA]
-        STIM --> VAL{¿Goal compatible<br/>con Purpose?}
+    subgraph UCA [UCA Activation Cycle]
+        STIM --> VAL{Is Goal compatible<br/>with Purpose?}
         VAL -- No --> REJ[Outcome: Incompatible Goal]
-        VAL -- Sí --> OBS[Observation: Extracción de salience y contexto]
-        OBS --> DEC[Deliberación: Ponderación con Disposition y Capabilities]
-        DEC --> ACT[Action: Ejecución determinista o inferencial]
-        ACT --> OUT[Outcome: Resultado real producido]
+        VAL -- Yes --> OBS[Observation: Extract salience & context]
+        OBS --> DEC[Deliberation: Weight with Disposition & Capabilities]
+        DEC --> ACT[Action: Deterministic or inferential execution]
+        ACT --> OUT[Outcome: Actual result produced]
     end
     
-    OUT --> RET[Impulse de Retorno]
-    RET --> ATT[Evaluación de Attainment por quien fijó el Goal]
+    OUT --> RET[Return Impulse via Transport Layer]
+    RET --> ATT[Attainment Evaluation by Goal Originator]
 ```
 
 ---
 
-## 📐 Conceptos Clave
+## 📐 Core Concepts
 
-| Concepto | Definición |
+| Concept | Definition |
 |---|---|
-| **Purpose** | Expresa **por qué existe** una UCA. Estable, independiente de una ejecución concreta. |
-| **Goal** | Qué **resultado concreto** necesita obtenerse en una activación determinada. Contextual. |
-| **Stimulus** | La activación cognitiva de una UCA. Contiene el `Goal` y el `Context`. |
-| **Impulse** | El vehículo de transporte biológico/técnico del sistema nervioso (id, ttl, traceId, prioridad). |
-| **Context** | La información relevante necesaria para interpretar el Goal (evidencias, outcomes previos). |
-| **Observation** | La información cognitivamente relevante que la UCA extrae de la entrada. |
-| **Disposition** | Predisposición de comportamiento (tolerancia a ambigüedad, umbrales de inferencia, etc.). |
-| **Capability** | Recursos que una UCA puede invocar (algoritmos, LLMs, drivers, o incluso **otras UCAs**). |
-| **Action** | La ejecución concreta que intenta satisfacer el Goal bajo su Purpose. |
-| **Outcome** | Lo que **realmente produjo** la acción (*pertenece a quien ejecuta*). |
-| **Attainment** | Grado en que el Outcome satisface la necesidad original (*pertenece a quien estableció el Goal*). |
+| **Purpose** | Expresses **why a UCA exists**. Persistent, implementation-independent. |
+| **Goal** | What **concrete outcome** must be achieved in a given activation. Contextual and transient. |
+| **Stimulus** | The cognitive activation of a UCA. Composed of `Goal` and `Context`. |
+| **Impulse** | The transport vehicle across the communication layer (id, ttl, traceId, priority, stimulus/outcome). |
+| **Context** | The bounded information necessary to interpret the Goal (prior outcomes, active evidence). |
+| **Observation** | The cognitively relevant information extracted by the UCA from the input. |
+| **Disposition** | Behavioral predispositions (ambiguity tolerance, confidence thresholds, error sensitivity). |
+| **Capability** | Instrumental resources accessible to a UCA (algorithms, LLMs, drivers, tools, or **other UCAs**). |
+| **Action** | What the UCA executes to satisfy the Goal under its Purpose. |
+| **Outcome** | What the action **actually produced** (*belongs to the executor*). |
+| **Attainment** | Degree to which the Outcome fulfills the Goal (*belongs to whoever set the Goal*). |
 
 ---
 
-## 📜 Principios Fundamentales
+## 📜 Fundamental Principles
 
-1. **Principio de Purpose**: Una UCA existe porque posee un propósito autónomo.
-2. **Principio de Especialización**: Solo acepta Goals compatibles con su Purpose.
-3. **Principio de Reactividad**: No existe autoactivación; solo ejecuta ante un Stimulus.
-4. **Principio de Causalidad Externa**: Toda cadena cognitiva tiene un origen externo al sistema cognitivo.
-5. **Principio de Composición**: Una UCA puede utilizar otra UCA como Capability (recursividad).
-6. **Principio de Terminación**: Cuando dejan de aparecer propósitos autónomos y solo quedan mecanismos, se alcanzan capacidades terminales.
-7. **Principio de Outcome**: Una UCA produce Outcomes; no necesita autoevaluarse globalmente.
-8. **Principio de Attainment**: El Outcome pertenece a quien ejecuta; el Attainment a quien fijó el Goal.
-9. **Principio de No Autoadaptación**: Una UCA no modifica su propia Disposition; la adaptación procede de otra capacidad con propósito de diagnóstico/adaptación (ej. Cíngulo).
-10. **Principio de Emergencia**: La cognición emerge de la interacción contextual entre unidades.
-11. **Principio de Proactividad**: La autonomía está en el Purpose, la reactividad en la ejecución y la proactividad emerge de la interacción encadenada.
-12. **Principio de Representación**: Un dato almacenado no sustituye a la capacidad cognitiva de producirlo.
-
----
-
-## 🎯 Criterio de Validación Empírica
-
-La arquitectura UCA se valida si un conjunto reducido de unidades es capaz de:
-1. Recibir un estímulo externo.
-2. Reaccionar mediante Purposes especializados y colaborar sin un cerebro central monolítico.
-3. Producir un Outcome hacia el exterior.
-4. Recibir evidencia externa sobre ese Outcome (ej. corrección del usuario o error detectado).
-5. Diagnosticar la desviación y adaptar una `Disposition`.
-6. **Reaccionar de forma diferente y corregida ante una situación futura equivalente**.
-7. Lograrlo **sin tocar código, sin reentrenar el modelo y sin reglas ad-hoc para el caso**.
+1. **Principle of Purpose**: A UCA exists because it possesses an autonomous, stable Purpose.
+2. **Principle of Specialization**: A UCA only accepts Goals compatible with its Purpose.
+3. **Principle of Reactivity**: No UCA self-activates; it executes strictly upon receiving a Stimulus.
+4. **Principle of External Causality**: Every cognitive chain originates externally to the cognitive system.
+5. **Principle of Composition**: A UCA can leverage another UCA as a Capability (recursive composition).
+6. **Principle of Termination**: When autonomous purposes cease to emerge and only mechanisms remain, decomposition halts.
+7. **Principle of Outcome**: A UCA produces Outcomes; it does not need to self-evaluate its global success.
+8. **Principle of Attainment**: The Outcome belongs to the executor; the Attainment belongs to whoever set the Goal.
+9. **Principle of Non-Self-Adaptation**: A UCA does not mutate its own Disposition; adaptation proceeds from an independent supervisory capability.
+10. **Principle of Emergence**: Cognition does not reside in an individual UCA; it emerges from contextual interaction among units.
+11. **Principle of Proactivity**: Autonomy resides in Purpose, reactivity in execution, and proactivity emerges from interaction.
+12. **Principle of Representation**: Storing data produced by a cognitive capacity does not substitute the capacity to produce it.
 
 ---
 
-## 📚 Documentación Completa
+## 🎯 Empirical Validation Criteria
 
-Para acceder a la especificación formal exhaustiva de 55 secciones, consulta:
-👉 **[SPECIFICATION.md](SPECIFICATION.md)**
+The UCA architecture is validated when a minimal ensemble of units can:
+1. Receive an external stimulus;
+2. React via specialized Purposes and collaborate without a monolithic central brain;
+3. Produce an Outcome toward the external environment;
+4. Receive external feedback/evidence regarding that Outcome;
+5. Diagnose the deviation and adapt a `Disposition`;
+6. **React differently and correctly in an equivalent future situation**;
+7. Accomplish this **without source code modifications, without retraining models, and without ad-hoc test rules**.
 
 ---
 
-## 📄 Licencia
+## 📚 Complete Formal Specification
 
-Este proyecto y su especificación se distribuyen bajo la licencia **MIT**. Consulta el archivo [LICENSE](LICENSE) para más detalles.
+- 🇬🇧 **[SPECIFICATION.md (English)](SPECIFICATION.md)** — Exhaustive normative specification (RFC).
+- 🇪🇸 **[SPECIFICATION.es.md (Español)](SPECIFICATION.es.md)** — Especificación formal completa en español.
+
+---
+
+## License
+
+UCA Specification © 2026 Christian Marino Alvarez.
+
+This specification and its documentation are licensed under the
+Creative Commons Attribution 4.0 International License (CC BY 4.0).
+
+You are free to use, share, adapt, and implement this specification,
+including for commercial purposes, provided appropriate attribution
+is given.
+
+Software implementations and reference runtimes are licensed separately.
+

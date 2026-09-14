@@ -1,15 +1,22 @@
-# Contribuciones a la Especificación UCA (RFC)
+# Contributing to the UCA Specification (RFC)
 
-Agradecemos el interés en debatir, enriquecer y formalizar la arquitectura de **Unidades Cognitivas Autónomas (UCA)**.
+[ English | [Español](CONTRIBUTING.es.md) ]
 
-## ¿Cómo contribuir?
+We welcome community discussion, scrutiny, and contributions to formalize and evolve the **Autonomous Cognitive Unit (UCA)** architecture.
 
-1. **Debates y Preguntas**: Utiliza las **Discussions** o **Issues** de GitHub para plantear dudas conceptuales, casos límite o sugerencias de modelado.
-2. **Propuestas de Cambio (RFC)**:
-   - Toda modificación a [`SPECIFICATION.md`](SPECIFICATION.md) debe someterse mediante una Pull Request.
-   - Describe con claridad qué principio o sección se ve impactada, la motivación cognitiva y ejemplos contrastados.
-   - Preserva la coherencia con los principios fundamentales de la arquitectura:
-     - Primacía del Purpose.
-     - Reactividad estricta de ejecución.
-     - Desacoplamiento entre cognición y mecanismos terminales.
-     - Separación entre Outcome y Attainment.
+## How to Contribute?
+
+1. **Discussions & Questions**: Use GitHub **Discussions** or **Issues** to raise conceptual questions, edge cases, or modeling proposals.
+2. **RFC Change Proposals**:
+   - Any modification to [`SPECIFICATION.md`](SPECIFICATION.md) or [`SPECIFICATION.es.md`](SPECIFICATION.es.md) must be submitted via a Pull Request.
+   - Clearly state which section or principle is affected, the cognitive motivation, and concrete test scenarios.
+   - Maintain consistency with the foundational principles:
+     - Primacy of autonomous Purpose.
+     - Strict execution reactivity (local reactivity, external causality).
+     - Decoupling between cognitive purpose and terminal mechanisms.
+     - Separation between executor Outcome and requester Attainment.
+     - Prevention of self-inflicted disposition mutation.
+
+## License of Contributions
+
+By submitting contributions, you agree that your documentation and text contributions are licensed under the **Creative Commons Attribution 4.0 International (CC BY 4.0)** license.
