@@ -203,7 +203,7 @@ Primitive Capability: SherpaRecognition
 └── Disposition
     │
     ├── Configuration
-    │   ├── modelDir: ".extensio/models/stt-es"
+    │   ├── modelDir: "models/asr-es"
     │   ├── modelType: "zipformer2"
     │   ├── provider: "cpu"
     │   ├── sampleRate: 16000
@@ -1010,7 +1010,7 @@ Capabilities (Pipeline de Capacidades Primitivas Concretas)
 │   ├── Mechanism: Reconocimiento online de voz mediante modelo neuronal transductor (Sherpa-ONNX)
 │   └── Disposition:
 │       ├── Configuration:
-│       │   ├── modelDir: ".extensio/models/stt-es"
+│       │   ├── modelDir: "models/asr-es"
 │       │   ├── modelType: "zipformer2"
 │       │   ├── provider: "cpu"
 │       │   ├── sampleRate: 16000
