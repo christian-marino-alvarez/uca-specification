@@ -134,14 +134,55 @@ It is stable, persistent, and independent of specific executions or mechanisms. 
 
 ### 2.3 Disposition (D)
 
-`Disposition` represents the behavioral predispositions of the UCA.
+> **Disposition is the set of parameters that condition how a UCA uses its capabilities to fulfill its Purpose.**
 
-It conditions how the UCA selects and executes Actions under its Purpose. Examples:
-- tolerance to ambiguity;
-- sensitivity to contradiction;
-- confidence threshold before emitting an outcome;
-- capability selection preferences;
-- risk tolerance under uncertainty.
+A `Disposition`:
+- belongs to the UCA;
+- conditions how it uses its `Capabilities`;
+- may affect the effectiveness with which it fulfills its `Purpose`;
+- can exist in deterministic UCAs as well as inference-based UCAs;
+- does not imply learning;
+- does not imply reasoning;
+- does not imply perception;
+- does not imply the use of language models (LLMs);
+- may be modified subsequently as a consequence of adaptation mechanisms.
+
+#### Capability vs Technological Implementation
+
+It is essential to distinguish between architectural levels of abstraction:
+
+```text
+Library / Model / Algorithm
+            ↓
+      implements/enables
+            ↓
+        Capability
+            ↓
+         used by
+            ↓
+           UCA
+            ↓
+      fulfills Purpose
+```
+
+Example:
+```text
+Sherpa-ONNX ──► Speech Recognition ──► Ear UCA ──► Continuously transcribe human speech
+(Technology)       (Capability)         (UCA)                 (Purpose)
+```
+
+`Sherpa-ONNX` is a library or technological implementation. `Speech Recognition` is a primitive capability. `Ear` is the UCA because it possesses an autonomous `Purpose`.
+
+#### Criterion for Determining a Disposition
+
+A parameter is not classified as `Disposition` simply because it is configurable, technical, cognitive, or learned. The following criterion applies:
+
+> **Does this parameter condition how the UCA uses its capabilities to fulfill its Purpose?**
+
+- If the answer is **YES**, it conceptually belongs to its `Disposition`.
+- If the answer is **NO**, purely internal details required to implement a Capability remain encapsulated within that implementation (e.g., `modelPath`, `libraryVersion`, `binaryPath`).
+
+Example: `Ear.disposition.framingMs` determines the temporal granularity with which Ear uses Speech Recognition and produces its Outcomes. The effectiveness of a Disposition is always evaluated relative to the UCA's Purpose, without prescribing that any specific value is universally superior.
 
 The Core defines that Disposition conditions behavior. Policies governing who may modify Disposition, when, and how belong to **Cognitive Architecture** (§4).
 
@@ -247,6 +288,23 @@ OUTCOME (O): What the executed Action actually produced.
 ```
 
 The Outcome belongs strictly to the executing unit.
+
+#### Partial Outcomes and Streaming
+
+A UCA is not required to produce a single atomic final Outcome. An activation may emit multiple partial Outcomes continuously (streaming):
+
+```text
+Stimulus
+   ↓
+  UCA
+   ↓
+Outcome₁
+Outcome₂
+Outcome₃
+...
+```
+
+In continuous stream systems (such as audio or real-time processing), each partial Outcome represents a discrete chunk of output generated under the UCA's Purpose during the course of its Action.
 
 ---
 
@@ -779,9 +837,47 @@ To validate the UCA model empirically, an implementation should demonstrate that
 
 The examples in this section are non-normative. They illustrate how cognitive responsibilities may be modelled through UCA composition without adding new primitives to the Core.
 
+### 7.1 Atomic Deterministic and Streaming UCA (Ear UCA)
+
+A UCA may be fully deterministic and require no inference or language models to fulfill its Purpose:
+
+```text
+EAR UCA
+
+Purpose
+│
+└── Continuously transcribe human speech.
+
+Capability
+│
+└── Speech Recognition (e.g., implemented using a local ASR engine, Whisper, or an audio pipeline)
+
+Disposition
+│
+└── framingMs (temporal granularity of processing, e.g., 50ms vs 500ms)
+
+Outcome (Continuous stream)
+│
+└── Chunk { startAt, endAt, text }
+```
+
+Example of partial Outcomes emitted:
+```text
+{ startAt: 0,   endAt: 400,  text: "I think" }
+{ startAt: 400, endAt: 850,  text: "we should change" }
+{ startAt: 850, endAt: 1200, text: "this architecture" }
+```
+
+**What Ear does NOT determine:**
+- It does not detect silence (silence is an observation/perception derived from not receiving new chunks over a time interval).
+- It does not determine turn completion (`userFinishedTurn`).
+- It does not interpret intent, meaning, or relevance.
+
+Ear strictly asserts that those utterances were transcribed during those temporal intervals.
+
 ---
 
-### 7.1 Perception Through Composition
+### 7.2 Perception Through Composition
 
 Perception may be the Action of a UCA whose Purpose requires perceiving and interpreting environmental information:
 
@@ -802,7 +898,7 @@ UCA A (Purpose: act)
 
 ---
 
-### 7.2 Observation Through Composition
+### 7.3 Observation Through Composition
 
 Observation may similarly be the Action of a UCA:
 
@@ -819,7 +915,7 @@ Stimulus → UCA C (Purpose: observe and interpret)
 
 ---
 
-### 7.3 Disposition Adaptation Through Composition
+### 7.4 Disposition Adaptation Through Composition
 
 A UCA may adapt the Disposition of another through a standard Outcome → Stimulus chain:
 
@@ -840,7 +936,7 @@ UCA A (Disposition D₀)
 
 ---
 
-### 7.4 Emergent Behaviour Through Composition
+### 7.5 Emergent Behaviour Through Composition
 
 A network of UCAs, each limited to `(U, S) → A → O`, may exhibit behaviour that no individual unit contains:
 
