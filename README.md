@@ -1,7 +1,7 @@
 # UCA — Autonomous Cognitive Unit (Unidad Cognitiva Autónoma)
 
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](LICENSE)
-[![Status: RFC Specification](https://img.shields.io/badge/Status-RFC%20Specification-orange.svg)](SPECIFICATION.md)
+[![Status: Open Specification RFC](https://img.shields.io/badge/Status-Open%20Specification%20RFC-orange.svg)](SPECIFICATION.md)
 
 [ English | [Español](README.es.md) ] &nbsp;•&nbsp; [ [Specification (EN)](SPECIFICATION.md) | [Especificación (ES)](SPECIFICATION.es.md) ]
 
@@ -13,23 +13,45 @@
 
 ## 📖 Executive Summary
 
-Many current Artificial Intelligence agent architectures rely on a monolithic pattern:
+Many contemporary Artificial Intelligence agent architectures rely on a monolithic pattern:
 ```text
 Input ──► Central State / Snapshot ──► Large Context Prompt ──► Central Model ──► Output
 ```
 This pattern often concentrates disparate concerns into aggregate state objects and delegates deliberation, coordination, and error handling entirely to a single model inference.
 
-The **UCA (Autonomous Cognitive Unit)** architecture proposes a modular, purpose-oriented alternative:
-- **Autonomy in Purpose**: Each unit exists to fulfill an autonomous, bounded cognitive purpose (`Purpose`).
+The **UCA (Autonomous Cognitive Unit)** open specification explores an alternative decomposition principle:
+- **Autonomy in Purpose**: Cognitive functionality is divided according to autonomous, bounded cognitive purposes (`Purpose`).
 - **Reactivity in Execution**: No UCA self-activates; it executes strictly upon receiving a stimulus (`Stimulus = Goal + Context`).
 - **Emergent Cognition**: Cognition does not reside in a single central unit or model; it **emerges from the causal, contextual interaction** among specialized units ($UCA_1, UCA_2, UCA_3$).
-- **Structural Adaptation Without Retraining**: Interaction with the external environment yields evidence that allows supervisory units to diagnose deviations and adapt the behavioral predispositions (`Dispositions`) of other units, altering future behavior without modifying code or retraining model weights.
-
-> **Note on Scope**: This repository documents the abstract UCA model. It is designed to be fully agnostic of specific runtimes, frameworks, or biological organ analogies.
+- **Structural Adaptation Without Retraining**: Interaction with the external environment yields evidence that allows supervisory units to diagnose deviations and adapt the behavioral predispositions (`Dispositions`) of target units, altering future behavior without modifying code or retraining model weights.
 
 ---
 
-## 🏛️ Minimal Conceptual Model
+## ⚖️ Specification vs Implementation
+
+This open specification defines the conceptual contract of an Autonomous Cognitive Unit.
+
+**The specification deliberately defines**:
+- What constitutes a UCA;
+- How a UCA is activated;
+- How it deliberates, executes actions, and produces outcomes;
+- The invariants that govern composition and bounded scope.
+
+**The specification does NOT prescribe**:
+- A mandatory cognitive topology or hierarchy;
+- Specific cognitive units that every system must instantiate;
+- Biological or neuroanatomical analogies;
+- A particular communication technology or message broker;
+- A specific language model, framework, or vendor;
+- A concrete memory or storage engine;
+- A centralized global state representation;
+- A specific runtime environment.
+
+Systems may implement UCA concepts using diverse programming languages, actor models, event buses, distributed runtimes, local or remote language models, and varied architectural topologies. A reference project or runtime (such as Extensio) may implement the UCA abstraction, but UCA remains an independent open specification.
+
+---
+
+## 🏛️ Minimal Conceptual Model (UCA Core)
 
 A UCA is persistently defined by:
 ```text
@@ -45,7 +67,7 @@ A UCA reacts strictly upon receiving a **Stimulus**:
 
 ```mermaid
 flowchart TD
-    EXT([External Stimulus]) --> IMP[Impulse]
+    EXT([External Stimulus]) --> IMP[Impulse: Transport Envelope]
     IMP --> STIM[Stimulus: Goal + Context]
     
     subgraph UCA [UCA Activation Cycle]
@@ -70,7 +92,7 @@ flowchart TD
 | **Purpose** | Expresses **why a UCA exists**. Persistent, implementation-independent. |
 | **Goal** | What **concrete outcome** must be achieved in a given activation. Contextual and transient. |
 | **Stimulus** | The cognitive activation of a UCA. Composed of `Goal` and `Context`. |
-| **Impulse** | The transport vehicle across the communication layer (id, ttl, traceId, priority, stimulus/outcome). |
+| **Impulse** | The transport envelope across the communication layer (id, ttl, traceId, priority, stimulus/outcome). |
 | **Context** | The bounded information necessary to interpret the Goal (prior outcomes, active evidence). |
 | **Observation** | The cognitively relevant information extracted by the UCA from the input. |
 | **Disposition** | Behavioral predispositions (ambiguity tolerance, confidence thresholds, error sensitivity). |
@@ -95,6 +117,16 @@ flowchart TD
 10. **Principle of Emergence**: Cognition does not reside in an individual UCA; it emerges from contextual interaction among units.
 11. **Principle of Proactivity**: Autonomy resides in Purpose, reactivity in execution, and proactivity emerges from interaction.
 12. **Principle of Representation**: Storing data produced by a cognitive capacity does not substitute the capacity to produce it.
+
+---
+
+## 🧭 Architecture Organization
+
+The full specification is organized into three distinct tiers:
+
+1. **[Part I: UCA Core](SPECIFICATION.md#part-i--uca-core)**: The minimal, invariant definition of a UCA, its activation cycle, disposition, action formulation, outcome production, and attainment evaluation.
+2. **[Part II: Architectural Consequences & Composition Patterns](SPECIFICATION.md#part-ii--architectural-consequences--composition-patterns)**: Multi-UCA causal chains, the Impulse transport envelope, causal traceability, optional composition patterns (Coordinator, Supervisor, Identity, Memory), and dynamic context synthesis.
+3. **[Part III: Experimental Hypotheses & Open Questions](SPECIFICATION.md#part-iii--experimental-hypotheses--open-questions)**: Emergent cognition, proactivity, behavioral adaptation loops, inter-unit relational plasticity (Synapses), and empirical validation criteria.
 
 ---
 
@@ -130,4 +162,3 @@ including for commercial purposes, provided appropriate attribution
 is given.
 
 Software implementations and reference runtimes are licensed separately.
-

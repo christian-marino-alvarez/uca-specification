@@ -1,7 +1,7 @@
 # UCA — Unidad Cognitiva Autónoma (Autonomous Cognitive Unit)
 
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](LICENSE)
-[![Status: Especificación RFC](https://img.shields.io/badge/Status-Especificaci%C3%B3n%20RFC-orange.svg)](SPECIFICATION.es.md)
+[![Status: Open Specification RFC](https://img.shields.io/badge/Status-Open%20Specification%20RFC-orange.svg)](SPECIFICATION.es.md)
 
 [ [English](README.md) | Español ] &nbsp;•&nbsp; [ [Specification (EN)](SPECIFICATION.md) | [Especificación (ES)](SPECIFICATION.es.md) ]
 
@@ -13,23 +13,45 @@
 
 ## 📖 Resumen Ejecutivo
 
-Muchas de las arquitecturas de agentes de Inteligencia Artificial actuales se apoyan en un patrón monolítico:
+Muchas arquitecturas contemporáneas de agentes de Inteligencia Artificial se apoyan en un patrón monolítico:
 ```text
 Input ──► Estado Central / Snapshot ──► Prompt con Gran Contexto ──► Modelo Central ──► Output
 ```
-Este patrón suele concentrar responsabilidades dispares en estructuras globales masivas y delega la deliberación, coordinación y resolución de errores en llamadas opacas a modelos de lenguaje.
+Este patrón suele concentrar responsabilidades dispares en estructuras globales masivas y delega la deliberación, coordinación y resolución de errores exclusivamente en llamadas opacas a modelos de lenguaje.
 
-La arquitectura **UCA (Unidad Cognitiva Autónoma)** propone una alternativa modular orientada a propósitos:
-- **Autonomía en el Purpose**: Cada unidad existe para satisfacer un propósito cognitivo autónomo y acotado (`Purpose`).
+La especificación abierta **UCA (Unidad Cognitiva Autónoma)** explora un principio alternativo de descomposición:
+- **Autonomía en el Purpose**: La funcionalidad cognitiva se divide según propósitos autónomos y acotados (`Purpose`).
 - **Reactividad en la ejecución**: Ninguna UCA se autoactiva; actúa estrictamente ante un estímulo recibido (`Stimulus = Goal + Context`).
 - **Cognición emergente**: La cognición no reside en una única unidad central ni en un modelo monolítico; **emerge de la interacción causal y contextual** entre unidades especializadas ($UCA_1, UCA_2, UCA_3$).
-- **Adaptación estructural sin reentrenamiento**: La interacción con el entorno exterior aporta evidencia que permite a unidades supervisoras diagnosticar desviaciones y adaptar las predisposiciones de comportamiento (`Dispositions`) de otras unidades, modificando la conducta futura sin alterar código ni reentrenar pesos.
-
-> **Nota de Alcance**: Este repositorio documenta el modelo abstracto UCA. Está diseñado de forma estrictamente agnóstica respecto a runtimes específicos, frameworks o analogías con órganos biológicos.
+- **Adaptación estructural sin reentrenamiento**: La interacción con el entorno exterior aporta evidencia que permite a unidades supervisoras diagnosticar desviaciones y adaptar las predisposiciones de comportamiento (`Dispositions`) de las unidades pertinentes, modificando la conducta futura sin alterar código fuente ni reentrenar pesos.
 
 ---
 
-## 🏛️ Modelo Conceptual Mínimo
+## ⚖️ Especificación frente a Implementación
+
+Esta especificación abierta define el contrato conceptual de una Unidad Cognitiva Autónoma.
+
+**La especificación define deliberadamente**:
+- Qué constituye una UCA;
+- Cómo se activa una UCA;
+- Cómo delibera, ejecuta acciones y produce resultados;
+- Las invariantes que gobiernan la composición y el alcance acotado.
+
+**La especificación NO prescribe**:
+- Una topología cognitiva o jerarquía obligatoria;
+- Unidades cognitivas específicas que todo sistema deba instanciar;
+- Analogías biológicas o neuroanatómicas;
+- Una tecnología de comunicación o broker de mensajes particular;
+- Un modelo de lenguaje, framework o proveedor específico;
+- Un motor de memoria o base de datos concreto;
+- Una representación centralizada de estado global;
+- Un entorno de ejecución (runtime) específico.
+
+Cualquier sistema puede implementar los conceptos de UCA utilizando diferentes lenguajes de programación, modelos de actores, buses de eventos, runtimes distribuidos, modelos de lenguaje locales o remotos, y diversas topologías organizativas. Un proyecto o runtime de referencia (como Extensio) puede implementar la abstracción UCA, pero UCA permanece como una especificación abierta e independiente.
+
+---
+
+## 🏛️ Modelo Conceptual Mínimo (Core UCA)
 
 Una UCA se compone persistentemente de:
 ```text
@@ -41,11 +63,11 @@ UCA
 
 ### El Ciclo de Activación Canónico
 
-Una UCA reacciona únicamente cuando recibe un **Estímulo**:
+Una UCA reacciona estrictamente al recibir un **Estímulo**:
 
 ```mermaid
 flowchart TD
-    EXT([Estímulo Externo]) --> IMP[Impulse]
+    EXT([Estímulo Externo]) --> IMP[Impulse: Sobre de Transporte]
     IMP --> STIM[Stimulus: Goal + Context]
     
     subgraph UCA [Ciclo de Activación UCA]
@@ -70,7 +92,7 @@ flowchart TD
 | **Purpose** | Expresa **por qué existe** una UCA. Estable, independiente de una ejecución concreta. |
 | **Goal** | Qué **resultado concreto** necesita obtenerse en una activación determinada. Contextual y efímero. |
 | **Stimulus** | La activación cognitiva de una UCA. Contiene el `Goal` y el `Context`. |
-| **Impulse** | El vehículo de transporte en la capa de comunicación (id, ttl, traceId, prioridad, stimulus/outcome). |
+| **Impulse** | El sobre de transporte en la capa de comunicación (id, ttl, traceId, prioridad, stimulus/outcome). |
 | **Context** | La información relevante necesaria para interpretar el Goal (evidencias, outcomes previos). |
 | **Observation** | La información cognitivamente relevante que la UCA extrae de la entrada. |
 | **Disposition** | Predisposiciones de comportamiento (tolerancia a ambigüedad, umbrales de inferencia, etc.). |
@@ -98,12 +120,22 @@ flowchart TD
 
 ---
 
+## 🧭 Organización de la Especificación
+
+El documento formal completo se estructura en tres niveles:
+
+1. **[Parte I: Core UCA](SPECIFICATION.es.md#parte-i--core-uca)**: La definición mínima e invariante de una UCA, su ciclo de activación, disposition, formulación de acción, producción de outcomes y evaluación de attainment.
+2. **[Parte II: Consecuencias Arquitectónicas y Patrones de Composición](SPECIFICATION.es.md#parte-ii--consecuencias-arquitectónicas-y-patrones-de-composición)**: Cadenas causales multi-UCA, el sobre de transporte Impulse, trazabilidad causal, patrones opcionales de composición (Coordinador, Supervisor, Identidad, Memoria) y síntesis dinámica de contexto.
+3. **[Parte III: Hipótesis Experimentales y Preguntas Abiertas](SPECIFICATION.es.md#parte-iii--hipótesis-experimentales-y-preguntas-abiertas)**: Cognición emergente, proactividad emergente, bucles de adaptación conductual, plasticidad relacional inter-unidad (Sinapsis) y criterios de validación empírica.
+
+---
+
 ## 🎯 Criterio de Validación Empírica
 
-El modelo UCA se valida si un conjunto reducido de unidades es capaz de:
+El modelo UCA se valida cuando un conjunto reducido de unidades es capaz de:
 1. Recibir un estímulo externo;
 2. Reaccionar según sus propósitos especializados sin una entidad central omnisciente;
-3. Colaborar mediante intercambio de estímulos y resultados;
+3. Colaborar mediante intercambio de estímulos y outcomes;
 4. Producir una acción hacia el exterior;
 5. Recibir evidencia externa sobre el resultado de dicha acción;
 6. Emplear esa evidencia para diagnosticar desviaciones;
@@ -113,7 +145,7 @@ El modelo UCA se valida si un conjunto reducido de unidades es capaz de:
 
 ---
 
-## 📚 Documentación Completa
+## 📚 Documentación Formal Completa
 
 - 🇪🇸 **[SPECIFICATION.es.md (Español)](SPECIFICATION.es.md)** — Especificación formal completa en español (RFC).
 - 🇬🇧 **[SPECIFICATION.md (English)](SPECIFICATION.md)** — Exhaustive normative specification in English.
@@ -132,4 +164,3 @@ incluso con fines comerciales, siempre que se proporcione la atribución
 adecuada.
 
 Las implementaciones de software y los runtimes de referencia se licencian por separado.
-
