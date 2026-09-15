@@ -94,60 +94,63 @@ This open specification defines the conceptual contract of an Autonomous Cogniti
 
 ## 🔬 Minimal Conceptual Model (UCA Core)
 
-A UCA is persistently defined by:
+A UCA is conceived with:
 ```text
 U = (P, D, C)
 ```
 Where:
-- **`P` (Purpose)**: Why the UCA exists — stable, implementation-independent identity.
-- **`D` (Disposition)**: Set of constitutive (`Configuration`) and parametric (`Parametrization`) conditions predisposing how its capabilities behave through their mechanisms to fulfill its Purpose. A UCA's effective Disposition emerges from the composition and harmonization of its constituent capabilities' Dispositions.
-- **`C` (Capabilities)**: Accessible resources (algorithms, tools, models, other UCAs). A UCA may use other UCAs as Capabilities when their autonomous Purposes provide functionality required by its Action. Composition is recursive and does not require a central coordinator.
+- **`P` (Purpose)**: Why the UCA exists — persistent, invariant identity that guides all reactions.
+- **`D` (Disposition)**: Set of constitutive, parametric (`Properties`: Purpose, Nature, Value), and interactive (`Interactions`: Definition, Target, Signal, When) conditions determining how its capabilities are predisposed to behave and interact.
+- **`C` (Capabilities)**: Operational resources (algorithms, transforms, tools, models, other UCAs) constituting the unit's functional boundaries ($Behavior \subseteq Capabilities$).
 
 An activation is defined by:
 ```text
 S = (G, X)
 ```
 Where:
-- **`G` (Goal)**: Target outcome for this activation. A Goal must be compatible with the Purpose.
-- **`X` (Context)**: Contextual information required to interpret and achieve `G`.
+- **`G` (Goal)**: Target outcome for this activation (optional/implicit in continuous flows guided by Purpose).
+- **`X` (Context)**: Contextual information required to interpret and resolve the reaction.
 
-The minimal activation model:
+The fundamental lifecycle:
 ```text
-(U, S) → A → O
+Conception ──► UCA(P, D, C) ──► Stimulus ──► Reactive Process (Interactions) ──► Outcome(s)
+                                 ▲                                                  │
+                                 └────────── Evidence ──► ΔDisposition (Nature) ────┘
 ```
-Where:
-- **`A` (Action)**: What the UCA performs, conditioned by Purpose, Disposition, Capabilities, Goal and Context.
-- **`O` (Outcome)**: What the Action actually produced (*belongs to the executor*).
 
 > The Outcome belongs to the executor.
 > The Attainment belongs to the originator of the Goal.
 
-### Canonical Activation Flow
+### Canonical Activation and Reactivity Flow
 
 ```mermaid
 flowchart TD
-    STIM["Stimulus: (Goal, Context)"] --> VAL{Is Goal compatible<br/>with Purpose?}
-    VAL -- No --> REJ[Outcome: Incompatible Goal]
-    VAL -- Yes --> ACT[Action<br/>conditioned by Purpose, Disposition, Capabilities]
-    ACT --> OUT[Outcome: Actual result produced]
-    OUT --> ATT[Attainment Evaluation<br/>by Goal Originator]
+    CON[Conception: Purpose, Capabilities, Disposition] --> UCA[Valid & reactive UCA]
+    IMP[Impulse: Transport] --> STIM[Stimulus: Goal, Context]
+    STIM --> UCA
+    UCA --> INT[Reactive Interactions between Capabilities]
+    INT --> PROC[Emergent Reactive Process]
+    PROC --> OUT[Outcome: Actual result produced]
+    OUT --> EVI[Evidence]
+    EVI -.-> MUT[Atomic Mutation within Nature]
+    MUT -.-> DISP[evolved ΔDisposition]
+    DISP -.-> UCA
 ```
 
 ---
 
-## 📜 Foundational Invariants
+## 📜 Fundamental Principles of the Model
 
-1. **Principle of Purpose**: A UCA is defined by an autonomous, stable Purpose (`P`).
-2. **Principle of Specialization**: A UCA only accepts Goals compatible with its Purpose.
-3. **Principle of Local Reactivity**: No UCA self-activates; it executes strictly upon receiving a Stimulus (`S`).
-4. **Principle of Composition**: A UCA can leverage another UCA as a Capability (recursive composition).
-5. **Principle of Termination**: When autonomous purposes cease to emerge and only mechanisms remain, terminal capabilities have been reached.
-6. **Principle of Outcome**: A UCA produces Outcomes; it does not evaluate its own global success.
-7. **Principle of Attainment**: The Outcome belongs to the executor; the Attainment belongs to whoever originated the Goal.
-8. **Purpose Invariance**: A UCA cannot alter its own Purpose, as doing so destroys its functional identity.
-9. **Principle of Representation**: Storing data produced by a cognitive capacity does not substitute the capacity to produce it.
-10. **Minimality Principle**: A concept belongs to the UCA Core only if removing it prevents the unit from satisfying the universal UCA contract.
-11. **Composition Principle**: Before extending the UCA primitive, attempt to represent the required cognitive functionality through composition of existing UCAs.
+1. **Conception determines what UCA exists.**
+2. **Purpose determines what the UCA pursues.**
+3. **Capabilities determine the boundaries of what the UCA can do.**
+4. **Disposition determines how those Capabilities are constituted and predisposed to behave and interact.**
+5. **Stimulus triggers a reaction in an already conceived UCA.**
+6. **Capabilities react through Interactions and not through direct dependencies between them.**
+7. **The Process emerges from reactive interactions between Capabilities according to their Dispositions.**
+8. **Outcome is the observable consequence of such activity.**
+9. **Evolution modifies the Disposition without abandoning Purpose nor the limits of Capabilities.**
+10. **The minimal unit of Evolution is an atomic, bounded, observable, and potentially reversible Mutation.**
 
 ---
 

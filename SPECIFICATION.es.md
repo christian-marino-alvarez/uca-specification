@@ -83,6 +83,19 @@ Si (2) es SÍ, el concepto debe permanecer fuera del Core.
 
 Los conceptos que puedan expresarse mediante Purpose, Action, Outcome o composición de UCAs no deben añadirse como primitivas universales del UCA.
 
+### Principios Fundamentales del Modelo
+
+1. **Conception determina qué UCA existe.**
+2. **Purpose determina aquello que la UCA persigue.**
+3. **Capabilities determinan los límites de lo que la UCA puede hacer.**
+4. **Disposition determina cómo esas Capabilities están constituidas y predispuestas para comportarse e interactuar.**
+5. **Stimulus provoca una reacción en una UCA ya concebida.**
+6. **Las Capabilities reaccionan mediante Interactions y no mediante dependencias directas entre ellas.**
+7. **El Process emerge de las interacciones reactivas entre Capabilities conforme a sus Dispositions.**
+8. **Outcome es la consecuencia observable de dicha actividad.**
+9. **Evolution modifica la Disposition sin abandonar el Purpose ni los límites de las Capabilities.**
+10. **La unidad mínima de Evolution es una Mutation atómica, limitada, observable y potencialmente reversible.**
+
 ---
 
 ## 2. UCA Core
@@ -91,9 +104,9 @@ El UCA Core define las propiedades mínimas requeridas para identificar una unid
 
 ---
 
-### 2.1 Definición
+### 2.1 Definición, Concepción y Ciclo de Vida
 
-Una **Unidad Cognitiva Autónoma (UCA)** es una unidad funcional acotada definida por un **propósito autónomo**.
+Una **Unidad Cognitiva Autónoma (UCA)** es una unidad funcional acotada definida por un **propósito autónomo**, constituida por unas **capacidades concretas** y predispuesta por una **disposición declarativa**.
 
 > Una UCA se define no por lo que ejecuta, sino por el propósito que es responsable de alcanzar.
 
@@ -102,39 +115,97 @@ U = (P, D, C)
 ```
 
 Donde:
-- `P` — **Purpose** (Propósito): por qué existe la UCA
-- `D` — **Disposition** (Disposición): predisposiciones de comportamiento
-- `C` — **Capabilities** (Capacidades): recursos operacionales
+- `P` — **Purpose** (Propósito): por qué existe la UCA — orienta su reacción
+- `D` — **Disposition** (Disposición): condiciones constitutivas, paramétricas e interactivas — predispone su comportamiento
+- `C` — **Capabilities** (Capacidades): recursos operacionales — limitan su espacio funcional
 
-El modelo mínimo de activación:
+#### Conception
+
+> **Conception es el momento en que una UCA queda constituida con un Purpose, unas Capabilities y una Disposition inicial.**
 
 ```text
-U = (P, D, C)
-
-S = (G, X)
-
-(U, S) → A → O
+Conception
+    ↓
+UCA
+├── Purpose
+├── Capabilities
+└── Disposition
 ```
 
-> **No se asume que una UCA individual constituya cognición por sí misma.**
+La `Conception` determina **qué UCA existe**.
+
+Desde su `Conception`, la UCA **permanece funcionalmente vigente**. Los conceptos de estados técnicos tradicionales (`Birth`, `Start`, `Startup`, `Initialize`, `Boot`, `Ready`, `Active`, `Idle`, `Finished`, `Execute`) pertenecen a la implementación técnica del runtime y no forman parte del ciclo de vida conceptual de una UCA.
+
+#### Ciclo de Vida Reactivo y Evolutivo
+
+Una UCA no pasa por fases rígidas de arranque y finalización. Reacciona a los Stimuli recibidos y evoluciona ante la evidencia:
+
+```text
+                         CONCEPTION
+                              │
+                              ▼
+┌───────────────────────────────────────────────────────────┐
+│                           UCA                             │
+│                                                           │
+│  Stimulus                                                 │
+│      ↓                                                    │
+│  Reactive Process (dinámica emergente de Interactions)    │
+│      ↓                                                    │
+│  Outcome(s)                                               │
+│                                                           │
+│  Stimulus                                                 │
+│      ↓                                                    │
+│  Reactive Process                                         │
+│      ↓                                                    │
+│  Outcome(s)                                               │
+│                                                           │
+│             ...                                           │
+│                                                           │
+│  Evidence                                                 │
+│      ↓                                                    │
+│  ΔDisposition (Mutation atómica dentro de Nature)         │
+│      ↓                                                    │
+│  evolved Reactive Process                                 │
+│      ↓                                                    │
+│  evolved Outcome(s)                                       │
+│                                                           │
+└───────────────────────────────────────────────────────────┘
+```
+
+> **Principio Fundamental**: Una UCA, desde su Conception, permanece funcionalmente vigente y reacciona a los Stimuli recibidos persiguiendo su Purpose dentro de los límites de sus Capabilities y conforme a la Disposition vigente de dichas Capabilities.
 
 ---
 
 ### 2.2 Purpose (P)
 
-El `Purpose` expresa **por qué existe una UCA**.
+> **Purpose define aquello que una UCA está concebida para perseguir durante toda su existencia.**
 
 Es estable, persistente e independiente de ejecuciones concretas o mecanismos específicos. Define la frontera operativa y la identidad de la unidad.
 
-- Un Purpose delimita el dominio de responsabilidad perteneciente a la unidad.
+- Un Purpose delimita el dominio de responsabilidad perteneciente a la unidad y proporciona orientación a todas sus reacciones.
 - Una UCA no puede alterar arbitrariamente su propio Purpose, ya que destruiría su identidad funcional.
 - Una UCA nunca debe definirse por sus mecanismos. Consultar una base de datos o llamar a un modelo de lenguaje son mecanismos, no propósitos cognitivos.
+- En activaciones reactivas continuas, el Stimulus no necesita duplicar innecesariamente el Purpose en un Goal idéntico y redundante.
 
 ---
 
 ### 2.3 Disposition (D) y Primitive Capabilities
 
 Una UCA es una unidad concreta constituida por capacidades concretas. Una UCA no debe modelarse como una abstracción que oculta las características, constitución o parámetros de sus capacidades.
+
+#### Definición Canónica de Disposition
+
+> **Disposition es el conjunto de condiciones constitutivas, paramétricas e interactivas que determinan cómo están constituidas y predispuestas las Capabilities de una UCA para comportarse e interactuar mediante sus mecanismos.**
+
+La Disposition responde a:
+> *Dado este Mechanism, ¿cómo está constituido, ajustado e interconectado para comportarse?*
+
+La Disposition debe ser:
+- **declarativa**: estructurada e inspeccionable;
+- **observable**: accesible para diagnóstico y análisis;
+- **interpretable**: autodescriptiva para observadores evolutivos sin conocimiento hardcodeado;
+- **validable**: verificable formalmente contra límites definidos;
+- **mutable**: adaptable dentro del espacio válido de su naturaleza.
 
 #### Estructura Canónica de una Primitive Capability
 
@@ -148,18 +219,28 @@ Primitive Capability
 │
 └── Disposition
     │
-    ├── Configuration
-    │   └── cómo está constituido el Mechanism (dimensión constitutiva)
+    ├── Properties
+    │   ├── Property (Constitución y Parametrización autodescriptiva)
+    │   │   ├── Purpose
+    │   │   ├── Nature
+    │   │   └── Value
+    │   └── ...
     │
-    └── Parametrization
-        └── cómo está ajustado el Mechanism (dimensión de ajuste)
+    └── Interactions
+        ├── Interaction (Relaciones reactivas entre Capabilities)
+        │   ├── Definition
+        │   ├── Target
+        │   ├── Signal
+        │   └── When
+        └── ...
 ```
 
 En forma resumida:
 - **Mechanism** = cómo funciona (qué procedimiento proporciona la capacidad).
-- **Configuration** = cómo está constituido.
-- **Parametrization** = cómo está ajustado.
-- **Disposition** = `Configuration` + `Parametrization` (composición conceptual).
+- **Configuration** = dimensión constitutiva de Properties (cómo está constituido).
+- **Parametrization** = dimensión de ajuste de Properties (cómo está ajustado).
+- **Interactions** = cómo reacciona ante otras Capabilities.
+- **Disposition** = `Properties` + `Interactions`.
 
 #### Definición de Mechanism
 
@@ -174,22 +255,29 @@ El Mechanism describe el principio/procedimiento operativo. No representa:
 Ejemplo:
 Para `SherpaRecognition`, el Mechanism es el *reconocimiento online de voz mediante un modelo neuronal transductor ejecutado por Sherpa-ONNX*. La implementación software puede materializar ese Mechanism mediante clases, transforms, providers o bibliotecas.
 
-#### Definición Canónica de Disposition
+#### Anatomía de las Properties
 
-> **Disposition es el conjunto de condiciones constitutivas y paramétricas que predisponen cómo una Capability puede comportarse mediante su Mechanism.**
+Cada Property de una Capability es autodescriptiva y comprende:
 
-La Disposition responde a la pregunta:
-> *Dado este Mechanism, ¿cómo está constituido y ajustado para comportarse?*
+1. **Property.Purpose**:
+   > Define para qué existe la propiedad en el orden funcional.
+   Permite que observadores evolutivos externos interpreten semánticamente la propiedad sin conocimiento hardcodeado específico de la Capability.
 
-La Disposition comprende dos dimensiones conceptuales inseparables:
+2. **Property.Nature**:
+   > **Nature describe las características intrínsecas de una Property y delimita el espacio válido dentro del cual puede ser modificada (Mutation Space).**
+   Nature define el tipo, mutabilidad, dominio de valores admisibles, límites y restricciones operativas. Una modificación sólo es válida si el nuevo valor pertenece a su Nature ($Value \in Nature$).
 
-1. **Configuration (Dimensión Constitutiva)**:
-   > **Configuration es la parte de la Disposition que determina cómo está constituido concretamente el Mechanism.**
-   Determina decisiones estructurales y recursos del mecanismo (ej. modelo utilizado, backend, arquitectura, formato de entrada, dimensiones estructurales o componentes concretos).
+3. **Property.Value**:
+   > Representa el estado concreto actual de la propiedad dentro de los límites establecidos por su Nature.
 
-2. **Parametrization (Dimensión de Ajuste)**:
-   > **Parametrization es la parte de la Disposition que determina cómo está ajustada la Configuration concreta de un Mechanism.**
-   Determina valores numéricos, umbrales operativos, número de hilos, tolerancias, pesos de decodificación y temporizadores.
+#### Anatomía de las Interactions
+
+Las Capabilities no dependen directamente unas de otras ni son orquestadas por un procesador o pipeline central imperativo. Reaccionan mediante relaciones declaradas en sus Dispositions:
+
+1. **Interaction.Definition**: Describe el propósito funcional de la interacción.
+2. **Interaction.Target**: Identifica qué elemento externo observa la interacción (`Capability.Property`).
+3. **Interaction.Signal**: Describe la información recibida por la Capability a consecuencia de la interacción para producir su reacción.
+4. **Interaction.When**: Condición declarativa que determina cuándo el cambio en el Target debe provocar la reacción.
 
 #### Ejemplo Canónico: SherpaRecognition
 
@@ -202,34 +290,39 @@ Primitive Capability: SherpaRecognition
 │
 └── Disposition
     │
-    ├── Configuration
-    │   ├── modelDir: "models/asr-es"
-    │   ├── modelType: "zipformer2"
-    │   ├── provider: "cpu"
-    │   ├── sampleRate: 16000
-    │   └── featureDim: 80
+    ├── Properties
+    │   ├── modelDir: { Purpose: "Directorio del modelo ASR", Nature: [path, readonly], Value: "models/asr-es" }
+    │   ├── modelType: { Purpose: "Arquitectura del transductor", Nature: ["zipformer2"], Value: "zipformer2" }
+    │   ├── provider: { Purpose: "Backend de cómputo", Nature: ["cpu", "cuda"], Value: "cpu" }
+    │   ├── sampleRate: { Purpose: "Frecuencia de muestreo requerida", Nature: [16000], Value: 16000 }
+    │   ├── featureDim: { Purpose: "Dimensión de características acústicas", Nature: [80], Value: 80 }
+    │   ├── numThreads: { Purpose: "Hilos paralelos de inferencia", Nature: [1..16], Value: 4 }
+    │   ├── enableEndpoint: { Purpose: "Activación de corte por endpointing", Nature: [boolean], Value: true }
+    │   ├── rule1MinTrailingSilence: { Purpose: "Silencio para segmentación tras habla larga", Nature: [0.5..5.0s], Value: 2.4 }
+    │   ├── rule2MinTrailingSilence: { Purpose: "Silencio para segmentación tras habla corta", Nature: [0.1..2.0s], Value: 0.4 }
+    │   ├── rule3MinUtteranceLength: { Purpose: "Longitud máxima de elocución", Nature: [5.0..60.0s], Value: 20.0 }
+    │   ├── decodingMethod: { Purpose: "Algoritmo de búsqueda de hipótesis", Nature: ["greedy_search", "modified_beam_search"], Value: "modified_beam_search" }
+    │   └── hotwordsScore: { Purpose: "Ponderación contextual de hotwords", Nature: [0.0..10.0], Value: 2.5 }
     │
-    └── Parametrization
-        ├── numThreads: 4
-        ├── enableEndpoint: true
-        ├── rule1MinTrailingSilence: 2.4
-        ├── rule2MinTrailingSilence: 0.4
-        ├── rule3MinUtteranceLength: 20.0
-        ├── decodingMethod: "modified_beam_search"
-        └── hotwordsScore: 2.5
+    └── Interactions
+        └── onFloatAudioReceived:
+            ├── Definition: "Procesar muestras normalizadas para decodificación acústica"
+            ├── Target: "PcmToFloat.output"
+            ├── Signal: "Float32Array"
+            └── When: "Target.hasSamples == true"
 ```
 
 #### Dos Profundidades de Cambio y Adaptación en Disposition
 
 Una Disposition puede cambiar a dos niveles de profundidad:
-- **Cambio Constitutivo (`Disposition.Configuration`)**: Modifica cómo está constituida la Capability (ej. `provider: cpu ──► cuda`, o cambio a otro modelo neuronal compatible).
-- **Cambio Paramétrico (`Disposition.Parametrization`)**: Modifica cómo está ajustada la Capability (ej. `rule2MinTrailingSilence: 0.4 ──► 0.6`, o `hotwordsScore: 2.5 ──► 3.0`).
+- **Cambio Constitutivo (`Disposition.Properties estructurales`)**: Modifica cómo está constituida la Capability (ej. `provider: cpu ──► cuda`, o cambio a otro modelo neuronal compatible).
+- **Cambio Paramétrico (`Disposition.Properties de ajuste`)**: Modifica cómo está ajustada la Capability (ej. `rule2MinTrailingSilence: 0.4 ──► 0.6`, o `hotwordsScore: 2.5 ──► 3.0`).
 
 Ambos constituyen modificaciones legítimas de la `Disposition`.
 
 #### Identidad de una Primitive Capability
 
-- **Identidad basada en Mechanism**: La identidad de una Primitive Capability está determinada principalmente por su `Mechanism`. Un cambio de `Disposition` (sea constitutivo o paramétrico) modifica la constitución o ajuste de la capacidad sin crear automáticamente una nueva Capability.
+- **Identidad basada en Mechanism**: La identidad de una Primitive Capability está determinada principalmente por su `Mechanism`. Un cambio de `Disposition` (sea constitutivo, paramétrico o interactivo) modifica la constitución o ajuste de la capacidad sin crear automáticamente una nueva Capability.
 - **Diferencia entre Mecanismos**: Sólo cuando cambia el Mechanism funcional debe evaluarse si estamos ante otra Capability.
   Ejemplo:
   ```text
@@ -239,7 +332,7 @@ Ambos constituyen modificaciones legítimas de la `Disposition`.
 
 #### No Abstraer la Disposition de una Primitive Capability
 
-Se descarta cualquier regla que obligue a convertir parámetros concretos de una Primitive Capability en propiedades semánticas abstractas (ej. `hotwordsScore` pertenece directamente a `SherpaRecognition.disposition.parametrization` y no necesita convertirse en `contextualBias`).
+Se descarta cualquier regla que obligue a convertir parámetros concretos de una Primitive Capability en propiedades semánticas abstractas (ej. `hotwordsScore` pertenece directamente a `SherpaRecognition.disposition.Properties.hotwordsScore` y no necesita convertirse en `contextualBias`).
 
 > **Regla de Atomicidad**: No abstraer una Primitive Capability hasta el punto de ocultar las propiedades y constitución que determinan su comportamiento. Si para conseguir una abstracción común es necesario ocultar su mecanismo, parámetros, restricciones, posibilidades o comportamiento, dicha abstracción no debe sustituir a la Capability concreta.
 
@@ -251,23 +344,23 @@ Una UCA concreta está constituida por capacidades concretas. La Disposition efe
 Disposition(Ear)
         │
         ├── Disposition(EchoCancellation)
-        │   ├── Configuration
-        │   └── Parametrization
+        │   ├── Properties
+        │   └── Interactions
         ├── Disposition(AudioFraming)
-        │   ├── Configuration
-        │   └── Parametrization
+        │   ├── Properties
+        │   └── Interactions
         ├── Disposition(PcmToFloat)
-        │   ├── Configuration
-        │   └── Parametrization
+        │   ├── Properties
+        │   └── Interactions
         ├── Disposition(SherpaRecognition)
-        │   ├── Configuration
-        │   └── Parametrization
+        │   ├── Properties
+        │   └── Interactions
         ├── Disposition(EchoTextFilter)
-        │   ├── Configuration
-        │   └── Parametrization
+        │   ├── Properties
+        │   └── Interactions
         └── Disposition(EarCoherence)
-            ├── Configuration
-            └── Parametrization
+            ├── Properties
+            └── Interactions
 ```
 
 No se duplican innecesariamente estos parámetros en una segunda estructura abstracta. La UCA conoce la constitución concreta de sus capacidades y sus respectivas Dispositions.
@@ -277,25 +370,22 @@ No se duplican innecesariamente estos parámetros en una segunda estructura abst
 Las Dispositions de las capacidades que forman una UCA no deben entenderse como configuraciones independientes. Su combinación determina el comportamiento emergente de la UCA respecto a su `Purpose`:
 
 ```text
-Dispositions de las Capabilities (Configuration + Parametrization)
+Dispositions de las Capabilities (Properties + Interactions)
                          │
                          ▼
                     armonización
                          │
                          ▼
-                 comportamiento UCA
+                 Reactive Process
                          │
                          ▼
-                      Action
-                         │
-                         ▼
-                      Outcome
+                      Outcome(s)
                          │
                          ▼
                       Purpose
 ```
 
-> **Armonizar una UCA puede requerir modificar tanto la Configuration como la Parametrization de las capacidades que la constituyen.**
+> **Armonizar una UCA puede requerir modificar tanto las Properties (Configuration/Parametrization) como las Interactions de las capacidades que la constituyen.**
 
 El `Purpose` proporciona el criterio superior respecto al cual se evalúa la armonización de las capacidades.
 
@@ -306,22 +396,28 @@ Dos UCAs pueden compartir exactamente el mismo `Purpose` y, sin embargo, ser fun
 ```text
 Ear A
 ├── Purpose: transcribir continuamente voz humana
-└── SherpaRecognition + Disposition A (Configuration A + Parametrization A)
+└── SherpaRecognition + Disposition A
 
 Ear B
 ├── Purpose: transcribir continuamente voz humana
-└── WhisperRecognition + Disposition B (Configuration B + Parametrization B)
+└── WhisperRecognition + Disposition B
 ```
 
 Ambas son `Ear`. Pero no poseen necesariamente las mismas capacidades ni la misma Disposition efectiva. Su comportamiento y efectividad pueden ser distintos.
 
 ---
 
-### 2.4 Capabilities (C)
+### 2.4 Capabilities (C) como Límites Funcionales
 
-Las `Capabilities` son los recursos operacionales que una UCA puede aprovechar para satisfacer su Purpose.
+Las `Capabilities` son los recursos operacionales que una UCA puede aprovechar para satisfacer su Purpose y constituyen los **límites funcionales** de la unidad:
 
-> **Una UCA selecciona y utiliza las Capabilities disponibles según sea necesario para realizar una Action hacia su Goal bajo su Purpose. Otras UCAs pueden estar entre esas Capabilities.**
+> **Las Capabilities constituyen los límites funcionales de una UCA. Una UCA sólo puede perseguir su Purpose dentro de los límites de las Capabilities que la constituyen.**
+
+```text
+possible UCA behavior ⊆ Capabilities
+```
+
+La UCA no puede inventar durante su reacción capacidades que no posee.
 
 Pueden incluir:
 - capacidades primitivas concretas (algoritmos deterministas, transforms, parsers, ASR);
@@ -340,19 +436,19 @@ El `Goal` representa **el resultado concreto requerido en una activación determ
 
 ```text
 PURPOSE (P)
-¿Por qué existe esta UCA? — Identidad persistente e invariante.
+¿Por qué existe esta UCA? — Identidad persistente e invariante que orienta toda reacción.
 
 GOAL (G)
-¿Qué resultado se requiere ahora? — Contextual, específico de la activación.
+¿Qué resultado se requiere ahora? — Contextual, específico de la activación cuando procede.
 ```
 
-Una UCA siempre interpreta un Goal recibido a través del prisma de su propio Purpose.
+Una UCA siempre interpreta un Goal recibido a través del prisma de su propio Purpose. En activaciones reactivas continuas, no se requiere fijar un Goal idéntico al Purpose en cada activación.
 
 ---
 
 ### 2.6 Context (X)
 
-El `Context` contiene la información requerida para que la UCA interprete y resuelva su Goal.
+El `Context` contiene la información requerida para que la UCA interprete y resuelva su activación.
 
 El contexto no debe representar una fotografía global e indiscriminada de toda la memoria del sistema. Proporciona continuidad local entre interacciones:
 
@@ -362,15 +458,30 @@ Outcomes previos + Evidencia activa + Entradas inmediatas ──► Context (X)
 
 ---
 
-### 2.7 Stimulus (S)
+### 2.7 Stimulus (S) e Impulse
 
-Una UCA se ejecuta estrictamente al recibir un `Stimulus`:
+Es fundamental mantener estrictamente separados los conceptos de infraestructura de transporte y contenido cognitivo:
 
 ```text
-S = (G, X)
+Impulse  = transporte (infraestructura)
+Stimulus = información ante la que reacciona la UCA (cognición)
 ```
 
-El Stimulus es una abstracción cognitiva. No prescribe ningún sobre de red, protocolo de cable ni mecanismo de transporte.
+> **La UCA recibe un Impulse y reacciona al Stimulus transportado por él.**
+
+```text
+NervousSystem
+      │
+      ▼
+   Impulse
+      │
+      └── Stimulus: (Goal, Context)
+             │
+             ▼
+            UCA
+```
+
+El Stimulus es una abstracción cognitiva `S = (G, X)`. El Impulse es el contenedor de runtime que lo transporta.
 
 ---
 
@@ -382,21 +493,17 @@ Una UCA solo debe aceptar Goals que sean compatibles con su Purpose.
 
 Si un Goal entrante cae fuera del Purpose de la unidad, la activación no pertenece a su dominio y debe ser rechazada o redirigida.
 
-Esta restricción asegura que una UCA permanezca acotada y especializada, evitando que degenere en un agente monolítico ilimitado.
-
-La especificación no prescribe un método algorítmico o umbral numérico específico para evaluar la compatibilidad. El mecanismo de evaluación es una decisión de implementación.
-
 ---
 
-### 2.9 Action (A)
+### 2.9 Action (A) y Reactive Process
 
-La `Action` es lo que la UCA realiza en respuesta a un Stimulus para satisfacer su Goal:
+> **El Process de una UCA es la dinámica emergente producida por las interacciones reactivas entre sus Capabilities conforme a sus Dispositions y orientada por su Purpose.**
 
 ```text
-(U, S) → A
+Capabilities + Dispositions ──► Reactive Interactions ──► Reactive Process ──► Outcome(s)
 ```
 
-La Action está condicionada por el Purpose, la Disposition, las Capabilities de la unidad, y el Goal y Context recibidos en el Stimulus.
+El orden y flujo efectivo de ejecución emergen de las relaciones declaradas en `Interactions`. No existe un coordinador o procesador central imperativo que ejecute secuencialmente las capacidades.
 
 Una Action no requiere necesariamente inferencia de un modelo de lenguaje. Puede ser computación determinista, recuperación de datos, transformación estructural o invocación de una capacidad.
 
@@ -679,48 +786,99 @@ No existe ningún `Observer` especial en la estructura UCA. Cada una de estas un
 
 ---
 
-### 4.3 Adaptación de Disposition
+### 4.3 Evolution y Mutación Atómica de Disposition
 
-El Core define que la Disposition condiciona el comportamiento de una unidad. El Core no establece:
-- que una UCA deba modificar su propia Disposition;
-- que una UCA no deba modificar su propia Disposition.
+El Core define que la Disposition condiciona el comportamiento y las interacciones de una unidad.
 
-Las políticas sobre quién puede modificar la Disposition, cuándo y en base a qué evidencia son decisiones arquitectónicas.
+> **Evolution es la modificación acumulativa de la Disposition de una UCA dentro de los límites definidos por su Purpose, sus Capabilities y la Nature de sus Properties e Interactions.**
 
-Una Arquitectura Cognitiva puede definir una UCA cuyo Purpose implique evaluar y adaptar la Disposition de otra:
-
+Distinción ontológica:
 ```text
-UCA A (Disposition D₀)
-   │
-   └── Action → Outcome Oₐ
-                    │
-                    ▼
-     Stimulus → UCA B (Purpose: evaluar y adaptar comportamiento)
-                    │
-                    └── Action → Outcome
-                                     │
-                               D₀ → D₁  (aplicado a UCA A)
+Conception: Determina qué UCA existe (identidad, capacidades y disposición inicial).
+Evolution:  Modifica cómo esa misma UCA se comporta e interactúa dentro de sus límites.
 ```
 
-> La adaptación puede emerger de interacciones entre UCAs en lugar de ser una fase intrínseca del ciclo de vida de toda UCA.
-
-**Distinción**:
-
 ```text
-Mutación de Purpose        ← prohibida; cambia la identidad funcional
-Adaptación de Disposition  ← permitida bajo Purpose invariante
+Conception
+     ↓
+UCA₀ (Purpose, Capabilities, Disposition₀)
+     │
+     │ evidence
+     ▼
+Mutation₁ (atómica)
+     ↓
+Disposition₁
+     │
+     │ evidence
+     ▼
+Mutation₂ (atómica)
+     ↓
+Disposition₂
+     │
+    ...
 ```
 
-Una UCA antes y después de la adaptación:
+#### Principio de Mutación Atómica
 
-```text
-t₀:  U = (P₀, D₀, C₀)
-t₁:  U = (P₀, D₁, C₀)   ← Purpose sin cambios; Disposition evolucionada
-```
+> **La unidad mínima de Evolution es una Mutation atómica de la Disposition.**
+
+Una Mutation debe ser, siempre que sea posible:
+- **pequeña e identificable**: focalizada en una Property o Interaction concreta;
+- **limitada**: circunscrita a los límites de Nature;
+- **validable**: verificable formalmente antes de su aplicación ($Value \in Nature$);
+- **medible**: observable empíricamente en el Outcome;
+- **reversible**: capaz de restaurarse si la evidencia es desfavorable;
+- **atribuible**: rastreable respecto a la evidencia que la motivó.
+
+#### Tipos de Mutación: Paramétrica y Estructural
+
+1. **Mutación Paramétrica**: Ajuste del estado o valor de una Property (`Property.Value`), manteniendo Purpose, Nature e Interactions constantes:
+   ```text
+   SherpaRecognition.hotwordsScore: 2.5 ──► 3.0   (donde 3.0 ∈ Nature)
+   ```
+2. **Mutación Estructural**: Modificación de una Interaction (`Disposition.Interactions`) para alterar el flujo reactivo emergente sin modificar el código fuente de las Capabilities:
+   ```text
+   t₀: Capability A ──► Capability B
+   t₁: Capability C ──► Capability A ──► Capability B
+   ```
+
+#### Límites Inviolables de Evolution
+
+> **Evolution ⊆ Purpose ∩ Capabilities ∩ Nature**
+
+- El **Purpose** es la invariante de identidad: no puede mutar.
+- Las **Capabilities** son los límites funcionales: no se pueden adquirir dinámicamente capacidades no constituidas.
+- La **Nature** delimita el Mutation Space de cada propiedad o interacción.
 
 ---
 
-### 4.4 Coordinación como Uso de Capabilities
+### 4.4 Observación Evolutiva, Optimización Local y Falsabilidad
+
+Una Arquitectura Cognitiva puede definir una UCA especializada (ej. `Cingulate UCA`) cuyo Purpose sea evaluar evidencia y proponer mutaciones atómicas:
+
+```text
+Outcome(s) ──► Evidence ──► Cingulate UCA ──► Inferencia de Mutación ──► Validación de Nature ──► ΔDisposition
+```
+
+#### Principios de Observación Evolutiva
+
+1. **Interpretación Declarativa sin Acoplamiento Hardcodeado**: El observador evolutivo inspecciona `Property.Purpose`, `Property.Nature`, `Property.Value` e `Interactions` (Definition, Target, Signal, When), razonando sobre la adaptación sin requerir código específico de cada Capability.
+2. **Validación Estricta contra Nature**: Ninguna mutación puede aplicarse si viola la `Nature` declarada de la propiedad. La seguridad evolutiva proviene de la propia constitución declarativa.
+3. **Fuera del Camino Crítico de Ejecución**: El observador evolutivo actúa de forma asíncrona, selectiva y contextual sobre evidencia acumulada. No es un árbitro síncrono ni un cuello de botella para cada reacción.
+4. **Optimización Local Acotada**: El contexto de optimización permanece pequeño y localizado:
+   ```text
+   UCA Purpose + Capability Purpose + Property Purpose + Property Nature + Value + Evidence ──► Contexto de Optimización
+   ```
+5. **Falsabilidad Experimental**: Toda mutación atómica genera una hipótesis comprobable empíricamente frente al Outcome:
+   ```text
+   Outcome₁ > Outcome₀   (Mejora validada)
+   Outcome₁ = Outcome₀   (Inocua / Sin efecto)
+   Outcome₁ < Outcome₀   (Degradación detectada ──► Reversión)
+   ```
+
+---
+
+### 4.5 Coordinación como Uso de Capabilities
 
 La coordinación no es un rol UCA privilegiado. No existe ningún Coordinador ni Dispatcher predefinido en el modelo UCA.
 
@@ -738,34 +896,6 @@ Capabilities
 ```
 
 UCA A realiza su Action utilizando B, C y D como Capabilities. No las orquesta. Cada una de B, C y D conserva su propio Purpose y solo acepta Goals compatibles con él.
-
----
-
-### 4.5 Análisis de Comportamiento Mediante Composición
-
-La supervisión no es un rol UCA privilegiado. No existe ningún Supervisor predefinido en el modelo UCA.
-
-Si un sistema identifica un Purpose autónomo que requiera analizar Outcomes en busca de desviaciones o determinar si se necesita adaptación de comportamiento, ese Purpose puede justificar una UCA. Esa UCA no es supervisora: es simplemente una unidad cuya Action utiliza las Capabilities disponibles (que pueden incluir otras UCAs) para cumplir su propio Purpose:
-
-```text
-UCA A
-   │
-   └── Outcome A
-           │
-           ▼
-       Stimulus
-           │
-           ▼
-         UCA B
-Purpose: determinar si la evidencia disponible
-requiere adaptación de comportamiento.
-           │
-           └── Action B → Outcome B
-                               │
-                         D₀ → D₁  (posible cambio de Disposition)
-```
-
-UCA B no necesita llamarse Supervisor. Es una UCA cuyo Purpose justifica su Action.
 
 ---
 
@@ -977,107 +1107,115 @@ Purpose
 │
 └── Transcribir continuamente voz humana.
 
-Capabilities (Pipeline de Capacidades Primitivas Concretas)
+Capabilities (Capacidades Primitivas Concretas y sus Dispositions)
 │
 ├── EchoCancellation
 │   ├── Mechanism: Reducción y cancelación acústica adaptativa de eco
 │   └── Disposition:
-│       ├── Configuration: { sampleRate: 16000 }
-│       └── Parametrization:
-│           ├── suppressionGain: 0.0
-│           ├── bargeInThresholdRms: 160
-│           ├── echoLeakRatio: 0.25
-│           ├── maxThresholdRms: 450
-│           ├── decayMs: 350
-│           └── bargeInHoldMs: 400
+│       ├── Properties:
+│       │   ├── sampleRate: { Purpose: "Frecuencia de muestreo acústico", Nature: [16000], Value: 16000 }
+│       │   ├── suppressionGain: { Purpose: "Atenuación estática de eco", Nature: [0.0..1.0], Value: 0.0 }
+│       │   ├── bargeInThresholdRms: { Purpose: "Umbral RMS para interrupción de voz", Nature: [50..1000], Value: 160 }
+│       │   ├── echoLeakRatio: { Purpose: "Ratio de tolerancia de fuga acústica", Nature: [0.0..1.0], Value: 0.25 }
+│       │   ├── maxThresholdRms: { Purpose: "Umbral máximo RMS acústico", Nature: [100..2000], Value: 450 }
+│       │   ├── decayMs: { Purpose: "Tiempo de caída de atenuación", Nature: [50..2000ms], Value: 350 }
+│       │   └── bargeInHoldMs: { Purpose: "Retención de estado de corte", Nature: [50..2000ms], Value: 400 }
+│       └── Interactions:
+│           └── onAudioInput: { Definition: "Atenuar eco de señal cruda", Target: "AudioInput.stream", Signal: "Int16Array", When: "Target.hasData == true" }
 │
 ├── AudioFraming
 │   ├── Mechanism: Materialización temporal de la señal en fragmentos discretos
 │   └── Disposition:
-│       ├── Configuration: { sampleRate: 16000 }
-│       └── Parametrization:
-│           ├── frameSize: 1600
-│           └── emitPartialOnFlush: false
+│       ├── Properties:
+│       │   ├── sampleRate: { Purpose: "Frecuencia de muestreo", Nature: [16000], Value: 16000 }
+│       │   ├── frameSize: { Purpose: "Tamaño discreto de fragmento", Nature: [160..16000], Value: 1600 }
+│       │   └── emitPartialOnFlush: { Purpose: "Emitir fragmento parcial al vaciar buffer", Nature: [boolean], Value: false }
+│       └── Interactions:
+│           └── onCleanAudio: { Definition: "Fragmentar audio atenuado", Target: "EchoCancellation.output", Signal: "Int16Array", When: "Target.hasData == true" }
 │
 ├── PcmToFloat
 │   ├── Mechanism: Normalización y conversión de enteros Int16 a coma flotante Float32
 │   └── Disposition:
-│       ├── Configuration: { inputType: "Int16", outputType: "Float32" }
-│       └── Parametrization:
-│           └── scale: 32768.0
+│       ├── Properties:
+│       │   ├── inputType: { Purpose: "Tipo de entrada numérica", Nature: ["Int16"], Value: "Int16" }
+│       │   ├── outputType: { Purpose: "Tipo de salida numérica", Nature: ["Float32"], Value: "Float32" }
+│       │   └── scale: { Purpose: "Factor divisor de normalización", Nature: [32768.0], Value: 32768.0 }
+│       └── Interactions:
+│           └── onAudioFrame: { Definition: "Normalizar fragmento de audio a coma flotante", Target: "AudioFraming.output", Signal: "Int16Array", When: "Target.frameReady == true" }
 │
 ├── SherpaRecognition
 │   ├── Mechanism: Reconocimiento online de voz mediante modelo neuronal transductor (Sherpa-ONNX)
 │   └── Disposition:
-│       ├── Configuration:
-│       │   ├── modelDir: "models/asr-es"
-│       │   ├── modelType: "zipformer2"
-│       │   ├── provider: "cpu"
-│       │   ├── sampleRate: 16000
-│       │   └── featureDim: 80
-│       └── Parametrization:
-│           ├── numThreads: 4
-│           ├── enableEndpoint: true
-│           ├── rule1MinTrailingSilence: 2.4
-│           ├── rule2MinTrailingSilence: 0.4
-│           ├── rule3MinUtteranceLength: 20.0
-│           ├── decodingMethod: "modified_beam_search"
-│           └── hotwordsScore: 2.5
+│       ├── Properties:
+│       │   ├── modelDir: { Purpose: "Directorio del modelo neuronal", Nature: [path, readonly], Value: "models/asr-es" }
+│       │   ├── modelType: { Purpose: "Arquitectura del transductor", Nature: ["zipformer2"], Value: "zipformer2" }
+│       │   ├── provider: { Purpose: "Backend de cómputo", Nature: ["cpu", "cuda"], Value: "cpu" }
+│       │   ├── sampleRate: { Purpose: "Frecuencia de muestreo acústico", Nature: [16000], Value: 16000 }
+│       │   ├── featureDim: { Purpose: "Dimensión de características acústicas", Nature: [80], Value: 80 }
+│       │   ├── numThreads: { Purpose: "Hilos de inferencia paralelos", Nature: [1..16], Value: 4 }
+│       │   ├── enableEndpoint: { Purpose: "Detección de corte por endpointing", Nature: [boolean], Value: true }
+│       │   ├── rule1MinTrailingSilence: { Purpose: "Silencio para segmentar habla larga", Nature: [0.5..5.0s], Value: 2.4 }
+│       │   ├── rule2MinTrailingSilence: { Purpose: "Silencio para segmentar habla corta", Nature: [0.1..2.0s], Value: 0.4 }
+│       │   ├── rule3MinUtteranceLength: { Purpose: "Longitud máxima de elocución", Nature: [5.0..60.0s], Value: 20.0 }
+│       │   ├── decodingMethod: { Purpose: "Método de decodificación", Nature: ["greedy_search", "modified_beam_search"], Value: "modified_beam_search" }
+│       │   └── hotwordsScore: { Purpose: "Ponderación contextual de hotwords", Nature: [0.0..10.0], Value: 2.5 }
+│       └── Interactions:
+│           └── onFloatSamples: { Definition: "Decodificar habla de muestras normalizadas", Target: "PcmToFloat.output", Signal: "Float32Array", When: "Target.hasSamples == true" }
 │
 ├── EchoTextFilter
 │   ├── Mechanism: Filtrado y atenuación léxica de transcripciones autogeneradas
 │   └── Disposition:
-│       ├── Configuration: { caseSensitive: false }
-│       └── Parametrization:
-│           ├── decayMs: 2500
-│           ├── mismatchThreshold: 1
-│           └── minWordLength: 3
+│       ├── Properties:
+│       │   ├── caseSensitive: { Purpose: "Distinción entre mayúsculas y minúsculas", Nature: [boolean], Value: false }
+│       │   ├── decayMs: { Purpose: "Ventana temporal de atenuación léxica", Nature: [500..10000ms], Value: 2500 }
+│       │   ├── mismatchThreshold: { Purpose: "Tolerancia de discrepancia léxica", Nature: [0..5], Value: 1 }
+│       │   └── minWordLength: { Purpose: "Longitud mínima de palabra a evaluar", Nature: [1..10], Value: 3 }
+│       └── Interactions:
+│           └── onRawTranscript: { Definition: "Filtrar ecos textuales de transcripciones crudas", Target: "SherpaRecognition.output", Signal: "RawTranscript", When: "Target.textAvailable == true" }
 │
 └── EarCoherence
     ├── Mechanism: Normalización estructural y preservación de continuidad temporal de Chunks
     └── Disposition:
-        ├── Configuration: { outputSchema: "Chunk" }
-        └── Parametrization: {}
+        ├── Properties:
+        │   └── outputSchema: { Purpose: "Esquema canónico de salida", Nature: ["Chunk"], Value: "Chunk" }
+        └── Interactions:
+            └── onFilteredTranscript: { Definition: "Estructurar chunk coherente final", Target: "EchoTextFilter.output", Signal: "FilteredTranscript", When: "Target.isValid == true" }
 
 Outcome (Stream continuo)
 │
 └── Chunk { startAt, endAt, text }
 ```
 
-Flujo canónico de procesamiento de la señal:
+Flujo reactivo emergente de interacciones:
 
 ```text
-Mic
- │
- ▼
-EchoCancellation (Disposition)
- │
- ▼
-AudioFraming (Disposition)
- │
- ▼
-PcmToFloat (Disposition)
- │
- ▼
-SherpaRecognition (Disposition)
- │
- ▼
-EchoTextFilter (Disposition)
- │
- ▼
-EarCoherence (Disposition)
- │
- ▼
-Chunk {
-    startAt,
-    endAt,
-    text
-}
+AudioInput
+    │ (Property changes)
+    ▼
+EchoCancellation (Interaction: onAudioInput)
+    │ (Property changes)
+    ▼
+AudioFraming (Interaction: onCleanAudio)
+    │ (Property changes)
+    ▼
+PcmToFloat (Interaction: onAudioFrame)
+    │ (Property changes)
+    ▼
+SherpaRecognition (Interaction: onFloatSamples)
+    │ (Property changes)
+    ▼
+EchoTextFilter (Interaction: onRawTranscript)
+    │ (Property changes)
+    ▼
+EarCoherence (Interaction: onFilteredTranscript)
+    │
+    ▼
+Ear Outcome: Chunk { startAt, endAt, text }
 ```
 
-#### Armonización de Parámetros en Ear
+#### Armonización y Reactividad en Ear
 
-Las Dispositions de las capacidades primitivas individuales interactúan armónicamente para determinar el comportamiento emergente de Ear hacia su Purpose:
+Las Dispositions de las capacidades primitivas interactúan reactivamente para determinar el comportamiento emergente de Ear hacia su Purpose sin requerir un procesador o pipeline central imperativo:
 - `AudioFraming.frameSize: 1600` (tamaño de fragmento de audio).
 - `EchoCancellation.decayMs: 350` y `bargeInHoldMs: 400` (gestión de umbral de eco y corte).
 - `SherpaRecognition.rule2MinTrailingSilence: 0.4` (segundos de silencio para cierre de segmento).
