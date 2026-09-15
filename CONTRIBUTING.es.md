@@ -2,7 +2,7 @@
 
 [ [English](CONTRIBUTING.md) | Español ]
 
-Agradecemos el interés de la comunidad en debatir, escrutar y formalizar la especificación de **Unidades Cognitivas Autónomas (UCA)**.
+Agradecemos el interés de la comunidad en debatir, escrutar y formalizar la especificación de **Unidades Cognitivas Artificiales (UCA)**.
 
 ## ¿Cómo contribuir?
 
@@ -21,7 +21,7 @@ Agradecemos el interés de la comunidad en debatir, escrutar y formalizar la esp
    - **Principio de Minimalidad**: Un concepto pertenece al UCA Core *únicamente* si eliminarlo impide que la unidad satisfaga el contrato universal UCA. Una propuesta no debe añadir un concepto al Core simplemente porque resulte útil para una arquitectura cognitiva concreta.
    - **Principio de Composición**: Antes de extender la primitiva UCA con un nuevo mecanismo cognitivo, intenta primero representar dicha responsabilidad mediante la composición de UCAs existentes. Conceptos como Observación, Memoria, Planificación, Coordinación, Supervisión, Identidad, Event Bus o Impulse no deben incorporarse al Core sin demostrar que son estrictamente necesarios para la unidad mínima.
    - Preserva la coherencia con los principios fundamentales:
-     - Primacía del Purpose autónomo.
+     - Primacía del Purpose propio.
      - Ejecución reactiva ante la recepción de un Stimulus.
      - Desacoplamiento entre Purpose cognitivo y mecanismos terminales.
      - Separación entre Outcome del ejecutor y Attainment del solicitante.

@@ -1,4 +1,4 @@
-# UCA — Autonomous Cognitive Unit (Unidad Cognitiva Autónoma)
+# UCA — Artificial Cognitive Unit (Unidad Cognitiva Artificial)
 
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](LICENSE)
 [![Status: Open Specification RFC](https://img.shields.io/badge/Status-Open%20Specification%20RFC-orange.svg)](SPECIFICATION.md)
@@ -19,9 +19,9 @@ Input ──► Central State / Snapshot ──► Large Context Prompt ──�
 ```
 This pattern frequently concentrates disparate concerns into aggregate state objects and delegates planning, coordination, and error recovery entirely to single model inferences.
 
-The **UCA (Autonomous Cognitive Unit)** open specification defines a minimal, purpose-driven abstraction:
-- **Autonomy in Purpose**: Cognitive functionality is divided according to autonomous, bounded cognitive purposes (`Purpose`).
-- **Reactivity in Execution**: A UCA executes strictly upon receiving an activating stimulus (`Stimulus = Goal + Context`).
+The **UCA (Artificial Cognitive Unit)** open specification defines a minimal, purpose-driven abstraction:
+- **Dedicated, Bounded Purpose**: Cognitive functionality is divided according to dedicated, invariant cognitive purposes (`Purpose`).
+- **Reactivity in Execution**: A UCA executes strictly upon receiving an activating stimulus.
 - **Emergent Behaviour (Hypothesis)**: Cognitive behaviour may emerge from the contextual interaction of purpose-bounded units. This is a hypothesis to be validated experimentally, not a demonstrated property.
 - **Structural Adaptation Without Retraining**: Dispositions can adapt in response to operational feedback, altering future behaviour without modifying code or retraining model weights.
 
@@ -36,14 +36,14 @@ The **UCA (Autonomous Cognitive Unit)** open specification defines a minimal, pu
 ```text
 ┌──────────────────────────────┐
 │             UCA              │  ← functional primitive (normative)
-│  U = (P, D, C)              │
-│  (U, S) → A → O             │
+│  u = (p, d, C)               │
+│  (u, s) → a → o              │
 └──────────────┬───────────────┘
                │ composition
                ▼
 ┌──────────────────────────────┐
 │          UCA SYSTEM          │  ← network of functional primitives
-│   U₁ ↔ U₂ ↔ ... ↔ Uₙ       │
+│   u₁ ↔ u₂ ↔ ... ↔ uₙ         │
 └──────────────┬───────────────┘
                │ organization
                ▼
@@ -71,7 +71,7 @@ EMERGENT COGNITIVE BEHAVIOUR
 
 ## ⚖️ Specification vs Implementation
 
-This open specification defines the conceptual contract of an Autonomous Cognitive Unit.
+This open specification defines the conceptual contract of an Artificial Cognitive Unit.
 
 **The specification deliberately defines**:
 - What constitutes a UCA;
@@ -94,43 +94,42 @@ This open specification defines the conceptual contract of an Autonomous Cogniti
 
 ## 🔬 Minimal Conceptual Model (UCA Core)
 
-A UCA is conceived with:
+A UCA is conceived formally as a tuple:
 ```text
-U = (P, D, C)
+u = (p, d, C) ∈ ℙ × 𝔻 × 𝒫(ℂ)
 ```
 Where:
-- **`P` (Purpose)**: Why the UCA exists — persistent, invariant identity that guides all reactions.
-- **`D` (Disposition)**: Set of constitutive, parametric (`Properties`: Purpose, Nature, Value), and interactive (`Interactions`: Definition, Target, Signal, When) conditions determining how its capabilities are predisposed to behave and interact.
-- **`C` (Capabilities)**: Operational resources (algorithms, transforms, tools, models, other UCAs) constituting the unit's functional boundaries ($Behavior \subseteq Capabilities$).
+- **`p` (Purpose)**: Why the UCA exists — persistent, invariant identity that guides all reactions.
+- **`d` (Disposition)**: Set of constitutive, parametric (`Properties`: Function, Nature, Value), and interactive (`Interactions`: Definition, Target, Signal, When) conditions determining how its capabilities are predisposed to behave and interact.
+- **`C` (Capabilities)**: Operational resources (algorithms, transforms, tools, models, other UCAs) constituting the unit's functional boundaries ($\forall b \in \text{Behaviors}(u), \text{requiredCapabilities}(b) \subseteq C_u$).
 
-An activation is defined by:
+An activation is defined formally as:
 ```text
-S = (G, X)
+s ∈ 𝕊
 ```
 Where:
-- **`G` (Goal)**: Target outcome for this activation (optional/implicit in continuous flows guided by Purpose).
-- **`X` (Context)**: Contextual information required to interpret and resolve the reaction.
+- **`s` (Stimulus)**: Incoming information or perturbation capable of triggering a reaction in the UCA relevant to its Purpose. (The Stimulus carries incoming data or change that triggers the reaction; it does not constitute a second teleological direction nor require a formal Context container in the Core).
 
 The fundamental lifecycle:
 ```text
-Conception ──► UCA(P, D, C) ──► Stimulus ──► Reactive Process (Interactions) ──► Outcome(s)
-                                 ▲                                                  │
-                                 └────────── Evidence ──► ΔDisposition (Nature) ────┘
+Conception ──► u(p, d, C) ──► s ──► Reactive Process (Interactions) ──► Outcome(s)
+                              ▲                                          │
+                              └──────── Evidence ──► Δd (Nature) ────────┘
 ```
 
 > The Outcome belongs to the executor.
-> The Attainment belongs to the originator of the Goal.
+> Evaluation belongs to whoever evaluates or formulated the explicit criteria.
 
 ### Canonical Activation and Reactivity Flow
 
 ```mermaid
 flowchart TD
     CON[Conception: Purpose, Capabilities, Disposition] --> UCA[Valid & reactive UCA]
-    IMP[Impulse: Transport] --> STIM[Stimulus: Goal, Context]
+    IMP[Impulse: Transport] --> STIM[Stimulus: Incoming information]
     STIM --> UCA
     UCA --> INT[Reactive Interactions between Capabilities]
     INT --> PROC[Emergent Reactive Process]
-    PROC --> OUT[Outcome: Actual result produced]
+    PROC --> OUT[Outcome: Actual consequence produced]
     OUT --> EVI[Evidence]
     EVI -.-> MUT[Atomic Mutation within Nature]
     MUT -.-> DISP[evolved ΔDisposition]
@@ -158,17 +157,15 @@ flowchart TD
 
 A software component conforms to the **UCA Core** if and only if:
 
-1. It defines an explicit, stable, implementation-independent **Purpose** (`P`).
-2. It has a **Disposition** (`D`) that conditions its behaviour.
-3. It operates using an explicit set of **Capabilities** (`C`).
-4. It executes strictly upon receiving an activating **Stimulus** (`S`).
-5. The Stimulus contains a **Goal** (`G`) and a **Context** (`X`).
-6. It accepts Goals only when compatible with its **Purpose**.
-7. It performs an **Action** (`A`) directed toward the Goal within its Purpose.
-8. It produces an **Outcome** (`O`) representing what was achieved.
-9. It treats another component as a UCA only if that component has its own autonomous Purpose.
+1. It defines an explicit, dedicated, stable, implementation-independent **Purpose** (`P`).
+2. It has a declarative **Disposition** (`D`) conditioning its behaviour and interactions.
+3. It operates using an explicit and bounded set of **Capabilities** (`C`).
+4. It executes strictly upon receiving an activating **Stimulus** (`S`) relevant to its Purpose.
+5. It performs an **Action** (`A`) pursuing its Purpose within the boundaries of its Capabilities and Disposition.
+6. It produces one or more **Outcomes** (`O`) representing the observable consequences of its activity.
+7. It treats another component as a UCA only if that component has a dedicated, differentiated Purpose.
 
-**Non-requirements for conformance**: An implementation does *not* require Observation or Perception as lifecycle phases, Memory, Identity, Learning, Adaptation, a Coordinator, Dispatcher, Orchestrator or Supervisor, an LLM, external causality, an Impulse envelope, an Event Bus, a global state snapshot, Synapses, or demonstrated emergent cognitive behaviour to conform to UCA.
+**Non-requirements for conformance**: An implementation does *not* require a dual teleology, external goal, or formal Context container as mandatory universal stimulus structures, Observation or Perception as lifecycle phases, Memory, Identity, Learning, Adaptation, a Coordinator, Dispatcher, Orchestrator or Supervisor, an LLM, external causality, an Impulse envelope, an Event Bus, a global state snapshot, Synapses, or demonstrated emergent cognitive behaviour to conform to UCA.
 
 Conformance evaluates the **individual unit** against the UCA contract. It does not evaluate whether the system as a whole exhibits cognitive behaviour.
 
@@ -176,7 +173,7 @@ Conformance evaluates the **individual unit** against the UCA contract. It does 
 
 ## 🔬 The Falsifiable Hypothesis
 
-> **Can cognitive behaviour emerge from the interaction of purpose-bounded UCAs while each individual unit remains structurally limited to `U = (P, D, C)` and behaviourally limited to `(U, S) → A → O`?**
+> **Can cognitive behaviour emerge from the interaction of purpose-bounded UCAs while each individual unit remains structurally limited to $u = (p, d, C)$ and behaviourally limited to $(u, s) \to a \to o$?**
 
 This is the central experimental question UCA poses. It is to be evaluated through future implementations and empirical observation.
 
