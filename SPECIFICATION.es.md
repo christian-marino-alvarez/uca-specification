@@ -1903,6 +1903,90 @@ La existencia de antecedentes históricos que hayan explorado la reactividad, la
 
 ---
 
+## 12. Especificación de Runtime e Implementación de Referencia (TypeScript)
+
+Esta sección formaliza el contrato de programación e implementación concreta de referencia para Unidades Cognitivas Autónomas en runtimes de TypeScript/JavaScript.
+
+### 12.1 Principios del Modelo de Programación en Runtime
+
+1. **Herencia y Ciclo de Vida Biológico (`Adn`)**:
+   Toda UCA extiende la clase base fundamental `Adn`, disponiendo de identidad determinista (`id`), logger contextual, canal al sistema nervioso (`nervousSystem`) y activación mediante `live()`.
+
+2. **Declaración Obligatoria de Propósito (`purpose`)**:
+   Cada UCA declara explícitamente su propósito ontológico (`public purpose: string`), el cual rige de forma invariante todas sus decisiones y reacciones.
+
+3. **Catálogo de Capabilities en Dominio Superior (`Registry`)**:
+   Las clases de capabilities se registran desacopladamente en un catálogo superior (`Registry.register(name, Ctor)`), evitando el acoplamiento rígido de importaciones directas entre el organismo y sus órganos concretos.
+
+4. **Composición Innata de Capabilities y Disposiciones**:
+   Un organismo o UCA declara sus capacidades biológicas y su parametrización inicial mediante un diccionario declarativo donde **cada clave debe definirse obligatoriamente en formato `camelCase`**:
+   ```typescript
+   public capabilities = {
+       <camelCaseName>: <dispositionObject>
+   };
+   ```
+   Al activarse la UCA, cada capability es instanciada de forma independiente y aislada (`new Ctor(...)`), inyectándosele su propia `disposition`, el canal común y el sistema nervioso. Las capacidades quedan directamente disponibles en la instancia como propiedades en `camelCase` (ej. `agent.acousticEar`, `agent.vocalMouth`).
+
+5. **Detección Automática de Mutación de Propiedades (Proxy Reactivo)**:
+   La instancia de la UCA está envuelta en un Proxy reactivo. Cualquier mutación de propiedades públicas desencadena automáticamente una señal de broadcast en el canal interno (`Channel`) tipada determinísticamente como `<UcaName>.<propertyName>`. Las asignaciones redundantes (mismo valor) son suprimidas en tiempo real.
+
+6. **Reactividad Declarativa (`reactTo`)**:
+   Cada UCA receptora define la lista de señales o propiedades ante las cuales reacciona:
+   ```typescript
+   protected reactTo = [
+       'AcousticEar.isListening',
+       '<UcaName>.<propertyName>'
+   ];
+   ```
+   La UCA discrimina de forma $O(1)$ en `canProcess(signal)` y delega inmediatamente al método `react(signal)`.
+
+### 12.2 Ejemplo Canónico de Referencia (No Normativo)
+
+> **Nota aclaratoria:** El código presentado a continuación es **estrictamente un ejemplo de uso no normativo**. Su único propósito es ilustrar de manera práctica cómo se traducen los principios formales del runtime de UCA a TypeScript. No prescribe una arquitectura fija ni limita la diversidad de capacidades u organismos que pueden desarrollarse conforme a esta especificación.
+
+```typescript
+import { Uca, defaultRegistry, Signal } from './uca/index.js';
+
+// 1. Definición de Capabilities Primitivas
+export class AcousticEar extends Uca {
+    public override purpose = 'Percepción acústica y transcripción continua de voz';
+    public isListening = false;
+    public lastTranscript = '';
+
+    public transcribe(text: string): void {
+        this.lastTranscript = text;
+    }
+}
+
+export class VocalMouth extends Uca {
+    public override purpose = 'Síntesis y alocución vocal hacia el exterior';
+    public speechQueue: string[] = [];
+    protected override reactTo = ['AcousticEar.lastTranscript'];
+
+    public override async react(signal: Signal): Promise<void> {
+        const { value } = signal;
+        if (typeof value === 'string' && value.length > 0) {
+            this.speechQueue.push(`[Voz sintetizada] ${value}`);
+        }
+    }
+}
+
+// 2. Registro en Catálogo Superior (claves camelCase)
+defaultRegistry.register('acousticEar', AcousticEar);
+defaultRegistry.register('vocalMouth', VocalMouth);
+
+// 3. Organismo con Capabilities Innatas y Disposición
+export class ConversationalAgent extends Uca {
+    public override purpose = 'Agente biológico de alocución interactiva';
+    public override capabilities = {
+        acousticEar: { sampleRate: 16000, framingMs: 100 },
+        vocalMouth: { voice: 'alloy', rate: 1.0 },
+    };
+}
+```
+
+---
+
 ## Licencia
 
 UCA Specification © 2026 Christian Marino Alvarez.

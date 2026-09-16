@@ -181,8 +181,8 @@ This is the central experimental question UCA poses. It is to be evaluated throu
 
 ## 📚 Complete Formal Specification
 
-- 🇬🇧 **[SPECIFICATION.md (English)](SPECIFICATION.md)** — Exhaustive normative specification (RFC), including formal ontology, cognitive architecture (§4), recursive composition (§3), scientific hypothesis (§6), architectural background and related work (§10), and bibliographic references (§11).
-- 🇪🇸 **[SPECIFICATION.es.md (Español)](SPECIFICATION.es.md)** — Especificación formal completa en español.
+- 🇬🇧 **[SPECIFICATION.md (English)](SPECIFICATION.md)** — Exhaustive normative specification (RFC), including formal ontology, cognitive architecture (§4), recursive composition (§3), scientific hypothesis (§6), architectural background and related work (§10), bibliographic references (§11), and TypeScript reference runtime specification with non-normative usage examples (§12).
+- 🇪🇸 **[SPECIFICATION.es.md (Español)](SPECIFICATION.es.md)** — Especificación formal completa en español (RFC), incluyendo especificación de runtime de referencia en TypeScript con ejemplos ilustrativos de uso (§12).
 
 ---
 
