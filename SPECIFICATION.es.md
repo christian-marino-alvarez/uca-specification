@@ -1927,21 +1927,26 @@ Esta sección formaliza el contrato de programación e implementación concreta 
    ```
    Al activarse la UCA, cada capability es instanciada de forma independiente y aislada (`new Ctor(...)`), inyectándosele su propia `disposition`, el canal común y el sistema nervioso. Las capacidades quedan directamente disponibles en la instancia como propiedades en `camelCase` (ej. `agent.acousticEar`, `agent.vocalMouth`).
 
+   > **Invariante de Unicidad de Capabilities por Organismo**: En estricta concordancia con la Sección 3 y el Criterio de Conformidad 7, **no pueden coexistir dos UCAs iguales (mismo Purpose o misma clase ontológica) dentro de un mismo organismo UCA**. Cada capability subordinada que sea una UCA debe poseer un propósito propio y diferenciado. Si un organismo requiere procesar múltiples fuentes o canales del mismo tipo de estímulo, dicha multiplicidad debe resolverse mediante propiedades o mecanismos terminales dentro de la misma UCA especializada, y nunca mediante la duplicación de UCAs idénticas. Esta invariante garantiza que en el canal local cada órgano sea unívoco.
+
 5. **Detección Automática de Mutación de Propiedades (Proxy Reactivo)**:
-   La instancia de la UCA está envuelta en un Proxy reactivo. Cualquier mutación de propiedades públicas desencadena automáticamente una señal de broadcast en el canal interno (`Channel`) tipada determinísticamente como `<UcaName>.<propertyName>`. Las asignaciones redundantes (mismo valor) son suprimidas en tiempo real.
+   La instancia de la UCA está envuelta en un Proxy reactivo. Cualquier mutación de propiedades públicas desencadena automáticamente una señal de broadcast en el canal interno (`Channel`) con la identidad completa de la instancia emisora (`source` id, clave `sourceName` en `camelCase`, y tipo `sourceType`). Las asignaciones redundantes (mismo valor) son suprimidas en tiempo real.
 
 6. **Reactividad Declarativa (`reactTo`)**:
    Cada UCA receptora define la lista de señales o propiedades ante las cuales reacciona:
    ```typescript
    protected reactTo = [
-       'AcousticEar.isListening',
-       '<UcaName>.<propertyName>'
+       'acousticEar.isListening',    // Discriminación por clave de capability en camelCase
+       'AcousticEar.lastTranscript', // O discriminación por tipo ontológico
    ];
+   ```
+   La UCA discrimina de forma $O(1)$ en `canProcess(signal)` y delega inmediatamente al método `react(signal)`.
+
 ### 12.2 Interfaces y Contratos de Tipado (`types.ts`)
 
 | Interfaz / Tipo | Definición | Responsabilidad |
 |---|---|---|
-| `Signal` | `{ source: string; property: string; value: unknown; timestamp: number; }` | Representa una señal atómica generada ante la mutación de una propiedad en una UCA emisora. Identifica el origen (`source`), la propiedad mutada (`property`), el valor (`value`) y la marca temporal (`timestamp`). |
+| `Signal` | `{ source: string; sourceName: string; sourceType: string; property: string; value: unknown; timestamp: number; }` | Representa una señal atómica generada ante la mutación de una propiedad en una UCA emisora. Contiene el identificador unívoco de la instancia (`source`), su clave en el organismo (`sourceName`), su clase ontológica (`sourceType`), la propiedad mutada (`property`), el valor (`value`) y la marca temporal (`timestamp`). |
 | `SignalListener` | `(signal: Signal) => Promise<void> \| void` | Función de callback invocada ante la recepción de una señal en el canal interno. |
 | `IChannel` | `emit(signal: Signal): void;`<br>`subscribe(listener: SignalListener): () => void;` | Contrato del bus de comunicación local intra-organismo. Desacopla la emisión de señales de los receptores suscritos. |
 | `CapabilityConstructor` | `new (id: string, name: string, config?: Config) => Uca` | Firma del constructor para clases que extienden `Uca` y pueden ser instanciadas dinámicamente como capabilities subordinadas. |

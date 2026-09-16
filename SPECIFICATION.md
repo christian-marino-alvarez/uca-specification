@@ -1937,15 +1937,17 @@ This section formalizes the programming contract and concrete reference implemen
    ```
    Upon activating the UCA, each capability is instantiated independently and isolated (`new Ctor(...)`), receiving its own `disposition`, the shared channel, and the nervous system. Capabilities are directly accessible on the instance as `camelCase` properties (e.g., `agent.acousticEar`, `agent.vocalMouth`).
 
+   > **Organism Capability Uniqueness Invariant**: In strict accordance with Section 3 and Conformance Criterion 7, **two duplicate UCAs (same Purpose or same ontological class) cannot coexist within the same UCA organism**. Every subordinate capability that is a UCA must possess its own functionally differentiated purpose. If an organism needs to process multiple sensory streams or channels of the same modality, that multiplicity belongs to terminal mechanisms or properties within the responsible specialized UCA, and never to duplicating identical UCAs. This invariant guarantees that within the local channel each organ is unique.
+
 5. **Automatic Property Mutation Detection (Reactive Proxy)**:
-   The UCA instance is wrapped in a reactive Proxy. Any mutation of public properties automatically triggers a broadcast signal on the internal channel (`Channel`), deterministically typed as `<UcaName>.<propertyName>`. Redundant assignments (same value) are suppressed in real-time.
+   The UCA instance is wrapped in a reactive Proxy. Any mutation of public properties automatically triggers a broadcast signal on the internal channel (`Channel`) carrying the complete identity of the emitter (`source` id, `sourceName` in `camelCase`, and `sourceType`). Redundant assignments (same value) are suppressed in real-time.
 
 6. **Declarative Reactivity (`reactTo`)**:
    Each receiving UCA defines the list of signals or properties it reacts to:
    ```typescript
    protected reactTo = [
-       'AcousticEar.isListening',
-       '<UcaName>.<propertyName>'
+       'acousticEar.isListening',    // Discrimination by camelCase capability key
+       'AcousticEar.lastTranscript', // Or discrimination by ontological type
    ];
    ```
    The UCA discriminates in $O(1)$ time within `canProcess(signal)` and immediately delegates to the `react(signal)` method.
@@ -1954,7 +1956,7 @@ This section formalizes the programming contract and concrete reference implemen
 
 | Interface / Type | Definition | Responsibility |
 |---|---|---|
-| `Signal` | `{ source: string; property: string; value: unknown; timestamp: number; }` | Represents an atomic signal broadcast upon property mutation in an emitter UCA. Identifies source unit (`source`), mutated property (`property`), value (`value`), and timestamp (`timestamp`). |
+| `Signal` | `{ source: string; sourceName: string; sourceType: string; property: string; value: unknown; timestamp: number; }` | Represents an atomic signal broadcast upon property mutation in an emitter UCA. Identifies source unit (`source`), capability key (`sourceName`), class type (`sourceType`), mutated property (`property`), value (`value`), and timestamp (`timestamp`). |
 | `SignalListener` | `(signal: Signal) => Promise<void> \| void` | Callback function invoked upon receiving a signal on the internal channel. |
 | `IChannel` | `emit(signal: Signal): void;`<br>`subscribe(listener: SignalListener): () => void;` | Intra-organism local communication bus contract. Decouples signal broadcasting from subscribed receivers. |
 | `CapabilityConstructor` | `new (id: string, name: string, config?: Config) => Uca` | Constructor signature for classes extending `Uca` that can be dynamically instantiated as subordinate capabilities. |

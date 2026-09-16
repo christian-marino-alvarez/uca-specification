@@ -7,6 +7,8 @@
 
 export interface Signal {
     source: string;
+    sourceName: string;
+    sourceType: string;
     property: string;
     value: unknown;
     timestamp: number;
@@ -63,7 +65,9 @@ export class BaseUca {
                 const success = Reflect.set(target, prop, value);
                 if (success && typeof prop === 'string' && oldValue !== value) {
                     this.channel.emit({
-                        source: this.constructor.name,
+                        source: this.id,
+                        sourceName: this.name,
+                        sourceType: this.constructor.name,
                         property: prop,
                         value,
                         timestamp: Date.now(),
@@ -77,8 +81,12 @@ export class BaseUca {
     public async react(_signal: Signal): Promise<void> {}
 
     private handleSignal(signal: Signal): void {
-        const signalKey = `${signal.source}.${signal.property}`;
-        if (this.reactTo.includes(signalKey)) {
+        if (signal.source === this.id) {
+            return;
+        }
+        const matchesName = this.reactTo.includes(`${signal.sourceName}.${signal.property}`);
+        const matchesType = this.reactTo.includes(`${signal.sourceType}.${signal.property}`);
+        if (matchesName || matchesType) {
             void this.react(signal);
         }
     }
