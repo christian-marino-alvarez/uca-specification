@@ -1950,7 +1950,72 @@ This section formalizes the programming contract and concrete reference implemen
    ```
    The UCA discriminates in $O(1)$ time within `canProcess(signal)` and immediately delegates to the `react(signal)` method.
 
-### 12.2 Canonical Reference Example (Non-Normative)
+### 12.2 Typing Contracts and Interfaces (`types.ts`)
+
+| Interface / Type | Definition | Responsibility |
+|---|---|---|
+| `Signal` | `{ source: string; property: string; value: unknown; timestamp: number; }` | Represents an atomic signal broadcast upon property mutation in an emitter UCA. Identifies source unit (`source`), mutated property (`property`), value (`value`), and timestamp (`timestamp`). |
+| `SignalListener` | `(signal: Signal) => Promise<void> \| void` | Callback function invoked upon receiving a signal on the internal channel. |
+| `IChannel` | `emit(signal: Signal): void;`<br>`subscribe(listener: SignalListener): () => void;` | Intra-organism local communication bus contract. Decouples signal broadcasting from subscribed receivers. |
+| `CapabilityConstructor` | `new (id: string, name: string, config?: Config) => Uca` | Constructor signature for classes extending `Uca` that can be dynamically instantiated as subordinate capabilities. |
+| `IRegistry` | `register(name: string, ctor: CapabilityConstructor): void;`<br>`resolve(name: string): CapabilityConstructor \| undefined;` | Higher-domain catalog contract mapping `camelCase` capability names to class constructors. |
+| `Config` | `{ channel?: IChannel; nervousSystem?: INervousSystem; registry?: IRegistry; disposition?: Record<string, unknown>; }` | Configuration and dependency injection parameters for UCA initialization. |
+
+### 12.3 Base `Uca` Class Specification
+
+The abstract base class `Uca` governs unit lifecycle, innate capability mounting, and reactive signal dispatch in the runtime.
+
+#### 12.3.1 Properties
+
+- `public abstract purpose: string`: Invariant ontological purpose defining and guiding the unit across its existence.
+- `public capabilities: Record<string, Record<string, unknown>>`: Declarative dictionary of innate capabilities and their dispositions, with mandatory `camelCase` keys.
+- `public disposition?: Record<string, unknown>`: Parametric and interactive configuration injected into the unit during instantiation.
+- `protected channel: IChannel`: Local signal channel instance. If omitted from `Config`, initializes an isolated `Channel` instance.
+- `protected registry: IRegistry`: Reference to the capability catalog used to resolve constructors. Defaults to `defaultRegistry`.
+- `protected reactTo: string[]`: Declarative list of signals in `<SourceUca>.<property>` format to which the UCA reactively responds.
+
+#### 12.3.2 Constructor
+
+```typescript
+constructor(id: string, name: string, config?: Config)
+```
+- Calls `Adn(id, name, nervousSystem)` constructor.
+- Assigns `this.disposition`, `this.channel`, and `this.registry`.
+- Automatically subscribes internal dispatcher `this.handleSignal(signal)` to the local channel.
+- Wraps the instance in a reactive Proxy (`wrapWithProxy(this)`) and returns it, transparently intercepting property mutations.
+
+#### 12.3.3 Lifecycle and Capability Mounting Methods
+
+- `public override async live(): Promise<void>`:
+  Entrypoint for the UCA biological lifecycle. First invokes `this.mountCapabilities()` to instantiate and mount all subordinate organs declared in `capabilities`, then delegates to `super.live()`.
+- `public mountCapabilities(): void`:
+  Deterministically iterates over entries in `this.capabilities`. For each `[name, disposition]` pair, verifies if the property already exists on the instance; if absent, delegates mounting to `this.attach(name, disposition)`.
+- `public attach(name: string, disposition: Record<string, unknown>): void`:
+  Resolves the capability constructor via `this.registry.resolve(name)`. If registered, creates the child instance via `this.createChild(Ctor, name, disposition)` and mounts it as a direct property on the UCA under its `camelCase` name.
+- `public createChild(Ctor: CapabilityConstructor, name: string, disposition: Record<string, unknown>): Uca`:
+  Instantiates an isolated child UCA (`new Ctor(...)`), assigning a concatenated deterministic identifier (`${this.id}-${name}`), sharing the channel (`this.channel`) and nervous system (`this.nervousSystem`), and injecting its specific `disposition`.
+
+#### 12.3.4 Reactivity and Signal Dispatch Methods
+
+- `public canProcess(signal: Signal): boolean`:
+  Evaluates in $O(1)$ time whether the UCA must process an incoming signal by checking if `${signal.source}.${signal.property}` exists in `this.reactTo`.
+- `public handleSignal(signal: Signal): void`:
+  Internal channel signal handler. If `this.canProcess(signal)` returns true, asynchronously and safely invokes `this.react(signal)`.
+- `public async react(signal: Signal): Promise<void>`:
+  Protected extension point for UCA subclasses to execute specific reactive behavior for signals that have passed `canProcess`.
+
+#### 12.3.5 Reactive Proxy Mechanism (`wrapWithProxy`)
+
+The UCA instance is intercepted via a JavaScript Proxy at instantiation time:
+1. **Mutation Detection (`set` trap)**: When setting a property, checks if the new value differs from the existing value (`target[prop] !== value`).
+2. **Redundant Emission Suppression**: If the assigned value is identical to the current value, assignment occurs silently without emitting channel signals, preventing infinite cycles and noisy bus traffic.
+3. **Automatic Signal Broadcast**: If the value has changed, updates the property and immediately broadcasts a `Signal` on the channel:
+   - `source`: Constructor name of the emitter unit (`this.constructor.name`).
+   - `property`: Mutated property name as a string.
+   - `value`: New assigned value.
+   - `timestamp`: Unix millisecond timestamp (`Date.now()`).
+
+### 12.4 Canonical Reference Example (Non-Normative)
 
 > **Clarification Note:** The code presented below is **strictly a non-normative usage example**. Its sole purpose is to practically illustrate how the formal runtime principles of UCA translate into TypeScript. It does not prescribe a fixed architecture nor does it limit the diversity of capabilities or organisms that can be developed under this specification.
 
@@ -1992,6 +2057,28 @@ export class ConversationalAgent extends Uca {
         acousticEar: { sampleRate: 16000, framingMs: 100 },
         vocalMouth: { voice: 'alloy', rate: 1.0 },
     };
+}
+
+// 4. Agent Usage: camelCase Access, Dispositions, and Decoupled Reactivity
+export async function runVoiceAgentExample(): Promise<void> {
+    const agent = new ConversationalAgent('agent-001', 'ConversationalAgent');
+
+    // Each capability is instantiated in isolation and exposed via its camelCase property
+    const ear = (agent as unknown as Record<string, AcousticEar>)['acousticEar'];
+    const mouth = (agent as unknown as Record<string, VocalMouth>)['vocalMouth'];
+
+    console.log(`Agent Purpose: ${agent.purpose}`);
+    console.log('Injected disposition for acousticEar:', ear.disposition);
+    console.log('Injected disposition for vocalMouth:', mouth.disposition);
+
+    // Reactive activation: mutating a property on acousticEar automatically broadcasts
+    // the signal 'AcousticEar.lastTranscript', to which vocalMouth reactively responds
+    ear.isListening = true;
+    ear.transcribe('Hello, cognitive architect');
+
+    // Observable consequence within the organism
+    console.log('Speech queue in vocalMouth:', mouth.speechQueue);
+    // Output: ['[Synthesized Voice] Hello, cognitive architect']
 }
 ```
 

@@ -1937,10 +1937,72 @@ Esta sección formaliza el contrato de programación e implementación concreta 
        'AcousticEar.isListening',
        '<UcaName>.<propertyName>'
    ];
-   ```
-   La UCA discrimina de forma $O(1)$ en `canProcess(signal)` y delega inmediatamente al método `react(signal)`.
+### 12.2 Interfaces y Contratos de Tipado (`types.ts`)
 
-### 12.2 Ejemplo Canónico de Referencia (No Normativo)
+| Interfaz / Tipo | Definición | Responsabilidad |
+|---|---|---|
+| `Signal` | `{ source: string; property: string; value: unknown; timestamp: number; }` | Representa una señal atómica generada ante la mutación de una propiedad en una UCA emisora. Identifica el origen (`source`), la propiedad mutada (`property`), el valor (`value`) y la marca temporal (`timestamp`). |
+| `SignalListener` | `(signal: Signal) => Promise<void> \| void` | Función de callback invocada ante la recepción de una señal en el canal interno. |
+| `IChannel` | `emit(signal: Signal): void;`<br>`subscribe(listener: SignalListener): () => void;` | Contrato del bus de comunicación local intra-organismo. Desacopla la emisión de señales de los receptores suscritos. |
+| `CapabilityConstructor` | `new (id: string, name: string, config?: Config) => Uca` | Firma del constructor para clases que extienden `Uca` y pueden ser instanciadas dinámicamente como capabilities subordinadas. |
+| `IRegistry` | `register(name: string, ctor: CapabilityConstructor): void;`<br>`resolve(name: string): CapabilityConstructor \| undefined;` | Contrato del catálogo superior que mapea nombres de capabilities en `camelCase` con sus correspondientes constructores de clase. |
+| `Config` | `{ channel?: IChannel; nervousSystem?: INervousSystem; registry?: IRegistry; disposition?: Record<string, unknown>; }` | Parámetros de configuración e inyección de dependencias para la inicialización de una UCA. |
+
+### 12.3 Especificación de la Clase Base `Uca`
+
+La clase abstracta base `Uca` gobierna el ciclo de vida, el montaje innato de órganos y el despacho reactivo de señales en el runtime.
+
+#### 12.3.1 Propiedades
+
+- `public abstract purpose: string`: Propósito ontológico inmutable que define y orienta la unidad a lo largo de su existencia.
+- `public capabilities: Record<string, Record<string, unknown>>`: Diccionario declarativo de capabilities innatas y sus disposiciones, con claves obligatorias en formato `camelCase`.
+- `public disposition?: Record<string, unknown>`: Configuración paramétrica e interactiva inyectada en la unidad durante su instanciación.
+- `protected channel: IChannel`: Instancia del canal local de señales. Si no se suministra en `Config`, se inicializa una nueva instancia aislada de `Channel`.
+- `protected registry: IRegistry`: Referencia al catálogo de capabilities utilizado para resolver constructores. Por defecto utiliza `defaultRegistry`.
+- `protected reactTo: string[]`: Array declarativo de señales en formato `<SourceUca>.<property>` ante las cuales la UCA debe reaccionar.
+
+#### 12.3.2 Constructor
+
+```typescript
+constructor(id: string, name: string, config?: Config)
+```
+- Invoca al constructor de `Adn(id, name, nervousSystem)`.
+- Asigna `this.disposition`, `this.channel` y `this.registry`.
+- Suscribe automáticamente el despachador `this.handleSignal(signal)` al canal interno.
+- Envuelve la instancia en un Proxy reactivo (`wrapWithProxy(this)`) y lo retorna, garantizando la interceptación transparente de mutaciones de propiedades.
+
+#### 12.3.3 Métodos de Ciclo de Vida y Montaje de Capabilities
+
+- `public override async live(): Promise<void>`:
+  Punto de entrada al ciclo de vida biológico de la UCA. Invoca en primer término a `this.mountCapabilities()` para instanciar e inicializar todos los órganos subordinados declarados en `capabilities`, y delega a continuación en `super.live()`.
+- `public mountCapabilities(): void`:
+  Itera deterministamente sobre las entradas de `this.capabilities`. Para cada par `[name, disposition]`, verifica si la propiedad ya existe en la instancia; si no existe, delega el montaje a `this.attach(name, disposition)`.
+- `public attach(name: string, disposition: Record<string, unknown>): void`:
+  Resuelve el constructor de la capability a través de `this.registry.resolve(name)`. Si el constructor está registrado, crea la instancia subordinada mediante `this.createChild(Ctor, name, disposition)` y la asigna como propiedad directa de la UCA bajo el nombre `name` en `camelCase`.
+- `public createChild(Ctor: CapabilityConstructor, name: string, disposition: Record<string, unknown>): Uca`:
+  Instancia de forma aislada e independiente una UCA hija (`new Ctor(...)`), pasándole un identificador único concatenado (`${this.id}-${name}`), compartiendo el canal (`this.channel`) y el sistema nervioso (`this.nervousSystem`), e inyectándole su `disposition` específica.
+
+#### 12.3.4 Métodos de Reactividad y Despacho de Señales
+
+- `public canProcess(signal: Signal): boolean`:
+  Evalúa en $O(1)$ si la UCA debe procesar la señal entrante comprobando si la clave determinista `${signal.source}.${signal.property}` se encuentra incluida en la lista `this.reactTo`.
+- `public handleSignal(signal: Signal): void`:
+  Manejador interno de señales suscripto al canal. Si `this.canProcess(signal)` resulta verdadero, invoca de forma asíncrona y segura a `this.react(signal)`.
+- `public async react(signal: Signal): Promise<void>`:
+  Punto de extensión protegido y sobreescribible por las subclases de UCA para ejecutar su comportamiento reactivo específico ante las señales que han superado el filtro de `canProcess`.
+
+#### 12.3.5 Mecanismo del Proxy Reactivo (`wrapWithProxy`)
+
+La instancia de toda UCA es interceptada mediante un Proxy de JavaScript en tiempo de construcción:
+1. **Detección de Mutación (`set` trap)**: Al asignar un valor a cualquier propiedad de la UCA, el trap `set` verifica si el nuevo valor difiere del valor existente (`target[prop] !== value`).
+2. **Supresión de Emisiones Redundantes**: Si el valor asignado es idéntico al actual, la asignación se realiza silenciosamente en la instancia sin emitir señales al canal, evitando loops infinitos y ruidos en el sistema.
+3. **Emisión Automática de Señal**: Si el valor ha cambiado, se actualiza la propiedad y se emite inmediatamente un objeto `Signal` al canal común con:
+   - `source`: Nombre de la clase constructora (`this.constructor.name`).
+   - `property`: Nombre de la propiedad mutada en formato `string`.
+   - `value`: Nuevo valor asignado.
+   - `timestamp`: Marca de tiempo Unix (`Date.now()`).
+
+### 12.4 Ejemplo Canónico de Referencia (No Normativo)
 
 > **Nota aclaratoria:** El código presentado a continuación es **estrictamente un ejemplo de uso no normativo**. Su único propósito es ilustrar de manera práctica cómo se traducen los principios formales del runtime de UCA a TypeScript. No prescribe una arquitectura fija ni limita la diversidad de capacidades u organismos que pueden desarrollarse conforme a esta especificación.
 
@@ -1982,6 +2044,28 @@ export class ConversationalAgent extends Uca {
         acousticEar: { sampleRate: 16000, framingMs: 100 },
         vocalMouth: { voice: 'alloy', rate: 1.0 },
     };
+}
+
+// 4. Uso del Agente: Acceso en camelCase, Disposición y Reactividad Desacoplada
+export async function runVoiceAgentExample(): Promise<void> {
+    const agent = new ConversationalAgent('agent-001', 'ConversationalAgent');
+
+    // Cada capability se instancia aisladamente y queda expuesta en la propiedad camelCase
+    const ear = (agent as unknown as Record<string, AcousticEar>)['acousticEar'];
+    const mouth = (agent as unknown as Record<string, VocalMouth>)['vocalMouth'];
+
+    console.log(`Propósito del Agente: ${agent.purpose}`);
+    console.log('Disposición de acousticEar:', ear.disposition);
+    console.log('Disposición de vocalMouth:', mouth.disposition);
+
+    // Activación reactiva: la mutación de una propiedad en acousticEar emite automáticamente
+    // la señal 'AcousticEar.lastTranscript', a la cual reacciona vocalMouth de forma desacoplada
+    ear.isListening = true;
+    ear.transcribe('Hola, arquitecto cognitivo');
+
+    // Consecuencia observable en el organismo
+    console.log('Cola de habla en vocalMouth:', mouth.speechQueue);
+    // Salida: ['[Voz sintetizada] Hola, arquitecto cognitivo']
 }
 ```
 

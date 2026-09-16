@@ -183,6 +183,7 @@ Esta pregunta es la hipótesis experimental central que plantea UCA. Debe poder 
 
 - 🇪🇸 **[SPECIFICATION.es.md (Español)](SPECIFICATION.es.md)** — Especificación formal completa en español (RFC), incluyendo ontología formal, arquitectura cognitiva (§4), composición recursiva (§3), hipótesis científica (§6), antecedentes e influencias arquitectónicas (§10), referencias bibliográficas (§11) y especificación de runtime de referencia en TypeScript con ejemplos ilustrativos de uso (§12).
 - 🇬🇧 **[SPECIFICATION.md (English)](SPECIFICATION.md)** — Exhaustive normative specification in English (RFC), including runtime specification and non-normative usage examples in TypeScript (§12).
+- 💻 **[Carpeta `examples/`](examples/)** — Ejemplos de uso de referencia ejecutables en TypeScript (no normativos).
 
 ---
 
