@@ -1982,21 +1982,51 @@ constructor(id: string, name: string, config?: Config)
 
 - `public override async live(): Promise<void>`:
   Punto de entrada al ciclo de vida biológico de la UCA. Invoca en primer término a `this.mountCapabilities()` para instanciar e inicializar todos los órganos subordinados declarados en `capabilities`, y delega a continuación en `super.live()`.
-- `public mountCapabilities(): void`:
-  Itera deterministamente sobre las entradas de `this.capabilities`. Para cada par `[name, disposition]`, verifica si la propiedad ya existe en la instancia; si no existe, delega el montaje a `this.attach(name, disposition)`.
-- `public attach(name: string, disposition: Record<string, unknown>): void`:
-  Resuelve el constructor de la capability a través de `this.registry.resolve(name)`. Si el constructor está registrado, crea la instancia subordinada mediante `this.createChild(Ctor, name, disposition)` y la asigna como propiedad directa de la UCA bajo el nombre `name` en `camelCase`.
-- `public createChild(Ctor: CapabilityConstructor, name: string, disposition: Record<string, unknown>): Uca`:
-  Instancia de forma aislada e independiente una UCA hija (`new Ctor(...)`), pasándole un identificador único concatenado (`${this.id}-${name}`), compartiendo el canal (`this.channel`) y el sistema nervioso (`this.nervousSystem`), e inyectándole su `disposition` específica.
+- `private mountCapabilities(): void`:
+  Método privado que itera deterministamente sobre las entradas de `this.capabilities`. Para cada par `[name, disposition]`, verifica si la propiedad ya existe en la instancia; si no existe, delega el montaje a `this.attach(name, disposition)`.
+- `private attach<T extends Uca>(name: string, disposition?: unknown): T`:
+  Método privado que resuelve el constructor de la capability a través de `this.registry.get(name)`. Si el constructor está registrado, crea la instancia subordinada pasándole un identificador único concatenado (`${this.id}::${name}`), compartiendo el canal (`this.channel`), el sistema nervioso (`this._ns`) y el registro (`this.registry`), y la asigna como propiedad directa de la UCA bajo el nombre `name` en `camelCase`.
 
-#### 12.3.4 Métodos de Reactividad y Despacho de Señales
+#### 12.3.4 Ciclo Reactivo Unificado (Impulse y Signal)
 
-- `public canProcess(signal: Signal): boolean`:
-  Evalúa en $O(1)$ si la UCA debe procesar la señal entrante comprobando si la clave determinista `${signal.source}.${signal.property}` se encuentra incluida en la lista `this.reactTo`.
-- `public handleSignal(signal: Signal): void`:
-  Manejador interno de señales suscripto al canal. Si `this.canProcess(signal)` resulta verdadero, invoca de forma asíncrona y segura a `this.react(signal)`.
-- `public async react(signal: Signal): Promise<void>`:
-  Punto de extensión protegido y sobreescribible por las subclases de UCA para ejecutar su comportamiento reactivo específico ante las señales que han superado el filtro de `canProcess`.
+El runtime consolida un **único ciclo reactivo** en `Adn`/`Uca` independientemente de si la entrada proviene del exterior/macroestructura (`Impulse`) o de los órganos internos (`Signal`):
+
+```text
+                 UCA
+                  │
+         ┌────────┴────────┐
+         │                 │
+   NervousSystem        Channel
+         │                 │
+      Impulse            Signal
+         │                 │
+         └────────┬────────┘
+                  │
+             processInput()
+                  │
+             canProcess()
+                  │
+              preReact()
+                  │
+                react()
+                  │
+             postReact()
+```
+
+- `public async processInput(input: unknown): Promise<void>`:
+  Punto de entrada reactivo común definido en `Adn`. Valida `canProcess(input)` y, si es verdadero, ejecuta secuencialmente la cadena asíncrona `preReact(input) -> react(next) -> postReact(next)`.
+- `public override canProcess(item: unknown): boolean`:
+  Evalúa si la entrada reactiva puede ser procesada. Si `item` es un `Signal`, comprueba si coincide con alguna regla declarada en `this.reactTo` (`type`, `sourceName.property`, `sourceType.property` o `source.property`) y suprime autoreacciones (`signal.source !== this.id`). Si es un `Impulse`, delega en la lógica de procesamiento de impulsos de `Adn`.
+- `private async handleSignal(signal: Signal): Promise<void>`:
+  Receptor privado de señales suscripto al canal local. Ignora de forma inmediata señales cuyo `source` coincida con `this.id` y delega en `await this.processInput(signal)`.
+- `protected override async preReact(input: unknown): Promise<unknown>`:
+  Hook previo heredado de `Adn` que prepara y valida el contexto antes de la reacción.
+- `public override async react(item: unknown): Promise<void>`:
+  Punto de extensión protegido y sobreescribible por las subclases de UCA para ejecutar su comportamiento reactivo específico ante los estímulos que han superado el filtro de `canProcess`.
+- `protected override async postReact(next: unknown): Promise<void>`:
+  Hook posterior heredado de `Adn` para estabilización y cierre del ciclo reactivo.
+
+> **Aislamiento Estricto de Dominios**: El `Channel` es un bus local para la coordinación biológica intra-dominio entre capabilities. Ningún cambio de propiedad ni señal interna se redirige al `NervousSystem`. El `NervousSystem` se reserva para impulsos entre agentes y módulos mayores.
 
 #### 12.3.5 Mecanismo del Proxy Reactivo (`wrapWithProxy`)
 
