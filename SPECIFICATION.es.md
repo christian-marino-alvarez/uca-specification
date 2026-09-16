@@ -2021,9 +2021,15 @@ export class AcousticEar extends Uca {
     public override purpose = 'Percepción acústica y transcripción continua de voz';
     public isListening = false;
     public lastTranscript = '';
+    protected override reactTo = ['Environment.audioInput'];
 
-    public transcribe(text: string): void {
-        this.lastTranscript = text;
+    public override async react(signal: Signal): Promise<void> {
+        const { value } = signal;
+        if (typeof value === 'string' && value.length > 0) {
+            // Las propiedades se alteran internamente en la clase como reacción al estímulo
+            this.isListening = true;
+            this.lastTranscript = value;
+        }
     }
 }
 
@@ -2035,6 +2041,7 @@ export class VocalMouth extends Uca {
     public override async react(signal: Signal): Promise<void> {
         const { value } = signal;
         if (typeof value === 'string' && value.length > 0) {
+            // Reacción interna desacoplada
             this.speechQueue.push(`[Voz sintetizada] ${value}`);
         }
     }
@@ -2053,11 +2060,11 @@ export class ConversationalAgent extends Uca {
     };
 }
 
-// 4. Uso del Agente: Acceso en camelCase, Disposición y Reactividad Desacoplada
+// 4. Uso del Agente: Reactividad Pura mediante Señales (Sin Mutaciones Externas)
 export async function runVoiceAgentExample(): Promise<void> {
     const agent = new ConversationalAgent('agent-001', 'ConversationalAgent');
 
-    // Cada capability se instancia aisladamente y queda expuesta en la propiedad camelCase
+    // Cada capability se instancia aisladamente y queda expuesta en su propiedad camelCase
     const ear = (agent as unknown as Record<string, AcousticEar>)['acousticEar'];
     const mouth = (agent as unknown as Record<string, VocalMouth>)['vocalMouth'];
 
@@ -2065,12 +2072,22 @@ export async function runVoiceAgentExample(): Promise<void> {
     console.log('Disposición de acousticEar:', ear.disposition);
     console.log('Disposición de vocalMouth:', mouth.disposition);
 
-    // Activación reactiva: la mutación de una propiedad en acousticEar emite automáticamente
-    // la señal 'AcousticEar.lastTranscript', a la cual reacciona vocalMouth de forma desacoplada
-    ear.isListening = true;
-    ear.transcribe('Hola, arquitecto cognitivo');
+    // Activación reactiva pura: la comunicación con el exterior se realiza exclusivamente
+    // mediante señales o impulsos. Las propiedades internas NUNCA se alteran desde fuera;
+    // se setean internamente en la propia clase al reaccionar al estímulo recibido.
+    agent.channel.broadcast({
+        type: 'Environment.audioInput',
+        source: 'Environment',
+        sourceName: 'environment',
+        sourceType: 'Environment',
+        property: 'audioInput',
+        value: 'Hola, arquitecto cognitivo',
+        timestamp: Date.now(),
+    });
 
-    // Consecuencia observable en el organismo
+    // Consecuencia observable: acousticEar ha reaccionado internamente
+    // y vocalMouth ha reaccionado a la señal emitida por acousticEar
+    console.log('Estado interno de acousticEar (isListening):', ear.isListening);
     console.log('Cola de habla en vocalMouth:', mouth.speechQueue);
     // Salida: ['[Voz sintetizada] Hola, arquitecto cognitivo']
 }

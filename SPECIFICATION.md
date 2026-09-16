@@ -2031,9 +2031,15 @@ export class AcousticEar extends Uca {
     public override purpose = 'Acoustic perception and continuous speech transcription';
     public isListening = false;
     public lastTranscript = '';
+    protected override reactTo = ['Environment.audioInput'];
 
-    public transcribe(text: string): void {
-        this.lastTranscript = text;
+    public override async react(signal: Signal): Promise<void> {
+        const { value } = signal;
+        if (typeof value === 'string' && value.length > 0) {
+            // Properties are mutated internally within the class upon stimulus reaction
+            this.isListening = true;
+            this.lastTranscript = value;
+        }
     }
 }
 
@@ -2045,6 +2051,7 @@ export class VocalMouth extends Uca {
     public override async react(signal: Signal): Promise<void> {
         const { value } = signal;
         if (typeof value === 'string' && value.length > 0) {
+            // Internal decoupled reaction
             this.speechQueue.push(`[Synthesized Voice] ${value}`);
         }
     }
@@ -2063,7 +2070,7 @@ export class ConversationalAgent extends Uca {
     };
 }
 
-// 4. Agent Usage: camelCase Access, Dispositions, and Decoupled Reactivity
+// 4. Agent Usage: Pure Signal Reactivity (No External Mutations)
 export async function runVoiceAgentExample(): Promise<void> {
     const agent = new ConversationalAgent('agent-001', 'ConversationalAgent');
 
@@ -2075,12 +2082,22 @@ export async function runVoiceAgentExample(): Promise<void> {
     console.log('Injected disposition for acousticEar:', ear.disposition);
     console.log('Injected disposition for vocalMouth:', mouth.disposition);
 
-    // Reactive activation: mutating a property on acousticEar automatically broadcasts
-    // the signal 'AcousticEar.lastTranscript', to which vocalMouth reactively responds
-    ear.isListening = true;
-    ear.transcribe('Hello, cognitive architect');
+    // Pure reactive activation: external communication occurs exclusively via signals or impulses.
+    // Internal properties are NEVER modified from the outside; they are altered internally within
+    // the unit's class upon reacting to incoming stimuli.
+    agent.channel.broadcast({
+        type: 'Environment.audioInput',
+        source: 'Environment',
+        sourceName: 'environment',
+        sourceType: 'Environment',
+        property: 'audioInput',
+        value: 'Hello, cognitive architect',
+        timestamp: Date.now(),
+    });
 
-    // Observable consequence within the organism
+    // Observable consequence: acousticEar reacted internally and vocalMouth
+    // reacted to the signal automatically broadcast by acousticEar
+    console.log('Internal state of acousticEar (isListening):', ear.isListening);
     console.log('Speech queue in vocalMouth:', mouth.speechQueue);
     // Output: ['[Synthesized Voice] Hello, cognitive architect']
 }
