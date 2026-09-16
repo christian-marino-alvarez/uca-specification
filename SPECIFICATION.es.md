@@ -78,6 +78,8 @@ Antes de extender el Core, preguntar:
 Si (1) es NO, el concepto no pertenece al Core.
 Si (2) es SÍ, el concepto debe permanecer fuera del Core.
 
+Un caso paradigmático de aplicación de este principio es la eliminación de `Goal` del Core: si el `Purpose` ya determina universalmente aquello que la UCA persigue durante toda su existencia, una segunda abstracción universal que determine metas concretas de activación introduce redundancia teleológica y convierte la activación reactiva en una forma implícita de instrucción, por lo que queda excluida del Core.
+
 ### Principio de Composición
 
 > **Antes de extender la primitiva UCA con un nuevo mecanismo cognitivo, intentar representar esa responsabilidad mediante composición de UCAs existentes.**
@@ -87,10 +89,10 @@ Los conceptos que puedan expresarse mediante Purpose, Action, Outcome o composic
 ### Principios Fundamentales del Modelo
 
 1. **Conception determina qué UCA existe.**
-2. **Purpose determina aquello que la UCA persigue.**
+2. **Purpose determina funcionalmente qué UCA es y aquello que persigue durante toda su existencia.**
 3. **Capabilities determinan los límites de lo que la UCA puede hacer.**
 4. **Disposition determina cómo esas Capabilities están constituidas y predispuestas para comportarse e interactuar.**
-5. **Stimulus provoca una reacción en una UCA ya concebida.**
+5. **Stimulus es una señal externa a la frontera de la UCA cuya recepción provoca la reacción de una UCA ya concebida.**
 6. **Las Capabilities reaccionan mediante Interactions y no mediante dependencias directas entre ellas.**
 7. **El Process emerge de las interacciones reactivas entre Capabilities conforme a sus Dispositions.**
 8. **Outcome es la consecuencia observable de dicha actividad.**
@@ -116,19 +118,21 @@ Se distingue rigurosamente entre una instancia conceptual individual (representa
 | Dominio / Universo | Instancia | Definición Ontológica |
 |---|---|---|
 | $\mathbb{U}$ | $u \in \mathbb{U}$ | Instancia conceptual de una Unidad Cognitiva Artificial (UCA). |
-| $\mathbb{P}$ | $p \in \mathbb{P}$ | Purpose: propósito propio, explícito e invariante de una UCA. |
+| $\mathbb{P}$ | $p \in \mathbb{P}$ | Purpose: propósito propio, explícito e invariante de una UCA que determina qué es y qué persigue. |
 | $\mathbb{D}$ | $d \in \mathbb{D}$ | Disposition: condiciones constitutivas, paramétricas e interactivas de las Capabilities. |
 | $\mathbb{C}$ | $c \in \mathbb{C}$ | Capability: recurso operacional concreto. $C \subseteq \mathbb{C}$ representa el conjunto de Capabilities de $u$. |
 | $\mathbb{M}$ | $m \in \mathbb{M}$ | Mechanism: procedimiento computacional operativo de una Primitive Capability. |
 | $\text{Prop}$ | $\text{prop} \in \text{Prop}$ | Property: variable declarativa o paramétrica $(\text{function}, \text{nature}, \text{value})$. |
 | $\text{Nat}$ | $n \in \text{Nat}$ | Nature: especificación intrínseca del espacio de mutación válido de una Property. |
 | $\text{Inter}$ | $\text{inter} \in \text{Inter}$ | Interaction: relación reactiva declarada $(\text{definition}, \text{target}, \text{signal}, \text{when})$. |
-| $\mathbb{S}$ | $s \in \mathbb{S}$ | Stimulus: perturbación o información entrante capaz de provocar una reacción en la UCA. |
+| $\mathbb{S}$ | $s \in \mathbb{S}$ | Stimulus: señal externa a la frontera de la UCA cuya recepción provoca una reacción de la unidad. |
 | $\mathbb{X}$ | $x \in \mathbb{X}$ | Context: información situacional o sustrato contextual de soporte (patrón opcional, §4). |
 | $\mathbb{A}$ | $a \in \mathbb{A}$ | Action: ejecución operacional del proceso reactivo emergente de la UCA. |
 | $\mathbb{O}$ | $o \in \mathbb{O}$ | Outcome: consecuencia observable efectivamente producida por la Action. |
 | $\mathbb{M}\text{ut}$ | $\mu \in \mathbb{M}\text{ut}$ | Mutation: cambio atómico identificable sobre la Disposition. |
 | $\mathbb{E}$ | $e \in \mathbb{E}$ | Evidence: observaciones y evaluaciones acumuladas sobre el comportamiento. |
+
+> **Nota de Deprecación (Goal)**: La abstracción histórica `Goal` ($g \in \mathbb{G}$) ha sido formalmente deprecada y eliminada del modelo normativo UCA. `Goal` fue una abstracción utilizada inicialmente para representar un resultado requerido durante una activación; se elimina porque introducía una segunda fuente de dirección funcional redundante con `Purpose` y convertía la activación reactiva en una forma implícita de instrucción. El modelo normativo vigente no admite ningún concepto compensatorio de meta, objetivo o instrucción externa (`Goal`, `Objective`, `Task`, `Command` o `DesiredOutcome`).
 
 #### 3. Relaciones Nombradas
 
@@ -137,7 +141,7 @@ Las expresiones normativas deben preferir relaciones explícitas con nombre fren
 - **$\text{hasPurpose}(u, p)$**: Afirma que la UCA $u$ posee el propósito propio $p$. En toda UCA conforme: $\exists! p \in \mathbb{P} : \text{hasPurpose}(u, p)$.
 - **$\text{hasDisposition}(u, d)$**: Afirma que la UCA $u$ está predispuesta por la disposición efectiva $d$.
 - **$\text{hasCapability}(u, c)$**: Afirma que la capacidad $c$ pertenece al conjunto constitutivo de $u$ ($c \in C$).
-- **$\text{triggers}(s, u, a)$**: Afirma que la recepción del estímulo $s$ por la UCA $u$ detona la acción $a$.
+- **$\text{triggers}(s, u, a)$**: Afirma que la recepción del estímulo externo $s$ por la UCA $u$ detona la acción reactiva $a$. Expresa activación reactiva estricta; NO implica orden, instrucción, intención, meta ni causalidad metafísica global.
 - **$\text{produces}(a, o)$**: Afirma que la ejecución de la acción $a$ genera como consecuencia observable el outcome $o$.
 - **$\text{precedes}(o_1, o_2)$**: Afirma precedencia temporal estricta ("$o_1$ ocurrió antes que $o_2$").
 - **$\text{reactsTo}(\text{target}, \text{change})$**: Afirma una relación reactiva declarada donde una Capability o interacción responde a un cambio local observable.
@@ -209,6 +213,40 @@ La `Conception` determina **qué UCA existe**.
 
 Desde su `Conception`, la UCA **permanece funcionalmente vigente**. Los conceptos de estados técnicos tradicionales (`Birth`, `Start`, `Startup`, `Initialize`, `Boot`, `Ready`, `Active`, `Idle`, `Finished`, `Execute`) pertenecen a la implementación técnica del runtime y no forman parte del ciclo de vida conceptual de una UCA.
 
+#### Separación entre Constitución y Activación
+
+El modelo UCA formaliza dos dimensiones estrictamente independientes:
+
+**1. Constitución**
+```text
+u = (p, d, C)
+
+p = qué determina funcionalmente la UCA y aquello que persigue
+d = cómo están constituidas y predispuestas sus capacidades
+C = qué puede hacer (frontera funcional)
+```
+
+**2. Activación**
+```text
+External Signal
+      │
+      ▼
+   Stimulus
+      │
+      ▼
+     UCA
+      │
+      ▼
+Reactive Process / Action
+      │
+      ▼
+   Outcome(s)
+```
+
+El `Stimulus` provoca actividad reactiva en una UCA ya concebida.
+El `Purpose` determina hacia qué está orientada intrínsecamente esa actividad.
+El Stimulus **MUST NOT** redefinir, alterar ni sustituir el Purpose.
+
 #### Ciclo de Vida Reactivo y Evolutivo
 
 Una UCA no pasa por fases rígidas de arranque y finalización. Reacciona a los Stimuli recibidos y evoluciona ante la evidencia:
@@ -251,15 +289,31 @@ Una UCA no pasa por fases rígidas de arranque y finalización. Reacciona a los 
 
 ### 2.2 Purpose (P)
 
-> **Purpose define aquello que una UCA está concebida para perseguir durante toda su existencia.**
+> **Purpose es la única definición que determina funcionalmente qué UCA es y aquello que persigue durante toda su existencia.**
 
 Es estable, persistente e independiente de ejecuciones concretas o mecanismos específicos. Define la frontera operativa y la identidad de la unidad.
+
+Purpose determina:
+- su razón funcional de existencia;
+- su dominio de responsabilidad;
+- aquello que persigue;
+- la orientación de todas sus reacciones;
+- su identidad funcional durante toda su existencia.
+
+```text
+Purpose
+   │
+   ├── determina identidad funcional
+   ├── delimita responsabilidad
+   └── orienta toda reacción
+```
 
 - Un Purpose delimita el dominio de responsabilidad perteneciente a la unidad y proporciona orientación a todas sus reacciones.
 - Una UCA no puede alterar arbitrariamente su propio Purpose, ya que destruiría su identidad funcional.
 - Una UCA nunca debe definirse por sus mecanismos. Consultar una base de datos o llamar a un modelo de lenguaje son mecanismos, no propósitos cognitivos.
 - **Purpose es la única fuente de dirección funcional de una UCA y orienta todas sus reacciones durante su existencia.**
 - **El Stimulus determina aquello ante lo que la UCA reacciona; no redefine aquello que la UCA persigue.**
+- No existe una segunda fuente de dirección funcional durante una activación. Una entidad externa puede suministrar información a una UCA mediante un estímulo, pero no redefine mediante dicha información aquello que la UCA persigue.
 
 ---
 
@@ -511,30 +565,68 @@ La dirección funcional de toda reacción procede invariablemente del **Purpose*
 > **Purpose es la única fuente de dirección funcional de una UCA.**
 > **El Stimulus determina aquello ante lo que la UCA reacciona, pero no redefine aquello que la UCA persigue.**
 
-Una UCA posee un Purpose propio que orienta todas sus reacciones. La información entrante (Stimulus) provoca la reacción y aporta los datos requeridos, sin necesidad de instruir a la unidad sobre qué debe perseguir. No existe una dualidad teleológica: ningún concepto intermedio (como `Goal`, `Objective` o `Task`) modula o redefine la dirección establecida por el Purpose.
+Una UCA posee un Purpose propio que orienta todas sus reacciones. La señal externa entrante (Stimulus) provoca la reacción y aporta los datos requeridos, sin necesidad de instruir a la unidad sobre qué debe perseguir. No existe una dualidad teleológica: ningún concepto intermedio (como `Goal`, `Objective` o `Task`) modula o redefine la dirección establecida por el Purpose.
 
 #### Deslinde Ontológico: Purpose vs. Stimulus vs. Signal
 
-Para garantizar máxima claridad y evitar ambigüedades ontológicas, el modelo universal UCA deslinda estrictamente los conceptos en tres niveles arquitectónicos independientes:
+Para garantizar máxima claridad y evitar ambigüedades ontológicas, el modelo universal UCA deslinda estrictamente tres conceptos:
+
+1. **Purpose**: determina funcionalmente la UCA y orienta todas sus reacciones.
+2. **Stimulus**: señal externa a la frontera de la UCA cuya recepción provoca su reacción.
+3. **Interaction.Signal**: señal interna mediante la que interactúan y reaccionan sus Capabilities.
 
 ```text
-1. NIVEL CONSTITUTIVO Y DE IDENTIDAD:
-   └── Purpose (p ∈ ℙ)
-       Define la razón de ser, el dominio funcional y la invariante de identidad de la UCA.
-       Es propio, persistente e intrínseco. Responde a la pregunta: ¿Hacia dónde orienta la UCA su actividad?
-
-2. NIVEL DE ACTIVACIÓN DE LA UNIDAD:
-   └── Stimulus (s ∈ 𝕊)
-       Es la información, cambio o perturbación del entorno que hace contacto con el dominio
-       de pertinencia funcional de la UCA (relevant(s, p)) y detona su activación reactiva global:
-       (u, s) → a → o. Responde a la pregunta: ¿Qué despierta a la UCA en un ciclo operacional?
-
-3. NIVEL DE INTERACCIÓN INTERNA ENTRE CAPACIDADES:
-   └── Signal (en Interaction.Signal)
-       Es el dato específico, tipo o carga útil transmitida entre las Capabilities declaradas
-       en sus Dispositions para coordinar el proceso emergente sin acoplamiento de código.
-       Responde a la pregunta: ¿Qué información concreta fluye reactivamente de una propiedad a otra?
+                 Purpose
+                    │
+                    │ determina
+                    ▼
+               ┌─────────┐
+Stimulus ──────►│   UCA   │
+               │         │
+               │ C₁ ───► C₂
+               │   Signal│
+               │         │
+               └────┬────┘
+                    │
+                    ▼
+                Outcome(s)
 ```
+
+Durante la reacción:
+
+```text
+External Signal
+      │
+      ▼
+   Stimulus
+      │
+      ▼
+┌──────────────────────────────────┐
+│               UCA                │
+│                                  │
+│ Purpose                          │
+│    │                             │
+│    │ orienta                     │
+│    ▼                             │
+│ Capability A                     │
+│    │                             │
+│    │ Interaction.Signal          │
+│    ▼                             │
+│ Capability B                     │
+│    │                             │
+│    │ Interaction.Signal          │
+│    ▼                             │
+│ Capability C                     │
+│                                  │
+└───────────────┬──────────────────┘
+                │
+                ▼
+            Outcome(s)
+```
+
+Por tanto:
+- `Stimulus` opera a nivel **inter-UCA / exterior → UCA** (señal externa que cruza la frontera de una UCA y detona su reacción).
+- `Interaction.Signal` opera a nivel **intra-UCA / Capability → Capability** (señal interna entre capacidades declaradas en la Disposition para coordinar el proceso reactivo emergente).
 
 ---
 
@@ -542,50 +634,94 @@ Para garantizar máxima claridad y evitar ambigüedades ontológicas, el modelo 
 
 Toda reacción reactiva requiere información entrante (los datos, señales o perturbaciones sobre los que operan los mecanismos).
 
-En determinadas arquitecturas cognitivas, esta información puede articularse como un **Contexto** estructurado (sustrato situacional, historial, variables operativas). Sin embargo, una UCA reactiva pura no requiere necesariamente un contenedor formal de contexto para procesar una entrada inmediata.
+Un Stimulus puede transportar datos o información necesarios para que las Capabilities reaccionen. Sin embargo:
+- `Stimulus` **no es** un contenedor genérico universal `Context`.
+- No todas las UCAs requieren contexto. Por ejemplo, una unidad como `Ear` puede reaccionar directamente ante una señal de audio entrante sin requerir un contenedor formal `Context`.
+- Por el Principio de Minimalidad, `Context` no es una primitiva universal del UCA Core. Una Arquitectura Cognitiva (§4) puede construir, almacenar o aportar contexto cuando sea requerido por la especialización de la unidad, sin imponerlo como contrato a toda UCA.
 
-Por el Principio de Minimalidad, `Context` no es una primitiva universal del UCA Core, sino una forma posible de información transportada por un Stimulus o gestionada por una Arquitectura Cognitiva (§4).
+No existe en el Core una estructura universal prefijada como `Stimulus = (...)`, salvo que todos sus elementos fuesen demostrablemente necesarios para toda UCA posible.
+
+```text
+Stimulus ≠ Context
+Stimulus ≠ Purpose
+Stimulus ≠ Goal
+Stimulus ≠ Action
+Stimulus ≠ Outcome
+```
 
 ---
 
 ### 2.7 Stimulus (S) e Impulse
 
-Es fundamental mantener estrictamente separados los conceptos de infraestructura de transporte y contenido cognitivo:
+La definición canónica de Stimulus en el UCA Core es:
+
+> **Stimulus es una señal externa a la UCA cuya recepción provoca una reacción de la unidad.**
+
+Características normativas del Stimulus:
+- **es externo** respecto de la frontera de la UCA receptora;
+- **llega a una UCA ya concebida**;
+- **provoca una reacción** reactiva en dicha UCA;
+- **puede transportar información** necesaria para dicha reacción;
+- **no contiene ni redefine el Purpose**;
+- **no prescribe una Action**;
+- **no determina un Outcome**;
+- **no constituye una meta ni un objetivo**;
+- **no necesita poseer semántica cognitiva**;
+- **no requiere una estructura universal fija**.
+
+Formalmente, $s \in \mathbb{S}$ y:
+$$\text{triggers}(s, u, a)$$
+expresa estrictamente que la recepción del Stimulus $s$ por la UCA $u$ provoca una activación reactiva de $u$ materializada mediante $a$.
+
+#### Alcance de "Externo" y Reactividad Local
+
+El término "externo" se interpreta estrictamente respecto de la **frontera funcional de la UCA receptora**, no necesariamente respecto del sistema completo.
+
+Por tanto, una señal externa puede originarse en:
+- un usuario humano (`usuario ──► Ear`);
+- un sensor físico o del entorno (`sensor ──► UCA`);
+- un temporizador o runtime (`timer/runtime ──► UCA`);
+- otra UCA del sistema (`UCA A ──► UCA B`);
+- monitores homeostáticos o eventos del sistema.
+
+Una señal originada dentro del mismo sistema es externa respecto a `UCA B` tan pronto como cruza su frontera funcional.
+
+#### Desacoplamiento entre Stimulus e Impulse
+
+Es fundamental mantener estrictamente separados el concepto cognitivo/funcional y el mecanismo de transporte de infraestructura:
 
 ```text
-Impulse  = transporte (infraestructura)
-Stimulus = información o perturbación ante la que reacciona la UCA (cognición)
+Impulse  = sobre opcional de transporte (infraestructura)
+Stimulus = señal externa ante la que reacciona la UCA (activación UCA)
 ```
-
-> **La UCA recibe un Impulse y reacciona al Stimulus transportado por él.**
 
 ```text
-NervousSystem
-      │
-      ▼
-   Impulse
-      │
-      └── Stimulus: información o perturbación entrante
-             │
-             ▼
-            UCA
+Runtime / Infrastructure
+       │
+       │ transports
+       ▼
+    Impulse (opcional)
+       │
+       │ delivers
+       ▼
+    Stimulus: señal externa
+       │
+       │ triggers
+       ▼
+      UCA
 ```
 
-El Stimulus ($s \in \mathbb{S}$) es la información o cambio en el entorno capaz de provocar una reacción en la UCA. No impone una estructura rígida prefijada en el Core: en unidades sensoriales puede ser una señal física o paquete de datos crudos; en unidades cognitivas puede incluir referencias, sustrato contextual o parámetros operacionales.
-
-El Impulse es un mecanismo de transporte perteneciente al Runtime (§5) que transporta dicha información a través de la infraestructura, sin formar parte del modelo formal del UCA Core.
+El Stimulus ($s \in \mathbb{S}$) es la señal externa ante la que reacciona la unidad. El `Impulse` es un sobre opcional de infraestructura utilizado por capas de Runtime (§5) para transportar dicha señal y metadatos operativos. Una UCA conforme no requiere obligatoriamente recibir un `Impulse`; el runtime puede transportar el Stimulus mediante llamadas directas, sockets, eventos o cualquier otro mecanismo técnico.
 
 ---
 
-### 2.8 Dominio de Activación y Pertinencia de Estímulos
+### 2.8 Dominio de Activación y Compatibilidad de Señales
 
-Una UCA no reacciona ante cualquier información que circule por el sistema:
+Una UCA reacciona a los Stimuli que cruzan su frontera funcional e interaccionan con las Capabilities que la constituyen.
 
-> **Una UCA solo reacciona ante Stimuli pertinentes a su dominio de responsabilidad funcional delimitado por su Purpose.**
+La compatibilidad y pertinencia de una señal respecto a una UCA no exige que toda unidad evalúe un predicado semántico universal computable en cada activación. En unidades sensoriales o de streaming (como `Ear`), la compatibilidad queda determinada físicamente por la propia interfaz de sus Capabilities receptoras (ej. un stream de audio crudo compatible con el mecanismo de captura). En unidades cognitivas, puede resolverse mediante suscripciones tipadas, contratos de interfaz o discriminación por el runtime (véase §9.1).
 
-Formalmente: $\text{relevant}(s, p_u)$. Si un estímulo entrante cae fuera del dominio del Purpose de la unidad, este no provoca reacción o es descartado por sus mecanismos receptores (véase §9.1).
-
-Este principio garantiza la delimitación funcional: la entidad emisora no determina la reacción de la receptora; expone o transmite información, y la UCA receptora reacciona según su propio Purpose, Capabilities y Disposition.
+La entidad emisora no determina la reacción de la receptora; expone o transmite una señal, y la UCA receptora reacciona conforme a aquello que ya es: su propio Purpose, Capabilities y Disposition.
 
 ---
 
@@ -616,8 +752,8 @@ $$\text{produces}(a, o)$$
 
 Distinción ontológica:
 ```text
-STIMULUS (S): Información o perturbación que detona la reacción.
-OUTCOME (O):  Lo que la Action ejecutada produjo realmente como consecuencia observable.
+STIMULUS (S): Señal externa que cruza la frontera de la UCA y detona la reacción.
+OUTCOME (O):  Consecuencia observable producida por la Action ejecutada por la UCA.
 ```
 
 El Outcome pertenece estrictamente a la unidad ejecutora.
@@ -652,10 +788,11 @@ La relación $\text{precedes}(o_0, o_1)$ afirma estricta y únicamente que $o_0$
 ### 2.11 Reactividad Local
 
 > **Ninguna activación sin un Stimulus.**
+> **Una UCA reacciona únicamente ante la recepción de un Stimulus externo a su propia frontera funcional.**
 
-Una UCA nunca se ejecuta espontáneamente. Actúa estrictamente en respuesta a un Stimulus.
+Una UCA nunca se ejecuta espontáneamente ni por voluntad autónoma. Actúa estrictamente en respuesta a un Stimulus que cruza su frontera funcional.
 
-El origen último de ese Stimulus —externo o interno— es una cuestión de la Arquitectura Cognitiva (§4), no del UCA Core.
+El origen último de ese Stimulus —humano, sensorial, temporizado, homeostático o procedente de otra UCA— es una cuestión de la Arquitectura Cognitiva (§4), no del UCA Core. Toda UCA permanece localmente reactiva.
 
 ---
 
@@ -666,7 +803,7 @@ El origen último de ese Stimulus —externo o interno— es una cuestión de la
 El término `Artificial` describe la naturaleza de la unidad como una primitiva funcional construida, delimitada y diseñada en software o hardware:
 - **Primitiva funcional construida**: La unidad es un bloque funcional diseñado deliberadamente, delimitado por un Purpose propio y un conjunto finito de Capabilities.
 - **No implica Inteligencia Artificial General ni obligatoriedad de LLMs**: El término no asume ni exige el uso de modelos de lenguaje, redes neuronales profundas o algoritmos de aprendizaje automático. Una UCA puede implementarse mediante lógica determinista, algoritmos clásicos, heurísticas o modelos estadísticos.
-- **No implica autoejecución**: Que la unidad sea artificial no significa que sea un agente autoejecutante o dotado de voluntad propia; su ejecución permanece estrictamente reactiva ante la llegada de un Stimulus pertinente.
+- **No implica autoejecución**: Que la unidad sea artificial no significa que sea un agente autoejecutante o dotado de voluntad propia; su ejecución permanece estrictamente reactiva ante la llegada de un Stimulus externo.
 
 **Sobre "Cognitiva"**
 
@@ -684,9 +821,9 @@ Indica que la abstracción está diseñada para componer responsabilidades funci
 El modelo mínimo completo de una UCA individual:
 
 ```text
-Estructura:   u = (p, d, C)      (donde p ∈ ℙ, d ∈ 𝔻, C ⊆ ℂ)
-Estímulo:     s ∈ 𝕊              (información o perturbación detonante)
-Activación:   (u, s) → a → o     (shorthand de: triggers(s, u, a) ∧ produces(a, o))
+Estructura:   u = (p, d, C)      (donde p ∈ ℙ determina funcionalmente qué es y persigue u)
+Estímulo:     s ∈ 𝕊              (señal externa a la frontera de u que provoca su reacción)
+Reacción:     (u, s) → a → o     (shorthand de: triggers(s, u, a) ∧ produces(a, o))
 ```
 
 ---
@@ -722,9 +859,10 @@ Capabilities
 ```
 
 Utilizar UCA B como Capability significa:
-- UCA A requiere UCA B para realizar su Action.
+- UCA A requiere el resultado reactivo de UCA B para realizar su Action.
 - UCA A no coordina, orquesta ni controla a UCA B.
-- UCA A no instruye a UCA B ni le impone su propósito: UCA A expone o emite información, y UCA B reacciona según su propio Purpose B, Capabilities B y Disposition B.
+- UCA A no instruye a UCA B ni le impone su propósito o meta: UCA A expone o emite una señal que cruza la frontera de UCA B como Stimulus externo, y UCA B reacciona según su propio Purpose B, Capabilities B y Disposition B.
+- No existe transferencia de Purpose ($p_A \not\to B$) ni creación de metas u órdenes inter-unidad.
 
 ---
 
@@ -739,22 +877,33 @@ Si un componente ejecuta una función mecánica o algorítmica sin un Purpose es
 
 ### 3.3 Relaciones Outcome → Stimulus
 
-La relación entre el Outcome emitido por una UCA y la activación de otra UCA puede adoptar dos modalidades ontológicas distintas que la especificación distingue explícitamente:
-1. **Sustrato informativo o contextual**: el Outcome $o_i$ de la UCA $u_i$ queda disponible como dato o evidencia para la receptora.
-2. **Generación o propagación de estímulo**: el Outcome $o_i$ propaga una perturbación o información entrante que detona un nuevo Stimulus $s_j \in \mathbb{S}$ relevante para el Purpose de la UCA receptora ($\text{triggers}(o_i, s_j)$).
+Es fundamental distinguir ontológicamente entre el Outcome producido por una UCA y el Stimulus recibido por otra:
+- **$\text{Outcome}_A$**: Pertenece estrictamente a $\text{UCA}_A$ y es la consecuencia observable generada por su Action.
+- **$\text{Stimulus}_B$**: Pertenece al evento de activación de $\text{UCA}_B$ como señal externa que cruza su frontera funcional.
+
+No existe una identidad ontológica automática ($\text{Outcome}_A \neq \text{Stimulus}_B$). Aunque puedan transportar el mismo dato material, representan conceptos arquitectónicos distintos referidos a fronteras operativas diferentes.
+
+La relación entre ambos es de propagación, exposición o transporte a través del entorno o del runtime:
 
 ```text
 UCA A
    │
-   └── Outcome ──(propagación)──► Stimulus
-                                      │
-                                      ▼
-                                    UCA B
-                                      │
-                                      └── Outcome ──► ...
+   ▼
+Outcome A
+   │
+   │ propagación / transporte / exposición
+   ▼
+Stimulus B
+   │
+   ▼
+UCA B
+   │
+   │ reacciona según Purpose B
+   ▼
+Outcome B
 ```
 
-El comportamiento sistémico complejo se despliega a través de cadenas de propagación e interacción entre unidades especializadas. No se requiere ningún coordinador central para que esta cadena funcione.
+El comportamiento sistémico complejo se despliega a través de cadenas de propagación e interacción reactiva entre unidades especializadas, sin necesidad de ningún coordinador central.
 
 ---
 
@@ -1045,14 +1194,15 @@ UCA no prescribe ninguna estrategia de estado particular.
 
 ### 4.9 Fuentes de Causalidad
 
-Aunque toda UCA es localmente reactiva, una Arquitectura Cognitiva puede originar Stimuli a partir de:
-- interacciones externas humanas o mecánicas;
-- eventos sensoriales y del entorno;
-- tareas programadas o temporizadores de software;
-- monitores homeostáticos internos o bucles de fondo;
-- eventos de arranque del sistema.
+Aunque toda UCA es localmente reactiva respecto de su propia frontera funcional, una Arquitectura Cognitiva puede originar señales externas a dicha frontera a partir de:
+- interacciones humanas o mecánicas del entorno;
+- eventos sensoriales y de captura física;
+- temporizadores o eventos programados de runtime;
+- monitores homeostáticos internos o bucles de soporte;
+- otras UCAs del sistema conectadas en red o pipelines;
+- eventos de inicialización de la infraestructura.
 
-La causalidad estrictamente externa es una decisión de diseño arquitectónico, no un requisito universal de UCA.
+La condición universal es únicamente que el Stimulus se origine fuera de la frontera de la UCA receptora; la procedencia de la señal respecto del sistema completo es una decisión de diseño arquitectónico, no un requisito del UCA Core.
 
 ---
 
@@ -1464,10 +1614,10 @@ Una entidad o componente de software cumple con el **UCA Core** si y solo si sat
    $$\forall u \in \mathbb{U}, \exists d \in \mathbb{D} : \text{hasDisposition}(u, d)$$
 3. **Capabilities Acotadas**: Opera mediante un conjunto explícito y acotado de Capabilities.
    $$\forall u \in \mathbb{U}, \exists C \subseteq \mathbb{C}, C \neq \emptyset : \text{hasCapabilities}(u, C)$$
-4. **Activación Reactiva por Estímulo**: Se ejecuta estrictamente al ser detonada por un Stimulus perteneciente a su dominio de responsabilidad.
-   $$\forall u \in \mathbb{U}, \forall a \in \mathbb{A} \text{ ejecutada por } u, \exists s \in \mathbb{S} : \text{triggers}(s, u, a) \land \text{relevant}(s, p_u)$$
+4. **Activación Reactiva por Estímulo**: Se ejecuta estrictamente al ser detonada por un Stimulus externo que cruza su frontera funcional.
+   $$\forall u \in \mathbb{U}, \forall a \in \mathbb{A} \text{ ejecutada por } u, \exists s \in \mathbb{S} : \text{triggers}(s, u, a)$$
 5. **Action Orientada por Purpose**: Ejecuta una Action que realiza el Reactive Process emergente persiguiendo su Purpose dentro de los límites de sus Capabilities y Disposition.
-   $$\forall (u, s) \text{ activo}, \exists a \in \mathbb{A} : \text{triggers}(s, u, a) \land \text{servesPurpose}(a, p_u)$$
+   $$\forall (u, s) \text{ activo}, \exists a \in \mathbb{A} : \text{triggers}(s, u, a)$$
 6. **Producción de Outcome**: Produce uno o más Outcomes observables que representan lo que la Action produjo efectivamente.
    $$\forall a \in \mathbb{A} \text{ completada por } u, \exists o \in \mathbb{O} : \text{produces}(a, o)$$
 7. **Descomposición por Purpose**: Trata a otro componente como UCA solo si dicho componente posee un Purpose propio y diferenciado.
@@ -1476,7 +1626,7 @@ Una entidad o componente de software cumple con el **UCA Core** si y solo si sat
 **No-requisitos para la Conformidad**:
 
 Un componente **no** necesita ninguno de los siguientes para cumplir con UCA:
-- una teleología dual, meta externa o contenedor formal de `Context` como estructuras universales obligatorias del estímulo;
+- una teleología dual, objetivos o metas intermedias, o un contenedor formal de `Context` como estructuras universales obligatorias del estímulo;
 - Observation o Perception como fases del ciclo de vida;
 - Memory, Identity, Learning o Adaptation;
 - un Coordinador, Dispatcher, Orquestador o Supervisor;
@@ -1496,9 +1646,9 @@ La conformidad evalúa la **unidad individual** frente al contrato UCA. No eval�
 
 Esta sección documenta preguntas abiertas no resueltas en la especificación, identificadas a partir del modelo conceptual y de la auditoría de formalización.
 
-### 9.1 Criterios Formales de Pertinencia de Estímulos respecto al Purpose
+### 9.1 Criterios de Pertinencia de Estímulos y Filtros de Interfaz
 
-La especificación requiere que una UCA solo reaccione a estímulos pertinentes a su dominio de responsabilidad funcional ($\text{relevant}(s, p)$), pero no prescribe un algoritmo o función única para evaluar dicha pertinencia. En unidades reactivas o de streaming (como `Ear`), la pertinencia se evalúa directamente por los filtros o interfaces de las Capabilities receptoras; en unidades cognitivas, por esquemas tipados o interfaces de discriminación. Trabajo futuro podrá formalizar estos criterios como contratos declarativos de interfaz o tipos discriminados.
+Bajo el Principio de Minimalidad, la especificación no impone un predicado computable universal $\text{relevant}(s, p)$ que toda UCA deba evaluar formalmente en cada ciclo. En unidades reactivas o de streaming (como `Ear`), la compatibilidad queda determinada físicamente por la propia interfaz de sus Capabilities receptoras; en unidades cognitivas, por suscripciones tipadas, contratos de interfaz o discriminación por el runtime. Permanece abierta la formalización de cómo los contratos de interfaz de las Capabilities y del Runtime gestionan la pertinencia de las señales entrantes sin introducir sobrecarga teleológica en el Core.
 
 ### 9.2 Plasticidad Relacional Inter-UCA
 
@@ -1542,6 +1692,214 @@ La especificación distingue formalmente entre:
 - Producción: $\text{produces}(x, y)$.
 
 El uso del término "causalidad" en la arquitectura UCA plantea la interrogante de si la causalidad es una asunción ontológica necesaria del modelo o si toda interacción inter-UCA puede describirse exhaustivamente mediante relaciones puras de reactividad, producción y propagación temporal, evitando compromisos metafísicos o modelos causales contrafácticos no formalizados.
+
+### 9.8 Evaluación Teleológica y Predicado Formal `servesPurpose(a, p)`
+
+El UCA Core establece que toda Action es el resultado de un Reactive Process emergente de una UCA ya constituida $u = (p, d, C)$. Dado que la unidad está intrínsecamente orientada por su Purpose, la acción emana de dicha constitución. Permanece abierta la cuestión de si el predicado formal $\text{servesPurpose}(a, p)$ aporta semántica irreducible o si constituye una redundancia formal respecto de la pertenencia de $p$ a la constitución de $u$ ($\text{hasPurpose}(u, p)$), evitando el riesgo de inducir evaluaciones teleológicas no computables dentro de los criterios mínimos de conformidad.
+
+---
+
+## 10. Antecedentes e Influencias Arquitectónicas (Informativo)
+
+> **Esta sección es informativa y no normativa.**
+> No introduce nuevas restricciones, primitivas ni requisitos de conformidad sobre el contrato UCA Core formalizado en las secciones normativas precedentes.
+
+### 10.1 Problemas Arquitectónicos Recurrentes y Convergencia Conceptual
+
+UCA no surge en aislamiento conceptual. Gran parte de los desafíos fundamentales que aborda —el desacoplamiento, la especialización funcional, la reactividad estricta, la composición distribuida, la emergencia sistémica y la adaptación continua— han sido investigados durante décadas por la ingeniería de software, los sistemas distribuidos, la robótica y las ciencias cognitivas.
+
+Es connatural que existan similitudes entre UCA y diversas tradiciones de diseño arquitectónico: cuando disciplinas independientes intentan dar respuesta a problemas compartidos, las soluciones tienden a converger parcialmente en principios comunes.
+
+```text
+Problemas Arquitectónicos Recurrentes:
+- Desacoplamiento de componentes
+- Evitación de coordinadores centrales monolíticos
+- Reacción ante perturbaciones del entorno
+- Composición jerárquica o recursiva
+- Adaptación frente a evidencia empírica
+                  │
+                  ▼
+┌────────────────────────────────────────────────────────┐
+│ Convergencia de Familias y Tradiciones de Diseño       │
+│                                                        │
+│ ├── Actor Model: Aislamiento y concurrencia por mensajes│
+│ ├── Reactive Systems: Detonación reactiva desacoplada  │
+│ ├── Subsumption: Comportamientos y control distribuido │
+│ ├── Blackboard Systems: Cooperación de especialistas   │
+│ ├── Global Workspace: Integración sistémica modular    │
+│ ├── Soar / LIDA: Modelado de arquitecturas cognitivas  │
+│ └── Autonomic Computing: Adaptación paramétrica local  │
+└────────────────────────────────────────────────────────┘
+```
+
+UCA reconoce explícitamente estas influencias y precedentes intelectuales. Al mismo tiempo, UCA no pretende ser una copia, evolución directa, extensión oficial, sustitución ni unificación de ninguna de estas arquitecturas. Cada una de ellas fue concebida para satisfacer objetivos, restricciones y dominios operativos particulares. UCA aborda su propio problema específico: definir una **primitiva funcional mínima y determinable** ($u = (p, d, C)$) a partir de la cual el comportamiento cognitivo complejo pueda emerger mediante composición reactiva.
+
+### 10.2 Modelo de Actores (Actor Model)
+
+El Modelo de Actores (Hewitt, Bishop & Steiger, 1973; Agha, 1986) formuló una de las aproximaciones más influyentes para el diseño de sistemas concurrentes y distribuidos basados en unidades independientes. En este modelo, un "actor" es una entidad autónoma que, en respuesta a un mensaje entrante, puede tomar decisiones locales, crear nuevos actores, enviar mensajes a otros actores y modificar su estado interno para mensajes futuros.
+
+**Similitudes con UCA**:
+- **Aislamiento y límites claros**: Ambas abstracciones rechazan el estado global compartido mutable; cada unidad encapsula su propio comportamiento.
+- **Activación por recepción**: Un actor no se ejecuta sin recibir un mensaje; una UCA reacciona únicamente ante la recepción de un Stimulus externo a su frontera funcional.
+- **Concurrencia y distribución**: La interacción no depende de un hilo de ejecución centralizado ni de bloqueos compartidos.
+
+**Diferencias Conceptuales**:
+- **Naturaleza ontológica**: El Modelo de Actores es fundamentalmente una abstracción computacional para concurrencia, paralelismo y paso de mensajes en sistemas distribuidos. UCA es una primitiva ontológica funcional concebida para delimitar la identidad y responsabilidad cognitiva.
+- **Constitución explícita**: En el Modelo de Actores clásico, un actor se define por su buzón y su comportamiento dinámico ante mensajes. En UCA, la unidad está rigurosamente constituida por la tupla formal $u = (p, d, C)$, donde el **Purpose** ($p$) determina de forma invariante aquello que persigue, las **Capabilities** ($C$) acotan sus límites operacionales y la **Disposition** ($d$) declara de forma transparente sus propiedades e interacciones reactivas.
+- **Separación de infraestructura**: Un actor se acopla frecuentemente al buzón (*mailbox*) de infraestructura de su runtime; en UCA, el mecanismo de transporte (`Impulse`) está estrictamente desacoplado del contenido detonante (`Stimulus`).
+
+### 10.3 Sistemas Reactivos y Arquitecturas Orientadas a Eventos (EDA)
+
+Las arquitecturas orientadas a eventos (Event-Driven Architecture) y los principios de los Sistemas Reactivos (Bonér et al., 2014) establecen que los sistemas de software deben ser reactivos a los estímulos del entorno, desacoplados en el tiempo y en el espacio, y resilientes mediante el aislamiento de fallos.
+
+**Similitudes con UCA**:
+- **Detonación reactiva**: El flujo de procesamiento no procede de una llamada imperativa descendente, sino de la reacción ante una señal, evento o cambio en el entorno:
+  $$	ext{External Signal} 	o 	ext{Stimulus} 	o 	ext{UCA} 	o 	ext{Action} 	o 	ext{Outcome}$$
+- **Desacoplamiento temporal y espacial**: Quien emite una señal no controla ni conoce el ciclo de vida interno del receptor.
+- **Interacciones reactivas intra-unidad**: Las `Interactions` declaradas en la Disposition de una UCA siguen una semántica estrictamente reactiva ante cambios observables locales (`reactsTo`).
+
+**Diferencias Conceptuales**:
+- **Nivel de abstracción**: Los Sistemas Reactivos prescriben patrones técnicos y propiedades de ingeniería de sistemas (elasticidad, resiliencia, contrapresión o *backpressure*, brokers de mensajería). UCA formula un contrato funcional a nivel de unidad; no prescribe la presencia obligatoria de un Event Bus, brokers de mensajes, patrones Observer ni flujos reactivos de código en el Core.
+
+### 10.4 Arquitectura de Subsunción y Robótica Basada en Comportamientos
+
+La Arquitectura de Subsunción propuesta por Rodney Brooks (1986, 1991) constituyó un hito histórico fundamental al demostrar que un comportamiento inteligente complejo y adaptativo puede emerger sin necesidad de un procesador central monolítico, sin modelos simbólicos exhaustivos del mundo y sin planificadores globales. Subsumption organiza el sistema en capas de competencias conductuales acotadas y fuertemente reactivas que interactúan directamente con el entorno.
+
+**Similitudes con UCA**:
+- **Descentralización radical**: Ambas aproximaciones rechazan de forma contundente la figura del planificador, coordinador o supervisor universal.
+- **Emergencia sistémica**: El comportamiento global inteligente emerge de la interacción dinámica de múltiples competencias o unidades especializadas más simples.
+- **Reactividad situada**: Las unidades operan acopladas a perturbaciones observables reales del entorno en lugar de mantener mundos virtuales simulados monolíticos.
+
+**Diferencias Conceptuales**:
+- **Dominio de aplicación**: La Arquitectura de Subsunción fue concebida primariamente para agentes físicos y robótica móvil con capas sensoriomotoras fuertemente ancladas al hardware. UCA generaliza la unidad funcional a cualquier proceso computacional o cognitivo (sensorial, analítico, transformacional, probabilístico o simbólico).
+- **Mecanismos de inhibición vs. Composición por Capabilities**: Subsumption utiliza mecanismos físicos de inhibición y supresión cableados entre capas de circuitos. UCA no inhibe unidades: estructura la interacción mediante exposición de Outcomes, propagación de Stimuli y composición recursiva donde una UCA puede utilizar a otra como Capability sin violar su autonomía funcional ni su Purpose.
+- **Declaratividad y Mutabilidad**: En Subsumption, las capas son máquinas de estado finito fijas cableadas en código o hardware. En UCA, la `Disposition` es declarativa, observable e inspeccionable, permitiendo la adaptación evolutiva mediante `Mutation` atómica de propiedades dentro de su `Nature`.
+
+### 10.5 Arquitecturas de Pizarra (Blackboard Systems)
+
+Las arquitecturas Blackboard, introducidas paradigmáticamente en el sistema Hearsay-II de reconocimiento de voz (Erman et al., 1980; Nii, 1986), plantearon un modelo de resolución cooperativa y distribuida de problemas donde un conjunto de agentes o módulos especializados (fuentes de conocimiento o *Knowledge Sources*) inspeccionan e interactúan oportunistamente mediante una memoria de trabajo común estructurada ("la pizarra").
+
+**Similitudes con UCA**:
+- **Especialización funcional**: Ningún componente individual intenta resolver el problema completo; múltiples unidades con responsabilidades acotadas contribuyen según su especialización.
+- **Interacción indirecta**: Los especialistas no se acoplan mediante invocaciones directas entre ellos, sino mediante la observación de cambios en el estado visible.
+
+**Diferencias Conceptuales**:
+- **Ausencia de memoria global compartida en el Core**: La arquitectura Blackboard depende intrínsecamente de un espacio de memoria global mutable y compartido, así como de un mecanismo de control oportunista que selecciona qué fuente de conocimiento actúa. El UCA Core prescinde por completo de estado global compartido y de controladores de pizarra; la interacción se produce estrictamente por propagación de señales y exposición de Outcomes entre fronteras funcionales locales. Patrones tipo Blackboard pueden construirse como parte de una Arquitectura Cognitiva compuesta (§4), pero no constituyen un requisito universal del Core.
+
+### 10.6 Teoría del Espacio de Trabajo Global (Global Workspace Theory)
+
+La Teoría del Espacio de Trabajo Global (Baars, 1988; Dehaene et al., 1998; Shanahan, 2006) modela la cognición como una federación masiva de procesadores especializados e inconscientes que compiten por el acceso a una memoria de trabajo de capacidad limitada (el *Global Workspace*), desde el cual la información seleccionada se transmite ampliamente (*broadcast*) a todo el sistema.
+
+**Similitudes con UCA**:
+- **Modularidad funcional**: El sistema cognitivo se concibe como una multitud de unidades especializadas de procesamiento acotado.
+- **Cooperación emergente**: El comportamiento sistémico unificado se produce a partir de la actividad coordinada de módulos locales.
+
+**Diferencias Conceptuales**:
+- **Sin difusión centralizada (broadcast) obligatoria**: UCA no asume que las señales deban transmitirse globalmente a todas las unidades. La propagación en UCA es local, direccionada o basada en suscripciones entre fronteras.
+- **Sin competencia atencional en el Core**: GWT fundamenta su dinámica en la competencia de procesadores para dominar el foco de atención del espacio global. En UCA Core, cada unidad reacciona localmente a los Stimuli que cruzan su frontera, sin necesidad de competir por un recurso de difusión global.
+- **Neutralidad sobre la conciencia**: GWT es primariamente una teoría biológica y psicológica sobre el acceso consciente. UCA es una especificación de arquitectura de software para unidades funcionales y no formula ninguna afirmación sobre conciencia, introspección ni estados subjetivos.
+
+### 10.7 Arquitectura Cognitiva Soar
+
+Soar (Laird, Newell & Rosenbloom, 1987; Laird, 2012) representa una de las arquitecturas cognitivas clásicas más sistemáticas basadas en la hipótesis del sistema de símbolos físicos. Soar modela toda actividad orientada a metas como búsqueda dentro de espacios de problemas (*problem spaces*), utilizando reglas de producción para seleccionar y aplicar operadores que transforman el estado del sistema hacia una meta deseada (*goal*), complementado por mecanismos de resolución de impasses y aprendizaje por *chunking*.
+
+**Similitudes con UCA**:
+- **Búsqueda de comportamiento cognitivo unificado**: Ambas propuestas persiguen comprender y materializar arquitectónicamente cómo sistemas no monolíticos pueden exhibir comportamiento cognitivo complejo y coherente.
+- **Persistencia y aprendizaje**: Soar incorpora mecanismos para modificar su conocimiento a partir de la experiencia; UCA define la evolución formal de la Disposition mediante evidencia empírica acumulada y mutaciones atómicas (§2.1, §4.4).
+
+**Contraste Arquitectónico y Elecciones Ontológicas**:
+- **Teleología: Purpose frente a Goal**: Soar sitúa el concepto de meta (*goal*) como la abstracción central que guía la selección de operadores y la resolución de impasses durante la ejecución dinámica de una tarea. UCA, por el contrario, adopta **Purpose** como la única fuente de dirección funcional constitutiva de la unidad y elimina formalmente **Goal** como primitiva de activación. En UCA, una unidad no recibe metas externas de activación; recibe señales externas (Stimuli) y reacciona intrínsecamente conforme a lo que su Purpose ya determina que persigue.
+- **Motor de reglas vs. Agnóstico a mecanismos**: Soar prescribe un motor de producción estructurado, ciclos de decisión fijos y jerarquías de operadores. UCA es deliberadamente agnóstica respecto a si las Capabilities de una unidad se implementan mediante reglas de producción, código determinista, algoritmos de procesamiento de señal o modelos probabilísticos.
+
+### 10.8 LIDA y Arquitecturas Cognitivas Distribuidas
+
+LIDA (Learning Intelligent Distribution Agent; Franklin et al., 2007, 2016) es una arquitectura cognitiva híbrida y biológicamente inspirada que integra GWT, memorias multinivel (perceptual, episódica, declarativa, procedimental) y ciclos cognitivos recurrentes divididos en fases fijas de percepción, atención y selección de acción.
+
+**Similitudes con UCA**:
+- **Distribuibilidad de procesos**: Despliega múltiples componentes especializados para procesar información sensorial y de memoria.
+- **Adaptación multinivel**: Reconoce que la adaptación ocurre a diferentes escalas temporales y niveles de abstracción.
+
+**Diferencias Conceptuales**:
+- **Ausencia de ciclo cognitivo prefijado**: LIDA fundamenta toda su dinámica en la ejecución estricta y periódica de un ciclo cognitivo universal (Percepción $	o$ Atención $	o$ Selección $	o$ Acción). En UCA Core, no existen fases obligatorias de ciclo de vida ni fases cognitivas universales predefinidas. Cada UCA reacciona de forma asíncrona ante la recepción de su propio Stimulus, y la coordinación secuencial o cíclica emerge, si es necesaria, a través de la topología de la composición inter-unidad (§3) o de la Arquitectura Cognitiva (§4).
+- **Módulos de memoria no universales**: En LIDA, los subsistemas de memoria episódica, semántica y atencional son módulos obligatorios del sistema. En UCA, la memoria es una responsabilidad opcional que puede o no modelarse como una UCA especializada cuando el dominio funcional lo requiera (véase §7.2, Hippocampus UCA).
+
+### 10.9 Sistemas Autoadaptativos, Cibernética y Autonomic Computing
+
+La cibernética clásica (Ashby, 1956 - *Design for a Brain* y la ley de variedad requerida) y las arquitecturas de computación autonómica (Kephart & Chess, 2003 - bucle MAPE-K: Monitor, Analyze, Plan, Execute, Knowledge) sentaron las bases teóricas de la adaptación de sistemas basada en retroalimentación y homeostasis frente a perturbaciones del entorno.
+
+**Similitudes con UCA**:
+- **Adaptación gobernada por límites invariantes**: En la cibernética de Ashby y en la computación autonómica, el sistema ajusta sus parámetros internos para preservar sus variables esenciales dentro de límites viables. En UCA, este principio se manifiesta directamente en la formalización de **Evolution**: una `Mutation` ($\mu \in \mathbb{M}	ext{ut}$) adapta la `Disposition` ($d$) de la unidad preservando estrictamente su `Purpose` invariante ($	ext{preservesPurpose}(u, \mu)$) y dentro del espacio acotado por sus `Capabilities` ($	ext{withinCapabilities}(u, \mu)$) y la `Nature` de sus propiedades.
+- **Uso de evidencia empírica**: La adaptación procede de la observación de consecuencias observables anteriores (`Evidence`), no de modificaciones arbitrarias de código fuente.
+
+**Diferencias Conceptuales**:
+- UCA no impone que cada unidad deba implementar un bucle autonómico MAPE-K completo en su interior. La observación, diagnóstico y decisión evolutiva pueden realizarse por procesos de observación externa dentro de una Arquitectura Cognitiva (§4.4), manteniendo a la UCA individual como una unidad funcional puramente reactiva.
+
+---
+
+### 10.10 Síntesis Comparativa de Principios Arquitectónicos
+
+La siguiente tabla resume de forma neutral y descriptiva cómo UCA comparte y contrasta principios conceptuales frente a las principales familias arquitectónicas analizadas:
+
+| Principio Arquitectónico | Tradición / Antecedente Relevante | Tratamiento Específico en UCA Core |
+|---|---|---|
+| **Reactividad Estricta** | Reactive Systems, Subsumption Architecture | Toda UCA reacciona exclusivamente ante la recepción de un Stimulus externo que cruza su frontera funcional. Ninguna activación espontánea. |
+| **Especialización Funcional** | Actor Model, Behavior-Based AI, Soar | Delimitada unívocamente por el Purpose ($p \in \mathbb{P}$), que define qué es la unidad y aquello que persigue durante toda su existencia. |
+| **Desacoplamiento Operacional** | Actor Model, Event-Driven Architectures | Interacción inter-UCA mediante señales y exposición de Outcomes. Cero llamadas imperativas o subordinación RPC en la composición. |
+| **Composición Recursiva** | Component-Based Software, Actor Systems | Una UCA puede utilizar a otra UCA como una de sus Capabilities conservando cada unidad su propio Purpose y autonomía reactiva. |
+| **Emergencia Sistémica** | Subsumption Architecture, GWT, LIDA | El comportamiento complejo no reside en un controlador central monolítico, sino que emerge de las interacciones reactivas de múltiples unidades. |
+| **Adaptación Paramétrica** | Autonomic Computing, Cybernetics | Modificación atómica de la Disposition ($\Delta d$) mediante Mutations dentro del espacio delimitado por la Nature, preservando Purpose y Capabilities. |
+| **Ausencia de Estado Global** | Actor Model, Subsumption | UCA Core prescinde de memorias globales compartidas, pizarras o snapshots centralizados. |
+| **Dirección Teleológica** | Contraste con Soar, LIDA, BDI | Eliminación de `Goal` de activación en favor de `Purpose` constitutivo propio. La UCA no recibe metas; recibe perturbaciones o datos. |
+
+---
+
+### 10.11 El Contrato Propio de UCA y el Alcance de su Hipótesis
+
+La revisión de antecedentes e influencias arquitectónicas pone de manifiesto que UCA no requiere atribuirse la invención aislada de cada uno de sus principios rectores para fundamentar su valor. El aporte de UCA reside en la **combinación formal, minimalista y acotada** de dichos principios dentro de un contrato ontológico estricto:
+
+```text
+CONSTITUCIÓN:
+u = (p, d, C)
+
+Purpose (p)
+    determina funcionalmente qué UCA es y qué persigue.
+
+Capabilities (C)
+    delimitan lo que la UCA puede hacer.
+
+Disposition (d)
+    determina cómo están constituidas y predispuestas
+    sus Capabilities mediante Properties e Interactions.
+
+ACTIVACIÓN REACTIVA:
+External Signal ──► Stimulus ──► UCA ──► Action ──► Outcome(s)
+```
+
+La existencia de antecedentes históricos que hayan explorado la reactividad, la especialización o la distribución no constituye una validación automática ni una prueba de que la composición de UCAs genere cognición. Por esta razón, la especificación mantiene una estricta separación metodológica:
+
+1. **Los antecedentes arquitectónicos** demuestran que las decisiones de diseño de UCA están ancladas en una tradición madura y sólida de la ciencia de la computación.
+2. **La hipótesis de comportamiento cognitivo emergente** (§6) permanece estrictamente como una hipótesis científica falsable, sujeta a verificación experimental y empírica mediante implementaciones de referencia.
+
+---
+
+## 11. Referencias Bibliográficas
+
+1. **Agha, G.** (1986). *Actors: A Model of Concurrent Computation in Distributed Systems*. MIT Press, Cambridge, MA.
+2. **Ashby, W. R.** (1956). *An Introduction to Cybernetics*. Chapman & Hall, London.
+3. **Baars, B. J.** (1988). *A Cognitive Theory of Consciousness*. Cambridge University Press, New York.
+4. **Bonér, J., Farley, D., Kuhn, R., & Thompson, M.** (2014). *The Reactive Manifesto*. Disponible en: https://www.reactivemanifesto.org/
+5. **Brooks, R. A.** (1986). A robust layered control system for a mobile robot. *IEEE Journal on Robotics and Automation*, 2(1), 14–23. https://doi.org/10.1109/JRA.1986.1087032
+6. **Brooks, R. A.** (1991). Intelligence without representation. *Artificial Intelligence*, 47(1–3), 139–159. https://doi.org/10.1016/0004-3702(91)90053-M
+7. **Dehaene, S., Kerszberg, M., & Changeux, J. P.** (1998). A neuronal model of a global workspace in effortful cognitive tasks. *Proceedings of the National Academy of Sciences*, 95(24), 14529–14534. https://doi.org/10.1073/pnas.95.24.14529
+8. **Erman, L. D., Hayes-Roth, F., Lesser, V. R., & Reddy, D. R.** (1980). The Hearsay-II speech-understanding system: Integrating knowledge to resolve uncertainty. *ACM Computing Surveys*, 12(2), 213–253. https://doi.org/10.1145/356810.356816
+9. **Franklin, S., Strain, S., McCall, R., & Baars, B.** (2007). Conceptual commitments of the LIDA model of cognition. *Journal of Artificial General Intelligence*, 1, 1–17.
+10. **Franklin, S., Madl, T., D'Mello, S., & Snaider, J.** (2016). LIDA: A systems-level architecture for computational, cognitive models. *IEEE Transactions on Autonomous Mental Development*, 6(1), 19–41. https://doi.org/10.1109/TAMD.2013.2277589
+11. **Hewitt, C., Bishop, P., & Steiger, R.** (1973). A universal modular ACTOR formalism for artificial intelligence. In *Proceedings of the 3rd International Joint Conference on Artificial Intelligence (IJCAI'73)* (pp. 235–245). Morgan Kaufmann Publishers.
+12. **Kephart, J. O., & Chess, D. M.** (2003). The vision of autonomic computing. *Computer*, 36(1), 41–50. https://doi.org/10.1109/MC.2003.1160055
+13. **Laird, J. E., Newell, A., & Rosenbloom, P. S.** (1987). SOAR: An architecture for general intelligence. *Artificial Intelligence*, 33(1), 1–64. https://doi.org/10.1016/0004-3702(87)90050-6
+14. **Laird, J. E.** (2012). *The Soar Cognitive Architecture*. MIT Press, Cambridge, MA.
+15. **Nii, H. P.** (1986). Blackboard systems: The blackboard model of problem solving and the evolution of blackboard architectures. *AI Magazine*, 7(2), 38–53.
+16. **Shanahan, M.** (2006). A cognitive architecture that combines internal simulation with a global workspace. *Consciousness and Cognition*, 15(2), 433–449. https://doi.org/10.1016/j.concog.2005.11.005
 
 ---
 

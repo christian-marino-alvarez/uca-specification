@@ -99,7 +99,7 @@ Una UCA es concebida formalmente como una tupla:
 u = (p, d, C) ∈ ℙ × 𝔻 × 𝒫(ℂ)
 ```
 Donde:
-- **`p` (Purpose)**: Por qué existe la UCA — identidad persistente e invariante que orienta toda reacción.
+- **`p` (Purpose)**: Determina funcionalmente qué UCA es y aquello que persigue durante toda su existencia — orienta toda reacción.
 - **`d` (Disposition)**: Conjunto de condiciones constitutivas, paramétricas (`Properties`: Function, Nature, Value) e interactivas (`Interactions`: Definition, Target, Signal, When) que determinan cómo sus capacidades están predispuestas para comportarse e interactuar.
 - **`C` (Capabilities)**: Recursos operacionales (algoritmos, transforms, herramientas, modelos, otras UCAs) que constituyen los límites funcionales de la unidad ($\forall b \in \text{Behaviors}(u), \text{requiredCapabilities}(b) \subseteq C_u$).
 
@@ -108,7 +108,7 @@ Una activación se define formalmente como:
 s ∈ 𝕊
 ```
 Donde:
-- **`s` (Stimulus)**: Información o perturbación entrante capaz de provocar una reacción en la UCA pertinente a su Purpose. (El Stimulus transporta los datos o cambios que detonan la reacción; no constituye una segunda dirección teleológica ni requiere un contenedor formal de Context en el Core).
+- **`s` (Stimulus)**: Señal externa a la frontera de la UCA cuya recepción provoca su reacción. (El Stimulus aporta la perturbación o datos sobre los que opera la unidad; no redefine el Purpose ni transporta metas u objetivos, ni requiere un contenedor formal de Context en el Core).
 
 El ciclo de vida fundamental:
 ```text
@@ -141,10 +141,10 @@ flowchart TD
 ## 📜 Principios Fundamentales del Modelo
 
 1. **Conception determina qué UCA existe.**
-2. **Purpose determina aquello que la UCA persigue.**
+2. **Purpose determina funcionalmente qué UCA es y aquello que persigue durante toda su existencia.**
 3. **Capabilities determinan los límites de lo que la UCA puede hacer.**
 4. **Disposition determina cómo esas Capabilities están constituidas y predispuestas para comportarse e interactuar.**
-5. **Stimulus provoca una reacción en una UCA ya concebida.**
+5. **Stimulus es una señal externa a la frontera de la UCA cuya recepción provoca la reacción de una UCA ya concebida.**
 6. **Las Capabilities reaccionan mediante Interactions y no mediante dependencias directas entre ellas.**
 7. **El Process emerge de las interacciones reactivas entre Capabilities conforme a sus Dispositions.**
 8. **Outcome es la consecuencia observable de dicha actividad.**
@@ -160,12 +160,12 @@ Un componente de software cumple con el **UCA Core** si y solo si:
 1. Define un **Purpose** (`P`) propio, explícito, estable e independiente de la implementación.
 2. Tiene una **Disposition** (`D`) declarativa que condiciona su comportamiento e interacciones.
 3. Opera mediante un conjunto explícito y acotado de **Capabilities** (`C`).
-4. Se ejecuta estrictamente al recibir un **Stimulus** activador (`S`) pertinente a su Purpose.
+4. Se ejecuta estrictamente al recibir un **Stimulus** activador (`S`) externo a su frontera funcional.
 5. Realiza una **Action** (`A`) que persigue su Purpose dentro de los límites de sus Capabilities y Disposition.
 6. Produce uno o más **Outcomes** (`O`) que representan la consecuencia de la actividad.
 7. Trata a otro componente como UCA solo si dicho componente posee un Purpose propio y diferenciado.
 
-**No-requisitos para la conformidad**: Una implementación *no* requiere una teleología dual ni un contenedor formal de Context como estructuras universales obligatorias del estímulo, Observation ni Perception como fases del ciclo de vida, Memory, Identity, Learning, Adaptation, un Coordinador, Dispatcher, Orquestador o Supervisor, un LLM, causalidad externa, un sobre Impulse, un Event Bus, un snapshot de estado global, Sinapsis, ni comportamiento cognitivo emergente demostrado para ser conforme con UCA.
+**No-requisitos para la conformidad**: Una implementación *no* requiere una teleología dual, objetivos o metas intermedias, ni un contenedor formal de Context como estructuras universales obligatorias del estímulo, Observation ni Perception como fases del ciclo de vida, Memory, Identity, Learning, Adaptation, un Coordinador, Dispatcher, Orquestador o Supervisor, un LLM, causalidad externa, un sobre Impulse, un Event Bus, un snapshot de estado global, Sinapsis, ni comportamiento cognitivo emergente demostrado para ser conforme con UCA.
 
 La conformidad evalúa la **unidad individual** frente al contrato UCA. No evalúa si el sistema en su conjunto exhibe comportamiento cognitivo.
 
@@ -181,7 +181,7 @@ Esta pregunta es la hipótesis experimental central que plantea UCA. Debe poder 
 
 ## 📚 Documentación Formal Completa
 
-- 🇪🇸 **[SPECIFICATION.es.md (Español)](SPECIFICATION.es.md)** — Especificación formal completa en español (RFC).
+- 🇪🇸 **[SPECIFICATION.es.md (Español)](SPECIFICATION.es.md)** — Especificación formal completa en español (RFC), incluyendo ontología formal, arquitectura cognitiva (§4), composición recursiva (§3), hipótesis científica (§6), antecedentes e influencias arquitectónicas (§10) y referencias bibliográficas (§11).
 - 🇬🇧 **[SPECIFICATION.md (English)](SPECIFICATION.md)** — Exhaustive normative specification in English.
 
 ---

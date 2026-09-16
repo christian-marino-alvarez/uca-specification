@@ -18,13 +18,15 @@ We welcome community discussion, scrutiny, and contributions to formalize and ev
      - **Examples**
      - **Conformance**
      - **Open Questions**
+     - **Architectural Background and Related Work** (informative historical context)
+     - **References**
    - **Minimality Principle**: A concept belongs to the UCA Core *only* if removing it prevents a unit from satisfying the universal UCA contract. A proposal must not introduce a new concept into the Core simply because it is useful for a specific cognitive architecture.
    - **Composition Principle**: Before extending the UCA primitive with a new cognitive mechanism, first attempt to represent that responsibility through the composition of existing UCAs. Concepts such as Observation, Memory, Planning, Coordination, Supervision, Identity, Event Bus, or Impulse must not be added to the Core without demonstrating they are strictly necessary for the minimal unit.
    - Maintain consistency with the foundational principles:
      - Primacy of dedicated Purpose.
      - Reactive execution upon receiving a Stimulus.
      - Decoupling between cognitive purpose and terminal mechanisms.
-     - Separation between executor Outcome and requester Attainment.
+     - Separation between unit Outcome and external Evaluation under explicit criteria.
      - Disposition adaptation policies belong to Cognitive Architecture, not the universal Core.
 
 ## License of Contributions

@@ -99,7 +99,7 @@ A UCA is conceived formally as a tuple:
 u = (p, d, C) ∈ ℙ × 𝔻 × 𝒫(ℂ)
 ```
 Where:
-- **`p` (Purpose)**: Why the UCA exists — persistent, invariant identity that guides all reactions.
+- **`p` (Purpose)**: Functionally determines what the UCA is and what it pursues throughout its existence — guides all reactions.
 - **`d` (Disposition)**: Set of constitutive, parametric (`Properties`: Function, Nature, Value), and interactive (`Interactions`: Definition, Target, Signal, When) conditions determining how its capabilities are predisposed to behave and interact.
 - **`C` (Capabilities)**: Operational resources (algorithms, transforms, tools, models, other UCAs) constituting the unit's functional boundaries ($\forall b \in \text{Behaviors}(u), \text{requiredCapabilities}(b) \subseteq C_u$).
 
@@ -108,7 +108,7 @@ An activation is defined formally as:
 s ∈ 𝕊
 ```
 Where:
-- **`s` (Stimulus)**: Incoming information or perturbation capable of triggering a reaction in the UCA relevant to its Purpose. (The Stimulus carries incoming data or change that triggers the reaction; it does not constitute a second teleological direction nor require a formal Context container in the Core).
+- **`s` (Stimulus)**: Signal external to the UCA boundary whose reception triggers its reaction. (The Stimulus brings the perturbation or data upon which the unit operates; it does not redefine Purpose nor convey goals or targets, nor require a formal Context container in the Core).
 
 The fundamental lifecycle:
 ```text
@@ -141,10 +141,10 @@ flowchart TD
 ## 📜 Fundamental Principles of the Model
 
 1. **Conception determines what UCA exists.**
-2. **Purpose determines what the UCA pursues.**
+2. **Purpose functionally determines what UCA is and what it pursues throughout its existence.**
 3. **Capabilities determine the boundaries of what the UCA can do.**
 4. **Disposition determines how those Capabilities are constituted and predisposed to behave and interact.**
-5. **Stimulus triggers a reaction in an already conceived UCA.**
+5. **Stimulus is a signal external to the UCA boundary whose reception triggers a reaction in an already conceived unit.**
 6. **Capabilities react through Interactions and not through direct dependencies between them.**
 7. **The Process emerges from reactive interactions between Capabilities according to their Dispositions.**
 8. **Outcome is the observable consequence of such activity.**
@@ -160,12 +160,12 @@ A software component conforms to the **UCA Core** if and only if:
 1. It defines an explicit, dedicated, stable, implementation-independent **Purpose** (`P`).
 2. It has a declarative **Disposition** (`D`) conditioning its behaviour and interactions.
 3. It operates using an explicit and bounded set of **Capabilities** (`C`).
-4. It executes strictly upon receiving an activating **Stimulus** (`S`) relevant to its Purpose.
+4. It executes strictly upon receiving an activating **Stimulus** (`S`) external to its functional boundary.
 5. It performs an **Action** (`A`) pursuing its Purpose within the boundaries of its Capabilities and Disposition.
 6. It produces one or more **Outcomes** (`O`) representing the observable consequences of its activity.
 7. It treats another component as a UCA only if that component has a dedicated, differentiated Purpose.
 
-**Non-requirements for conformance**: An implementation does *not* require a dual teleology, external goal, or formal Context container as mandatory universal stimulus structures, Observation or Perception as lifecycle phases, Memory, Identity, Learning, Adaptation, a Coordinator, Dispatcher, Orchestrator or Supervisor, an LLM, external causality, an Impulse envelope, an Event Bus, a global state snapshot, Synapses, or demonstrated emergent cognitive behaviour to conform to UCA.
+**Non-requirements for conformance**: An implementation does *not* require a dual teleology, intermediate objectives or goals, or a formal Context container as mandatory universal stimulus structures, Observation or Perception as lifecycle phases, Memory, Identity, Learning, Adaptation, a Coordinator, Dispatcher, Orchestrator or Supervisor, an LLM, external causality, an Impulse envelope, an Event Bus, a global state snapshot, Synapses, or demonstrated emergent cognitive behaviour to conform to UCA.
 
 Conformance evaluates the **individual unit** against the UCA contract. It does not evaluate whether the system as a whole exhibits cognitive behaviour.
 
@@ -181,7 +181,7 @@ This is the central experimental question UCA poses. It is to be evaluated throu
 
 ## 📚 Complete Formal Specification
 
-- 🇬🇧 **[SPECIFICATION.md (English)](SPECIFICATION.md)** — Exhaustive normative specification (RFC).
+- 🇬🇧 **[SPECIFICATION.md (English)](SPECIFICATION.md)** — Exhaustive normative specification (RFC), including formal ontology, cognitive architecture (§4), recursive composition (§3), scientific hypothesis (§6), architectural background and related work (§10), and bibliographic references (§11).
 - 🇪🇸 **[SPECIFICATION.es.md (Español)](SPECIFICATION.es.md)** — Especificación formal completa en español.
 
 ---
