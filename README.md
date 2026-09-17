@@ -102,31 +102,32 @@ Where:
 - **`p` (Purpose)**: Functionally determines what the UCA is and what it pursues throughout its existence — guides all reactions.
 - **`d` (Disposition)**: Set of constitutive, parametric (`Properties`: Function, Nature, Value), and interactive (`Interactions`: Definition, Target, Signal, When) conditions determining how its capabilities are predisposed to behave and interact.
 - **`C` (Capabilities)**: Operational resources (algorithms, transforms, tools, models, other UCAs) constituting the unit's functional boundaries ($\forall b \in \text{Behaviors}(u), \text{requiredCapabilities}(b) \subseteq C_u$).
-- **`O` (Outcome)**: Formally defines the observable consequences produced, with deterministic criteria (`Criteria`) and an external `Owner` holding exclusive validation authority.
+- **`O` (Outcome)**: Formally defines the observable change produced as a consequence of the UCA's activity, structured with empirical properties (`Properties`), deterministic criteria (`Criteria`), and an external `Owner` holding exclusive validation authority.
 
 An activation is defined formally as:
 ```text
 s ∈ 𝕊
 ```
 Where:
-- **`s` (Stimulus)**: Signal external to the UCA boundary whose reception triggers its reaction. (The Stimulus brings the perturbation or data upon which the unit operates; it does not redefine Purpose nor convey goals or targets, nor require a formal Context container in the Core).
+- **`s` (Stimulus)**: Reception by a UCA of an external observable change to its functional boundary that triggers its reaction ($\text{Stimulus}(u_B, \Delta x)$). Brings the perturbation or data upon which the unit operates; it does not redefine Purpose nor convey goals or targets, nor require a formal Context container in the Core.
+- **`Reception`**: Reactive, mechanical, universal, and non-cognitive mechanism constitutive of UCA Core by which the UCA admits the external observable change. Formally distinguished from `Perception`, which is a specialized and optional function performed by UCAs whose Purpose requires interpreting or giving meaning to what is received.
 
 The fundamental and evolutionary lifecycle:
 ```text
-Conception ──► u(p, d, C, O) ──► s ──► Reactive Process (Interactions) ──► Outcome (Properties)
-                                 ▲                                              │
-                                 │                                    Criteria ─┼──► Compliance (PASS | FAIL)
-                                 │                                              │
-                                 │                                       Owner ─┼──► Validation (APPROVED | REJECTED)
-                                 │                                              │
-                                 │                                              ▼
-                                 │                                         Tracker UCA ──► History (H ∈ ℍ)
-                                 │                                                               │
-                                 │                                                       Analyzer UCA
-                                 │                                                               │
-                                 │                                                       Evolution UCA
-                                 │                                                               │
-                                 └─────────────── Atomic Mutation (Nature) ◄─────────────────────┘
+Conception ──► u(p, d, C, O) ──► Reception(Δx) ──► s ──► Reactive Process (Interactions) ──► Outcome (Δx)
+                                 ▲                                                                 │
+                                 │                                                       Criteria ─┼──► Compliance (PASS | FAIL)
+                                 │                                                                 │
+                                 │                                                          Owner ─┼──► Validation (APPROVED | REJECTED)
+                                 │                                                                 │
+                                 │                                                                 ▼
+                                 │                                                            Tracker UCA ──► History (H ∈ ℍ)
+                                 │                                                                                  │
+                                 │                                                                          Analyzer UCA
+                                 │                                                                                  │
+                                 │                                                                          Evolution UCA
+                                 │                                                                                  │
+                                 └───────────────── Atomic Mutation (Nature) ◄──────────────────────────────────────┘
 ```
 
 > **The Outcome belongs to the executor (Target UCA).**  
@@ -140,11 +141,12 @@ Conception ──► u(p, d, C, O) ──► s ──► Reactive Process (Inter
 ```mermaid
 flowchart TD
     CON[Conception: Purpose, Capabilities, Disposition, Outcome] --> UCA[Valid & reactive Target UCA]
-    IMP[Impulse: Transport] --> STIM[Stimulus: Incoming information]
+    CHG[Observable change: Δx] --> REC[Reception: Mechanical & universal]
+    REC --> STIM[Stimulus: Triggers reaction in UCA]
     STIM --> UCA
     UCA --> INT[Reactive Interactions between Capabilities]
     INT --> PROC[Emergent Reactive Process]
-    PROC --> OUT[Outcome: Observable Properties]
+    PROC --> OUT[Outcome: Observable change Δx with Properties]
     OUT --> CRIT[Criteria: Universal rules]
     CRIT --> COMP[Compliance: PASS | FAIL]
     OUT & UCA --> OWN[External Owner UCA]
@@ -166,12 +168,13 @@ flowchart TD
 2. **Purpose functionally determines what UCA is and what it pursues throughout its existence.**
 3. **Capabilities determine the boundaries of what the UCA can do.**
 4. **Disposition determines how those Capabilities are constituted and predisposed to behave and interact.**
-5. **Stimulus is a signal external to the UCA boundary whose reception triggers a reaction in an already conceived unit.**
-6. **Capabilities react through Interactions and not through direct dependencies between them.**
-7. **The Process emerges from reactive interactions between Capabilities according to their Dispositions.**
-8. **Outcome is the structured observable consequence (Properties, Criteria, Owner) with objective Compliance evaluation (PASS | FAIL) and external contextual validation (Validation: APPROVED | REJECTED).**
-9. **Evolution is an asynchronous historical process mediated by specialized roles (Tracker, Analyzer, Evolution) over accumulated evidence (History), strictly prohibiting direct self-evolution upon isolated outcomes.**
-10. **The minimal unit of Evolution is an atomic, bounded, observable, and potentially reversible Mutation within Nature, where $\Delta\text{Disposition} = \text{difference}(D_0, D_1)$ expresses state difference and never intrinsic improvement.**
+5. **Stimulus is the reception by a UCA of an external observable change to its functional boundary that triggers its reaction, mechanically mediated by Reception.**
+6. **Reception is a universal, non-cognitive reactive mechanism of UCA Core; Perception is a specialized, optional function dependent on Purpose.**
+7. **Capabilities react through Interactions and not through direct dependencies between them.**
+8. **The Process emerges from reactive interactions between Capabilities according to their Dispositions.**
+9. **Outcome is the observable change produced by a UCA's activity, structured in Properties, Criteria, and Owner, with objective Compliance evaluation (PASS | FAIL) and external contextual validation (Validation: APPROVED | REJECTED).**
+10. **Evolution is an asynchronous historical process mediated by specialized roles (Tracker, Analyzer, Evolution) over accumulated evidence (History), strictly prohibiting direct self-evolution upon isolated outcomes.**
+11. **The minimal unit of Evolution is an atomic, bounded, observable, and potentially reversible Mutation within Nature, where $\Delta\text{Disposition} = \text{difference}(D_0, D_1)$ expresses state difference and never intrinsic improvement.**
 
 ---
 

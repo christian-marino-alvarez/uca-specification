@@ -118,10 +118,11 @@ A strict distinction is maintained between an entity domain (set) and an individ
 | $\text{Prop}$ | $\text{prop} \in \text{Prop}$ | Property: declarative or parametric condition $(\text{function}, \text{nature}, \text{value})$ |
 | $\text{Nat}$ | $n \in \text{Nat}$ | Nature: intrinsic specification of the valid mutation space of a Property |
 | $\text{Inter}$ | $\text{inter} \in \text{Inter}$ | Interaction: declared reactive relation $(\text{definition}, \text{target}, \text{signal}, \text{when})$ |
-| $\mathbb{S}$ | $s \in \mathbb{S}$ | Stimulus: signal external to the UCA boundary whose reception triggers a reaction of the unit |
+| $\mathbb{S}$ | $s \in \mathbb{S}$ | Stimulus: reception by a UCA of an external observable change to its domain that triggers its reaction |
+| $\text{Reception}$ | $\text{receives}(u, \Delta x)$ | Reception: universal, mechanical, and non-cognitive mechanism by which a UCA receives an external observable change to its domain that may trigger its reaction |
 | $\mathbb{X}$ | $x \in \mathbb{X}$ | Context: situational background or support context (optional pattern, §4) |
 | $\mathbb{A}$ | $a \in \mathbb{A}$ | Action: operational execution of the emergent reactive process of the UCA |
-| $\mathbb{O}$ | $o \in \mathbb{O}$ | Outcome: structured observable consequence $(\text{Properties}, \text{Criteria}, \text{Owner})$ produced by the Action |
+| $\mathbb{O}$ | $o \in \mathbb{O}$ | Outcome: structured observable change $(\text{Properties}, \text{Criteria}, \text{Owner})$ produced by a UCA as a consequence of its activity |
 | $\text{Compliance}$ | $\text{comp} \in \{\text{PASS}, \text{FAIL}\}$ | Compliance: deterministic evaluation of an Outcome's Criteria |
 | $\text{Validation}$ | $\text{val} \in \{\text{APPROVED}, \text{REJECTED}\}$ | Validation: contextual decision and acceptance judgment emitted exclusively by the Outcome's Owner |
 | $\text{Owner}$ | $u_{\text{owner}} \in \mathbb{U}$ | Owner: external UCA with authority in the operational context to validate or reject the Outcome ($u_{\text{owner}} \neq u_{\text{target}}$) |
@@ -142,6 +143,7 @@ Generic arrows ($\to$) with multiple interpretations are prohibited in normative
    - $\text{hasCapabilities}(u, C)$: Unit $u$ includes the set of capabilities $C \subseteq \mathbb{C}$.
 
 2. **Reactivity and Activation**:
+   - $\text{receives}(u, \Delta x)$: Asserts that unit $u$ mechanically receives external observable change $\Delta x$ at its reactive boundary.
    - $\text{triggers}(s, u, a)$: Asserts that the reception of external stimulus $s$ by unit $u$ triggers reactive action $a$. Expresses strict reactive activation; does NOT imply command, instruction, intent, goal, or global metaphysical causality.
    - $\text{triggers}(o, s)$: Outcome $o$ triggers or materializes stimulus $s$.
    - $\text{reactsTo}(x, y)$: Entity $x$ reacts upon the observation or reception of state or signal $y$.
@@ -188,6 +190,9 @@ $\Delta$ **MUST NOT** be interpreted as qualitative improvement, optimization, p
 8. **Strict Dissociation between Compliance and Validation**: $\text{complies}(o) = \text{PASS}$ MUST NOT imply $\text{validates}(u_{\text{owner}}, o) = \text{APPROVED}$, and $\text{complies}(o) = \text{FAIL}$ MUST NOT imply $\text{validates}(u_{\text{owner}}, o) = \text{REJECTED}$. All four cross-combinations are empirically valid.
 9. **Strict Prohibition of Self-Validation**: For every Outcome $o$ produced by $u_{\text{target}}$, $\text{hasOwner}(o, u_{\text{owner}}) \implies u_{\text{owner}} \ne u_{\text{target}}$. A Target UCA MUST NOT validate or approve its own Outcomes.
 10. **Mediated and Historical Evolution**: UCA evolution requires accumulated multi-execution historical evidence ($H \in \mathbb{H}$) processed by specialized functional roles (Tracking, Analysis, Evolution); a UCA MUST NOT self-evolve directly in response to an isolated Outcome.
+11. **Relational Nature of Outcome and Stimulus**: An observable change $\Delta x$ produced by $u_A$ ($\text{Outcome}(u_A, \Delta x)$) and received by $u_B$ triggering its reaction ($\text{Stimulus}(u_B, \Delta x)$) represents two relational positions of the same change across different functional boundaries. $\text{Outcome}$ and $\text{Stimulus}$ MUST NOT be treated as disjoint ontological types requiring runtime conversion.
+12. **No Automatic Inference of Stimulus**: $\text{Outcome}(u_A, \Delta x)$ MUST NOT automatically imply $\exists u_B : \text{Stimulus}(u_B, \Delta x)$. An observable change only constitutes a Stimulus for a receiving UCA if received mechanically and its Disposition triggers a reaction.
+13. **Dissociation between Reception and Perception**: $\text{Reception}$ is the universal, mechanical, non-cognitive mechanism of UCA Core. $\text{Perception}$ is an optional, specialized, compositional function dependent on Purpose. A $\text{Stimulus}$ MUST NOT require $\text{Perception}$.
 
 ---
 
@@ -257,7 +262,10 @@ O = observable consequences produced, with criteria and Owner
 
 **2. Activation**
 ```text
-External Signal
+external observable change (Δx)
+      │
+      ▼
+   Reception
       │
       ▼
    Stimulus
@@ -269,7 +277,7 @@ External Signal
 Reactive Process / Action
       │
       ▼
-   Outcome
+   Outcome (observable Δy)
    ├── Properties (observable information produced)
    ├── Criteria   ──► Compliance (deterministic PASS | FAIL)
    └── Owner      ──► Validation (contextual APPROVED | REJECTED)
@@ -695,13 +703,25 @@ Stimulus ≠ Outcome
 
 The canonical definition of Stimulus in the UCA Core is:
 
-> **Stimulus is a signal external to the UCA whose reception triggers a reaction of the unit.**
+> **Stimulus is the reception by a UCA of an external observable change to its domain that triggers its reaction.**
+
+```text
+external observable change
+           │
+           ▼
+      Reception
+           │
+           ▼
+        Stimulus
+           │
+           ▼
+        Reaction
+```
 
 Normative characteristics of the Stimulus:
-- **is external** relative to the boundary of the receiving UCA;
-- **arrives at an already conceived UCA**;
-- **triggers a reactive reaction** in that UCA;
-- **can carry information** necessary for that reaction;
+- **is the reception of an external observable change** to the domain of the receiving UCA;
+- **triggers a reaction** in that UCA according to its Disposition;
+- **does not require cognitive interpretation or prior perception**;
 - **does not contain or redefine Purpose**;
 - **does not prescribe an Action**;
 - **does not determine an Outcome**;
@@ -711,47 +731,66 @@ Normative characteristics of the Stimulus:
 
 Formally, $s \in \mathbb{S}$ and:
 $$\text{triggers}(s, u, a)$$
-strictly expresses that reception of Stimulus $s$ by UCA $u$ triggers a reactive activation of $u$ materialized via $a$.
+strictly expresses that reception of external observable change $s$ by UCA $u$ triggers a reactive activation of $u$ materialized via $a$.
 
 #### Scope of "External" and Local Reactivity
 
-The term "external" is strictly interpreted relative to the **functional boundary of the receiving UCA**, not necessarily relative to the entire system.
+> **External is defined relative to the boundary of the receiving UCA, not relative to the entire system.**
 
-Therefore, an external signal may originate from:
-- a human user (`user ──► Ear`);
-- a physical or environmental sensor (`sensor ──► UCA`);
-- a software timer or runtime (`timer/runtime ──► UCA`);
-- another UCA within the system (`UCA A ──► UCA B`);
-- internal homeostatic monitors or system events.
+Therefore:
+```text
+System
+│
+├── UCA A
+│     │
+│     └── Outcome
+│
+└── UCA B
+      ▲
+      │
+   Stimulus
+```
 
-A signal originating within the same system is external to `UCA B` as soon as it crosses its functional boundary.
+The origin of the change may belong to the same system, but is external relative to the operational domain of `UCA B`. Consequently, the chain:
+$$\text{UCA}_A \longrightarrow \text{Outcome} \longrightarrow \text{UCA}_B \longrightarrow \text{Stimulus}$$
+is fully valid without requiring that the signal originate from a human, hardware, or external environment outside the system. An external signal crosses the functional boundary of the receiving UCA regardless of its origin.
 
-#### Decoupling Between Stimulus and Impulse
+#### Decoupling Between Core Semantics and Runtime Mechanisms
 
-It is essential to keep the cognitive/functional concept strictly separated from the infrastructure transport mechanism:
+It is essential to keep the semantic concepts of the UCA model strictly separated from technical transport representations and infrastructure mechanisms in runtime:
 
 ```text
-Impulse  = optional transport envelope (infrastructure)
-Stimulus = external signal to which the UCA reacts (UCA activation)
+UCA Core Semantics
+──────────────────
+Outcome
+Stimulus
+Reception
+Reaction
+
+Runtime Mechanisms
+──────────────────
+Signal
+Impulse
+Channel
+NervousSystem
 ```
 
 ```text
 Runtime / Infrastructure
        │
-       │ transports
+       │ transports (Signal / Impulse / Event)
        ▼
-    Impulse (optional)
+    Reception (UCA boundary)
        │
-       │ delivers
        ▼
-    Stimulus: external signal
+    Stimulus (received external change triggering reaction)
        │
-       │ triggers
-       ▼
-      UCA
+       ▼ triggers
+      UCA (react)
 ```
 
-The Stimulus ($s \in \mathbb{S}$) is the external signal to which the unit reacts. The `Impulse` is an optional infrastructure envelope used by Runtime layers (§5) to carry that signal and operational metadata. A compliant UCA does not mandatory require receiving an `Impulse`; the runtime may deliver the Stimulus via direct function calls, streaming sockets, events, or any other technical mechanism.
+**$\text{Signal} \ne \text{Stimulus}$ and $\text{Impulse} \ne \text{Stimulus}$**:
+`Signal` and `Impulse` are transport mechanisms and technical vehicles provided by the runtime or environment (§5). `Stimulus` expresses the relational position of activation relative to the receiving UCA when the received change triggers its reaction. A compliant UCA does not mandatory require receiving an `Impulse`; the runtime may transport the change via signals, direct in-memory calls, sockets, events, or any other technical mechanism.
 
 ---
 
@@ -784,9 +823,21 @@ An Action does not necessarily require language model inference. It can be a det
 
 ### 2.10 Outcome (O)
 
-> **Outcome is the definition of the observable consequences that a UCA can produce as a result of its reaction, including the deterministic criteria that allow verifying its compliance and the identification of the Owner with authority to validate its acceptance.**
+> **Outcome is an observable change produced by a UCA as a consequence of its activity.**
 
-`Outcome` ($o \in \mathbb{O}$) represents what the Action actually produced:
+`Outcome` is defined strictly with respect to the producing UCA:
+
+```text
+UCA A
+  │
+  │ activity
+  ▼
+observable Δx
+  │
+  └── Outcome(A, Δx)
+```
+
+`Outcome` ($o \in \mathbb{O}$) represents the observable change actually produced by the Action:
 
 $$\text{produces}(a, o) \quad \text{where } a \in \mathbb{A}, o \in \mathbb{O}$$
 
@@ -794,8 +845,8 @@ $$\text{produces}(a, o) \quad \text{where } a \in \mathbb{A}, o \in \mathbb{O}$$
 
 Fundamental ontological distinction:
 ```text
-STIMULUS (S): External signal crossing the UCA boundary that triggers the reaction.
-OUTCOME (O):  Structured observable consequence produced by the Action executed by the UCA.
+STIMULUS (S): Reception by a UCA of an external observable change that triggers its reaction.
+OUTCOME (O):  Structured observable change produced by a UCA as a consequence of its activity.
 ```
 
 The Outcome strictly belongs to the executing unit as its specification of external observable consequences.
@@ -902,7 +953,62 @@ The relation $\text{precedes}(o_0, o_1)$ strictly and solely asserts that $o_0$ 
 
 ---
 
-### 2.11 Local Reactivity
+### 2.11 Reception: Universal and Non-Cognitive Mechanism of UCA Core
+
+> **Reception is the mechanism by which a UCA receives an external observable change to its domain that may trigger its reaction.**
+
+Normative characteristics of `Reception`:
+- **Universal**: Every UCA possesses a reactive boundary capable of receiving external changes relevant to its domain.
+- **Mechanical**: It is a purely deterministic and operational process of ingesting/admitting the change at the boundary of the unit.
+- **Reactive**: Connects the presence of external change with the internal predisposition of the unit.
+- **Non-cognitive**: Does not require semantic interpretation, reasoning, memory, consciousness, or language models.
+- **Constitutive of UCA Core**: Belongs to the minimal non-negotiable contract of every UCA.
+
+#### Connection Between Reception, Disposition, and Stimulus
+
+The reception of an observable change does not imply that any UCA must react to it. The declarative `Disposition` of the unit determines how it is predisposed to interact and react:
+
+```text
+external Δx
+    │
+    ▼
+Reception
+    │
+    ▼
+Disposition
+    │
+    ├── relevant / configured ──► Reaction (materializes Stimulus)
+    │
+    └── not configured / ignored ──► no Reaction (does not become Stimulus)
+```
+
+When mechanical reception of an observable change triggers a reaction according to the UCA's functional and reactive configuration:
+$$\text{Reception}(u, \Delta x) + \text{Reaction}(u, \Delta x) \implies \text{Stimulus}(u, \Delta x)$$
+
+#### A UCA Does Not Need to Be Cognitive to React
+
+A UCA can receive a Stimulus and react in a purely functional manner without executing any cognitive or perceptual process:
+
+```text
+observable change
+       │
+       ▼
+     Ear UCA
+       │
+   Reception
+       │
+       ▼
+    Stimulus
+       │
+       ▼
+     react()
+```
+
+This is fully sufficient to satisfy the UCA reactive contract. It is strictly forbidden to require methods or phases such as `perceive()`, `interpret()`, or `reason()` in the specification or base class of a universal UCA.
+
+---
+
+### 2.12 Local Reactivity
 
 > **No activation without a Stimulus.**
 > **A UCA reacts strictly upon the reception of a Stimulus external to its own functional boundary.**
@@ -913,7 +1019,7 @@ The ultimate origin of that Stimulus — human, sensory, timed, homeostatic, or 
 
 ---
 
-### 2.12 UCA Boundary
+### 2.13 UCA Boundary
 
 **On "Artificial"**
 
@@ -933,13 +1039,13 @@ It indicates that the abstraction is designed to compose functional responsibili
 
 ---
 
-### 2.13 Summary
+### 2.14 Summary
 
 The minimal complete model of an individual UCA:
 
 ```text
 Structure:   u = (p, d, C, O) ∈ ℙ × 𝔻 × 𝒫(ℂ) × 𝕆_def  (where p determines what u is, d predisposes, C bounds, and O defines outcomes)
-Stimulus:    s ∈ 𝕊                                      (signal external to the boundary of u triggering its reaction)
+Stimulus:    s ∈ 𝕊                                      (reception of an external observable change triggering reaction of u)
 Reaction:    (u, s) → a → o                             (shorthand for: triggers(s, u, a) ∧ produces(a, o))
 ```
 
@@ -992,35 +1098,77 @@ If a component executes a mechanical or algorithmic function without a stable, i
 
 ---
 
-### 3.3 Outcome → Stimulus Relationships
+### 3.3 Outcome → Stimulus Relationships as a Reactive Relation
 
-It is essential to distinguish ontologically between the Outcome produced by a UCA and the Stimulus received by another:
-- **$\text{Outcome}_A$**: Strictly belongs to $\text{UCA}_A$ and is the observable consequence produced by its Action.
-- **$\text{Stimulus}_B$**: Belongs to the activation event of $\text{UCA}_B$ as an external signal crossing its functional boundary.
+It is crucial to recognize that `Outcome` and `Stimulus` are neither two disjoint data types nor technical entities requiring ontological conversion or a runtime wrapper in the critical path (such as a hypothetical `convertToStimulus()`):
 
-No automatic ontological identity exists ($\text{Outcome}_A \neq \text{Stimulus}_B$). Although they may carry the same material data, they represent distinct architectural concepts pertaining to different operational boundaries.
+> **The observable change produced by a UCA constitutes an Outcome with respect to the producing UCA. The reception of that change by another UCA, when triggering its reaction according to its Disposition, constitutes a Stimulus with respect to the receiving UCA.**
 
-The relationship between them is one of propagation, exposure, or transport through the environment or runtime:
+They represent different positions within the same reactive relationship:
 
 ```text
-UCA A
-   │
-   ▼
-Outcome A
-   │
-   │ propagation / transport / exposure
-   ▼
-Stimulus B
-   │
-   ▼
-UCA B
-   │
-   │ reacts according to Purpose B
-   ▼
-Outcome B
+               observable Δx
+
+UCA A ─────────────────────────────► UCA B
+  │                                    │
+  │                                    │
+Outcome(A, Δx)                  Stimulus(B, Δx)
+                                       │
+                                       ▼
+                                   Reaction(B)
 ```
 
-Complex systemic behaviour unfolds through chains of propagation and reactive interaction between specialized units, without requiring any central coordinator.
+Formally:
+$$\text{Outcome}(u_A, \Delta x) \land \text{receives}(u_B, \Delta x) \land \text{triggers}(\Delta x, u_B, a_B) \implies \text{Stimulus}(u_B, \Delta x)$$
+
+#### Not Every Outcome Constitutes a Stimulus
+
+A UCA may produce an observable change without any other UCA reacting to it. Therefore:
+$$\text{Outcome}(u_A, \Delta x) \not\implies \exists u_B : \text{Stimulus}(u_B, \Delta x)$$
+
+If no other UCA is predisposed in its Disposition to react to that change, the observable change exists and remains an Outcome of $u_A$, but never becomes a Stimulus for any unit in the system.
+
+Only when a receiving unit exists:
+```text
+Outcome(A, Δx)
+       │
+       ▼
+Reception(B, Δx)
+       │
+       ▼ (Disposition triggers reaction)
+Reaction(B)
+```
+does the change constitute a `Stimulus` with respect to `B`.
+
+#### Minimal Normative Example
+
+```text
+Ear UCA
+│
+│ acoustic recognition changes property:
+│ text = "" → "Hello"
+│
+▼
+observable change (Δtext)
+│
+├── Outcome(Ear)
+│
+▼
+Signal / Impulse (runtime propagation mechanism)
+│
+▼
+Thalamus UCA
+│
+├── Reception (mechanical at the boundary)
+│
+├── Stimulus(Thalamus) (triggers reaction according to Disposition)
+│
+└── react()
+```
+
+The value `"Hello"` does not need to be converted from `Outcome` to `Stimulus` via any transformation or adapter. The exact same observable change occupies two relational positions:
+- with respect to `Ear`, it is its **Outcome**;
+- with respect to `Thalamus`, it is its **Stimulus**, as it triggers its reaction.
 
 ---
 
@@ -1121,31 +1269,69 @@ Evaluation is constructed purely through composition and decoupling of roles. No
 
 ---
 
-### 4.2 Perception and Observation
+### 4.2 Perception and Interpretation as Specialized Composition
 
-Perception and observation are **not** universal phases of a UCA's activation cycle. They are cognitive responsibilities that can be modeled through composition.
+Perception and interpretation are **not** universal phases of a UCA's reactive cycle in the Core. They are specialized cognitive responsibilities modeled exclusively through composition.
 
-A UCA whose Purpose requires perceiving information from the environment performs that work through its Action:
-
-```text
-environment ──► s_B ──triggers──► u_B (Purpose: perceive)
-                                    │
-                                    └── produces(u_B, a_B): perceive
-                                            │
-                                            └── produces(a_B, o_B): perceived representation
-```
-
-Observation follows the same pattern:
+The fundamental distinction of the model is:
 
 ```text
-s_C ──triggers──► u_C (Purpose: observe and interpret)
-                   │
-                   └── produces(u_C, a_C): observe
-                           │
-                           └── produces(a_C, o_C): structured observation
+Reception (UCA Core)
+=
+mechanical, universal, reactive, and non-cognitive
+
+Perception (Cognitive Architecture / Composition)
+=
+specialized and optional function performed by UCAs
+whose Purpose requires interpreting or giving meaning to received information
 ```
 
-No special `Observer` exists in the UCA structure. Each of these units is simply $u = (p, d, C, O) \in \mathbb{U}$ with a Purpose that justifies its Action.
+Therefore:
+$$\text{Reception} \ne \text{Perception}$$
+$$\text{Stimulus does NOT require Perception}$$
+
+> **Perception is the functional interpretation of received information performed by a UCA whose Purpose requires such interpretation.**
+
+Normative characteristics of `Perception`:
+- **Optional**: The vast majority of UCAs in a reactive system execute mechanical transformations without requiring perception.
+- **Specialized**: Responds to a dedicated declarative Purpose oriented toward decoding, interpreting, or structuring unstructured information.
+- **Compositional**: Emerges from the interaction of dedicated capabilities within the specialized UCA.
+- **Purpose-dependent**: Exists only if the unit's Purpose demands it.
+
+#### Example of Perception Through a Specialized UCA
+
+When perceptual interpretation is necessary in a cognitive architecture, it emerges through the composition of specialized units:
+
+```text
+Microphone (hardware device / external environment)
+    │
+    ▼
+audio change (observable acoustic change)
+    │
+    │ Reception (mechanical at the boundary)
+    ▼
+Ear UCA
+    │
+    │ Stimulus (triggers reactive process)
+    ▼
+Speech Recognition (interpretive capability)
+    │
+    │ perceptual interpretation
+    ▼
+"Hello" (structured text)
+    │
+    │ Outcome(Ear)
+    ▼
+Thalamus UCA
+    │
+    │ Reception ──► Stimulus(Thalamus)
+    ▼
+react()
+```
+
+In this scenario, `Ear UCA` acts as a perceptual unit because its `Purpose` and `Capabilities` (speech recognition) provide interpretation and meaning to the received change. However, this interpretive capability is an exclusive property of the specialization of `Ear`, **NEVER** of the universal contract of `Uca` as a functional primitive.
+
+Any arbitrary UCA does not require methods such as `perceive()`, `interpret()`, or symbolic reasoning to fully satisfy the UCA Core contract.
 
 ---
 
@@ -1889,17 +2075,26 @@ A software entity or component conforms to the **UCA Core** if and only if it sa
 
 ### 8.1 Fundamental Invariants of the UCA Model
 
-Every system or architecture conforming to UCA MUST strictly satisfy the following nine normative invariants:
+Every system or architecture conforming to UCA MUST strictly satisfy the following normative invariants:
 
-1. **Canonical Outcome Structure**: Every `Outcome` MUST formally possess `Properties`, `Criteria`, and `Owner`.
-2. **Deterministic Compliance**: `Compliance` MUST be evaluated deterministically through the objective verification of `Criteria` against `Properties`.
-3. **Exclusive Validation Authority**: `Validation` MUST be emitted exclusively and contextually by the `Owner` of the Outcome.
-4. **Strict Prohibition of Self-Validation**: The `Target UCA` MUST NOT validate or approve its own `Outcomes` ($\text{hasOwner}(o, u_{\text{owner}}) \implies u_{\text{owner}} \neq u_{\text{target}}$).
-5. **Strict Dissociation Compliance ≠ Validation**: `Compliance` does not imply `Validation` (`PASS` $\not\implies$ `APPROVED`, `FAIL` $\not\implies$ `REJECTED`). All four combinations are empirically valid and irreducible.
-6. **Evolution Based on Historical Evidence**: The evolution of a UCA MUST be based on the analysis of accumulated multi-execution historical evidence ($H \in \mathbb{H}$).
-7. **Prohibition of Direct Isolated Self-Evolution**: A UCA MUST NOT self-evolve directly in response to an individual or isolated `Outcome`.
-8. **Mutation Safety and Atomicity**: Every `Disposition` mutation MUST be atomic, reversible, and strictly circumscribed within the boundaries of `Nature` ($\text{satisfies}(\text{val}, n)$).
-9. **State Difference Semantics of $\Delta\text{Disposition}$**: $\Delta\text{Disposition} = \text{difference}(D_0, D_1)$ represents exclusively state difference, NEVER intrinsic improvement, qualitative progress, or a priori optimization.
+1. **Constitutive Reactive Boundary**: Every UCA MUST possess a reactive boundary capable of receiving external observable changes to its functional domain.
+2. **Relational Nature of Stimulus**: `Stimulus` is the reception by a UCA of an external observable change to its domain that triggers its reaction.
+3. **Nature of Outcome**: `Outcome` is an observable change produced by a UCA as a consequence of its activity, structured into `Properties`, `Criteria`, and `Owner`.
+4. **Scope of Externality**: `External` is determined strictly relative to the boundary of the receiving UCA, not necessarily relative to the entire system.
+5. **Relational Character without Transformation**: `Outcome` and `Stimulus` are relational concepts referring to the same observable change and do NOT require different runtime entities or ontological conversion functions.
+6. **No Automatic Inference of Stimulus**: An `Outcome` does NOT automatically constitute a `Stimulus` for any UCA; it only becomes a `Stimulus` when its reception triggers the reaction of a receiving UCA predisposed by its `Disposition`.
+7. **Constitutive and Non-Cognitive Reception**: `Reception` is the universal, mechanical, and non-cognitive mechanism of change ingestion at the UCA boundary. It does not imply cognition, interpretation, or reasoning.
+8. **Specialized and Optional Perception**: `Perception` is the functional interpretation of received information performed exclusively by a specialized UCA whose explicit `Purpose` requires such interpretation.
+9. **Perceptual Independence of Stimulus**: A `Stimulus` does NOT require prior cognitive `Perception` to trigger the reactive reaction of a UCA.
+10. **Decoupling Between Core Semantics and Runtime**: `Signal` and `Impulse` are technical mechanisms and infrastructure transport vehicles in runtime, and MUST NOT be ontologically identified with `Stimulus` or `Outcome`.
+11. **Deterministic Compliance**: `Compliance` MUST be evaluated deterministically through the objective verification of `Criteria` against `Properties`.
+12. **Exclusive Validation Authority**: `Validation` MUST be emitted exclusively and contextually by the `Owner` of the Outcome (the entity demanding execution).
+13. **Strict Prohibition of Self-Validation**: The `Target UCA` MUST NOT validate or approve its own `Outcomes` ($\text{hasOwner}(o, u_{\text{owner}}) \implies u_{\text{owner}} \neq u_{\text{target}}$).
+14. **Strict Dissociation Compliance ≠ Validation**: `Compliance` does not imply `Validation` (`PASS` $\not\implies$ `APPROVED`, `FAIL` $\not\implies$ `REJECTED`). All four combinations are empirically valid and irreducible.
+15. **Evolution Based on Historical Evidence**: The evolution of a UCA MUST be based on the analysis of accumulated multi-execution historical evidence ($H \in \mathbb{H}$).
+16. **Prohibition of Direct Isolated Self-Evolution**: A UCA MUST NOT self-evolve directly in response to an individual or isolated `Outcome`.
+17. **Mutation Safety and Atomicity**: Every `Disposition` mutation MUST be atomic, reversible, and strictly circumscribed within the boundaries of `Nature` ($\text{satisfies}(\text{val}, n)$).
+18. **State Difference Semantics of $\Delta\text{Disposition}$**: $\Delta\text{Disposition} = \text{difference}(D_0, D_1)$ represents exclusively state difference, NEVER intrinsic improvement, qualitative progress, or a priori optimization.
 
 **Non-Requirements for Conformance**:
 
@@ -1945,13 +2140,12 @@ The specification concurrently references `Action` ($a \in \mathbb{A}$) and `Rea
 
 This must be resolved in future iterations without forcing artificial mathematical identities into the Core.
 
-### 9.5 Semantics of Context Inclusion vs. Triggering in Outcome → Stimulus Relationships
+### 9.5 Semantics of Context Inclusion vs. Triggering in Outcome → Stimulus Relationships [CLOSED]
 
-In §3.3 it is established that an Outcome $o_i$ emitted by a UCA may relate to the Stimulus $s_j$ of another unit in two ontologically distinct ways:
-1. Becoming part of Context: $o_i \in x_j$.
-2. Triggering reactive activation: $\text{triggers}(o_i, s_j)$.
-
-The formalization of the exact conditions under which an Outcome constitutes passive contextual substrate versus a direct triggering event remains open, as does whether this distinction depends on the emitter, the receiver, or the composition topology.
+This question is formally resolved in §2.7, §2.11, and §3.3:
+1. **Relational Relation**: `Outcome` and `Stimulus` do not represent two different data types nor do they require runtime transformation (`convertToStimulus()`). They represent distinct relational positions relative to different UCA functional boundaries: the observable change $\Delta x$ produced by the activity of $u_A$ constitutes an `Outcome` for $u_A$; the mechanical reception of that same change by $u_B$, when its `Disposition` triggers its reactive reaction, constitutes a `Stimulus` for $u_B$.
+2. **No Automatic Inference**: An Outcome may exist without ever becoming a Stimulus if no other UCA is predisposed to react to it ($\text{Outcome}(u_A, \Delta x) \not\implies \exists u_B : \text{Stimulus}(u_B, \Delta x)$).
+3. **Context Decoupling**: The contextual substrate ($x \in \mathbb{X}$) is an optional, compositional architectural pattern (§4), not a universal Core requirement. The distinction between direct stimulation and context depends exclusively on the `Disposition` of the receiving UCA.
 
 ### 9.6 Semantics and Ontological Overload of `Interaction.Signal`
 

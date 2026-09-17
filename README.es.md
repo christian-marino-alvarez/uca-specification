@@ -102,31 +102,32 @@ Donde:
 - **`p` (Purpose)**: Determina funcionalmente qué UCA es y aquello que persigue durante toda su existencia — orienta toda reacción.
 - **`d` (Disposition)**: Conjunto de condiciones constitutivas, paramétricas (`Properties`: Function, Nature, Value) e interactivas (`Interactions`: Definition, Target, Signal, When) que determinan cómo sus capacidades están predispuestas para comportarse e interactuar.
 - **`C` (Capabilities)**: Recursos operacionales (algoritmos, transforms, herramientas, modelos, otras UCAs) que constituyen los límites funcionales de la unidad ($\forall b \in \text{Behaviors}(u), \text{requiredCapabilities}(b) \subseteq C_u$).
-- **`O` (Outcome)**: Define formalmente las consecuencias observables producidas, con criterios deterministas (`Criteria`) y un `Owner` externo con autoridad exclusiva de validación.
+- **`O` (Outcome)**: Define formalmente el cambio observable producido como consecuencia de la actividad de la UCA, estructurado con propiedades empíricas (`Properties`), criterios deterministas (`Criteria`) y un `Owner` externo con autoridad exclusiva de validación.
 
 Una activación se define formalmente como:
 ```text
 s ∈ 𝕊
 ```
 Donde:
-- **`s` (Stimulus)**: Señal externa a la frontera de la UCA cuya recepción provoca su reacción. (El Stimulus aporta la perturbación o datos sobre los que opera la unidad; no redefine el Purpose ni transporta metas u objetivos, ni requiere un contenedor formal de Context en el Core).
+- **`s` (Stimulus)**: Recepción por una UCA de un cambio observable externo a su frontera funcional que provoca su reacción ($\text{Stimulus}(u_B, \Delta x)$). Aporta la perturbación o datos sobre los que opera la unidad; no redefine el Purpose ni transporta metas u objetivos, ni requiere un contenedor formal de Context en el Core.
+- **`Reception`**: Mecanismo reactivo, mecánico, universal y no cognitivo constitutivo de UCA Core mediante el cual la UCA admite el cambio observable externo. Se distingue formalmente de `Perception`, que es una función especializada y opcional realizada por UCAs cuyo Purpose requiere interpretar o dotar de significado lo recibido.
 
 El ciclo de vida fundamental y evolutivo:
 ```text
-Conception ──► u(p, d, C, O) ──► s ──► Reactive Process (Interactions) ──► Outcome (Properties)
-                                 ▲                                              │
-                                 │                                    Criteria ─┼──► Compliance (PASS | FAIL)
-                                 │                                              │
-                                 │                                       Owner ─┼──► Validation (APPROVED | REJECTED)
-                                 │                                              │
-                                 │                                              ▼
-                                 │                                         Tracker UCA ──► History (H ∈ ℍ)
-                                 │                                                               │
-                                 │                                                       Analyzer UCA
-                                 │                                                               │
-                                 │                                                       Evolution UCA
-                                 │                                                               │
-                                 └─────────────── Atomic Mutation (Nature) ◄─────────────────────┘
+Conception ──► u(p, d, C, O) ──► Reception(Δx) ──► s ──► Reactive Process (Interactions) ──► Outcome (Δx)
+                                 ▲                                                                 │
+                                 │                                                       Criteria ─┼──► Compliance (PASS | FAIL)
+                                 │                                                                 │
+                                 │                                                          Owner ─┼──► Validation (APPROVED | REJECTED)
+                                 │                                                                 │
+                                 │                                                                 ▼
+                                 │                                                            Tracker UCA ──► History (H ∈ ℍ)
+                                 │                                                                                  │
+                                 │                                                                          Analyzer UCA
+                                 │                                                                                  │
+                                 │                                                                          Evolution UCA
+                                 │                                                                                  │
+                                 └───────────────── Atomic Mutation (Nature) ◄──────────────────────────────────────┘
 ```
 
 > **El Outcome pertenece a quien ejecuta (Target UCA).**  
@@ -140,11 +141,12 @@ Conception ──► u(p, d, C, O) ──► s ──► Reactive Process (Inter
 ```mermaid
 flowchart TD
     CON[Conception: Purpose, Capabilities, Disposition, Outcome] --> UCA[Target UCA vigente y reactiva]
-    IMP[Impulse: Transporte] --> STIM[Stimulus: Información entrante]
+    CHG[Cambio observable: Δx] --> REC[Reception: Mecánica y universal]
+    REC --> STIM[Stimulus: Provoca reacción en UCA]
     STIM --> UCA
     UCA --> INT[Reactive Interactions entre Capabilities]
     INT --> PROC[Reactive Process emergente]
-    PROC --> OUT[Outcome: Properties observables]
+    PROC --> OUT[Outcome: Cambio observable Δx con Properties]
     OUT --> CRIT[Criteria: Reglas universales]
     CRIT --> COMP[Compliance: PASS | FAIL]
     OUT & UCA --> OWN[Owner UCA externa]
@@ -166,12 +168,13 @@ flowchart TD
 2. **Purpose determina funcionalmente qué UCA es y aquello que persigue durante toda su existencia.**
 3. **Capabilities determinan los límites de lo que la UCA puede hacer.**
 4. **Disposition determina cómo esas Capabilities están constituidas y predispuestas para comportarse e interactuar.**
-5. **Stimulus es una señal externa a la frontera de la UCA cuya recepción provoca la reacción de una UCA ya concebida.**
-6. **Las Capabilities reaccionan mediante Interactions y no mediante dependencias directas entre ellas.**
-7. **El Process emerge de las interacciones reactivas entre Capabilities conforme a sus Dispositions.**
-8. **Outcome es la consecuencia observable estructurada (Properties, Criteria, Owner) con evaluación objetiva de Compliance (PASS | FAIL) y validación contextual externa (Validation: APPROVED | REJECTED).**
-9. **Evolution es un proceso histórico asíncrono mediado por roles especializados (Tracker, Analyzer, Evolution) sobre evidencia acumulada (History), prohibiéndose la auto-evolución directa ante resultados individuales.**
-10. **La unidad mínima de Evolution es una Mutation atómica, limitada, observable y potencialmente reversible dentro de Nature, donde $\Delta\text{Disposition} = \text{difference}(D_0, D_1)$ expresa cambio de estado y nunca mejora intrínseca.**
+5. **Stimulus es la recepción por una UCA de un cambio observable externo a su frontera funcional que provoca su reacción, mediada mecánicamente por Reception.**
+6. **Reception es un mecanismo reactivo universal y no cognitivo de UCA Core; Perception es una función especializada y opcional dependiente del Purpose.**
+7. **Las Capabilities reaccionan mediante Interactions y no mediante dependencias directas entre ellas.**
+8. **El Process emerge de las interacciones reactivas entre Capabilities conforme a sus Dispositions.**
+9. **Outcome es el cambio observable producido por la actividad de una UCA, estructurado en Properties, Criteria y Owner, con evaluación objetiva de Compliance (PASS | FAIL) y validación contextual externa (Validation: APPROVED | REJECTED).**
+10. **Evolution es un proceso histórico asíncrono mediado por roles especializados (Tracker, Analyzer, Evolution) sobre evidencia acumulada (History), prohibiéndose la auto-evolución directa ante resultados individuales.**
+11. **La unidad mínima de Evolution es una Mutation atómica, limitada, observable y potencialmente reversible dentro de Nature, donde $\Delta\text{Disposition} = \text{difference}(D_0, D_1)$ expresa cambio de estado y nunca mejora intrínseca.**
 
 ---
 
