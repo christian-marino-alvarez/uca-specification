@@ -1103,6 +1103,16 @@ A Mutation ($\mu \in \mathbb{M}\text{ut}$) produces an alteration $\Delta D = \t
    t₁: reactsTo(Capability_A, Capability_C) ∧ reactsTo(Capability_B, Capability_A)
    ```
 
+#### Temporal Sequentiality and Disposition Reversibility
+
+Every UCA maintains an immutable chronological sequence of its effective configurations:
+
+$$[D_0, D_1, \dots, D_n]$$
+
+- **Conception State ($D_0$)**: Represents the initial baseline disposition declared physically on the class at unit inception. It forms the absolute lower boundary of reversibility (a UCA cannot revert to a state prior to its own conception).
+- **Reactive Reversibility**: In the presence of unfavorable evidence or operational restoration demands, the UCA can revert its state to any previous configuration $D_k$ via `revert()` or `revertTo(version)`.
+- **Biological Synchronization**: Value restoration upon reversion is intrinsically reactive: each property updated during rollback emits its corresponding `MutationEvent`, ensuring that the composite organism and channel subscribers immediately synchronize with the restored state.
+
 #### Inviolable Boundaries of Evolution
 
 Evolution operates under three independent invariant predicates, ensuring that mutation cannot violate the identity, functional space, or nature of properties:
@@ -1960,6 +1970,7 @@ This section formalizes the programming contract and concrete reference implemen
 |---|---|---|
 | `Signal` | `{ source: string; sourceName: string; sourceType: string; property: string; value: unknown; timestamp: number; }` | Represents an atomic signal broadcast upon property mutation in an emitter UCA. Identifies source unit (`source`), capability key (`sourceName`), class type (`sourceType`), mutated property (`property`), value (`value`), and timestamp (`timestamp`). |
 | `MutationEvent` | `Signal<T> & { oldValue: T; newValue: T; }` | Atomic event emitted upon modification of any property in the disposition (`this.disposition`). Provides evolutionary traceability of $\Delta d$, reporting previous value (`oldValue`) and new value (`newValue`). |
+| `DispositionSnapshot` | `{ version: number; timestamp: number; disposition: T; mutation?: MutationEvent; }` | Immutable snapshot capturing full disposition state at a given point in time, enabling chronological inspection and sequential reversion. |
 | `SignalListener` | `(signal: Signal) => Promise<void> \| void` | Callback function invoked upon receiving a signal on the internal channel. |
 | `IChannel` | `emit(signal: Signal): void;`<br>`subscribe(listener: SignalListener): () => void;` | Intra-organism local communication bus contract. Decouples signal broadcasting from subscribed receivers. |
 | `CapabilityConstructor` | `new (id: string, name: string, config?: Config) => Uca` | Constructor signature for classes extending `Uca` that can be dynamically instantiated as subordinate capabilities. |
@@ -2062,6 +2073,12 @@ The runtime consolidates a **single reactive cycle** in `Adn`/`Uca` regardless o
     ];
     ```
     The reactive engine (`canProcessSignal`) automatically correlates the mutated property name (`property`) with the emitter (`sourceType` or `sourceName`), guaranteeing fully decoupled intra-organism reactivity.
+ 5. **Sequential History and Reversion Methods (`revert`, `revertTo`)**:
+    Every UCA exposes its evolutionary sequence and operational methods to restore prior configurations:
+    - `public get dispositionSequence(): readonly DispositionSnapshot<TDisposition>[]`: Returns the immutable chronological sequence of snapshots $[D_0, D_1, \dots, D_n]$.
+    - `public revert(steps: number = 1): boolean`: Rewinds $N$ steps to a prior configuration. Returns `false` if already at the baseline inception state ($D_0$).
+    - `public revertTo(version: number): boolean`: Restores the configuration matching a specific version number.
+    Each reversion updates `this.disposition` via its reactive Proxy, automatically dispatching the necessary mutation events to keep the entire organism synchronized.
 
 ### 12.4 Canonical Reference Example (Non-Normative)
 

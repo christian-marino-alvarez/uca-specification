@@ -1100,6 +1100,16 @@ Una Mutation ($\mu \in \mathbb{M}\text{ut}$) debe ser, siempre que sea posible:
    t₁: Capability C ──► Capability A ──► Capability B
    ```
 
+#### Secuencialidad Temporal y Reversibilidad de la Disposición
+
+Toda UCA mantiene una secuencia cronológica inmutable de sus configuraciones efectivas:
+
+$$[D_0, D_1, \dots, D_n]$$
+
+- **Estado de Concepción ($D_0$)**: Representa la disposición constitutiva inicial declarada físicamente en la clase al nacer la unidad. Constituye el límite inferior absoluto de reversibilidad (la UCA no puede revertirse a un estado anterior a su propia concepción).
+- **Reversibilidad Reactiva**: Ante evidencia desfavorable o necesidad operativa de restauración, la UCA puede revertir su estado a cualquier configuración previa $D_k$ mediante `revert()` o `revertTo(version)`.
+- **Sincronización Biológica**: La restauración de valores al revertir es intrínsecamente reactiva: cada propiedad modificada durante el rollback emite su correspondiente `MutationEvent`, permitiendo que todo el organismo y las capacidades suscritas en el `Channel` se sincronicen de forma automática e inmediata con el estado recuperado.
+
 #### Límites Inviolables de Evolution
 
 Los límites ontológicos de Evolution se formalizan mediante tres predicados normativos independientes:
@@ -1950,6 +1960,7 @@ Esta sección formaliza el contrato de programación e implementación concreta 
 |---|---|---|
 | `Signal` | `{ source: string; sourceName: string; sourceType: string; property: string; value: unknown; timestamp: number; }` | Representa una señal atómica generada ante la mutación de una propiedad en una UCA emisora. Contiene el identificador unívoco de la instancia (`source`), su clave en el organismo (`sourceName`), su clase ontológica (`sourceType`), la propiedad mutada (`property`), el valor (`value`) y la marca temporal (`timestamp`). |
 | `MutationEvent` | `Signal<T> & { oldValue: T; newValue: T; }` | Evento atómico emitido ante la modificación de cualquier propiedad de la disposición (`this.disposition`). Permite trazabilidad evolutiva de $\Delta d$, reportando el valor anterior (`oldValue`) y el nuevo (`newValue`). |
+| `DispositionSnapshot` | `{ version: number; timestamp: number; disposition: T; mutation?: MutationEvent; }` | Instantánea inmutable que captura el estado íntegro de la disposición en un punto del tiempo, permitiendo navegación y reversión secuencial de configuraciones. |
 | `SignalListener` | `(signal: Signal) => Promise<void> \| void` | Función de callback invocada ante la recepción de una señal en el canal interno. |
 | `IChannel` | `emit(signal: Signal): void;`<br>`subscribe(listener: SignalListener): () => void;` | Contrato del bus de comunicación local intra-organismo. Desacopla la emisión de señales de los receptores suscritos. |
 | `CapabilityConstructor` | `new (id: string, name: string, config?: Config) => Uca` | Firma del constructor para clases que extienden `Uca` y pueden ser instanciadas dinámicamente como capabilities subordinadas. |
@@ -2052,6 +2063,12 @@ La arquitectura UCA restringe la generación de mutaciones **única y exclusivam
    ];
    ```
    El motor reactivo (`canProcessSignal`) correlaciona automáticamente el nombre de la propiedad mutada (`property`) con el emisor (`sourceType` o `sourceName`), garantizando la reactividad intra-organismo desacoplada.
+5. **Historial Secuencial y Métodos de Reversión (`revert`, `revertTo`)**:
+   Toda UCA expone su secuencia evolutiva y métodos para restaurar configuraciones previas:
+   - `public get dispositionSequence(): readonly DispositionSnapshot<TDisposition>[]`: Retorna la cronología inmutable de snapshots $[D_0, D_1, \dots, D_n]$.
+   - `public revert(steps: number = 1): boolean`: Retrocede $N$ pasos hacia la configuración previa. Retorna `false` si ya se encuentra en el estado inicial de concepción ($D_0$).
+   - `public revertTo(version: number): boolean`: Restaura la configuración correspondiente a un número de versión específico.
+   Cada reversión actualiza `this.disposition` mediante su Proxy reactivo, desencadenando automáticamente los eventos de mutación requeridos para mantener sincronizado a todo el organismo.
 
 ### 12.4 Ejemplo Canónico de Referencia (No Normativo)
 
