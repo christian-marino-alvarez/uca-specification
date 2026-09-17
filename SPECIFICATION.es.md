@@ -20,7 +20,7 @@ Las capas conceptuales del modelo UCA:
 ```text
 ┌──────────────────────────────┐
 │             UCA              │  ← primitiva funcional (normativa)
-│  u = (p, d, C)              │
+│  u = (p, d, C, O)           │
 │  (u, s) → a → o             │
 └──────────────┬───────────────┘
                │ composición
@@ -128,9 +128,13 @@ Se distingue rigurosamente entre una instancia conceptual individual (representa
 | $\mathbb{S}$ | $s \in \mathbb{S}$ | Stimulus: señal externa a la frontera de la UCA cuya recepción provoca una reacción de la unidad. |
 | $\mathbb{X}$ | $x \in \mathbb{X}$ | Context: información situacional o sustrato contextual de soporte (patrón opcional, §4). |
 | $\mathbb{A}$ | $a \in \mathbb{A}$ | Action: ejecución operacional del proceso reactivo emergente de la UCA. |
-| $\mathbb{O}$ | $o \in \mathbb{O}$ | Outcome: consecuencia observable efectivamente producida por la Action. |
+| $\mathbb{O}$ | $o \in \mathbb{O}$ | Outcome: consecuencia observable estructurada $(\text{Properties}, \text{Criteria}, \text{Owner})$ producida por la Action. |
+| $\text{Compliance}$ | $\text{comp} \in \{\text{PASS}, \text{FAIL}\}$ | Compliance: evaluación determinista de los Criteria de un Outcome. |
+| $\text{Validation}$ | $\text{val} \in \{\text{APPROVED}, \text{REJECTED}\}$ | Validation: decisión contextual y juicio de aceptación emitido exclusivamente por el Owner del Outcome. |
+| $\text{Owner}$ | $u_{\text{owner}} \in \mathbb{U}$ | Owner: UCA externa con autoridad en el contexto para validar o rechazar el Outcome ($u_{\text{owner}} \neq u_{\text{target}}$). |
 | $\mathbb{M}\text{ut}$ | $\mu \in \mathbb{M}\text{ut}$ | Mutation: cambio atómico identificable sobre la Disposition. |
 | $\mathbb{E}$ | $e \in \mathbb{E}$ | Evidence: observaciones y evaluaciones acumuladas sobre el comportamiento. |
+| $\mathbb{H}$ | $H \in \mathbb{H}$ | History: registro acumulado de evidencia histórica multiejecución $[s, o, \text{Compliance}, \text{Validation}, d, t, \mu, x]$. |
 
 > **Nota de Deprecación (Goal)**: La abstracción histórica `Goal` ($g \in \mathbb{G}$) ha sido formalmente deprecada y eliminada del modelo normativo UCA. `Goal` fue una abstracción utilizada inicialmente para representar un resultado requerido durante una activación; se elimina porque introducía una segunda fuente de dirección funcional redundante con `Purpose` y convertía la activación reactiva en una forma implícita de instrucción. El modelo normativo vigente no admite ningún concepto compensatorio de meta, objetivo o instrucción externa (`Goal`, `Objective`, `Task`, `Command` o `DesiredOutcome`).
 
@@ -142,10 +146,13 @@ Las expresiones normativas deben preferir relaciones explícitas con nombre fren
 - **$\text{hasDisposition}(u, d)$**: Afirma que la UCA $u$ está predispuesta por la disposición efectiva $d$.
 - **$\text{hasCapability}(u, c)$**: Afirma que la capacidad $c$ pertenece al conjunto constitutivo de $u$ ($c \in C$).
 - **$\text{triggers}(s, u, a)$**: Afirma que la recepción del estímulo externo $s$ por la UCA $u$ detona la acción reactiva $a$. Expresa activación reactiva estricta; NO implica orden, instrucción, intención, meta ni causalidad metafísica global.
-- **$\text{produces}(a, o)$**: Afirma que la ejecución de la acción $a$ genera como consecuencia observable el outcome $o$.
+- **$\text{produces}(a, o)$**: Afirma que la ejecución de la acción $a$ genera como consecuencia observable el outcome estructurado $o$.
 - **$\text{precedes}(o_1, o_2)$**: Afirma precedencia temporal estricta ("$o_1$ ocurrió antes que $o_2$").
 - **$\text{reactsTo}(\text{target}, \text{change})$**: Afirma una relación reactiva declarada donde una Capability o interacción responde a un cambio local observable.
 - **$\text{satisfies}(v, n)$**: Afirma que el valor $v$ cumple las restricciones y el tipo declarados por la Nature $n$ ($v \in \text{validDomain}(n)$).
+- **$\text{complies}(o)$**: Afirma la evaluación determinista de los Criteria de $o$. Retorna $\text{PASS}$ si todos los Criteria se cumplen, o $\text{FAIL}$ en caso contrario.
+- **$\text{validates}(u_{\text{owner}}, o)$**: Afirma el juicio operacional emitido por el Owner sobre $o$. Retorna $\text{APPROVED}$ si el Owner valida el outcome en su contexto de uso, o $\text{REJECTED}$ si lo rechaza.
+- **$\text{hasOwner}(o, u_{\text{owner}})$**: Asocia el Outcome $o$ con la UCA externa $u_{\text{owner}}$ que ostenta la autoridad exclusiva de validación. Invariante estricta: $u_{\text{owner}} \ne u_{\text{target}}$.
 
 #### 4. Semántica de Flechas y Operadores
 
@@ -164,6 +171,9 @@ Las expresiones normativas deben preferir relaciones explícitas con nombre fren
 3. **Independencia Temporal vs Evaluativa**: $\text{precedes}(o_1, o_2)$ MUST NOT implicar que $o_2$ es mejor, superior o más deseable que $o_1$.
 4. **Reactividad vs Causalidad**: La declaración $\text{reactsTo}(x, y)$ establece dependencia de activación reactiva, pero MUST NOT implicar automáticamente una teoría formal de causalidad metafísica o global.
 5. **Aislamiento de Capas**: Conceptos de infraestructura o transporte (como `Impulse`, perteneciente a Runtime) MUST NOT introducirse como requisitos del modelo formal de UCA Core.
+6. **Disociación Estricta entre Compliance y Validation**: $\text{complies}(o) = \text{PASS}$ MUST NOT implicar $\text{validates}(u_{\text{owner}}, o) = \text{APPROVED}$, y $\text{complies}(o) = \text{FAIL}$ MUST NOT implicar $\text{validates}(u_{\text{owner}}, o) = \text{REJECTED}$. Los cuatro estados de cruce son empíricamente válidos.
+7. **Prohibición de Autovalidación**: Para todo Outcome $o$ producido por una UCA $u_{\text{target}}$, $\text{hasOwner}(o, u_{\text{owner}}) \implies u_{\text{owner}} \ne u_{\text{target}}$. Una Target UCA MUST NOT validar ni aprobar sus propios Outcomes.
+8. **Evolución Mediada e Histórica**: La evolución de una UCA requiere evidencia histórica acumulada ($H \in \mathbb{H}$) multiejecución procesada por UCAs especializadas (Tracking, Analysis, Evolution); una UCA MUST NOT auto-evolucionar directamente en respuesta a un Outcome individual o aislado.
 
 ---
 
@@ -175,30 +185,31 @@ El UCA Core define las propiedades mínimas requeridas para identificar una unid
 
 ### 2.1 Definición, Concepción y Ciclo de Vida
 
-Una **Unidad Cognitiva Artificial (UCA)** es una unidad funcional acotada definida por un **propósito propio**, constituida por unas **capacidades concretas** y predispuesta por una **disposición declarativa**.
+Una **Unidad Cognitiva Artificial (UCA)** es una unidad funcional acotada definida por un **propósito propio**, constituida por unas **capacidades concretas**, predispuesta por una **disposición declarativa** y delimitada por la definición explícita de sus **consecuencias observables (Outcome)**:
 
-> Una UCA se define no por lo que ejecuta, sino por el propósito que es responsable de alcanzar.
+> Una UCA se define no por lo que ejecuta, sino por el propósito que es responsable de alcanzar y por las consecuencias observables que produce bajo criterios verificables gobernados por un Owner.
 
 ```text
-u = (p, d, C)
+u = (p, d, C, O)
 ```
 
-Donde $u \in \mathbb{U}$ se modela mediante la tupla constitutiva mínima:
-$$u = (p, d, C) \in \mathbb{P} \times \mathbb{D} \times \mathcal{P}(\mathbb{C})$$
+Donde $u \in \mathbb{U}$ se modela conceptualmente mediante la estructura constitutiva:
+$$u = (p, d, C, O) \in \mathbb{P} \times \mathbb{D} \times \mathcal{P}(\mathbb{C}) \times \mathbb{O}_{\text{def}}$$
 
 expresable en términos de predicados normativos como:
-$$\text{hasPurpose}(u, p) \land \text{hasDisposition}(u, d) \land (\forall c \in C, \text{hasCapability}(u, c))$$
+$$\text{hasPurpose}(u, p) \land \text{hasDisposition}(u, d) \land (\forall c \in C, \text{hasCapability}(u, c)) \land \text{definesOutcome}(u, O)$$
 
 Donde:
 - `p` ($\in \mathbb{P}$) — **Purpose** (Propósito): por qué existe la UCA — orienta su reacción de forma invariante.
 - `d` ($\in \mathbb{D}$) — **Disposition** (Disposición): condiciones constitutivas, paramétricas e interactivas — predispone su comportamiento.
 - `C` ($\subseteq \mathbb{C}$) — **Capabilities** (Capacidades): conjunto finito no vacío de recursos operacionales — delimitan su frontera funcional.
+- `O` ($\in \mathbb{O}_{\text{def}}$) — **Outcome**: definición canónica de las consecuencias observables estructuradas en $(\text{Properties}, \text{Criteria}, \text{Owner})$ que la unidad puede emitir.
 
-Esta expresión describe la **constitución mínima** de una UCA y no una ecuación aritmética.
+Esta expresión describe la **constitución conceptual** de una UCA y no una ecuación aritmética.
 
 #### Conception
 
-> **Conception es el momento en que una UCA queda constituida con un Purpose, unas Capabilities y una Disposition inicial.**
+> **Conception es el momento en que una UCA queda constituida con un Purpose, unas Capabilities, una Disposition inicial y la definición de su Outcome.**
 
 ```text
 Conception
@@ -206,7 +217,11 @@ Conception
 UCA
 ├── Purpose
 ├── Capabilities
-└── Disposition
+├── Disposition
+└── Outcome
+    ├── Properties
+    ├── Criteria
+    └── Owner
 ```
 
 La `Conception` determina **qué UCA existe**.
@@ -219,11 +234,12 @@ El modelo UCA formaliza dos dimensiones estrictamente independientes:
 
 **1. Constitución**
 ```text
-u = (p, d, C)
+u = (p, d, C, O)
 
 p = qué determina funcionalmente la UCA y aquello que persigue
 d = cómo están constituidas y predispuestas sus capacidades
 C = qué puede hacer (frontera funcional)
+O = consecuencias observables que produce, con criterios y Owner
 ```
 
 **2. Activación**
@@ -234,13 +250,16 @@ External Signal
    Stimulus
       │
       ▼
-     UCA
+   Target UCA
       │
       ▼
 Reactive Process / Action
       │
       ▼
-   Outcome(s)
+   Outcome
+   ├── Properties (información observable producida)
+   ├── Criteria   ──► Compliance (PASS | FAIL determinista)
+   └── Owner      ──► Validation (APPROVED | REJECTED contextual)
 ```
 
 El `Stimulus` provoca actividad reactiva en una UCA ya concebida.
@@ -249,38 +268,45 @@ El Stimulus **MUST NOT** redefinir, alterar ni sustituir el Purpose.
 
 #### Ciclo de Vida Reactivo y Evolutivo
 
-Una UCA no pasa por fases rígidas de arranque y finalización. Reacciona a los Stimuli recibidos y evoluciona ante la evidencia:
+Una UCA no pasa por fases rígidas de arranque y finalización. Reacciona a los Stimuli recibidos emitiendo Outcomes observables, mientras que UCAs especializadas registran y analizan la evidencia histórica acumulada para guiar la evolución de su Disposition:
 
 ```text
-                         CONCEPTION
-                              │
-                              ▼
-┌───────────────────────────────────────────────────────────┐
-│                           UCA                             │
-│                                                           │
-│  Stimulus                                                 │
-│      ↓                                                    │
-│  Reactive Process (dinámica emergente de Interactions)    │
-│      ↓                                                    │
-│  Outcome(s)                                               │
-│                                                           │
-│  Stimulus                                                 │
-│      ↓                                                    │
-│  Reactive Process                                         │
-│      ↓                                                    │
-│  Outcome(s)                                               │
-│                                                           │
-│             ...                                           │
-│                                                           │
-│  Evidence                                                 │
-│      ↓                                                    │
-│  ΔDisposition (Mutation atómica dentro de Nature)         │
-│      ↓                                                    │
-│  evolved Reactive Process                                 │
-│      ↓                                                    │
-│  evolved Outcome(s)                                       │
-│                                                           │
-└───────────────────────────────────────────────────────────┘
+                                  CONCEPTION
+                                       │
+                                       ▼
+ ┌───────────────────────────────────────────────────────────────────────────┐
+ │                                TARGET UCA                                 │
+ │                                                                           │
+ │   Stimulus ────────► Action ────────► Outcome                             │
+ │                                       ├── Properties                      │
+ │                                       ├── Criteria ──► Compliance         │
+ │                                       └── Owner ─────► Validation         │
+ │                                                             │             │
+ │                                                             ▼             │
+ │                                                   ┌───────────────────┐   │
+ │                                                   │    Tracker UCA    │   │
+ │                                                   └─────────┬─────────┘   │
+ │                                                             ▼             │
+ │                                                     History (H ∈ ℍ)       │
+ │                                                             │             │
+ │                                                             ▼             │
+ │                                                   ┌───────────────────┐   │
+ │                                                   │   Analyzer UCA    │   │
+ │                                                   └─────────┬─────────┘   │
+ │                                                             ▼             │
+ │                                                    Analysis / Patterns    │
+ │                                                             │             │
+ │                                                             ▼             │
+ │                                                   ┌───────────────────┐   │
+ │                                                   │   Evolution UCA   │   │
+ │                                                   └─────────┬─────────┘   │
+ │                                                             ▼             │
+ │   evolved Reactive Process ◄────── ΔDisposition ◄───── Mutation Proposal  │
+ │              │                  (D₁ = diff(D₀, D₁))                       │
+ │              ▼                                                            │
+ │       evolved Outcome(s)                                                  │
+ │                                                                           │
+ └───────────────────────────────────────────────────────────────────────────┘
 ```
 
 > **Principio Fundamental**: Una UCA, desde su Conception, permanece funcionalmente vigente y reacciona a los Stimuli recibidos persiguiendo su Purpose dentro de los límites de sus Capabilities y conforme a la Disposition vigente de dichas Capabilities.
@@ -744,19 +770,96 @@ Una Action no requiere necesariamente inferencia de un modelo de lenguaje. Puede
 
 ### 2.10 Outcome (O)
 
-El `Outcome` ($o \in \mathbb{O}$) representa **lo que la Action produjo efectivamente**:
+> **Outcome es la definición de las consecuencias observables que una UCA puede producir como resultado de su reacción, incluyendo los criterios deterministas que permiten comprobar su cumplimiento y la identificación del Owner con autoridad para validar su aceptación.**
+
+El `Outcome` ($o \in \mathbb{O}$) representa lo que la Action produjo efectivamente:
 
 $$\text{produces}(a, o)$$
 
 (notación abreviada: $a \to o$).
 
-Distinción ontológica:
+Distinción ontológica fundamental:
 ```text
 STIMULUS (S): Señal externa que cruza la frontera de la UCA y detona la reacción.
-OUTCOME (O):  Consecuencia observable producida por la Action ejecutada por la UCA.
+OUTCOME (O):  Consecuencia observable estructurada producida por la Action ejecutada por la UCA.
 ```
 
-El Outcome pertenece estrictamente a la unidad ejecutora.
+El Outcome pertenece estrictamente a la unidad ejecutora como su especificación de consecuencias observables hacia el exterior.
+
+#### Anatomía y Estructura Canónica de Outcome
+
+De forma análoga a cómo `Disposition` define explícitamente las condiciones paramétricas e interactivas de una UCA, todo `Outcome` se estructura formalmente en tres componentes constitutivos obligatorios:
+
+```text
+Outcome
+├── Properties
+│   └── Definición de la información observable producida por la Action (sin juicio de calidad).
+├── Criteria
+│   └── Reglas objetivas y no subjetivas para evaluar determinísticamente el Outcome.
+│       └── Criterion { Observation, Condition, Expected }
+└── Owner
+    └── UCA externa en cuyo contexto opera la unidad y que posee autoridad exclusiva de validación.
+```
+
+1. **Outcome.Properties**:
+   Define qué información observable produjo efectivamente la Action. Representa el contenido observable puro sin valoración, calificación ni juicio de calidad (ej. `text: string`, `latency: number`, `confidence: number`, `chunks: Chunk[]`). Las Properties constituyen la base empírica sobre la que se realizan las observaciones.
+
+2. **Outcome.Criteria**:
+   Define el conjunto de reglas no subjetivas, deterministas y formalmente evaluables para verificar el cumplimiento del Outcome. Cada `Criterion` individual se define mediante una terna:
+   - **Observation**: La propiedad observable o valor computado que se somete a evaluación (ej. `latency`, `text.length`, `chunks.length`).
+   - **Condition**: El operador o relación lógica objetiva aplicada ($=, \neq, <, \le, >, \ge, \in$).
+   - **Expected**: El valor de referencia o rango admisible requerido para satisfacer la regla (ej. `300ms`, `> 0`, `[0.0..1.0]`).
+
+3. **Outcome.Owner**:
+   Identifica a la UCA externa ($u_{\text{owner}} \in \mathbb{U}, u_{\text{owner}} \neq u_{\text{target}}$) en cuyo contexto operativo se consumen, integran o surten efecto las consecuencias observables del Outcome. El Owner es la única entidad autorizada formalmente para emitir un juicio de validación y aceptación.
+
+#### Evaluación y Decisión: Compliance vs. Validation
+
+El modelo UCA distingue con rigor absoluto entre la comprobación objetiva de los criterios de un Outcome y la decisión de aceptarlo:
+
+```text
+Target UCA
+    │
+    ▼
+ Outcome
+    │
+    ├── Criteria ──────► Compliance (PASS | FAIL)   [Evaluación determinista objetiva]
+    │
+    └── Owner ─────────► Validation (APPROVED | REJECTED) [Decisión contextual externa]
+```
+
+- **Compliance ($\text{comp} \in \{\text{PASS}, \text{FAIL}\}$)**:
+  Es la evaluación determinista y computable de los `Criteria` de un Outcome.
+  $$\text{complies}(o) = \begin{cases} \text{PASS} & \text{si } \forall c \in o.\text{Criteria}, \text{eval}(c, o.\text{Properties}) = \text{true} \\ \text{FAIL} & \text{en caso contrario} \end{cases}$$
+  No admite subjetividad, interpretación ni heurísticas contextuales. Cualquier observador o mecanismo evaluador que compute las mismas Properties contra los mismos Criteria obtendrá idéntico resultado de Compliance.
+
+- **Validation ($\text{val} \in \{\text{APPROVED}, \text{REJECTED}\}$)**:
+  Es el juicio u ordenamiento de conveniencia contextual emitido exclusivamente por el `Owner`.
+  $$\text{validates}(u_{\text{owner}}, o) \in \{\text{APPROVED}, \text{REJECTED}\}$$
+  El Owner determina si las consecuencias observables del Outcome resultan admisibles, pertinentes y operativamente útiles dentro de su propio dominio y contexto funcional.
+
+#### Disociación Estricta: Compliance ≠ Validation
+
+`Compliance` y `Validation` son dimensiones formalmente ortogonales. Está terminantemente prohibido asumir equivalencia o inferencia unidireccional entre ambas:
+
+- **$\text{complies}(o) = \text{PASS} \not\implies \text{validates}(u_{\text{owner}}, o) = \text{APPROVED}$**: Un Outcome puede cumplir todos sus criterios técnicos objetivos y, no obstante, ser rechazado por el Owner por inadecuación situacional.
+- **$\text{complies}(o) = \text{FAIL} \not\implies \text{validates}(u_{\text{owner}}, o) = \text{REJECTED}$**: Un Outcome puede violar un criterio técnico formal y, aun así, ser aceptado por el Owner por tolerancia contextual, urgencia o resiliencia operativa.
+
+De esta disociación emergen cuatro estados de evidencia empírica irreducible:
+
+| Compliance | Validation | Significado Empírico y Operacional |
+|---|---|---|
+| `PASS` | `APPROVED` | **Alineación Plena**: El Outcome cumple los criterios objetivos y es contextualmente idóneo para las necesidades del Owner. |
+| `PASS` | `REJECTED` | **Falso Positivo de Criterios / Desalineación Contextual**: El Outcome cumple la regla técnica, pero el Owner lo descarta por factores semánticos o del entorno operativo no capturados por los Criteria. |
+| `FAIL` | `APPROVED` | **Tolerancia Operativa / Resiliencia Situacional**: El Outcome falla algún criterio formal (ej. ligera degradación de latencia), pero el Owner lo juzga suficiente o necesario en la situación viva. |
+| `FAIL` | `REJECTED` | **Fallo Concurrente**: El Outcome viola las especificaciones objetivas y carece de utilidad para el contexto operativo del Owner. |
+
+#### Invariante Estricta de Prohibición de Autovalidación
+
+> **El Target UCA MUST NOT validar ni aprobar sus propios Outcomes.**
+> $$\forall o \in \mathbb{O}, \quad \text{hasOwner}(o, u_{\text{owner}}) \implies u_{\text{owner}} \neq u_{\text{target}}$$
+
+Una Target UCA puede computar determinísticamente el `Compliance` de sus propios criterios (ya que se trata de un cálculo objetivo sobre sus `Properties`), pero **carece ontológicamente de la perspectiva contextual y de la autoridad para validarse a sí misma**. Toda validación que no provenga de un Owner externo independiente es formalmente inválida en el modelo UCA.
 
 #### Outcomes Parciales y Streaming
 
@@ -767,13 +870,13 @@ Stimulus
    │
    │ triggers
    ▼
-  UCA
+ Target UCA
    │
-   │ produces (stream temporal)
+   │ produces (stream temporal de Outcomes)
    ▼
-Outcome₀
-Outcome₁
-Outcome₂
+Outcome₀ (Properties₀, Criteria₀, Owner) ──► (Compliance₀, Validation₀)
+Outcome₁ (Properties₁, Criteria₁, Owner) ──► (Compliance₁, Validation₁)
+Outcome₂ (Properties₂, Criteria₂, Owner) ──► (Compliance₂, Validation₂)
 ...
 ```
 
@@ -781,7 +884,7 @@ Formalmente, la secuencia de emisión temporal satisface:
 $$\text{precedes}(o_0, o_1) \land \text{precedes}(o_1, o_2) \land \dots$$
 
 **Neutralidad e Independencia Temporal**:
-La relación $\text{precedes}(o_0, o_1)$ afirma estricta y únicamente que $o_0$ ocurrió cronológicamente antes que $o_1$. **MUST NOT** interpretarse como relación evaluativa, de superioridad o de mejora ($o_2 > o_1$ carece de validez). Un Outcome no posee calidad intrínseca; cualquier valoración sobre su precisión o utilidad requiere una evaluación explícita bajo criterios definidos (§4.4).
+La relación $\text{precedes}(o_0, o_1)$ afirma estricta y únicamente que $o_0$ ocurrió cronológicamente antes que $o_1$. **MUST NOT** interpretarse como relación evaluativa, de superioridad o de mejora ($o_2 > o_1$ carece de validez). Cada Outcome parcial es evaluado determinísticamente en su propio `Compliance` y validado contextualmente por su `Owner`.
 
 ---
 
@@ -821,7 +924,7 @@ Indica que la abstracción está diseñada para componer responsabilidades funci
 El modelo mínimo completo de una UCA individual:
 
 ```text
-Estructura:   u = (p, d, C)      (donde p ∈ ℙ determina funcionalmente qué es y persigue u)
+Estructura:   u = (p, d, C, O)   (donde p determina qué es, d predispone, C acota y O define consecuencias)
 Estímulo:     s ∈ 𝕊              (señal externa a la frontera de u que provoca su reacción)
 Reacción:     (u, s) → a → o     (shorthand de: triggers(s, u, a) ∧ produces(a, o))
 ```
@@ -1037,56 +1140,95 @@ Stimulus → UCA C (Purpose: observar e interpretar)
                             └── Outcome: observación estructurada
 ```
 
-No existe ningún `Observer` especial en la estructura UCA. Cada una de estas unidades es simplemente $u = (p, d, C)$ con un Purpose que justifica su Action.
+No existe ningún `Observer` especial en la estructura UCA. Cada una de estas unidades es simplemente $u = (p, d, C, O)$ con un Purpose que justifica su Action.
 
 ---
 
-### 4.3 Evolution y Mutación Atómica de Disposition
+### 4.3 Evolution y Mutación Atómica de Disposition Basada en Evidencia Histórica
 
 El Core define que la Disposition condiciona el comportamiento y las interacciones de una unidad.
 
-> **Evolution es la modificación acumulativa de la Disposition de una UCA dentro de los límites definidos por su Purpose, sus Capabilities y la Nature de sus Properties e Interactions.**
+> **Evolution es el proceso por el cual UCAs especializadas utilizan evidencia histórica de la actividad de otras UCAs para determinar cambios permitidos sobre su Disposition, preservando su Purpose, sus Capabilities y la Nature de sus Properties e Interactions.**
 
-Distinción ontológica:
+Distinción ontológica fundamental:
 ```text
-Conception: Determina qué UCA existe (identidad, capacidades y disposición inicial).
-Evolution:  Modifica cómo esa misma UCA se comporta e interactúa dentro de sus límites.
+Conception: Determina qué UCA existe (identidad funcional, capacidades, disposición inicial y definición de Outcome).
+Evolution:  Proceso mediado que modifica cómo esa misma UCA se comporta e interactúa mediante cambios permitidos
+            en su Disposition, guiado por el análisis de evidencia histórica multiejecución acumulada.
 ```
 
 ```text
 Conception
      │
      ▼
-UCA₀ (Purpose, Capabilities, Disposition₀)
+Target UCA₀ (p, d₀, C, O)
      │
-     │ evidence
+     │ Ejecuciones multievento registradas
      ▼
-Mutation₁ (atómica)
+History (H₀ ∈ ℍ) ──► [Tracking ──► Analysis ──► Evolution]
+                                                      │
+                                                      ▼
+                                       Mutation Proposal μ₁ (atómica)
+                                                      │
+                                                      ▼
+Target UCA₁ (p, d₁, C, O)  donde d₁ = difference(d₀, d₁)
      │
+     │ Nuevas ejecuciones multievento registradas
      ▼
-Disposition₁
-     │
-     │ evidence
-     ▼
-Mutation₂ (atómica)
-     │
-     ▼
-Disposition₂
+History (H₁ ∈ ℍ) ──► [Tracking ──► Analysis ──► Evolution]
+                                                      │
+                                                      ▼
+                                       Mutation Proposal μ₂ (atómica)
+                                                      │
+                                                      ▼
+Target UCA₂ (p, d₂, C, O)  donde d₂ = difference(d₁, d₂)
      │
     ...
 ```
+
+#### Roles Funcionales de la Arquitectura Evolutiva
+
+La evolución de una UCA no se ejecuta como una autoadaptación interna no supervisada, sino a través de tres responsabilidades o roles funcionales especializados y desacoplados:
+
+1. **Tracking (Registro de Historia Observable)**:
+   Registra de forma inmutable la evidencia generada durante las ejecuciones de la Target UCA. Cada entrada del histórico modela formalmente la tupla multivariable:
+   $$h = [s, o, \text{Compliance}, \text{Validation}, d, \text{timestamp}, \mu, x] \in \mathbb{H}$$
+   Donde:
+   - $s \in \mathbb{S}$: Estímulo recibido que detonó la reacción.
+   - $o \in \mathbb{O}$: Outcome producido ($o.\text{Properties}$).
+   - $\text{Compliance} \in \{\text{PASS}, \text{FAIL}\}$: Evaluación determinista de los Criteria de $o$.
+   - $\text{Validation} \in \{\text{APPROVED}, \text{REJECTED}\}$: Juicio de aceptación emitido exclusivamente por el Owner.
+   - $d \in \mathbb{D}$: Disposición efectiva activa de la UCA en el momento de la ejecución.
+   - $\text{timestamp}$: Punto temporal inmutable de la ejecución.
+   - $\mu \in \mathbb{M}\text{ut}$: Identificador o versión de la mutación activa.
+   - $x \in \mathbb{X}$: Contexto situacional o ambiental de soporte.
+
+2. **Analysis (Identificación de Patrones y Correlaciones)**:
+   Examina el corpus histórico multiejecución ($H \in \mathbb{H}$) sin intervenir en el flujo reactivo directo. Su responsabilidad es identificar correlaciones empíricas sistemáticas entre parámetros específicos de la Disposition ($d$), el contexto situacional ($x$) y los resultados cruzados de Compliance y Validation (por ejemplo: *"el valor de bufferSize = 2048 correlaciona con un 41% de rechazos por latencia bajo alta concurrencia, frente a un 4% de fallos cuando bufferSize = 1024"*).
+
+3. **Evolution (Determinación y Propuesta de Mutaciones Atómicas)**:
+   A partir del análisis de evidencia histórica acumulada, deduce hipótesis de ajuste y formula una mutación atómica admisible ($\mu \in \mathbb{M}\text{ut}$) sobre la Disposition de la Target UCA, verificando formalmente que satisfaga las restricciones de Nature antes de su emisión.
+
+> **Composabilidad de Roles**:
+> `Tracking`, `Analysis` y `Evolution` son responsabilidades funcionales composables, no nombres rígidos obligatorios de clases del UCA Core. Una arquitectura cognitiva puede materializarlos mediante UCAs independientes (ej. `Tracker UCA`, `Analyzer UCA`, `Evolution UCA`) o integrarlos en órganos cognitivos agregados (como un `Cingulate UCA`).
+
+#### Invariante Estricta: Prohibición de Autoevolución Directa ante Outcomes Aislados
+
+> **Una Target UCA MUST NOT auto-evolucionar directamente en respuesta a un Outcome aislado.**
+
+El modelo UCA prohíbe taxativamente que una unidad altere su propia `Disposition` como reacción inmediata a un único Outcome producido o evaluado. La adaptación reactiva inmediata confunde el proceso operacional con la evolución ontológica, introduciendo inestabilidad paramétrica, sesgos de casos aislados y bucles descontrolados de retroalimentación. La evolución requiere masa crítica de evidencia histórica acumulada y mediación especializada.
 
 #### Principio de Mutación Atómica
 
 > **La unidad mínima de Evolution es una Mutation atómica de la Disposition.**
 
-Una Mutation ($\mu \in \mathbb{M}\text{ut}$) debe ser, siempre que sea posible:
+Una Mutation ($\mu \in \mathbb{M}\text{ut}$) produce una alteración $\Delta D = \text{difference}(D_0, D_1)$ que debe ser:
 - **pequeña e identificable**: focalizada en una Property o Interaction concreta;
 - **limitada**: circunscrita a los límites de Nature ($\text{satisfies}(\text{value}_{new}, \text{nature})$);
 - **validable**: verificable formalmente antes de su aplicación;
-- **medible**: observable empíricamente en el Outcome;
-- **reversible**: capaz de restaurarse si la evidencia es desfavorable;
-- **atribuible**: rastreable respecto a la evidencia que la motivó.
+- **medible**: observable empíricamente en subsecuentes Outcomes históricos;
+- **reversible**: capaz de restaurarse si la evidencia histórica posterior es desfavorable;
+- **atribuible**: rastreable respecto al análisis de evidencia que la motivó.
 
 #### Tipos de Mutación: Paramétrica y Estructural
 
@@ -1107,7 +1249,7 @@ Toda UCA mantiene una secuencia cronológica inmutable de sus configuraciones ef
 $$[D_0, D_1, \dots, D_n]$$
 
 - **Estado de Concepción ($D_0$)**: Representa la disposición constitutiva inicial declarada físicamente en la clase al nacer la unidad. Constituye el límite inferior absoluto de reversibilidad (la UCA no puede revertirse a un estado anterior a su propia concepción).
-- **Reversibilidad Reactiva**: Ante evidencia desfavorable o necesidad operativa de restauración, la UCA puede revertir su estado a cualquier configuración previa $D_k$ mediante `revert()` o `revertTo(version)`.
+- **Reversibilidad Reactiva**: Ante evidencia histórica desfavorable o necesidad operativa de restauración, la UCA puede revertir su estado a cualquier configuración previa $D_k$ mediante `revert()` o `revertTo(version)`.
 - **Sincronización Biológica**: La restauración de valores al revertir es intrínsecamente reactiva: cada propiedad modificada durante el rollback emite su correspondiente `MutationEvent`, permitiendo que todo el organismo y las capacidades suscritas en el `Channel` se sincronicen de forma automática e inmediata con el estado recuperado.
 
 #### Límites Inviolables de Evolution
@@ -1127,32 +1269,59 @@ Los límites ontológicos de Evolution se formalizan mediante tres predicados no
 
 ---
 
-### 4.4 Observación Evolutiva, Optimización Local y Falsabilidad
+### 4.4 Observación Evolutiva, Evidencia Histórica y Semántica de $\Delta$
 
-Una Arquitectura Cognitiva puede definir una UCA especializada (ej. `Cingulate UCA`) cuyo Purpose sea evaluar evidencia y proponer mutaciones atómicas:
+El flujo completo de observación evolutiva opera a través del desacoplamiento entre ejecución reactiva y análisis histórico multiejecución:
 
 ```text
-Outcome(s) ──► Evidence ──► Cingulate UCA ──► Inferencia de Mutación ──► Validación de Nature ──► ΔDisposition
+Target UCA ──► Outcome ──► Criteria ──► Compliance (PASS | FAIL)
+                  │
+                  └──► Owner ────────► Validation (APPROVED | REJECTED)
+                                            │
+                                            ▼
+                                       Tracker UCA
+                                            │
+                                            ▼
+                                    History (H ∈ ℍ)
+                                            │
+                                            ▼
+                                       Analyzer UCA
+                                            │
+                                            ▼
+                                    Analysis / Patterns
+                                            │
+                                            ▼
+                                      Evolution UCA
+                                            │
+                                            ▼
+                  Validación de Nature ──► Mutation Proposal (μ)
+                                            │
+                                            ▼
+                     Target UCA ◄──── ΔDisposition = diff(D₀, D₁)
 ```
 
-Donde $\Delta\text{Disposition} = \text{difference}(D_0, D_1)$ representa exclusivamente la diferencia de estado resultante. El operador $\Delta$ **MUST NOT** interpretarse como mejora intrínseca, progreso garantizado ni optimización automática.
+#### Semántica Estricta de $\Delta\text{Disposition}$
+
+> **$\Delta\text{Disposition} = \text{difference}(D_0, D_1)$ representa exclusivamente la diferencia de estado o configuración entre dos observaciones temporales. NUNCA denota mejora intrínseca, optimización absoluta ni progreso metafísico.**
+
+El estado $D_1$ resultante de aplicar una mutación $\mu$ constituye únicamente una **hipótesis empírica**. Afirmar que $D_1$ es "mejor" que $D_0$ carece de sentido ontológico en el Core de UCA. La validez práctica de $D_1$ dependerá exclusivamente de cómo se comporten las subsecuentes ejecuciones en la nueva ventana de observación histórica, sometidas al veredicto determinista de `Compliance` y al juicio contextual de `Validation` por parte del `Owner`.
 
 #### Principios de Observación Evolutiva
 
 1. **Interpretación Declarativa sin Acoplamiento Hardcodeado**: El observador evolutivo inspecciona `Property.Function`, `Property.Nature`, `Property.Value` e `Interactions` (Definition, Target, Signal, When), razonando sobre la adaptación sin requerir código específico de cada Capability ni confundir las funciones paramétricas con el Purpose propio de la UCA.
-2. **Validación Estricta contra Nature**: Ninguna mutación puede aplicarse si viola la `Nature` declarada de la propiedad ($\text{satisfies}(\text{value}, \text{nature})$). La seguridad evolutiva proviene de la propia constitución declarativa.
-3. **Fuera del Camino Crítico de Ejecución**: El observador evolutivo actúa de forma asíncrona, selectiva y contextual sobre evidencia acumulada. No es un árbitro síncrono ni un cuello de botella para cada reacción.
+2. **Validación Estricta contra Nature**: Ninguna mutación puede aplicarse si viola la `Nature` declarada de la propiedad ($\neg\text{satisfies}(\text{value}, \text{nature})$). La seguridad evolutiva proviene de la propia constitución declarativa.
+3. **Fuera del Camino Crítico de Ejecución**: Los roles evolutivos actúan de forma asíncrona, desacoplada y sobre evidencia acumulada. No constituyen un árbitro síncrono ni un cuello de botella para las reacciones de la Target UCA.
 4. **Optimización Local Acotada**: El contexto de optimización permanece pequeño y localizado:
    ```text
-   UCA Purpose + Capability Mechanism + Property Function + Property Nature + Value + Evidence ──► Contexto de Optimización
+   Target UCA Purpose + Capabilities + Properties + Interactions + History (H) ──► Contexto de Análisis
    ```
-5. **Falsabilidad Experimental y Evaluación Explícita**: Toda mutación atómica genera una hipótesis comprobable empíricamente. Los Outcomes no poseen orden de calidad universal ni métricas intrínsecas de mejora; cualquier relación cualitativa requiere someter la evidencia a una evaluación formal bajo criterios explícitos (ej. latencia, coherencia, estabilidad, tasa de error):
-   - **Evidencia favorable**: La evidencia evaluada sustenta la hipótesis de mejora bajo los criterios explícitos (consolidando la mutación).
-   - **Evidencia neutra**: La evidencia evaluada indica ausencia de efecto relevante bajo dichos criterios.
-   - **Evidencia desfavorable**: La evidencia evaluada sustenta degradación bajo dichos criterios (desencadenando reversión a $D_0$).
+5. **Falsabilidad Experimental y Evaluación Explícita**: Toda mutación atómica genera una hipótesis comprobable empíricamente frente a una nueva serie de Outcomes históricos evaluados:
+   - **Evidencia favorable**: La tasa de `Compliance: PASS` y `Validation: APPROVED` en el histórico posterior respalda la hipótesis bajo los criterios del Owner.
+   - **Evidencia neutra**: El histórico posterior no muestra variaciones estadísticamente significativas.
+   - **Evidencia desfavorable**: El histórico posterior muestra degradación o rechazo reiterado (desencadenando reversión a $D_0$ mediante `revert()`).
 
 > **Distinción entre Igualdad y Equivalencia Evaluativa**:
-> Dos Outcomes $o_1$ y $o_0$ estructuralmente idénticos pueden haber sido emitidos bajo contextos distintos, y dos Outcomes distintos pueden resultar evaluativamente equivalentes bajo un criterio específico sin ser iguales. La specification rechaza el uso de $o_1 > o_0$ o $o_1 = o_0$ como predicados evaluativos genéricos sin criterios explícitos.
+> Dos Outcomes $o_1$ y $o_0$ estructuralmente idénticos pueden haber sido emitidos bajo contextos distintos, y dos Outcomes distintos pueden resultar evaluativamente equivalentes bajo un criterio específico sin ser iguales. La especificación rechaza el uso de $o_1 > o_0$ o $o_1 = o_0$ como predicados evaluativos genéricos sin criterios explícitos.
 
 ---
 
@@ -1348,7 +1517,7 @@ Si dicha abstracción es necesaria permanece como pregunta abierta. Synapse no f
 
 ### 6.6 La Hipótesis Falsable
 
-> **¿Puede emerger comportamiento cognitivo de la interacción de UCAs acotadas por propósito, mientras cada unidad individual permanece estructuralmente limitada a $u = (p, d, C)$ y conductualmente limitada a $(u, s) \to a \to o$?**
+> **¿Puede emerger comportamiento cognitivo de la interacción de UCAs acotadas por propósito, mientras cada unidad individual permanece estructuralmente limitada a $u = (p, d, C, O)$ y conductualmente limitada a $(u, s) \to a \to o$?**
 
 Esta es la pregunta experimental central que plantea UCA. Es falsable:
 - Un sistema que satisfaga todos los criterios de conformidad UCA pero no produzca ningún comportamiento cognitivo reconocible constituye evidencia en contra de la hipótesis.
@@ -1462,9 +1631,20 @@ Capabilities (Capacidades Primitivas Concretas y sus Dispositions)
         └── Interactions:
             └── onFilteredTranscript: { Definition: "Estructurar chunk coherente final", Target: "EchoTextFilter.output", Signal: "FilteredTranscript", When: "Target.isValid == true" }
 
-Outcome (Stream continuo)
+Outcome Canónico Estructurado
 │
-└── Chunk { startAt, endAt, text }
+├── Properties:
+│   ├── text: string       (transcripción textual producida)
+│   ├── start: number      (milisegundo de inicio temporal)
+│   ├── end: number        (milisegundo de fin temporal)
+│   └── latency: number    (tiempo transcurrido de procesamiento en ms)
+│
+├── Criteria:
+│   ├── textNotEmpty:  { Observation: "text.length", Condition: ">", Expected: 0 }
+│   ├── validDuration: { Observation: "end - start",  Condition: ">=", Expected: 0 }
+│   └── maxLatency:    { Observation: "latency",      Condition: "<=", Expected: 300 }
+│
+└── Owner: Agent UCA       (UCA externa con autoridad de validación)
 ```
 
 Flujo reactivo emergente de interacciones (diagrama informativo):
@@ -1491,8 +1671,74 @@ EchoTextFilter (Interaction: onRawTranscript)
 EarCoherence (Interaction: onFilteredTranscript)
     │
     ▼
-Ear Outcome: Chunk { startAt, endAt, text }
+Ear Outcome: Chunk { text, start, end, latency }
+    │
+    ├── Criteria ──────► Compliance (PASS | FAIL determinista)
+    └── Owner (Agent) ─► Validation (APPROVED | REJECTED contextual)
 ```
+
+#### Escenario Canónico de Evolución Histórica Mediada: Ear UCA
+
+Para ilustrar de forma exhaustiva la arquitectura evolutiva y el desacoplamiento entre `Compliance`, `Validation` y `Evolution`, considérese el ciclo completo de adaptación sobre la propiedad paramétrica `AudioFraming.bufferSize` de `Ear UCA`:
+
+```text
+Target UCA: Ear (Disposition: bufferSize = 2048, Nature: [512..4096])
+    │
+    │ Estímulo de audio bajo concurrencia
+    ▼
+ Outcome producido: { text: "arquitectura cognitiva", start: 1200, end: 1850, latency: 410 }
+    │
+    ├── Criteria ──────► Compliance: FAIL (debido a latency = 410ms > 300ms)
+    │
+    └── Owner (Agent) ─► Validation: REJECTED (el Owner descarta el chunk por latencia inaceptable)
+                            │
+                            ▼
+                       Tracker UCA
+                            │
+                            ▼
+                         History (registro acumulado de 1000 outcomes multievento)
+                            │
+                            ▼
+                       Analyzer UCA (correlaciona: bufferSize = 2048 genera 41% de fallos de latencia,
+                            │        mientras que bufferSize = 1024 genera solo un 4% de fallos)
+                            ▼
+                       Evolution UCA (formula propuesta de mutación: bufferSize 2048 ──► 1024;
+                            │        valida formalmente que satisfies(1024, Nature) = true)
+                            ▼
+                    Target UCA (Ear) aplica mutación atómica:
+                    D₁ = difference(D₀, D₁) con bufferSize = 1024
+                            │
+                            ▼
+             Apertura de nuevo periodo de observación histórica
+             (sin asumir a priori D₁ > D₀, a la espera de nueva evidencia)
+```
+
+1. **Constitución Inicial ($D_0$)**:
+   `Ear UCA` está predispuesta con `AudioFraming.bufferSize = 2048`. Su `Outcome` declara formalmente el criterio `latency <= 300ms` y a `Agent UCA` como su `Owner`.
+2. **Ejecución Reactiva**:
+   Llega un estímulo acústico complejo. `Ear UCA` ejecuta su proceso reactivo y emite el Outcome:
+   `o = { text: "arquitectura cognitiva", start: 1200, end: 1850, latency: 410 }`.
+3. **Comprobación Determinista de Compliance**:
+   La evaluación de los Criteria de $o$ arroja de forma automática y matemática:
+   `Compliance = FAIL` (la latencia de 410ms excede el límite máximo de 300ms).
+4. **Juicio Contextual de Validation por el Owner**:
+   `Agent UCA` evalúa el Outcome dentro del diálogo activo en curso. Dado que un retraso de 410ms interrumpe la cadencia conversacional fluida, el Owner emite formalmente:
+   `Validation = REJECTED`.
+5. **Registro en Tracker UCA**:
+   El rol `Tracker UCA` captura la tupla de evidencia inmutable y la añade a la colección histórica:
+   $$h_1 = [s, o, \text{Compliance: FAIL}, \text{Validation: REJECTED}, d_0, t_1, \mu_0, x_1] \in \mathbb{H}$$
+6. **Acumulación de Evidencia en History**:
+   A lo largo del tiempo se registran 1000 Outcomes de `Ear UCA` producidos bajo diversas cargas de CPU y entornos acústicos.
+7. **Análisis Correlacional en Analyzer UCA**:
+   El rol `Analyzer UCA` procesa el corpus histórico multiejecución e identifica un patrón sistemático:
+   - Con `bufferSize = 2048`, la tasa de fallo de latencia es del **41%**.
+   - En ejecuciones previas o comparables con `bufferSize = 1024`, la tasa de fallo de latencia fue únicamente del **4%**.
+8. **Propuesta de Mutación en Evolution UCA**:
+   El rol `Evolution UCA` deduce que reducir el tamaño de buffer mitiga el tiempo de espera por trama y propone la mutación atómica:
+   $$\mu_1: \text{AudioFraming.bufferSize}: 2048 \longrightarrow 1024$$
+   Comprueba que $1024 \in [512..4096]$ (`satisfies(1024, Nature)`).
+9. **Transición a $D_1$ y Falsabilidad**:
+   `Ear UCA` recibe la mutación y actualiza su Disposition efectiva a $D_1$. Esta transición representa estrictamente $\Delta D = \text{difference}(D_0, D_1)$. El sistema **no asume** que $D_1 > D_0$; se abre un nuevo periodo de observación en el que `Tracker UCA` comenzará a acumular nuevos registros para corroborar empíricamente si la hipótesis de mejora se sostiene en el tiempo.
 
 #### Armonización y Reactividad en Ear: Representación y Reconfiguración de Procesos
 
@@ -1515,9 +1761,9 @@ Ninguna de estas capacidades primitivas se convierte en una UCA independiente mi
 
 Ejemplo de Outcomes parciales emitidos (secuencia de emisión con relación temporal $\text{precedes}(o_0, o_1)$ y $\text{precedes}(o_1, o_2)$):
 ```text
-o₀ = { startAt: 0,   endAt: 400,  text: "Creo que" }
-o₁ = { startAt: 400, endAt: 850,  text: "deberíamos cambiar" }
-o₂ = { startAt: 850, endAt: 1200, text: "esta arquitectura" }
+o₀ = { start: 0,   end: 400,  text: "Creo que", latency: 120 }
+o₁ = { start: 400, end: 850,  text: "deberíamos cambiar", latency: 190 }
+o₂ = { start: 850, end: 1200, text: "esta arquitectura", latency: 210 }
 ```
 
 **Lo que Ear NO determina:**
@@ -1628,10 +1874,24 @@ Una entidad o componente de software cumple con el **UCA Core** si y solo si sat
    $$\forall u \in \mathbb{U}, \forall a \in \mathbb{A} \text{ ejecutada por } u, \exists s \in \mathbb{S} : \text{triggers}(s, u, a)$$
 5. **Action Orientada por Purpose**: Ejecuta una Action que realiza el Reactive Process emergente persiguiendo su Purpose dentro de los límites de sus Capabilities y Disposition.
    $$\forall (u, s) \text{ activo}, \exists a \in \mathbb{A} : \text{triggers}(s, u, a)$$
-6. **Producción de Outcome**: Produce uno o más Outcomes observables que representan lo que la Action produjo efectivamente.
-   $$\forall a \in \mathbb{A} \text{ completada por } u, \exists o \in \mathbb{O} : \text{produces}(a, o)$$
+6. **Producción de Outcome Estructurado y Gobernable**: Produce uno o más Outcomes observables estructurados en $(\text{Properties}, \text{Criteria}, \text{Owner})$, donde los Criteria son deterministas y el Owner es una UCA externa.
+   $$\forall a \in \mathbb{A} \text{ completada por } u_{\text{target}}, \exists o \in \mathbb{O} : \text{produces}(a, o) \land \text{hasOwner}(o, u_{\text{owner}}) \land (u_{\text{owner}} \ne u_{\text{target}})$$
 7. **Descomposición por Purpose**: Trata a otro componente como UCA solo si dicho componente posee un Purpose propio y diferenciado.
    $$\forall u' \text{ compuesta en } u, u' \in \mathbb{U} \iff \exists! p' \in \mathbb{P} : \text{hasPurpose}(u', p') \land p' \neq p_u$$
+
+### 8.1 Invariantes Fundamentales del Modelo UCA
+
+Todo sistema o arquitectura conforme con UCA DEBE satisfacer rigurosamente las siguientes nueve invariantes normativas:
+
+1. **Estructura Canónica de Outcome**: Todo `Outcome` DEBE poseer formalmente `Properties`, `Criteria` y `Owner`.
+2. **Determinismo de Compliance**: El `Compliance` DEBE evaluarse determinísticamente a partir de la verificación objetiva de los `Criteria` sobre las `Properties`.
+3. **Autoridad Exclusiva de Validación**: La `Validation` DEBE ser emitida exclusiva y contextualmente por el `Owner` del Outcome.
+4. **Prohibición Estricta de Autovalidación**: El `Target UCA` NO DEBE validar ni aprobar sus propios `Outcomes` ($\text{hasOwner}(o, u_{\text{owner}}) \implies u_{\text{owner}} \neq u_{\text{target}}$).
+5. **Disociación Estricta Compliance ≠ Validation**: `Compliance` no implica `Validation` (`PASS` $\not\implies$ `APPROVED`, `FAIL` $\not\implies$ `REJECTED`). Las cuatro combinaciones son empíricamente válidas e irreducibles.
+6. **Evolución Basada en Evidencia Histórica**: La evolución de una UCA DEBE basarse en el análisis de evidencia histórica multiejecución acumulada ($H \in \mathbb{H}$).
+7. **Prohibición de Autoevolución Directa Aislada**: Una UCA NO DEBE auto-evolucionar directamente en respuesta a un `Outcome` individual o aislado.
+8. **Seguridad y Atomicidad de Mutación**: Toda mutación de `Disposition` DEBE ser atómica, reversible y circunscrita estrictamente dentro de los límites de `Nature` ($\text{satisfies}(\text{val}, n)$).
+9. **Semántica de Cambio en $\Delta\text{Disposition}$**: $\Delta\text{Disposition} = \text{difference}(D_0, D_1)$ representa exclusivamente diferencia de estado, NUNCA mejora intrínseca, progreso cualitativo ni optimización a priori.
 
 **No-requisitos para la Conformidad**:
 
@@ -1705,7 +1965,7 @@ El uso del término "causalidad" en la arquitectura UCA plantea la interrogante 
 
 ### 9.8 Evaluación Teleológica y Predicado Formal `servesPurpose(a, p)`
 
-El UCA Core establece que toda Action es el resultado de un Reactive Process emergente de una UCA ya constituida $u = (p, d, C)$. Dado que la unidad está intrínsecamente orientada por su Purpose, la acción emana de dicha constitución. Permanece abierta la cuestión de si el predicado formal $\text{servesPurpose}(a, p)$ aporta semántica irreducible o si constituye una redundancia formal respecto de la pertenencia de $p$ a la constitución de $u$ ($\text{hasPurpose}(u, p)$), evitando el riesgo de inducir evaluaciones teleológicas no computables dentro de los criterios mínimos de conformidad.
+El UCA Core establece que toda Action es el resultado de un Reactive Process emergente de una UCA ya constituida $u = (p, d, C, O)$. Dado que la unidad está intrínsecamente orientada por su Purpose, la acción emana de dicha constitución. Permanece abierta la cuestión de si el predicado formal $\text{servesPurpose}(a, p)$ aporta semántica irreducible o si constituye una redundancia formal respecto de la pertenencia de $p$ a la constitución de $u$ ($\text{hasPurpose}(u, p)$), evitando el riesgo de inducir evaluaciones teleológicas no computables dentro de los criterios mínimos de conformidad.
 
 ---
 
@@ -1742,7 +2002,7 @@ Problemas Arquitectónicos Recurrentes:
 └────────────────────────────────────────────────────────┘
 ```
 
-UCA reconoce explícitamente estas influencias y precedentes intelectuales. Al mismo tiempo, UCA no pretende ser una copia, evolución directa, extensión oficial, sustitución ni unificación de ninguna de estas arquitecturas. Cada una de ellas fue concebida para satisfacer objetivos, restricciones y dominios operativos particulares. UCA aborda su propio problema específico: definir una **primitiva funcional mínima y determinable** ($u = (p, d, C)$) a partir de la cual el comportamiento cognitivo complejo pueda emerger mediante composición reactiva.
+UCA reconoce explícitamente estas influencias y precedentes intelectuales. Al mismo tiempo, UCA no pretende ser una copia, evolución directa, extensión oficial, sustitución ni unificación de ninguna de estas arquitecturas. Cada una de ellas fue concebida para satisfacer objetivos, restricciones y dominios operativos particulares. UCA aborda su propio problema específico: definir una **primitiva funcional mínima y determinable** ($u = (p, d, C, O)$) a partir de la cual el comportamiento cognitivo complejo pueda emerger mediante composición reactiva.
 
 ### 10.2 Modelo de Actores (Actor Model)
 
@@ -1755,7 +2015,7 @@ El Modelo de Actores (Hewitt, Bishop & Steiger, 1973; Agha, 1986) formuló una d
 
 **Diferencias Conceptuales**:
 - **Naturaleza ontológica**: El Modelo de Actores es fundamentalmente una abstracción computacional para concurrencia, paralelismo y paso de mensajes en sistemas distribuidos. UCA es una primitiva ontológica funcional concebida para delimitar la identidad y responsabilidad cognitiva.
-- **Constitución explícita**: En el Modelo de Actores clásico, un actor se define por su buzón y su comportamiento dinámico ante mensajes. En UCA, la unidad está rigurosamente constituida por la tupla formal $u = (p, d, C)$, donde el **Purpose** ($p$) determina de forma invariante aquello que persigue, las **Capabilities** ($C$) acotan sus límites operacionales y la **Disposition** ($d$) declara de forma transparente sus propiedades e interacciones reactivas.
+- **Constitución explícita**: En el Modelo de Actores clásico, un actor se define por su buzón y su comportamiento dinámico ante mensajes. En UCA, la unidad está rigurosamente constituida por la tupla formal $u = (p, d, C, O)$, donde el **Purpose** ($p$) determina de forma invariante aquello que persigue, las **Capabilities** ($C$) acotan sus límites operacionales, la **Disposition** ($d$) declara de forma transparente sus propiedades e interacciones reactivas, y el **Outcome** ($O$) define formalmente sus consecuencias observables con criterios deterministas y un Owner externo con autoridad de validación.
 - **Separación de infraestructura**: Un actor se acopla frecuentemente al buzón (*mailbox*) de infraestructura de su runtime; en UCA, el mecanismo de transporte (`Impulse`) está estrictamente desacoplado del contenido detonante (`Stimulus`).
 
 ### 10.3 Sistemas Reactivos y Arquitecturas Orientadas a Eventos (EDA)
@@ -1869,7 +2129,7 @@ La revisión de antecedentes e influencias arquitectónicas pone de manifiesto q
 
 ```text
 CONSTITUCIÓN:
-u = (p, d, C)
+u = (p, d, C, O)
 
 Purpose (p)
     determina funcionalmente qué UCA es y qué persigue.
@@ -1881,8 +2141,12 @@ Disposition (d)
     determina cómo están constituidas y predispuestas
     sus Capabilities mediante Properties e Interactions.
 
+Outcome (O)
+    define formalmente las consecuencias observables producidas,
+    con Criteria deterministas y un Owner externo con autoridad de validación.
+
 ACTIVACIÓN REACTIVA:
-External Signal ──► Stimulus ──► UCA ──► Action ──► Outcome(s)
+External Signal ──► Stimulus ──► Target UCA ──► Action ──► Outcome (Criteria ──► Compliance, Owner ──► Validation)
 ```
 
 La existencia de antecedentes históricos que hayan explorado la reactividad, la especialización o la distribución no constituye una validación automática ni una prueba de que la composición de UCAs genere cognición. Por esta razón, la especificación mantiene una estricta separación metodológica:
