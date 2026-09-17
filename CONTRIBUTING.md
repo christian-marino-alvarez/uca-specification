@@ -26,8 +26,8 @@ We welcome community discussion, scrutiny, and contributions to formalize and ev
      - Primacy of dedicated Purpose.
      - Reactive execution upon receiving a Stimulus.
      - Decoupling between cognitive purpose and terminal mechanisms.
-     - Separation between unit Outcome and external Evaluation under explicit criteria.
-     - Disposition adaptation policies belong to Cognitive Architecture, not the universal Core.
+      - Strict separation between unit Outcome (Properties), objective criteria evaluation (Compliance), and external contextual evaluation (Validation by Owner).
+      - Evolution as an asynchronous historical process over accumulated evidence (History), preserving the non-self-evolution invariant for isolated outcomes.
 
 ## License of Contributions
 

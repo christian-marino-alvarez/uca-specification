@@ -26,8 +26,8 @@ Agradecemos el interés de la comunidad en debatir, escrutar y formalizar la esp
      - Primacía del Purpose propio.
      - Ejecución reactiva ante la recepción de un Stimulus.
      - Desacoplamiento entre Purpose cognitivo y mecanismos terminales.
-     - Separación entre Outcome de la unidad y Evaluación externa bajo criterios explícitos.
-     - Las políticas de adaptación de Disposition pertenecen a la Arquitectura Cognitiva, no al Core universal.
+     - Separación estricta entre Outcome de la unidad (Properties), evaluación objetiva de criterios (Compliance) y validación contextual externa (Validation por Owner).
+     - La evolución como proceso histórico asíncrono sobre evidencia acumulada (History), preservando el principio de no auto-evolución ante resultados aislados.
 
 ## Licencia de las Contribuciones
 

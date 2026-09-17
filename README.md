@@ -36,7 +36,7 @@ The **UCA (Artificial Cognitive Unit)** open specification defines a minimal, pu
 ```text
 ┌──────────────────────────────┐
 │             UCA              │  ← functional primitive (normative)
-│  u = (p, d, C)               │
+│  u = (p, d, C, O)            │
 │  (u, s) → a → o              │
 └──────────────┬───────────────┘
                │ composition
@@ -96,12 +96,13 @@ This open specification defines the conceptual contract of an Artificial Cogniti
 
 A UCA is conceived formally as a tuple:
 ```text
-u = (p, d, C) ∈ ℙ × 𝔻 × 𝒫(ℂ)
+u = (p, d, C, O) ∈ ℙ × 𝔻 × 𝒫(ℂ) × 𝕆_def
 ```
 Where:
 - **`p` (Purpose)**: Functionally determines what the UCA is and what it pursues throughout its existence — guides all reactions.
 - **`d` (Disposition)**: Set of constitutive, parametric (`Properties`: Function, Nature, Value), and interactive (`Interactions`: Definition, Target, Signal, When) conditions determining how its capabilities are predisposed to behave and interact.
 - **`C` (Capabilities)**: Operational resources (algorithms, transforms, tools, models, other UCAs) constituting the unit's functional boundaries ($\forall b \in \text{Behaviors}(u), \text{requiredCapabilities}(b) \subseteq C_u$).
+- **`O` (Outcome)**: Formally defines the observable consequences produced, with deterministic criteria (`Criteria`) and an external `Owner` holding exclusive validation authority.
 
 An activation is defined formally as:
 ```text
@@ -110,28 +111,48 @@ s ∈ 𝕊
 Where:
 - **`s` (Stimulus)**: Signal external to the UCA boundary whose reception triggers its reaction. (The Stimulus brings the perturbation or data upon which the unit operates; it does not redefine Purpose nor convey goals or targets, nor require a formal Context container in the Core).
 
-The fundamental lifecycle:
+The fundamental and evolutionary lifecycle:
 ```text
-Conception ──► u(p, d, C) ──► s ──► Reactive Process (Interactions) ──► Outcome(s)
-                              ▲                                          │
-                              └──────── Evidence ──► Δd (Nature) ────────┘
+Conception ──► u(p, d, C, O) ──► s ──► Reactive Process (Interactions) ──► Outcome (Properties)
+                                 ▲                                              │
+                                 │                                    Criteria ─┼──► Compliance (PASS | FAIL)
+                                 │                                              │
+                                 │                                       Owner ─┼──► Validation (APPROVED | REJECTED)
+                                 │                                              │
+                                 │                                              ▼
+                                 │                                         Tracker UCA ──► History (H ∈ ℍ)
+                                 │                                                               │
+                                 │                                                       Analyzer UCA
+                                 │                                                               │
+                                 │                                                       Evolution UCA
+                                 │                                                               │
+                                 └─────────────── Atomic Mutation (Nature) ◄─────────────────────┘
 ```
 
-> The Outcome belongs to the executor.
-> Evaluation belongs to whoever evaluates or formulated the explicit criteria.
+> **The Outcome belongs to the executor (Target UCA).**  
+> **Objective criteria evaluation (`Compliance`: PASS | FAIL) is deterministic.**  
+> **Contextual validation (`Validation`: APPROVED | REJECTED) belongs exclusively to the external Owner.**  
+> **Evolution is an asynchronous historical process mediated by accumulated evidence.**
 
 ### Canonical Activation and Reactivity Flow
 
 ```mermaid
 flowchart TD
-    CON[Conception: Purpose, Capabilities, Disposition] --> UCA[Valid & reactive UCA]
+    CON[Conception: Purpose, Capabilities, Disposition, Outcome] --> UCA[Valid & reactive Target UCA]
     IMP[Impulse: Transport] --> STIM[Stimulus: Incoming information]
     STIM --> UCA
     UCA --> INT[Reactive Interactions between Capabilities]
     INT --> PROC[Emergent Reactive Process]
-    PROC --> OUT[Outcome: Actual consequence produced]
-    OUT --> EVI[Evidence]
-    EVI -.-> MUT[Atomic Mutation within Nature]
+    PROC --> OUT[Outcome: Observable Properties]
+    OUT --> CRIT[Criteria: Universal rules]
+    CRIT --> COMP[Compliance: PASS | FAIL]
+    OUT & UCA --> OWN[External Owner UCA]
+    OWN --> VAL[Validation: APPROVED | REJECTED]
+    COMP & VAL --> TRK[Tracker UCA]
+    TRK --> HIST[(History: Multi-execution evidence)]
+    HIST -.-> ANA[Analyzer UCA: Offline correlation]
+    ANA -.-> EVO[Evolution UCA: Improvement hypotheses]
+    EVO -.-> MUT[Atomic Mutation within Nature]
     MUT -.-> DISP[evolved ΔDisposition]
     DISP -.-> UCA
 ```
@@ -147,9 +168,9 @@ flowchart TD
 5. **Stimulus is a signal external to the UCA boundary whose reception triggers a reaction in an already conceived unit.**
 6. **Capabilities react through Interactions and not through direct dependencies between them.**
 7. **The Process emerges from reactive interactions between Capabilities according to their Dispositions.**
-8. **Outcome is the observable consequence of such activity.**
-9. **Evolution modifies the Disposition without abandoning Purpose nor the limits of Capabilities.**
-10. **The minimal unit of Evolution is an atomic, bounded, observable, and potentially reversible Mutation.**
+8. **Outcome is the structured observable consequence (Properties, Criteria, Owner) with objective Compliance evaluation (PASS | FAIL) and external contextual validation (Validation: APPROVED | REJECTED).**
+9. **Evolution is an asynchronous historical process mediated by specialized roles (Tracker, Analyzer, Evolution) over accumulated evidence (History), strictly prohibiting direct self-evolution upon isolated outcomes.**
+10. **The minimal unit of Evolution is an atomic, bounded, observable, and potentially reversible Mutation within Nature, where $\Delta\text{Disposition} = \text{difference}(D_0, D_1)$ expresses state difference and never intrinsic improvement.**
 
 ---
 
@@ -162,7 +183,7 @@ A software component conforms to the **UCA Core** if and only if:
 3. It operates using an explicit and bounded set of **Capabilities** (`C`).
 4. It executes strictly upon receiving an activating **Stimulus** (`S`) external to its functional boundary.
 5. It performs an **Action** (`A`) pursuing its Purpose within the boundaries of its Capabilities and Disposition.
-6. It produces one or more **Outcomes** (`O`) representing the observable consequences of its activity.
+6. It produces one or more **Outcomes** (`O`) structured with empirical Properties, objective Criteria, and an external Owner holding validation authority, adhering to the non-self-validation invariant.
 7. It treats another component as a UCA only if that component has a dedicated, differentiated Purpose.
 
 **Non-requirements for conformance**: An implementation does *not* require a dual teleology, intermediate objectives or goals, or a formal Context container as mandatory universal stimulus structures, Observation or Perception as lifecycle phases, Memory, Identity, Learning, Adaptation, a Coordinator, Dispatcher, Orchestrator or Supervisor, an LLM, external causality, an Impulse envelope, an Event Bus, a global state snapshot, Synapses, or demonstrated emergent cognitive behaviour to conform to UCA.
@@ -173,7 +194,7 @@ Conformance evaluates the **individual unit** against the UCA contract. It does 
 
 ## 🔬 The Falsifiable Hypothesis
 
-> **Can cognitive behaviour emerge from the interaction of purpose-bounded UCAs while each individual unit remains structurally limited to $u = (p, d, C)$ and behaviourally limited to $(u, s) \to a \to o$?**
+> **Can cognitive behaviour emerge from the interaction of purpose-bounded UCAs while each individual unit remains structurally limited to $u = (p, d, C, O)$ and behaviourally limited to $(u, s) \to a \to o$?**
 
 This is the central experimental question UCA poses. It is to be evaluated through future implementations and empirical observation.
 
