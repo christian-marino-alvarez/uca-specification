@@ -2042,11 +2042,12 @@ The runtime consolidates a **single reactive cycle** in `Adn`/`Uca` regardless o
 
 > **Strict Domain Isolation**: The `Channel` is an intra-domain local bus for biological coordination between internal capabilities. No property mutation or internal signal is propagated to the `NervousSystem`. The `NervousSystem` is reserved strictly for cognitive impulses between agents and higher-order structures.
 
-#### 12.3.5 Reactive Proxy Mechanism (`wrapWithProxy`) and Mutation Events
+#### 12.3.5 Disposition Reactivity and Mutation Events
  
- The UCA instance and its disposition object (`this.disposition`) are intercepted via a JavaScript reactive Proxy at instantiation time:
- 1. **Mutation Detection (`set` trap)**: When setting a property on the UCA or on its `disposition`, checks if the new value differs from the existing value (`target[prop] !== value`).
- 2. **Redundant Emission Suppression**: If the assigned value is identical to the current value, assignment occurs silently without emitting events or signals, preventing infinite loops and noisy bus traffic.
+ The UCA architecture restricts the generation of mutations **solely and exclusively to properties defined within the disposition (`this.disposition`)**. Ordinary operational properties of the UCA class (such as execution flags or local queues) do not intercept or emit mutations, eliminating overhead and ensuring that the observable evolutionary space corresponds strictly to the ontological disposition:
+ 
+ 1. **Exclusive Reactive Proxy for Disposition**: Accessing `this.disposition` returns a reactive Proxy intercepting assignments to its properties (`set` trap).
+ 2. **Redundant Emission Suppression**: If the new value assigned to a disposition property is identical to the current value, assignment occurs silently without emitting events or signals, preventing infinite loops and noisy bus traffic.
  3. **Automatic Disposition Mutation Events Dispatch**:
     When an internal property of `this.disposition` is modified (e.g., `this.disposition.sampleRate = 48000` following an incoming reconfiguration impulse):
     - Emits a `MutationEvent` on the instance itself (`target.emit('mutation', event)` and `target.emit('mutation:<property>', event)`).

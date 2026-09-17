@@ -2032,12 +2032,13 @@ El runtime consolida un **único ciclo reactivo** en `Adn`/`Uca` independienteme
 
 > **Aislamiento Estricto de Dominios**: El `Channel` es un bus local para la coordinación biológica intra-dominio entre capabilities. Ningún cambio de propiedad ni señal interna se redirige al `NervousSystem`. El `NervousSystem` se reserva para impulsos entre agentes y módulos mayores.
 
-#### 12.3.5 Mecanismo del Proxy Reactivo (`wrapWithProxy`) y Eventos de Mutación
+#### 12.3.5 Reactividad de la Disposición y Eventos de Mutación
 
-La instancia de toda UCA y su objeto de disposición (`this.disposition`) son interceptados mediante un Proxy reactivo de JavaScript:
-1. **Detección de Mutación (`set` trap)**: Al asignar un valor a cualquier propiedad de la UCA o de su `disposition`, el trap `set` verifica si el nuevo valor difiere del valor existente (`target[prop] !== value`).
-2. **Supresión de Emisiones Redundantes**: Si el valor asignado es idéntico al actual, la asignación se realiza silenciosamente en la instancia sin emitir eventos ni señales al canal, evitando bucles infinitos y ruidos en el sistema.
-3. **Disparo Automático de Eventos de Mutación de Disposición**:
+La arquitectura UCA restringe la generación de mutaciones **única y exclusivamente a las propiedades definidas en la disposición (`this.disposition`)**. Las propiedades operativas ordinarias de la clase UCA (como flags de ejecución o colas locales) no interceptan ni emiten mutaciones, evitando sobrecarga y garantizando que el espacio evolutivo observable sea estrictamente la disposición ontológica:
+
+1. **Proxy Reactivo Exclusivo de Disposición**: Al acceder a `this.disposition`, se retorna un Proxy reactivo que intercepta las asignaciones a sus propiedades (`set` trap).
+2. **Supresión de Emisiones Redundantes**: Si el nuevo valor asignado a una propiedad de la disposición es idéntico al actual, la asignación se realiza silenciosamente sin emitir eventos ni señales, evitando bucles y ruido en el bus.
+3. **Disparo Automático de Eventos de Mutación**:
    Cuando se modifica una propiedad interna de `this.disposition` (ej. `this.disposition.sampleRate = 48000` tras recibir un impulso de reconfiguración):
    - Se emite un `MutationEvent` en la propia instancia (`target.emit('mutation', event)` y `target.emit('mutation:<property>', event)`).
    - Se difunde el evento a través del `Channel` local intra-dominio (`channel.broadcast(event)`).
