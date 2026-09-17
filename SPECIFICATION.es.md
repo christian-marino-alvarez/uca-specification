@@ -1949,11 +1949,12 @@ Esta sección formaliza el contrato de programación e implementación concreta 
 | Interfaz / Tipo | Definición | Responsabilidad |
 |---|---|---|
 | `Signal` | `{ source: string; sourceName: string; sourceType: string; property: string; value: unknown; timestamp: number; }` | Representa una señal atómica generada ante la mutación de una propiedad en una UCA emisora. Contiene el identificador unívoco de la instancia (`source`), su clave en el organismo (`sourceName`), su clase ontológica (`sourceType`), la propiedad mutada (`property`), el valor (`value`) y la marca temporal (`timestamp`). |
+| `MutationEvent` | `Signal<T> & { oldValue: T; newValue: T; }` | Evento atómico emitido ante la modificación de cualquier propiedad de la disposición (`this.disposition`). Permite trazabilidad evolutiva de $\Delta d$, reportando el valor anterior (`oldValue`) y el nuevo (`newValue`). |
 | `SignalListener` | `(signal: Signal) => Promise<void> \| void` | Función de callback invocada ante la recepción de una señal en el canal interno. |
 | `IChannel` | `emit(signal: Signal): void;`<br>`subscribe(listener: SignalListener): () => void;` | Contrato del bus de comunicación local intra-organismo. Desacopla la emisión de señales de los receptores suscritos. |
 | `CapabilityConstructor` | `new (id: string, name: string, config?: Config) => Uca` | Firma del constructor para clases que extienden `Uca` y pueden ser instanciadas dinámicamente como capabilities subordinadas. |
 | `IRegistry` | `register(name: string, ctor: CapabilityConstructor): void;`<br>`resolve(name: string): CapabilityConstructor \| undefined;` | Contrato del catálogo superior que mapea nombres de capabilities en `camelCase` con sus correspondientes constructores de clase. |
-| `Config` | `{ channel?: IChannel; nervousSystem?: INervousSystem; registry?: IRegistry; disposition?: Record<string, unknown>; }` | Parámetros de configuración e inyección de dependencias para la inicialización de una UCA. |
+| `Config` | `{ channel?: IChannel; nervousSystem?: INervousSystem; registry?: IRegistry; }` | Parámetros de configuración e inyección de dependencias para la inicialización de una UCA. |
 
 ### 12.3 Especificación de la Clase Base `Uca`
 
@@ -2031,16 +2032,25 @@ El runtime consolida un **único ciclo reactivo** en `Adn`/`Uca` independienteme
 
 > **Aislamiento Estricto de Dominios**: El `Channel` es un bus local para la coordinación biológica intra-dominio entre capabilities. Ningún cambio de propiedad ni señal interna se redirige al `NervousSystem`. El `NervousSystem` se reserva para impulsos entre agentes y módulos mayores.
 
-#### 12.3.5 Mecanismo del Proxy Reactivo (`wrapWithProxy`)
+#### 12.3.5 Mecanismo del Proxy Reactivo (`wrapWithProxy`) y Eventos de Mutación
 
-La instancia de toda UCA es interceptada mediante un Proxy de JavaScript en tiempo de construcción:
-1. **Detección de Mutación (`set` trap)**: Al asignar un valor a cualquier propiedad de la UCA, el trap `set` verifica si el nuevo valor difiere del valor existente (`target[prop] !== value`).
-2. **Supresión de Emisiones Redundantes**: Si el valor asignado es idéntico al actual, la asignación se realiza silenciosamente en la instancia sin emitir señales al canal, evitando loops infinitos y ruidos en el sistema.
-3. **Emisión Automática de Señal**: Si el valor ha cambiado, se actualiza la propiedad y se emite inmediatamente un objeto `Signal` al canal común con:
-   - `source`: Nombre de la clase constructora (`this.constructor.name`).
-   - `property`: Nombre de la propiedad mutada en formato `string`.
-   - `value`: Nuevo valor asignado.
-   - `timestamp`: Marca de tiempo Unix (`Date.now()`).
+La instancia de toda UCA y su objeto de disposición (`this.disposition`) son interceptados mediante un Proxy reactivo de JavaScript:
+1. **Detección de Mutación (`set` trap)**: Al asignar un valor a cualquier propiedad de la UCA o de su `disposition`, el trap `set` verifica si el nuevo valor difiere del valor existente (`target[prop] !== value`).
+2. **Supresión de Emisiones Redundantes**: Si el valor asignado es idéntico al actual, la asignación se realiza silenciosamente en la instancia sin emitir eventos ni señales al canal, evitando bucles infinitos y ruidos en el sistema.
+3. **Disparo Automático de Eventos de Mutación de Disposición**:
+   Cuando se modifica una propiedad interna de `this.disposition` (ej. `this.disposition.sampleRate = 48000` tras recibir un impulso de reconfiguración):
+   - Se emite un `MutationEvent` en la propia instancia (`target.emit('mutation', event)` y `target.emit('mutation:<property>', event)`).
+   - Se difunde el evento a través del `Channel` local intra-dominio (`channel.broadcast(event)`).
+   - El organismo superior receptor retransmite el evento (`forwardMutation`), permitiendo observabilidad completa en el agente agregador (`agent.on('mutation', ...)`).
+4. **Suscripción Directa a Propiedades de Disposición (`reactTo`)**:
+   Las propiedades de la disposición constituyen el espacio observable ante el cual otras UCAs pueden reaccionar. No es necesario ni pertinente que una UCA receptora declare `.disposition.<propiedad>`. La suscripción se realiza de forma directa y transparente mediante la firma canónica:
+   ```typescript
+   protected reactTo = [
+       'AcousticEar.sampleRate', // Discriminación directa por tipo ontológico
+       'acousticEar.sampleRate', // O discriminación directa por clave funcional
+   ];
+   ```
+   El motor reactivo (`canProcessSignal`) correlaciona automáticamente el nombre de la propiedad mutada (`property`) con el emisor (`sourceType` o `sourceName`), garantizando la reactividad intra-organismo desacoplada.
 
 ### 12.4 Ejemplo Canónico de Referencia (No Normativo)
 
