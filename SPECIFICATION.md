@@ -72,18 +72,18 @@ This specification does **not** prescribe:
 
 Before extending the Core, ask:
 1. Is this required by **every** possible UCA, regardless of domain, topology, or implementation?
-2. Can it be expressed through Purpose, Action, Outcome, or composition of UCAs?
+2. Can it be expressed through Purpose, Disposition, Outcome, or composition of UCAs?
 
 If (1) is NO, the concept does not belong in the Core.
 If (2) is YES, the concept must remain outside the Core.
 
-A paradigmatic case of this principle is the removal of `Goal` from the Core: if `Purpose` already universally determines what the UCA pursues throughout its existence, a second universal abstraction determining concrete activation targets introduces teleological redundancy and turns reactive activation into an implicit form of instruction, and is thus excluded from the Core.
+This principle requires that no redundant abstractions be introduced into the Core: if `Purpose` already exclusively and sufficiently determines what the UCA pursues throughout its existence, no second teleological abstraction belongs in the Core.
 
 ### Composition Principle
 
 > **Before extending the UCA primitive with a new cognitive mechanism, attempt to represent that responsibility through composition of existing UCAs.**
 
-Concepts that can be expressed through Purpose, Action, Outcome, or composition of UCAs must not be added as universal UCA primitives.
+Concepts that can be expressed through Purpose, Disposition, Outcome, or composition of UCAs must not be added as universal UCA primitives.
 
 ### Fundamental Principles of the Model
 
@@ -94,7 +94,7 @@ Concepts that can be expressed through Purpose, Action, Outcome, or composition 
 5. **Stimulus is a signal external to the UCA boundary whose reception triggers a reaction in an already conceived unit.**
 6. **Capabilities react through Interactions and not through direct dependencies between them.**
 7. **The Process emerges from reactive interactions between Capabilities according to their Dispositions.**
-8. **Outcome is the observable consequence of such activity.**
+8. **Outcome is the observable consequence of such activity, while Action and Reaction belong to the encapsulated internal domain of the UCA.**
 9. **Evolution modifies the Disposition without abandoning Purpose nor the limits of Capabilities.**
 10. **The minimal unit of Evolution is an atomic, bounded, observable, and potentially reversible Mutation.**
 
@@ -120,8 +120,9 @@ A strict distinction is maintained between an entity domain (set) and an individ
 | $\text{Inter}$ | $\text{inter} \in \text{Inter}$ | Interaction: declared reactive relation $(\text{definition}, \text{target}, \text{signal}, \text{when})$ |
 | $\mathbb{S}$ | $s \in \mathbb{S}$ | Stimulus: reception by a UCA of an external observable change to its domain that triggers its reaction |
 | $\text{Reception}$ | $\text{receives}(u, \Delta x)$ | Reception: universal, mechanical, and non-cognitive mechanism by which a UCA receives an external observable change to its domain that may trigger its reaction |
+| $\mathbb{R}\text{xn}$ | $r \in \mathbb{R}\text{xn}$ | Reaction: internal process triggered by a Stimulus, composed of internal Actions and interactions |
+| $\mathbb{A}$ | $a \in \mathbb{A}$ | Action: internal operation or transition belonging to the encapsulated Reaction of the UCA |
 | $\mathbb{X}$ | $x \in \mathbb{X}$ | Context: situational background or support context (optional pattern, §4) |
-| $\mathbb{A}$ | $a \in \mathbb{A}$ | Action: operational execution of the emergent reactive process of the UCA |
 | $\mathbb{O}$ | $o \in \mathbb{O}$ | Outcome: structured observable change $(\text{Properties}, \text{Criteria}, \text{Owner})$ produced by a UCA as a consequence of its activity |
 | $\text{Compliance}$ | $\text{comp} \in \{\text{PASS}, \text{FAIL}\}$ | Compliance: deterministic evaluation of an Outcome's Criteria |
 | $\text{Validation}$ | $\text{val} \in \{\text{APPROVED}, \text{REJECTED}\}$ | Validation: contextual decision and acceptance judgment emitted exclusively by the Outcome's Owner |
@@ -129,8 +130,6 @@ A strict distinction is maintained between an entity domain (set) and an individ
 | $\mathbb{M}\text{ut}$ | $\mu \in \mathbb{M}\text{ut}$ | Mutation (atomic transformation of Disposition) |
 | $\mathbb{E}$ | $e \in \mathbb{E}$ | Evidence (observable empirical information) |
 | $\mathbb{H}$ | $H \in \mathbb{H}$ | History: accumulated record of multi-execution historical evidence $[s, o, \text{Compliance}, \text{Validation}, d, t, \mu, x]$ |
-
-> **Deprecation Note (Goal)**: The historical abstraction `Goal` ($g \in \mathbb{G}$) has been formally deprecated and eliminated from the normative UCA model. `Goal` was initially used to represent a required result during an activation; it is removed because it introduced a second source of functional direction redundant with `Purpose` and degraded reactive activation into an implicit command semantics. The normative model admits no compensatory concept of goal, target, or external instruction (`Goal`, `Objective`, `Task`, `Command`, or `DesiredOutcome`).
 
 #### Explicit Named Relations
 
@@ -144,16 +143,15 @@ Generic arrows ($\to$) with multiple interpretations are prohibited in normative
 
 2. **Reactivity and Activation**:
    - $\text{receives}(u, \Delta x)$: Asserts that unit $u$ mechanically receives external observable change $\Delta x$ at its reactive boundary.
-   - $\text{triggers}(s, u, a)$: Asserts that the reception of external stimulus $s$ by unit $u$ triggers reactive action $a$. Expresses strict reactive activation; does NOT imply command, instruction, intent, goal, or global metaphysical causality.
+   - $\text{triggers}(s, u)$: Asserts that the reception of external stimulus $s$ by unit $u$ triggers its internal reaction process. Expresses strict reactive activation; does NOT imply command, instruction, or global metaphysical causality.
    - $\text{triggers}(o, s)$: Outcome $o$ triggers or materializes stimulus $s$.
    - $\text{reactsTo}(x, y)$: Entity $x$ reacts upon the observation or reception of state or signal $y$.
 
 3. **Production**:
-   - $\text{produces}(u, a)$: Unit $u$ produces or executes action $a$ upon activation.
-   - $\text{produces}(a, o)$: Action $a$ produces structured outcome $o$ as an observable consequence.
+   - $\text{produces}(u, o)$: Asserts that the activity or reaction of unit $u$ generates structured outcome $o$ as an external observable consequence.
 
 4. **Temporal Ordering**:
-   - $\text{precedes}(x, y)$: Event or entity $x$ temporally precedes event or entity $y$. Precedence strictly asserts chronological order ($t_x < t_y$) and does **NOT** imply causality, quality, or improvement.
+   - $\text{precedes}(o_1, o_2)$: Asserts strict temporal precedence between observable outcomes ($t_{o_1} < t_{o_2}$). When applied to internal actions ($\text{precedes}(a_1, a_2)$), describes an internal temporal order within the encapsulated reaction.
 
 5. **Validation, Compliance, and Compatibility**:
    - $\text{satisfies}(v, n)$: Value $v$ belongs to and conforms to the type, domain, and invariants defined by Nature $n$.
@@ -169,7 +167,8 @@ Generic arrows ($\to$) with multiple interpretations are prohibited in normative
 #### Semantics of Arrows and Diagrams
 
 - **Normative Arrow ($\to$)**: Used exclusively as shorthand for verified formal chains:
-  $$(u, s) \to a \to o \iff \text{triggers}(s, u) \land \text{produces}(u, a) \land \text{produces}(a, o)$$
+  $$(u, s) \to o \iff \text{triggers}(s, u) \land \text{produces}(u, o)$$
+  Internally within the encapsulated domain: $s \to \text{Reaction}(u) \to o$. Internal actions $a_i$ occur as part of the reaction: $a_i \in \text{Actions}(\text{Reaction}(u, s))$.
 - **Informative Flow Arrows ($\downarrow, \to, \dots$ in ASCII diagrams)**: Indicate exclusively visual reading direction. An unlabeled arrow in an informative diagram **does not** establish by itself causality, production, reaction, transformation, or temporal precedence.
 
 #### Semantics of $\Delta$ (Delta)
@@ -246,6 +245,38 @@ UCA: u = (p, d, C, O)
 
 From its `Conception`, the UCA **remains functionally valid**. Traditional technical state concepts (`Birth`, `Start`, `Startup`, `Initialize`, `Boot`, `Ready`, `Active`, `Idle`, `Finished`, `Execute`) belong to the runtime technical implementation and are not part of the conceptual lifecycle of a UCA.
 
+#### Conceptual Encapsulation Boundary
+
+The UCA model formalizes four strictly delimited categorical tiers:
+
+```text
+FUNCTIONAL CONTRACT
+───────────────────
+Purpose
+Capabilities
+
+CONSTITUTION / CONFIGURATION
+────────────────────────────
+Disposition
+
+OBSERVABLE CONSEQUENCE
+──────────────────────
+Outcome
+
+ENCAPSULATED INTERNAL DOMAIN
+────────────────────────────
+Reaction
+Actions
+Mechanisms
+internal interactions
+internal process
+```
+
+- **Functional Contract**: `Purpose` and `Capabilities` define what the UCA functionally pursues and the operational boundaries of what it is capable of doing. It is public and knowable by whatever composes or interacts with the unit.
+- **Constitution / Configuration**: `Disposition` determines how its capabilities are predisposed to behave and interact through parametric and interactive conditions. It represents the unit's observable and mutable configuration.
+- **Observable Consequence**: `Outcome` represents the observable change produced by the UCA's activity, structured in `Properties`, `Criteria`, and `Owner`. It is the sole boundary of interaction, evaluation, and evidence for other UCAs.
+- **Encapsulated Internal Domain**: `Reaction`, individual `Actions`, `Mechanisms`, and the emergent `Process` belong exclusively to the UCA's interior. A consuming UCA does not need to know them nor couple to them to react to the Outcome.
+
 #### Separation Between Constitution and Activation
 
 The UCA model strictly formalizes two independent dimensions:
@@ -271,16 +302,23 @@ external observable change (Δx)
    Stimulus
       │
       ▼
-   Target UCA
-      │
-      ▼
-Reactive Process / Action
-      │
-      ▼
-   Outcome (observable Δy)
-   ├── Properties (observable information produced)
-   ├── Criteria   ──► Compliance (deterministic PASS | FAIL)
-   └── Owner      ──► Validation (contextual APPROVED | REJECTED)
+┌───────────────────────────────┐
+│           TARGET UCA          │
+│                               │
+│           Reaction            │
+│         ┌───────────┐         │
+│         │ Actions   │         │
+│         │ Mechanisms│         │
+│         │ Process   │         │
+│         └───────────┘         │
+│                               │
+└───────────────┬───────────────┘
+                │
+                ▼
+      Outcome (observable Δy)
+      ├── Properties (observable information produced)
+      ├── Criteria   ──► Compliance (deterministic PASS | FAIL)
+      └── Owner      ──► Validation (contextual APPROVED | REJECTED)
 ```
 
 The `Stimulus` triggers reactive activity in an already conceived UCA.
@@ -289,7 +327,7 @@ The Stimulus **MUST NOT** redefine, alter, or replace the Purpose.
 
 #### Reactive and Evolutionary Lifecycle
 
-A UCA does not undergo rigid startup and termination phases. It reacts to received Stimuli by emitting observable Outcomes, while specialized UCAs record and analyze accumulated historical evidence to guide the evolution of its Disposition:
+A UCA does not undergo rigid startup and termination phases. It reacts to received Stimuli by executing its internal reaction and emitting observable Outcomes, while specialized UCAs record and analyze accumulated historical evidence to guide the evolution of its Disposition:
 
 ```text
                                   CONCEPTION
@@ -298,36 +336,42 @@ A UCA does not undergo rigid startup and termination phases. It reacts to receiv
  ┌───────────────────────────────────────────────────────────────────────────┐
  │                                TARGET UCA                                 │
  │                                                                           │
- │   Stimulus ────────► Action ────────► Outcome                             │
- │                                       ├── Properties                      │
- │                                       ├── Criteria ──► Compliance         │
- │                                       └── Owner ─────► Validation         │
- │                                                             │             │
- │                                                             ▼             │
- │                                                   ┌───────────────────┐   │
- │                                                   │    Tracker UCA    │   │
- │                                                   └─────────┬─────────┘   │
- │                                                             ▼             │
- │                                                     History (H ∈ ℍ)       │
- │                                                             │             │
- │                                                             ▼             │
- │                                                   ┌───────────────────┐   │
- │                                                   │   Analyzer UCA    │   │
- │                                                   └─────────┬─────────┘   │
- │                                                             ▼             │
- │                                                    Analysis / Patterns    │
- │                                                             │             │
- │                                                             ▼             │
- │                                                   ┌───────────────────┐   │
- │                                                   │   Evolution UCA   │   │
- │                                                   └─────────┬─────────┘   │
- │                                                             ▼             │
- │   evolved Reactive Process ◄────── ΔDisposition ◄───── Mutation Proposal  │
- │              │                  (D₁ = diff(D₀, D₁))                       │
- │              ▼                                                            │
- │       evolved Outcome(s)                                                  │
- │                                                                           │
- └───────────────────────────────────────────────────────────────────────────┘
+ │   Stimulus ────────► [ Reaction: Actions, Mechanisms, Process ]           │
+ │                                       │                                   │
+ └───────────────────────────────────────┼───────────────────────────────────┘
+                                         ▼
+                                      Outcome
+                                      ├── Properties
+                                      ├── Criteria ──► Compliance
+                                      └── Owner ─────► Validation
+                                                            │
+                                                            ▼
+                                                  ┌───────────────────┐
+                                                  │    Tracker UCA    │
+                                                  └─────────┬─────────┘
+                                                            ▼
+                                                    History (H ∈ ℍ)
+                                                            │
+                                                            ▼
+                                                  ┌───────────────────┐
+                                                  │   Analyzer UCA    │
+                                                  └─────────┬─────────┘
+                                                            ▼
+                                                   Analysis / Patterns
+                                                            │
+                                                            ▼
+                                                  ┌───────────────────┐
+                                                  │   Evolution UCA   │
+                                                  └─────────┬─────────┘
+                                                            ▼
+ ┌───────────────────────────────────────────────────────────────────────────┐
+ │ TARGET UCA                                                                │
+ │   evolved Reaction ◄────────────── ΔDisposition ◄───── Mutation Proposal  │
+ │   (Actions & Process)           (D₁ = diff(D₀, D₁))                       │
+ │              │                                                            │
+ └──────────────┼────────────────────────────────────────────────────────────┘
+                ▼
+         evolved Outcome(s)
 ```
 
 > **Fundamental Principle**: A UCA, from its Conception, remains functionally valid and reacts to received Stimuli pursuing its Purpose within the limits of its Capabilities and according to the active Disposition of those Capabilities.
@@ -608,12 +652,12 @@ A Capability is an instrument. A Capability is not automatically a UCA. Using an
 
 ### 2.5 Single Functional Direction and Demarcation Between Purpose, Stimulus, and Signal
 
-Functional direction for any reaction proceeds invariably from the UCA's **Purpose**, not from externally imposed instructions or goals:
+Functional direction for any reaction proceeds invariably from the UCA's **Purpose**, not from externally imposed instructions:
 
 > **Purpose is the sole source of functional direction for a UCA.**
 > **The Stimulus determines what the UCA reacts to, but does not redefine what the UCA pursues.**
 
-A UCA possesses a dedicated Purpose that guides all its reactions. The incoming external signal (Stimulus) triggers the reaction and supplies required data, without needing to instruct the unit on what it must pursue. There is no dual teleology: no intermediate concept (such as `Goal`, `Objective`, or `Task`) modulates or redefines the direction established by the Purpose.
+A UCA possesses a dedicated Purpose that guides all its reactions. The incoming external signal (Stimulus) triggers the reaction and supplies required data, without needing to instruct the unit on what it must pursue. Purpose is the sole source of functional direction for a UCA and admits no intermediate concepts that modulate or redefine the direction established by it.
 
 #### Ontological Demarcation: Purpose vs. Stimulus vs. Signal
 
@@ -692,7 +736,6 @@ No predefined universal tuple structure exists in the Core such as `Stimulus = (
 ```text
 Stimulus ≠ Context
 Stimulus ≠ Purpose
-Stimulus ≠ Goal
 Stimulus ≠ Action
 Stimulus ≠ Outcome
 ```
@@ -730,8 +773,8 @@ Normative characteristics of the Stimulus:
 - **does not require a fixed universal structure**.
 
 Formally, $s \in \mathbb{S}$ and:
-$$\text{triggers}(s, u, a)$$
-strictly expresses that reception of external observable change $s$ by UCA $u$ triggers a reactive activation of $u$ materialized via $a$.
+$$\text{triggers}(s, u)$$
+strictly expresses that reception of external observable change $s$ by UCA $u$ triggers its internal reaction process.
 
 #### Scope of "External" and Local Reactivity
 
@@ -804,20 +847,66 @@ The emitting entity does not dictate the receiver's reaction; it exposes or tran
 
 ---
 
-### 2.9 Action (A) and Reactive Process
+### 2.9 Reaction, Action, and Reactive Process
 
-> **The Process of a UCA is the emergent dynamic produced by reactive interactions between its Capabilities according to their Dispositions and guided by its Purpose.**
+> **Reaction is the internal process triggered in a UCA by a Stimulus, constituted by the Actions, Mechanisms, and internal interactions necessary to produce its observable consequences.**
+>
+> **Action is any internal operation or transition occurring within a UCA as part of its Reaction.**
+
+Conceptually:
 
 ```text
-Capabilities ──(according to Dispositions)──► Reactive Interactions ──► Emergent Process ──► Outcome(s)
+Stimulus
+    │
+    ▼
+Reaction (encapsulated internal domain)
+    ├── Action₁ (Capability activation / Mechanism execution)
+    ├── Action₂ (internal state transition or property mutation)
+    ├── Action₃ (data transformation or internal signal propagation)
+    └── ...
+    │
+    ▼ (internal emergent reactive process)
+Outcome (external observable boundary)
 ```
 
-The effective execution order and flow emerge from the relationships declared in `Interactions`. There is no imperative central coordinator or processor executing the capabilities sequentially.
+#### Encapsulated Internal Domain: `Action = internal`
 
-**Relationship between Action and Reactive Process**:
-The `Reactive Process` captures the internal emergent dynamic occurring across Capabilities. The `Action` ($a \in \mathbb{A}$) represents the effective operational execution that realizes and materializes that process in a given activation to yield observable consequences ($	ext{produces}(a, o)$). Both concepts are coherent yet reflect complementary perspectives: internal relational dynamics (Process) and external operational manifestation (Action). See §9.4.
+An `Action` belongs exclusively to the interior of the UCA. It is not by itself part of the observable contract between UCAs:
 
-An Action does not necessarily require language model inference. It can be a deterministic computation, a data retrieval, a structural transformation, or a capability invocation.
+```text
+UCA A
+   │
+   │ Reaction (encapsulated)
+   │ ├── Action₁
+   │ ├── Action₂
+   │ └── Action₃
+   │
+   ▼
+Outcome (observable)
+   │
+   ▼ (Reception)
+UCA B (Stimulus)
+```
+
+A consuming UCA (`UCA B`) **MUST NOT** need to know the internal `Actions`, mechanisms, or procedural sequence by which an `Outcome` was produced to react to it.
+
+#### Encapsulation of Mechanisms and Process
+
+- **Capability vs. Mechanism**: A `Capability` is declared in the functional contract as an operational capacity of the unit. A `Mechanism` ($m \in \mathbb{M}$) is the internal computational procedure that provides it. Another UCA must not couple to the internal execution sequence of a Mechanism.
+- **Internal Emergent Process**: The `Reactive Process` is the emergent dynamic produced by interactions across Capabilities according to their `Disposition`. That process is **internal** to the unit and does not constitute the observable contract between UCAs.
+
+#### Internal Interchangeability Without Breaking Consumers
+
+A UCA can modify its internal implementation (for example, substituting one Mechanism for another or altering its internal Action sequence) without breaking consuming UCAs, as long as it preserves its functional contract and observable Outcome specifications:
+
+```text
+Ear UCA
+├── Disposition₀ / internal implementation: Sherpa Mechanism
+└── Disposition₁ / internal implementation: alternative ASR engine
+
+Consumers (Thalamus):
+Continue depending exclusively on the Outcome (text: "Hola"), not on the internal mechanism.
+```
 
 ---
 
@@ -829,19 +918,21 @@ An Action does not necessarily require language model inference. It can be a det
 
 ```text
 UCA A
-  │
-  │ activity
-  ▼
+   │
+   │ activity / Reaction
+   ▼
 observable Δx
-  │
-  └── Outcome(A, Δx)
+   │
+   └── Outcome(A, Δx)
 ```
 
-`Outcome` ($o \in \mathbb{O}$) represents the observable change actually produced by the Action:
+`Outcome` ($o \in \mathbb{O}$) represents the observable change effectively produced by the activity or reaction of the UCA:
 
-$$\text{produces}(a, o) \quad \text{where } a \in \mathbb{A}, o \in \mathbb{O}$$
+$$\text{produces}(u, o)$$
 
-(shorthand notation: $a \to o$).
+(shorthand notation: $(u, s) \to o$).
+
+Internal `Actions` contribute operationally to producing the Outcome, but that relationship belongs to the unit's encapsulated process and is not exposed as a public composition relation.
 
 Fundamental ontological distinction:
 ```text
@@ -858,25 +949,25 @@ Analogously to how `Disposition` explicitly defines the parametric and interacti
 ```text
 Outcome
 ├── Properties
-│   └── Definition of observable information produced by the Action (without quality judgment).
+│   └── Definition of observable information produced by the UCA (without quality judgment).
 ├── Criteria
-│   └── Objective, non-subjective rules to deterministically evaluate the Outcome.
+│   └── Objective, non-subjective rules on Properties to deterministically evaluate the Outcome.
 │       └── Criterion { Observation, Condition, Expected }
 └── Owner
     └── External UCA in whose operational context the unit operates, holding exclusive validation authority.
 ```
 
 1. **Outcome.Properties**:
-   Defines what observable information was effectively produced by the Action. It represents pure observable content without valuation, rating, or quality judgment (e.g., `text: string`, `latency: number`, `confidence: number`, `chunks: Chunk[]`). The Properties form the empirical substrate upon which observations and evaluations occur.
+   Defines what observable information was effectively produced by the UCA in its reaction. It represents pure observable content without valuation, rating, or quality judgment (e.g., `text: string`, `latency: number`, `confidence: number`, `chunks: Chunk[]`). The Properties form the empirical substrate upon which observations and evaluations occur.
 
 2. **Outcome.Criteria**:
-   Defines the set of non-subjective, deterministic, and formally verifiable rules for checking Outcome compliance. Each individual `Criterion` is structured as a 3-tuple:
+   Defines the set of non-subjective, deterministic, and formally verifiable rules for checking Outcome compliance. The `Criteria` evaluate **observable Properties** and must not depend on internal Action sequences or internal Mechanism invocations. Each individual `Criterion` is structured as a 3-tuple:
    - **Observation**: The observable property or computed value subjected to evaluation (e.g., `latency`, `text.length`, `chunks.length`).
    - **Condition**: The objective logical operator applied ($=, \neq, <, \le, >, \ge, \in$).
    - **Expected**: The reference value or admissible range required to satisfy the rule (e.g., `300ms`, `> 0`, `[0.0..1.0]`).
 
 3. **Outcome.Owner**:
-   Identifies the external UCA ($u_{\text{owner}} \in \mathbb{U}, u_{\text{owner}} \neq u_{\text{target}}$) in whose operational context the observable consequences of the Outcome are consumed, integrated, or take effect. The Owner is the sole entity formally authorized to emit a validation judgment and acceptance decision.
+   Identifies the external UCA ($u_{\text{owner}} \in \mathbb{U}, u_{\text{owner}} \neq u_{\text{target}}$) in whose operational context the observable consequences of the Outcome are consumed, integrated, or take effect. The Owner is the sole entity formally authorized to emit a validation judgment and acceptance decision, validating the observable consequences rather than internal action sequences.
 
 #### Evaluation and Decision: Compliance vs. Validation
 
@@ -1046,7 +1137,7 @@ The minimal complete model of an individual UCA:
 ```text
 Structure:   u = (p, d, C, O) ∈ ℙ × 𝔻 × 𝒫(ℂ) × 𝕆_def  (where p determines what u is, d predisposes, C bounds, and O defines outcomes)
 Stimulus:    s ∈ 𝕊                                      (reception of an external observable change triggering reaction of u)
-Reaction:    (u, s) → a → o                             (shorthand for: triggers(s, u, a) ∧ produces(a, o))
+Reaction:    (u, s) → o                                 (shorthand for: triggers(s, u) ∧ produces(u, o); internally s → Reaction(u) → o)
 ```
 
 ---
@@ -1082,10 +1173,10 @@ Capabilities
 ```
 
 Using UCA B as a Capability means:
-- UCA A requires the reactive result of UCA B to perform its Action.
+- UCA A requires the reactive result (Outcome) of UCA B to complete its internal reaction.
 - UCA A does not coordinate, orchestrate, or control UCA B.
-- UCA A does not instruct UCA B nor impose a purpose or goal upon it: UCA A exposes or emits a signal that crosses the boundary of UCA B as an external Stimulus, and UCA B reacts according to its own Purpose B, Capabilities B, and Disposition B.
-- There is no Purpose transfer ($p_A \not\to B$) nor creation of inter-unit goals or commands.
+- UCA A does not instruct UCA B nor impose a purpose upon it: UCA A exposes or emits a signal that crosses the boundary of UCA B as an external Stimulus, and UCA B reacts according to its own Purpose B, Capabilities B, and Disposition B.
+- There is no Purpose transfer ($p_A \not\to B$) nor creation of inter-unit directives or commands.
 
 ---
 
@@ -1119,7 +1210,7 @@ Outcome(A, Δx)                  Stimulus(B, Δx)
 ```
 
 Formally:
-$$\text{Outcome}(u_A, \Delta x) \land \text{receives}(u_B, \Delta x) \land \text{triggers}(\Delta x, u_B, a_B) \implies \text{Stimulus}(u_B, \Delta x)$$
+$$\text{Outcome}(u_A, \Delta x) \land \text{receives}(u_B, \Delta x) \land \text{triggers}(\Delta x, u_B) \implies \text{Stimulus}(u_B, \Delta x)$$
 
 #### Not Every Outcome Constitutes a Stimulus
 
@@ -1140,35 +1231,59 @@ Reaction(B)
 ```
 does the change constitute a `Stimulus` with respect to `B`.
 
-#### Minimal Normative Example
+#### Normative Example: `Ear UCA` and Encapsulated Domain
+
+The following example illustrates the strict boundary between the internal process of a UCA and the observable consequence consumed by another:
 
 ```text
 Ear UCA
-│
-│ acoustic recognition changes property:
-│ text = "" → "Hello"
-│
-▼
-observable change (Δtext)
-│
-├── Outcome(Ear)
-│
-▼
-Signal / Impulse (runtime propagation mechanism)
-│
-▼
-Thalamus UCA
-│
-├── Reception (mechanical at the boundary)
-│
-├── Stimulus(Thalamus) (triggers reaction according to Disposition)
-│
-└── react()
+├── Functional Contract:
+│   ├── Purpose: Transcribe human speech into text
+│   └── Capabilities: SpeechRecognition
+├── Constitution:
+│   └── Disposition: model = "base", bufferSize = 1024, hotwordsScore = 2.5
+├── Encapsulated Internal Domain (Reaction):
+│   ├── Action₁: capture audio frame
+│   ├── Action₂: convert PCM and normalize
+│   ├── Action₃: acoustic echo cancellation (AEC)
+│   ├── Action₄: voice activity detection (VAD)
+│   ├── Action₅: execute Sherpa inference engine (Mechanism)
+│   ├── Action₆: aggregate token probabilities
+│   └── Action₇: update transcription buffer
+└── Observable Consequence (Outcome):
+    ├── Properties: text = "" → "Hello", latency = 115ms, confidence = 0.94
+    ├── Criteria: text.length > 0, latency < 300ms, confidence >= 0.70
+    └── Owner: Thalamus UCA
 ```
 
-The value `"Hello"` does not need to be converted from `Outcome` to `Stimulus` via any transformation or adapter. The exact same observable change occupies two relational positions:
-- with respect to `Ear`, it is its **Outcome**;
-- with respect to `Thalamus`, it is its **Stimulus**, as it triggers its reaction.
+From outside the unit:
+
+```text
+Ear UCA
+ │
+ │ [Encapsulated internal Reaction: capture frame, PCM, AEC, Sherpa, tokens...]
+ │
+ ▼
+observable change (Δtext)
+ │
+ ├── Outcome(Ear): text = "Hello"
+ │
+ ▼
+Signal / Impulse (runtime propagation mechanism)
+ │
+ ▼
+Thalamus UCA
+ │
+ ├── Reception (mechanical at the boundary)
+ │
+ ├── Stimulus(Thalamus) (triggers reaction according to Disposition)
+ │
+ └── Reaction(Thalamus)
+```
+
+The consuming UCA (`Thalamus`) **does not need to know** the PCM conversion, AEC, Sherpa execution, or token aggregation to react to `"Hello"`. It reacts exclusively to the observable change at its boundary (`Stimulus`).
+
+Furthermore, if `Ear UCA` modifies its internal implementation (for example, substituting the Sherpa Mechanism for another engine or reorganizing its internal Action sequence), `Thalamus` continues operating without disruption as long as the Outcome contract and Properties are preserved.
 
 ---
 
@@ -1177,7 +1292,12 @@ The value `"Hello"` does not need to be converted from `Outcome` to `Stimulus` v
 Through Outcome → Stimulus relationships, UCAs form reactive activation chains:
 
 ```text
-o_i ──triggers──► s_j ──triggers──► u_j ──produces──► a_j ──produces──► o_j ──triggers──► s_k ──triggers──► u_k ── ...
+u_i ──(produces)──► o_i ──(as s_j)──► triggers(s_j, u_j) ──(produces)──► o_j ──► ...
+```
+
+Shorthand notation:
+```text
+(u_i, s_i) → o_i → s_j → (u_j, s_j) → o_j → ...
 ```
 
 This notation describes a verified relational pattern of architectural behavior: the Outcome of one unit triggers the activation of the next unit in chronological sequence ($\text{precedes}(o_i, o_j)$). This relational pattern must not be conflated with a metaphysical causal theory: UCA asserts reactivity, propagation, and production, leaving external or universal causality as an architectural design choice (§4.9).
@@ -1204,32 +1324,33 @@ Stimulus A
     ↓
   UCA A
     ↓
-  Action A requires UCA B
+  Reaction A requires Outcome of UCA B
     │
     └── Stimulus B
             ↓
           UCA B
             ↓
-          Action B requires UCA C
+          Reaction B requires Outcome of UCA C
             │
             └── Stimulus C
                     ↓
-                  UCA C → Action C → Outcome C
+                  UCA C ──► Reaction C ──► Outcome C
                     ↓
-          Outcome C available to Action B
+          Outcome C available to Reaction B
             ↓
           Outcome B
     ↓
-  Outcome B available to Action A
+  Outcome B available to Reaction A
     ↓
   Outcome A
 ```
 
 This means:
-- A *requires* B to perform its Action.
-- B *requires* C to perform its Action.
+- A *requires* the Outcome of B to complete its Reaction.
+- B *requires* the Outcome of C to complete its Reaction.
 - A does not coordinate B. A does not know or control C.
-- Each unit remains bounded by its own Purpose.
+- A does not know nor need to know the internal Actions or Mechanisms of B or C.
+- Each unit remains bounded by its own Purpose and encapsulated within its Reaction.
 
 ---
 
@@ -1399,6 +1520,27 @@ The evolution of a UCA is never performed as unsupervised internal self-adaptati
 
 3. **Evolution (Determining and Proposing Atomic Mutations)**:
    From historical analysis, derives adjustment hypotheses and formulates an admissible atomic mutation ($\mu \in \mathbb{M}\text{ut}$) on the Target UCA's Disposition, formally verifying that it satisfies Nature constraints prior to emission.
+
+#### Experimental Relation $\text{Disposition} \to \text{Outcome}$ and Encapsulated Evidence
+
+External evaluation and evolutionary analysis treat the UCA as an encapsulated functional unit.
+Given stimulus $s$ and disposition $d$ of UCA $u$, the outcome $o$ is observed empirically:
+
+$$(u, d, s) \to o$$
+
+without requiring recording or inspecting the internal trace of individual actions ($a_1, a_2, \dots, a_n$).
+
+The historical logging of evidence is primarily grounded in the correspondence between effective configurations and observable results:
+
+$$(D_0, O_1, \text{Comp}_1, \text{Val}_1), \quad (D_0, O_2, \text{Comp}_2, \text{Val}_2), \quad \dots, \quad (D_1, O_n, \text{Comp}_n, \text{Val}_n)$$
+
+#### Evolution Modifies Disposition, Not Actions Directly
+
+Evolution acts exclusively upon the constitution and predisposition of the unit:
+
+$$\text{Disposition}_0 \longrightarrow \text{Outcomes} \longrightarrow \text{Compliance / Validation} \longrightarrow \text{History} \longrightarrow \text{Analysis} \longrightarrow \Delta\text{Disposition} \longrightarrow \text{Disposition}_1$$
+
+The `Evolution` role formulates and applies atomic mutations upon `Disposition` ($\Delta D = \text{difference}(D_0, D_1)$). It **MUST NOT** rewrite or directly intervene in internal `Actions`. Future actions and transitions will change emergently and intrinsically as a consequence of the new Disposition, Mechanisms, and internal interactions.
 
 > **Role Composability**:
 > `Tracking`, `Analysis`, and `Evolution` are composable functional responsibilities, not rigid mandatory class names of the UCA Core. A cognitive architecture may instantiate them as independent UCAs (e.g., `Tracker UCA`, `Analyzer UCA`, `Evolution UCA`) or integrate them into composite cognitive organs (such as a `Cingulate UCA`).
@@ -1679,7 +1821,7 @@ Although each individual UCA is locally reactive, a collection of interacting UC
 The relational pattern:
 
 ```text
-oᵢ ──triggers──► Stimulus ──triggers──► uⱼ ──produces──► aⱼ ──produces──► oⱼ ──drives──► Δdᵢ
+oᵢ ──Reception──► Stimulus ──triggers──► uⱼ ──Reaction──► produces(uⱼ, oⱼ) ──drives──► Δdᵢ
 ```
 
 describes a relational pattern of architectural behaviour: the Outcome of one UCA stimulates another, whose Action results in a Disposition change ($\Delta d_i = \text{difference}(d_{i,0}, d_{i,1})$) in the first. This is a hypothesis about what is achievable through composition.
@@ -1976,32 +2118,32 @@ Perception may be the Action of a UCA whose Purpose requires perceiving and inte
 ```text
 u_A (Purpose: act)
  │
- └── produces(u_A, a_A) ──produces──► o_A ──emits──► environment ──triggers──► s_B
-                                                                             │
-                                                                             ▼
-                                                                 u_B (Purpose: perceive)
-                                                                             │
-                                                                             └── produces(u_B, a_B): perceive
-                                                                                     │
-                                                                                     └── produces(a_B, o_B): perceived representation
+ └── Reaction(u_A) ──produces──► o_A ──Reception──► s_B
+                                                     │
+                                                     ▼
+                                         u_B (Purpose: perceive)
+                                                     │
+                                                     └── Reaction(u_B): perceive
+                                                             │
+                                                             └── produces(u_B, o_B): perceived representation
 ```
 
-`u_B` is structurally identical to any other UCA: $u_B = (p_B, d_B, C_B, O_B) \in \mathbb{U}$. Its Purpose requires perception.
+`u_B` is structurally identical to any other UCA: $u_B = (p_B, d_B, C_B) \in \mathbb{U}$. Its Purpose requires perception.
 
 ---
 
 ### 7.3 Observation Through Composition
 
-Observation may likewise be the Action of a UCA:
+Observation may likewise be the function performed by the Reaction of a UCA:
 
 ```text
 s_C ──triggers──► u_C (Purpose: observe and interpret)
                    │
-                   └── produces(u_C, a_C): observe
+                   └── Reaction(u_C): observe
                            │
-                           └── produces(a_C, o_C): structured observation
+                           └── produces(u_C, o_C): structured observation
                                                    │
-                                                   ▼
+                                                   ▼ (Reception)
                                           s_D ──triggers──► u_D
 ```
 
@@ -2014,23 +2156,23 @@ A UCA may adapt the Disposition of another through a standard activation chain:
 ```text
 u_A (Disposition d_A,0)
  │
- └── produces(a_A, o_A)
+ └── produces(u_A, o_A)
           │
-          ▼ triggers
+          ▼ (Reception) triggers
       s_B ──► u_B (Purpose: evaluate and adapt behavior)
                │
-               └── produces(a_B, o_B): Δd_A
+               └── produces(u_B, o_B): Δd_A
                                  │
                            d_A,0 ──mutation──► d_A,1  (applied to u_A)
 ```
 
-Where $\Delta d_A = \text{difference}(d_{A,0}, d_{A,1})$. `u_B` requires no special structure. Its Purpose justifies its Action.
+Where $\Delta d_A = \text{difference}(d_{A,0}, d_{A,1})$. `u_B` requires no special structure. Its Purpose justifies its activity.
 
 ---
 
 ### 7.5 Emergent Behaviour Through Composition
 
-A network of UCAs, each bounded to $(u, s) \to a \to o$, may exhibit behaviour that no individual unit contains:
+A network of UCAs, each bounded to $(u, s) \to o$, may exhibit behaviour that no individual unit contains:
 
 ```text
                  ┌────────┐
@@ -2065,11 +2207,11 @@ A software entity or component conforms to the **UCA Core** if and only if it sa
 3. **Bounded Capabilities**: Operates via an explicit, bounded set of Capabilities.
    $$\forall u \in \mathbb{U}, \exists C \subseteq \mathbb{C}, C \neq \emptyset : \text{hasCapabilities}(u, C)$$
 4. **Reactive Activation by Stimulus**: Executes strictly upon activation triggered by an external Stimulus crossing its functional boundary.
-   $$\forall u \in \mathbb{U}, \forall a \in \mathbb{A} \text{ executed by } u, \exists s \in \mathbb{S} : \text{triggers}(s, u, a)$$
-5. **Purpose-Driven Action**: Executes an Action that performs the emergent Reactive Process pursuing its Purpose within the boundaries of its Capabilities and Disposition.
-   $$\forall (u, s) \text{ active}, \exists a \in \mathbb{A} : \text{triggers}(s, u, a)$$
+   $$\forall u \in \mathbb{U}, \exists s \in \mathbb{S} : \text{triggers}(s, u)$$
+5. **Purpose-Driven Internal Reaction**: Executes an internal process of Reaction composed of Actions and interactions pursuing its Purpose within the boundaries of its Capabilities and Disposition.
+   $$\forall (u, s) \text{ active}, \exists r \in \mathbb{R}\text{xn} : \text{triggers}(s, u)$$
 6. **Structured and Governed Outcome Production**: Produces one or more observable Outcomes structured into $(\text{Properties}, \text{Criteria}, \text{Owner})$, where Criteria are deterministic and the Owner is an external UCA.
-   $$\forall a \in \mathbb{A} \text{ completed by } u_{\text{target}}, \exists o \in \mathbb{O} : \text{produces}(a, o) \land \text{hasOwner}(o, u_{\text{owner}}) \land (u_{\text{owner}} \ne u_{\text{target}})$$
+   $$\forall (u_{\text{target}}, s) \text{ active}, \exists o \in \mathbb{O} : \text{produces}(u_{\text{target}}, o) \land \text{hasOwner}(o, u_{\text{owner}}) \land (u_{\text{owner}} \ne u_{\text{target}})$$
 7. **Purpose-Driven Decomposition**: Treats another component as a UCA only if that component possesses a dedicated, differentiated Purpose.
    $$\forall u' \text{ composed in } u, u' \in \mathbb{U} \iff \exists! p' \in \mathbb{P} : \text{hasPurpose}(u', p') \land p' \neq p_u$$
 
@@ -2095,11 +2237,17 @@ Every system or architecture conforming to UCA MUST strictly satisfy the followi
 16. **Prohibition of Direct Isolated Self-Evolution**: A UCA MUST NOT self-evolve directly in response to an individual or isolated `Outcome`.
 17. **Mutation Safety and Atomicity**: Every `Disposition` mutation MUST be atomic, reversible, and strictly circumscribed within the boundaries of `Nature` ($\text{satisfies}(\text{val}, n)$).
 18. **State Difference Semantics of $\Delta\text{Disposition}$**: $\Delta\text{Disposition} = \text{difference}(D_0, D_1)$ represents exclusively state difference, NEVER intrinsic improvement, qualitative progress, or a priori optimization.
+19. **Encapsulation of Action**: `Action` is any internal operation or transition belonging to the `Reaction` of a UCA and MUST belong strictly to its encapsulated internal domain.
+20. **Exclusive Observable Boundary in Outcome**: `Outcome` is the sole observable consequence of a UCA's activity. `Actions`, `Mechanisms`, internal interactions, and `Process` do NOT form part of the observable contract between UCAs.
+21. **Consumer Independence from Internal Actions**: A consuming UCA MUST NOT require knowledge of internal `Actions`, mechanisms, or procedural sequences of another UCA to use its `Outcomes`.
+22. **Evaluation Focused on Observable Consequences**: Outcome `Criteria` evaluate observable `Properties` and NOT sequences of internal `Actions` or calls to `Mechanisms`.
+23. **Validation Scope**: The `Owner` validates the observable `Outcome` and NOT the internal sequence of `Actions` used to produce it.
+24. **Disposition-Centric Evolution**: The evaluation and evolution of a UCA are grounded in the relationship between `Disposition` and observable `Outcomes` ($D \to O$). Evolution mutates `Disposition` ($\Delta\text{Disposition}$) and MUST NOT directly rewrite internal `Actions`.
 
 **Non-Requirements for Conformance**:
 
 A component does **not** need any of the following to conform to UCA:
-- a dual teleology, intermediate objectives or goals, or a formal `Context` container as mandatory universal stimulus structures;
+- a secondary source of functional direction, nor a formal `Context` container as mandatory universal stimulus structures;
 - Observation or Perception as lifecycle phases;
 - Memory, Identity, Learning, or Adaptation;
 - a Coordinator, Dispatcher, Orchestrator, or Supervisor;
@@ -2129,16 +2277,14 @@ Whether a `Synapse` abstraction — representing a persistent, adaptable propert
 
 ### 9.3 Empirical Validation of Emergent Cognition
 
-The central hypothesis of UCA (§6.6) has not yet been empirically validated. Future reference implementations must be designed to test whether cognitive behaviour can emerge from purpose-bounded units limited to $(u, s) \to a \to o$.
+The central hypothesis of UCA (§6.6) has not yet been empirically validated. Future reference implementations must be designed to test whether cognitive behaviour can emerge from purpose-bounded units limited to $(u, s) \to o$.
 
-### 9.4 Formal Relationship between Action and Reactive Process
+### 9.4 Formal Relationship between Action and Reactive Process [CLOSED]
 
-The specification concurrently references `Action` ($a \in \mathbb{A}$) and `Reactive Process` emerging from interactions among Capabilities. It is not formally resolved whether:
-1. `Action` is identical to the full execution trace of the `Reactive Process`;
-2. `Action` is a bounded observable external interface whose underlying mechanism is the `Reactive Process`;
-3. or if `Reactive Process` is an ongoing internal dynamic of which `Action` is a discrete instantiation.
-
-This must be resolved in future iterations without forcing artificial mathematical identities into the Core.
+This question is formally resolved in §2.1 and §2.9:
+1. **Reaction as Encapsulated Process**: `Reaction` is the internal process triggered in a UCA by a `Stimulus`, encompassing interactions among Capabilities and the emergent internal process.
+2. **Action as Internal Operation**: `Action` ($a \in \mathbb{A}$) is any internal operation or transition (Capability activation, Mechanism execution, data transformation, property mutation) occurring within `Reaction`.
+3. **Outcome as Sole Observable Boundary**: `Action` does not constitute an observable external interface. Only `Outcome` crosses the UCA boundary to the outside. Therefore, consuming UCAs couple exclusively to observable Outcomes and not to the sequence of internal Actions.
 
 ### 9.5 Semantics of Context Inclusion vs. Triggering in Outcome → Stimulus Relationships [CLOSED]
 
@@ -2280,7 +2426,7 @@ Soar (Laird, Newell & Rosenbloom, 1987; Laird, 2012) represents one of the most 
 - **Persistence and Learning**: Soar incorporates mechanisms to adapt its knowledge from experience; UCA defines formal Disposition evolution via accumulated empirical evidence and atomic mutations (§2.1, §4.4).
 
 **Architectural Contrast and Ontological Choices**:
-- **Teleology: Purpose vs. Goal**: Soar places the concept of goal as the central abstraction guiding operator selection and impasse resolution during dynamic task execution. UCA, conversely, adopts **Purpose** as the sole constitutive functional direction of the unit and formally eliminates **Goal** as an activation primitive. In UCA, a unit does not receive external activation goals; it receives external signals (Stimuli) and reacts intrinsically according to what its Purpose already dictates that it pursues.
+- **Teleology: Purpose as Sole Functional Direction**: Soar places the concept of goal as the central abstraction guiding operator selection and impasse resolution during dynamic task execution. UCA, conversely, adopts **Purpose** as the sole constitutive functional direction of the unit and dispenses with goals as an activation primitive. In UCA, a unit does not receive external activation goals; it receives external signals (Stimuli) and reacts intrinsically according to what its Purpose already dictates that it pursues.
 - **Production Engine vs. Mechanism-Agnostic**: Soar mandates a structured production engine, fixed decision cycles, and operator hierarchies. UCA is deliberately agnostic regarding whether a unit's Capabilities are implemented via production rules, deterministic code, signal processing algorithms, or probabilistic models.
 
 ### 10.8 LIDA and Distributed Cognitive Architectures
@@ -2321,7 +2467,7 @@ The following table descriptively and neutrally summarizes how UCA shares and co
 | **Systemic Emergence** | Subsumption Architecture, GWT, LIDA | Complex behavior does not reside in a monolithic central controller, but emerges from the reactive interactions of multiple units. |
 | **Parametric Adaptation** | Autonomic Computing, Cybernetics | Atomic modification of Disposition ($\Delta d$) via Mutations within the space bounded by Nature, preserving Purpose and Capabilities. |
 | **Absence of Global State** | Actor Model, Subsumption | UCA Core dispenses with shared global memories, blackboards, or centralized snapshots. |
-| **Teleological Direction** | Contrast with Soar, LIDA, BDI | Elimination of activation `Goal` in favor of constitutive dedicated `Purpose`. The UCA does not receive goals; it receives perturbations or data. |
+| **Teleological Direction** | Contrast with Soar, LIDA, BDI | Adoption of dedicated constitutive `Purpose` as sole source of functional direction. The UCA does not receive goals; it receives perturbations or data. |
 
 ---
 
@@ -2348,7 +2494,7 @@ Outcome (O)
     with deterministic Criteria and an external Owner holding validation authority.
 
 REACTIVE ACTIVATION:
-External Signal ──► Stimulus ──► Target UCA ──► Action ──► Outcome (Criteria ──► Compliance, Owner ──► Validation)
+External Signal ──► Stimulus ──► Target UCA ──► Reaction ──► Outcome (Criteria ──► Compliance, Owner ──► Validation)
 ```
 
 The existence of historical precedents exploring reactivity, specialization, or distribution does not constitute automatic validation or proof that UCA composition generates cognition. For this reason, the specification maintains a strict methodological separation:

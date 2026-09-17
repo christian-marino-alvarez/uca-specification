@@ -37,7 +37,7 @@ La especificación abierta **UCA (Unidad Cognitiva Artificial)** define una abst
 ┌──────────────────────────────┐
 │             UCA              │  ← primitiva funcional (normativa)
 │  u = (p, d, C, O)            │
-│  (u, s) → a → o              │
+│  (u, s) → o              │
 └──────────────┬───────────────┘
                │ composición
                ▼
@@ -76,7 +76,7 @@ Esta especificación abierta define el contrato conceptual de una Unidad Cogniti
 **La especificación define deliberadamente**:
 - Qué constituye una UCA;
 - Cómo se activa una UCA;
-- Cómo realiza una Action y produce un Outcome;
+- Cómo ejecuta internamente su Reaction y produce un Outcome;
 - Las invariantes que gobiernan la composición y el alcance acotado.
 
 **La especificación NO prescribe**:
@@ -114,7 +114,7 @@ Donde:
 
 El ciclo de vida fundamental y evolutivo:
 ```text
-Conception ──► u(p, d, C, O) ──► Reception(Δx) ──► s ──► Reactive Process (Interactions) ──► Outcome (Δx)
+Conception ──► u(p, d, C, O) ──► Reception(Δx) ──► s ──► Reaction (Actions & Interactions) ──► Outcome (Δx)
                                  ▲                                                                 │
                                  │                                                       Criteria ─┼──► Compliance (PASS | FAIL)
                                  │                                                                 │
@@ -144,8 +144,8 @@ flowchart TD
     CHG[Cambio observable: Δx] --> REC[Reception: Mecánica y universal]
     REC --> STIM[Stimulus: Provoca reacción en UCA]
     STIM --> UCA
-    UCA --> INT[Reactive Interactions entre Capabilities]
-    INT --> PROC[Reactive Process emergente]
+    UCA --> RXN[Reaction interna: Actions e interacciones entre Capabilities]
+    RXN --> PROC[Reactive Process emergente]
     PROC --> OUT[Outcome: Cambio observable Δx con Properties]
     OUT --> CRIT[Criteria: Reglas universales]
     CRIT --> COMP[Compliance: PASS | FAIL]
@@ -171,10 +171,11 @@ flowchart TD
 5. **Stimulus es la recepción por una UCA de un cambio observable externo a su frontera funcional que provoca su reacción, mediada mecánicamente por Reception.**
 6. **Reception es un mecanismo reactivo universal y no cognitivo de UCA Core; Perception es una función especializada y opcional dependiente del Purpose.**
 7. **Las Capabilities reaccionan mediante Interactions y no mediante dependencias directas entre ellas.**
-8. **El Process emerge de las interacciones reactivas entre Capabilities conforme a sus Dispositions.**
-9. **Outcome es el cambio observable producido por la actividad de una UCA, estructurado en Properties, Criteria y Owner, con evaluación objetiva de Compliance (PASS | FAIL) y validación contextual externa (Validation: APPROVED | REJECTED).**
-10. **Evolution es un proceso histórico asíncrono mediado por roles especializados (Tracker, Analyzer, Evolution) sobre evidencia acumulada (History), prohibiéndose la auto-evolución directa ante resultados individuales.**
-11. **La unidad mínima de Evolution es una Mutation atómica, limitada, observable y potencialmente reversible dentro de Nature, donde $\Delta\text{Disposition} = \text{difference}(D_0, D_1)$ expresa cambio de estado y nunca mejora intrínseca.**
+8. **Action es cualquier operación o transición interna perteneciente a la Reaction de una UCA. Outcome es la única consecuencia observable externa de dicha actividad.**
+9. **El Process emerge de las interacciones reactivas entre Capabilities conforme a sus Dispositions.**
+10. **Outcome es el cambio observable producido por la actividad de una UCA, estructurado en Properties, Criteria y Owner, con evaluación objetiva de Compliance (PASS | FAIL) y validación contextual externa (Validation: APPROVED | REJECTED).**
+11. **Evolution es un proceso histórico asíncrono mediado por roles especializados (Tracker, Analyzer, Evolution) sobre evidencia acumulada (History), prohibiéndose la auto-evolución directa ante resultados individuales.**
+12. **La unidad mínima de Evolution es una Mutation atómica, limitada, observable y potencialmente reversible dentro de Nature, donde $\Delta\text{Disposition} = \text{difference}(D_0, D_1)$ expresa cambio de estado y nunca mejora intrínseca.**
 
 ---
 
@@ -186,11 +187,11 @@ Un componente de software cumple con el **UCA Core** si y solo si:
 2. Tiene una **Disposition** (`D`) declarativa que condiciona su comportamiento e interacciones.
 3. Opera mediante un conjunto explícito y acotado de **Capabilities** (`C`).
 4. Se ejecuta estrictamente al recibir un **Stimulus** activador (`S`) externo a su frontera funcional.
-5. Realiza una **Action** (`A`) que persigue su Purpose dentro de los límites de sus Capabilities y Disposition.
+5. Ejecuta una **Reaction** interna compuesta por Actions e interacciones que persigue su Purpose dentro de los límites de sus Capabilities y Disposition.
 6. Produce uno o más **Outcomes** (`O`) estructurados con Properties empíricas, Criteria objetivos y un Owner externo con potestad de validación, satisfaciendo el principio de no auto-validación.
 7. Trata a otro componente como UCA solo si dicho componente posee un Purpose propio y diferenciado.
 
-**No-requisitos para la conformidad**: Una implementación *no* requiere una teleología dual, objetivos o metas intermedias, ni un contenedor formal de Context como estructuras universales obligatorias del estímulo, Observation ni Perception como fases del ciclo de vida, Memory, Identity, Learning, Adaptation, un Coordinador, Dispatcher, Orquestador o Supervisor, un LLM, causalidad externa, un sobre Impulse, un Event Bus, un snapshot de estado global, Sinapsis, ni comportamiento cognitivo emergente demostrado para ser conforme con UCA.
+**No-requisitos para la conformidad**: Una implementación *no* requiere una segunda fuente de dirección funcional ni un contenedor formal de Context como estructuras universales obligatorias del estímulo, Observation ni Perception como fases del ciclo de vida, Memory, Identity, Learning, Adaptation, un Coordinador, Dispatcher, Orquestador o Supervisor, un LLM, causalidad externa, un sobre Impulse, un Event Bus, un snapshot de estado global, Sinapsis, ni comportamiento cognitivo emergente demostrado para ser conforme con UCA.
 
 La conformidad evalúa la **unidad individual** frente al contrato UCA. No evalúa si el sistema en su conjunto exhibe comportamiento cognitivo.
 
@@ -198,7 +199,7 @@ La conformidad evalúa la **unidad individual** frente al contrato UCA. No eval�
 
 ## 🔬 La Hipótesis Falsable
 
-> **¿Puede emerger comportamiento cognitivo de la interacción de UCAs acotadas por propósito, mientras cada unidad individual permanece estructuralmente limitada a $u = (p, d, C, O)$ y conductualmente limitada a $(u, s) \to a \to o$?**
+> **¿Puede emerger comportamiento cognitivo de la interacción de UCAs acotadas por propósito, mientras cada unidad individual permanece estructuralmente limitada a $u = (p, d, C, O)$ y conductualmente limitada a $(u, s) \to o$?**
 
 Esta pregunta es la hipótesis experimental central que plantea UCA. Debe poder evaluarse mediante futuras implementaciones y observación empírica.
 
