@@ -1974,8 +1974,8 @@ La clase abstracta base `Uca` gobierna el ciclo de vida, el montaje innato de ó
 constructor(id: string, name: string, config?: Config)
 ```
 - Invoca al constructor de `Adn(id, name, nervousSystem)`.
-- Asigna `this.disposition`, `this.channel` y `this.registry`.
-- Suscribe automáticamente el despachador `this.handleSignal(signal)` al canal interno.
+- Asigna `this.channel` y `this.registry`. La disposición no se inyecta externamente por `config`; es una propiedad ontológica innata definida físicamente en la propia clase (`public disposition: TDisposition`).
+- Conecta el canal interno mediante `this.bindChannel(proxy)`.
 - Envuelve la instancia en un Proxy reactivo (`wrapWithProxy(this)`) y lo retorna, garantizando la interceptación transparente de mutaciones de propiedades.
 
 #### 12.3.3 Métodos de Ciclo de Vida y Montaje de Capabilities
@@ -1983,9 +1983,12 @@ constructor(id: string, name: string, config?: Config)
 - `public override async live(): Promise<void>`:
   Punto de entrada al ciclo de vida biológico de la UCA. Invoca en primer término a `this.mountCapabilities()` para instanciar e inicializar todos los órganos subordinados declarados en `capabilities`, y delega a continuación en `super.live()`.
 - `private mountCapabilities(): void`:
-  Método privado que itera deterministamente sobre las entradas de `this.capabilities`. Para cada par `[name, disposition]`, verifica si la propiedad ya existe en la instancia; si no existe, delega el montaje a `this.attach(name, disposition)`.
-- `private attach<T extends Uca>(name: string, disposition?: unknown): T`:
-  Método privado que resuelve el constructor de la capability a través de `this.registry.get(name)`. Si el constructor está registrado, crea la instancia subordinada pasándole un identificador único concatenado (`${this.id}::${name}`), compartiendo el canal (`this.channel`), el sistema nervioso (`this._ns`) y el registro (`this.registry`), y la asigna como propiedad directa de la UCA bajo el nombre `name` en `camelCase`.
+  Método privado que itera deterministamente sobre las claves de `this.capabilities`. Para cada nombre de capability, verifica si la propiedad ya existe en la instancia; si no existe, delega el montaje a `this.attach(name)`.
+- `private attach<T extends Uca>(name: string): T`:
+  Método privado que resuelve el constructor de la capability a través de `this.registry.get(name)`. Si el constructor está registrado, crea la instancia subordinada pasándole un identificador único concatenado (`${this.id}::${name}`), compartiendo el canal (`this.channel`), el sistema nervioso (`this._ns`) y el registro (`this.registry`), y la asigna como propiedad directa de la UCA bajo el nombre `name` en `camelCase`. La capability nace con su propia disposición innata y no admite configuración externa por constructor.
+
+> [!NOTE]
+> **Modulación Operativa y Reconfiguración por Impulsos**: Al igual que todo órgano biológico, la UCA no recibe parametrización imperativa externa. Toda reconfiguración o ajuste de su disposición operativa se transmite exclusivamente mediante impulsos (`Impulse`) a través del `NervousSystem`, siendo procesada internamente en su método `react(impulse)` para actualizar su estado de forma soberana.
 
 #### 12.3.4 Ciclo Reactivo Unificado (Impulse y Signal)
 
@@ -2047,8 +2050,17 @@ La instancia de toda UCA es interceptada mediante un Proxy de JavaScript en tiem
 import { Uca, defaultRegistry, Signal } from './uca/index.js';
 
 // 1. Definición de Capabilities Primitivas
-export class AcousticEar extends Uca {
+export interface AcousticEarDisposition {
+    sampleRate: number;
+    framingMs: number;
+}
+
+export class AcousticEar extends Uca<AcousticEarDisposition> {
     public override purpose = 'Percepción acústica y transcripción continua de voz';
+    public override disposition: AcousticEarDisposition = {
+        sampleRate: 16000,
+        framingMs: 100,
+    };
     public isListening = false;
     public lastTranscript = '';
     protected override reactTo = ['Environment.audioInput'];
@@ -2063,8 +2075,17 @@ export class AcousticEar extends Uca {
     }
 }
 
-export class VocalMouth extends Uca {
+export interface VocalMouthDisposition {
+    voice: string;
+    rate: number;
+}
+
+export class VocalMouth extends Uca<VocalMouthDisposition> {
     public override purpose = 'Síntesis y alocución vocal hacia el exterior';
+    public override disposition: VocalMouthDisposition = {
+        voice: 'alloy',
+        rate: 1.0,
+    };
     public speechQueue: string[] = [];
     protected override reactTo = ['AcousticEar.lastTranscript'];
 

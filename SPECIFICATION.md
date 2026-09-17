@@ -1984,8 +1984,8 @@ The abstract base class `Uca` governs unit lifecycle, innate capability mounting
 constructor(id: string, name: string, config?: Config)
 ```
 - Calls `Adn(id, name, nervousSystem)` constructor.
-- Assigns `this.disposition`, `this.channel`, and `this.registry`.
-- Automatically subscribes internal dispatcher `this.handleSignal(signal)` to the local channel.
+- Assigns `this.channel` and `this.registry`. Disposition is not passed via `config`; it is an innate ontological property defined physically within the class (`public disposition: TDisposition`).
+- Binds the internal channel via `this.bindChannel(proxy)`.
 - Wraps the instance in a reactive Proxy (`wrapWithProxy(this)`) and returns it, transparently intercepting property mutations.
 
 #### 12.3.3 Lifecycle and Capability Mounting Methods
@@ -1993,9 +1993,12 @@ constructor(id: string, name: string, config?: Config)
 - `public override async live(): Promise<void>`:
   Entrypoint for the UCA biological lifecycle. First invokes `this.mountCapabilities()` to instantiate and mount all subordinate organs declared in `capabilities`, then delegates to `super.live()`.
 - `private mountCapabilities(): void`:
-  Private method that deterministically iterates over entries in `this.capabilities`. For each `[name, disposition]` pair, verifies if the property already exists on the instance; if absent, delegates mounting to `this.attach(name, disposition)`.
-- `private attach<T extends Uca>(name: string, disposition?: unknown): T`:
-  Private method that resolves the capability constructor via `this.registry.get(name)`. If registered, creates the child instance with a deterministic identifier (`${this.id}::${name}`), sharing the channel (`this.channel`), nervous system (`this._ns`), and registry (`this.registry`), and mounts it as a direct property on the UCA under its `camelCase` name.
+  Private method that deterministically iterates over the keys of `this.capabilities`. For each capability name, verifies if the property already exists on the instance; if absent, delegates mounting to `this.attach(name)`.
+- `private attach<T extends Uca>(name: string): T`:
+  Private method that resolves the capability constructor via `this.registry.get(name)`. If registered, creates the child instance with a deterministic identifier (`${this.id}::${name}`), sharing the channel (`this.channel`), nervous system (`this._ns`), and registry (`this.registry`), and mounts it as a direct property on the UCA under its `camelCase` name. The capability is born with its innate physical disposition and rejects external constructor configuration.
+
+> [!NOTE]
+> **Operational Modulation and Reconfiguration via Impulses**: In accordance with biological organ architecture, a UCA never receives imperative external parameterization. All reconfiguration or operational modulation is transmitted exclusively through neural impulses (`Impulse`) via the `NervousSystem`, processed internally in its `react(impulse)` hook to sovereignly update its disposition.
 
 #### 12.3.4 Unified Reactive Cycle (Impulse and Signal)
 
@@ -2057,8 +2060,17 @@ The UCA instance is intercepted via a JavaScript Proxy at instantiation time:
 import { Uca, defaultRegistry, Signal } from './uca/index.js';
 
 // 1. Primitive Capability Definitions
-export class AcousticEar extends Uca {
+export interface AcousticEarDisposition {
+    sampleRate: number;
+    framingMs: number;
+}
+
+export class AcousticEar extends Uca<AcousticEarDisposition> {
     public override purpose = 'Acoustic perception and continuous speech transcription';
+    public override disposition: AcousticEarDisposition = {
+        sampleRate: 16000,
+        framingMs: 100,
+    };
     public isListening = false;
     public lastTranscript = '';
     protected override reactTo = ['Environment.audioInput'];
@@ -2073,8 +2085,17 @@ export class AcousticEar extends Uca {
     }
 }
 
-export class VocalMouth extends Uca {
+export interface VocalMouthDisposition {
+    voice: string;
+    rate: number;
+}
+
+export class VocalMouth extends Uca<VocalMouthDisposition> {
     public override purpose = 'Vocal synthesis and speech output to the external environment';
+    public override disposition: VocalMouthDisposition = {
+        voice: 'alloy',
+        rate: 1.0,
+    };
     public speechQueue: string[] = [];
     protected override reactTo = ['AcousticEar.lastTranscript'];
 
