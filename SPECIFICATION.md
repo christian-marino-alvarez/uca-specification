@@ -1098,27 +1098,26 @@ Cognitive Architecture is distinct from the UCA primitive. It organizes and conn
 In cognitive architectures, the evaluation of an Outcome represents the systematic analysis of its consequences against explicit criteria (e.g., accuracy, latency, coherence, stability, or error rate).
 
 > The Outcome belongs to whoever executes.
-> Evaluation belongs to whoever evaluates or formulated the criteria.
+> Evaluation belongs to whoever demands execution.
 
-The executing UCA produces the Outcome as the observable consequence of its Action. It is not required to evaluate itself to rule on the quality or utility of its result.
+The executing UCA produces the Outcome as the observable consequence of its Action. It is not required to evaluate itself to rule on the quality or utility of its result; it is the entity demanding execution (the external `Owner`) who holds the operational need, situational context, and exclusive authority to validate whether the produced consequences satisfy its demand.
 
-A Cognitive Architecture may define specialized UCAs whose dedicated Purpose is to evaluate Outcomes against explicit criteria:
+A Cognitive Architecture may define or delegate to specialized UCAs to record and correlate evidence, but contextual validation always belongs to whoever demanded execution:
 
 ```text
-Originating Entity (UCA₁)
-        │
+Demanding Entity / Owner (UCA₁)
+        │ (demands execution)
         ▼
-Executor (UCA₂)
+Target Executor (UCA₂)
         │
-        └── Outcome
+        └── Outcome (Properties, Criteria, Owner: UCA₁)
                 │
-                ▼
-Evaluator (UCA₃)
+                ├── Criteria ──► Compliance (PASS | FAIL) [Deterministic]
                 │
-                └── Evaluation under Explicit Criteria
+                └── Owner ─────► Validation (APPROVED | REJECTED) [Contextual]
 ```
 
-Evaluation is constructed purely through composition. No intrinsic evaluation mechanism is required within the UCA Core.
+Evaluation is constructed purely through composition and decoupling of roles. No intrinsic self-evaluation mechanism is required within the UCA Core.
 
 ---
 

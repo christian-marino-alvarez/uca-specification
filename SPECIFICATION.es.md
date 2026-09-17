@@ -1089,27 +1089,26 @@ La Arquitectura Cognitiva es distinta de la primitiva UCA. Organiza y conecta pr
 En arquitecturas cognitivas, la evaluación de un Outcome representa el análisis sistemático de sus consecuencias frente a criterios explícitos (ej. precisión, latencia, coherencia, estabilidad o tasa de error).
 
 > El Outcome pertenece a quien ejecuta.
-> La evaluación pertenece a quien evalúa o formuló los criterios.
+> La evaluación pertenece a quien demanda la ejecución.
 
-La UCA ejecutora produce el Outcome como consecuencia observable de su Action. No está obligada a autoevaluarse para dictaminar la calidad o utilidad de su resultado.
+La UCA ejecutora produce el Outcome como consecuencia observable de su Action. No está obligada a autoevaluarse para dictaminar la calidad o utilidad de su resultado; es la entidad demandante de la ejecución (el `Owner` externo) quien posee la necesidad operativa, el contexto situacional y la autoridad exclusiva para validar si las consecuencias producidas satisfacen su demanda.
 
-Una Arquitectura Cognitiva puede definir UCAs especializadas cuyo Purpose propio sea evaluar Outcomes frente a criterios explícitos:
+Una Arquitectura Cognitiva puede definir o delegar en UCAs especializadas para registrar y correlacionar evidencia, pero la validación contextual pertenece siempre a quien demandó la ejecución:
 
 ```text
-Entidad Originadora (UCA₁)
-        │
+Entidad Demandante / Owner (UCA₁)
+        │ (demanda ejecución)
         ▼
-Ejecutor (UCA₂)
+Target Ejecutor (UCA₂)
         │
-        └── Outcome
+        └── Outcome (Properties, Criteria, Owner: UCA₁)
                 │
-                ▼
-Evaluador (UCA₃)
+                ├── Criteria ──► Compliance (PASS | FAIL) [Determinista]
                 │
-                └── Evaluación bajo Criterios Explícitos
+                └── Owner ─────► Validation (APPROVED | REJECTED) [Contextual]
 ```
 
-La evaluación se construye puramente mediante composición. No se requiere ningún mecanismo intrínseco de evaluación dentro del UCA Core.
+La evaluación se construye puramente mediante composición y desacoplamiento de roles. No se requiere ningún mecanismo intrínseco de autoevaluación dentro del UCA Core.
 
 ---
 

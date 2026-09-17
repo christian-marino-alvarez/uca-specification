@@ -130,8 +130,9 @@ Conception ──► u(p, d, C, O) ──► s ──► Reactive Process (Inter
 ```
 
 > **The Outcome belongs to the executor (Target UCA).**  
+> **Evaluation belongs to whoever demands execution (the external Owner).**  
 > **Objective criteria evaluation (`Compliance`: PASS | FAIL) is deterministic.**  
-> **Contextual validation (`Validation`: APPROVED | REJECTED) belongs exclusively to the external Owner.**  
+> **Contextual validation (`Validation`: APPROVED | REJECTED) belongs exclusively to the Owner.**  
 > **Evolution is an asynchronous historical process mediated by accumulated evidence.**
 
 ### Canonical Activation and Reactivity Flow
