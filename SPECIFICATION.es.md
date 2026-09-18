@@ -1955,7 +1955,7 @@ Outcome Canónico Estructurado
 │   ├── validDuration: { Observation: "end - start",  Condition: ">=", Expected: 0 }
 │   └── maxLatency:    { Observation: "latency",      Condition: "<=", Expected: 300 }
 │
-└── Owner: Agent UCA       (UCA externa con autoridad de validación)
+└── Owner: Thalamus UCA    (UCA externa con autoridad de validación)
 ```
 
 Flujo reactivo emergente de interacciones (diagrama informativo):
@@ -1984,8 +1984,8 @@ EarCoherence (Interaction: onFilteredTranscript)
     ▼
 Ear Outcome: Chunk { text, start, end, latency }
     │
-    ├── Criteria ──────► Compliance (PASS | FAIL determinista)
-    └── Owner (Agent) ─► Validation (APPROVED | REJECTED contextual)
+    ├── Criteria ────────► Compliance (PASS | FAIL determinista)
+    └── Owner (Thalamus) ► Validation (APPROVED | REJECTED contextual)
 ```
 
 #### Escenario Canónico de Evolución Histórica Mediada: Ear UCA
@@ -1999,9 +1999,9 @@ Target UCA: Ear (Disposition: bufferSize = 2048, Nature: [512..4096])
     ▼
  Outcome producido: { text: "arquitectura cognitiva", start: 1200, end: 1850, latency: 410 }
     │
-    ├── Criteria ──────► Compliance: FAIL (debido a latency = 410ms > 300ms)
+    ├── Criteria ────────► Compliance: FAIL (debido a latency = 410ms > 300ms)
     │
-    └── Owner (Agent) ─► Validation: REJECTED (el Owner descarta el chunk por latencia inaceptable)
+    └── Owner (Thalamus) ► Validation: REJECTED (el Owner descarta el chunk por latencia inaceptable)
                             │
                             ▼
                        Tracker UCA
@@ -2025,7 +2025,7 @@ Target UCA: Ear (Disposition: bufferSize = 2048, Nature: [512..4096])
 ```
 
 1. **Constitución Inicial ($D_0$)**:
-   `Ear UCA` está predispuesta con `AudioFraming.bufferSize = 2048`. Su `Outcome` declara formalmente el criterio `latency <= 300ms` y a `Agent UCA` como su `Owner`.
+   `Ear UCA` está predispuesta con `AudioFraming.bufferSize = 2048`. Su `Outcome` declara formalmente el criterio `latency <= 300ms` y a `Thalamus UCA` como su `Owner`.
 2. **Ejecución Reactiva**:
    Llega un estímulo acústico complejo. `Ear UCA` ejecuta su proceso reactivo y emite el Outcome:
    `o = { text: "arquitectura cognitiva", start: 1200, end: 1850, latency: 410 }`.
@@ -2033,7 +2033,7 @@ Target UCA: Ear (Disposition: bufferSize = 2048, Nature: [512..4096])
    La evaluación de los Criteria de $o$ arroja de forma automática y matemática:
    `Compliance = FAIL` (la latencia de 410ms excede el límite máximo de 300ms).
 4. **Juicio Contextual de Validation por el Owner**:
-   `Agent UCA` evalúa el Outcome dentro del diálogo activo en curso. Dado que un retraso de 410ms interrumpe la cadencia conversacional fluida, el Owner emite formalmente:
+   `Thalamus UCA` evalúa el Outcome dentro del flujo activo. Dado que un retraso de 410ms interrumpe la cadencia conversacional fluida, el Owner emite formalmente:
    `Validation = REJECTED`.
 5. **Registro en Tracker UCA**:
    El rol `Tracker UCA` captura la tupla de evidencia inmutable y la añade a la colección histórica:
