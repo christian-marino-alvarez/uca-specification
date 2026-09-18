@@ -406,6 +406,23 @@ Purpose
 - **The Stimulus determines what the UCA reacts to; it does not redefine what the UCA pursues.**
 - There is no second source of functional direction during an activation. An external entity may provide incoming information via a stimulus, but does not redefine through that information what the UCA pursues.
 
+#### Origin, Semantics, and Verification of Purpose
+
+1. **Exogenous Definition by the Creator (Programmer)**:
+   `Purpose` is neither self-generated, computed, nor dynamically deduced by the unit itself at runtime. It is an **immutable ontological declaration formulated by the programmer (the creator)** at the moment of `Conception`. It represents the primary teleological anchor and raison d'être of the UCA.
+
+2. **Absence of Semantic Self-Evaluation in the Target UCA**:
+   The Target UCA lacks an internal reflective evaluator to test whether its reactions on each cycle formally satisfy its own Purpose. The unit mechanically reacts to stimuli within the physical bounds of its Capabilities and Disposition.
+
+3. **Inferential Verification by the Analysis UCA (Cingulate / Analyzer)**:
+   Verifying whether a UCA fulfills or deviates from its Purpose is an **external, asynchronous inferential responsibility** belonging to the **Analysis UCA** (e.g., `Cingulate UCA` or the *Analyzer UCA* role in the evolutionary architecture, §5):
+   - The Analysis UCA reads the declared textual `Purpose` of the Target UCA.
+   - It collects accumulated multi-execution historical evidence ($H \in \mathbb{H}$): received stimuli ($s$), produced outcomes ($o$), objective `Compliance` rates, and contextual `Validation` decisions from the Owner.
+   - Through cognitive inference, the Analysis UCA evaluates whether the unit's actual behavioral trajectory aligns with its Purpose and, if functional drift or inadequacy is detected, prompts the Evolution UCA to hypothesize mutations upon its `Disposition`.
+
+> **Principle of Semantic Verification of Purpose**:  
+> A UCA's Purpose is not verified via an internal deterministic or boolean predicate computed by the unit itself at runtime, but via **external evaluative inference** performed by a specialized Analysis UCA (Cingulate) over accumulated empirical history.
+
 ---
 
 ### 2.3 Disposition (D) and Primitive Capabilities
@@ -1503,8 +1520,10 @@ The evolution of a UCA is never performed as unsupervised internal self-adaptati
    - $\mu \in \mathbb{M}\text{ut}$: Identifier or version of the active mutation.
    - $x \in \mathbb{X}$: Situational or environmental support context.
 
-2. **Analysis (Pattern Identification and Correlation)**:
-   Examines the accumulated multi-execution historical corpus ($H \in \mathbb{H}$) without intervening in the direct reactive flow. Its responsibility is to uncover systematic empirical correlations between specific Disposition parameters ($d$), situational context ($x$), and cross-results of Compliance and Validation (e.g., *"bufferSize = 2048 correlates with a 41% latency failure rate under high concurrency, compared to a 4% failure rate when bufferSize = 1024"*).
+2. **Analysis (Pattern Identification, Correlation, and Inferential Purpose Evaluation)**:
+   Examines the accumulated multi-execution historical corpus ($H \in \mathbb{H}$) without intervening in the direct reactive flow. Its responsibility comprises:
+   - Reading the immutable ontological `Purpose` defined by the creator in the Target UCA and inferentially evaluating whether observable consequences ($o$) and Owner validations align with this purpose or denote functional drift.
+   - Uncovering systematic empirical correlations between specific Disposition parameters ($d$), situational context ($x$), and cross-results of Compliance and Validation (e.g., *"bufferSize = 2048 correlates with a 41% latency failure rate under high concurrency, compared to a 4% failure rate when bufferSize = 1024"*).
 
 3. **Evolution (Determining and Proposing Atomic Mutations)**:
    From historical analysis, derives adjustment hypotheses and formulates an admissible atomic mutation ($\mu \in \mathbb{M}\text{ut}$) on the Target UCA's Disposition, formally verifying that it satisfies Nature constraints prior to emission.
@@ -2182,7 +2201,7 @@ This constitutes the emergent behaviour hypothesis (§6.1), to be verified exper
 
 A software entity or component conforms to the **UCA Core** if and only if it satisfies all of the following criteria. Each textual normative criterion is accompanied by its formal expression over canonical domains and relations:
 
-1. **Dedicated Invariant Purpose**: Defines an explicit, stable, implementation-independent Purpose.
+1. **Dedicated Invariant Purpose**: Defines an explicit, immutable Purpose formulated by its creator at Conception, serving as an inspectable semantic referent for external inferential evaluation.
    $$\forall u \in \mathbb{U}, \exists! p \in \mathbb{P} : \text{hasPurpose}(u, p)$$
 2. **Defined Disposition**: Possesses a Disposition conditioning its reactive behavior.
    $$\forall u \in \mathbb{U}, \exists d \in \mathbb{D} : \text{hasDisposition}(u, d)$$
@@ -2241,7 +2260,7 @@ A component does **not** need any of the following to conform to UCA:
 - global state or snapshots;
 - demonstrated emergent cognitive behaviour.
 
-Conformance evaluates the **individual unit** against the UCA contract. It does not evaluate whether the system as a whole exhibits cognitive behaviour. Individual unit conformance regarding the `Owner` is satisfied through the formal decoupling of self-validation in its Outcome contract and the designation of the external validation authority ($\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}$, with $\text{owner} \neq u_{\text{target}}$), without requiring concurrent runtime deployment of the Owner to evaluate the unit in isolation.
+Conformance evaluates the **individual unit** against the UCA contract. It does not evaluate whether the system as a whole exhibits cognitive behaviour. Individual unit conformance regarding the `Owner` is satisfied through the formal decoupling of self-validation in its Outcome contract and the designation of the external validation authority ($\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}$, with $\text{owner} \neq u_{\text{target}}$), without requiring concurrent runtime deployment of the Owner to evaluate the unit in isolation. Likewise, individual unit conformance regarding `Purpose` (Criterion 1) is satisfied by formally declaring an explicit, invariant Purpose from conception, without requiring the unit to contain internal reflective self-evaluation logic over its purpose, a task that belongs inferentially to the Analysis UCA (Cingulate) over accumulated historical evidence.
 
 ---
 

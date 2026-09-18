@@ -393,6 +393,23 @@ Purpose
 - **El Stimulus determina aquello ante lo que la UCA reacciona; no redefine aquello que la UCA persigue.**
 - No existe una segunda fuente de dirección funcional durante una activación. Una entidad externa puede suministrar información a una UCA mediante un estímulo, pero no redefine mediante dicha información aquello que la UCA persigue.
 
+#### Origen, Semántica y Verificación del Purpose
+
+1. **Definición Exógena por el Creador (Programador)**:
+   El `Purpose` no es auto-generado, calculado ni deducido dinámicamente por la propia unidad en tiempo de ejecución. Es una **declaración ontológica inmutable formulada por el programador (el creador)** en el momento de la `Conception`. Representa el anclaje teleológico primario y la razón de existencia de la UCA.
+
+2. **Ausencia de Autoevaluación Semántica en la Target UCA**:
+   La Target UCA no posee un evaluador reflexivo para comprobar si sus reacciones en cada ciclo satisfacen formalmente su propio Purpose. La unidad se limita mecánicamente a reaccionar ante estímulos dentro de los límites de sus Capabilities y Disposition.
+
+3. **Verificación Inferencial por la UCA de Análisis (Cíngulo / Analyzer)**:
+   La verificación de si una UCA está cumpliendo o desviándose de su Purpose es una **responsabilidad inferencial externa y asíncrona** que corresponde a la **UCA de Análisis** (ej. `Cingulate UCA` o el rol *Analyzer UCA* en la arquitectura evolutiva, §5):
+   - La UCA de Análisis lee el `Purpose` textual declarado de la Target UCA.
+   - Recopila la evidencia histórica multiejecución acumulada ($H \in \mathbb{H}$): estímulos recibidos ($s$), outcomes producidos ($o$), cumplimiento objetivo de criterios (`Compliance`) y juicios de conveniencia del Owner (`Validation`).
+   - Mediante inferencia cognitiva, la UCA de Análisis determina si la trayectoria real de la unidad cumple su Purpose y, de no ser así, gatilla en la UCA de Evolución hipótesis de mutación sobre su `Disposition` para corregir la deriva.
+
+> **Principio de Verificación Semántica del Purpose**:  
+> El Purpose de una UCA no se verifica mediante un predicado determinista o booleano computable internamente por la propia unidad en tiempo de ejecución, sino mediante **inferencia evaluativa externa** efectuada por una UCA de Análisis (Cíngulo) sobre la evidencia empírica histórica acumulada.
+
 ---
 
 ### 2.3 Disposition (D) y Primitive Capabilities
@@ -1480,8 +1497,10 @@ La evolución de una UCA no se ejecuta como una autoadaptación interna no super
    - $\mu \in \mathbb{M}\text{ut}$: Identificador o versión de la mutación activa.
    - $x \in \mathbb{X}$: Contexto situacional o ambiental de soporte.
 
-2. **Analysis (Identificación de Patrones y Correlaciones)**:
-   Examina el corpus histórico multiejecución ($H \in \mathbb{H}$) sin intervenir en el flujo reactivo directo. Su responsabilidad es identificar correlaciones empíricas sistemáticas entre parámetros específicos de la Disposition ($d$), el contexto situacional ($x$) y los resultados cruzados de Compliance y Validation (por ejemplo: *"el valor de bufferSize = 2048 correlaciona con un 41% de rechazos por latencia bajo alta concurrencia, frente a un 4% de fallos cuando bufferSize = 1024"*).
+2. **Analysis (Identificación de Patrones, Correlaciones y Evaluación Inferencial del Purpose)**:
+   Examina el corpus histórico multiejecución ($H \in \mathbb{H}$) sin intervenir en el flujo reactivo directo. Su responsabilidad comprende:
+   - Leer el `Purpose` ontológico inmutable definido por el creador en la Target UCA y evaluar inferencialmente si las consecuencias observables ($o$) y las validaciones del Owner se alinean efectivamente con dicho propósito o si existe deriva funcional.
+   - Identificar correlaciones empíricas sistemáticas entre parámetros específicos de la Disposition ($d$), el contexto situacional ($x$) y los resultados cruzados de Compliance y Validation (por ejemplo: *"el valor de bufferSize = 2048 correlaciona con un 41% de rechazos por latencia bajo alta concurrencia, frente a un 4% de fallos cuando bufferSize = 1024"*).
 
 3. **Evolution (Determinación y Propuesta de Mutaciones Atómicas)**:
    A partir del análisis de evidencia histórica acumulada, deduce hipótesis de ajuste y formula una mutación atómica admisible ($\mu \in \mathbb{M}\text{ut}$) sobre la Disposition de la Target UCA, verificando formalmente que satisfaga las restricciones de Nature antes de su emisión.
@@ -2156,7 +2175,7 @@ Esto constituye la hipótesis de comportamiento emergente (§6.1), a verificar e
 
 Una entidad o componente de software cumple con el **UCA Core** si y solo si satisface todos los siguientes criterios. Cada criterio normativo textual se acompaña de su expresión formal sobre los dominios y relaciones canónicas:
 
-1. **Purpose Propio e Invariante**: Define un Purpose explícito, estable e independiente de la implementación.
+1. **Purpose Propio, Explícito e Invariante**: Define un Purpose explícito, inmutable y definido por su creador en Conception, que actúa como contrato ontológico inspeccionable para la evaluación inferencial externa.
    $$\forall u \in \mathbb{U}, \exists! p \in \mathbb{P} : \text{hasPurpose}(u, p)$$
 2. **Disposition Definida**: Tiene una Disposition que condiciona su comportamiento reactivo.
    $$\forall u \in \mathbb{U}, \exists d \in \mathbb{D} : \text{hasDisposition}(u, d)$$
@@ -2215,7 +2234,7 @@ Un componente **no** necesita ninguno de los siguientes para cumplir con UCA:
 - estado global o snapshots;
 - comportamiento cognitivo emergente demostrado.
 
-La conformidad evalúa la **unidad individual** frente al contrato UCA. No evalúa si el sistema en su conjunto exhibe comportamiento cognitivo. La conformidad individual de la unidad respecto al `Owner` se satisface mediante el desacoplamiento formal de la autovalidación en el contrato de su Outcome y la designación de la autoridad de validación externa ($\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}$, con $\text{owner} \neq u_{\text{target}}$), sin exigir el despliegue concurrente del Owner en tiempo de ejecución para evaluar a la unidad aislada.
+La conformidad evalúa la **unidad individual** frente al contrato UCA. No evalúa si el sistema en su conjunto exhibe comportamiento cognitivo. La conformidad individual de la unidad respecto al `Owner` se satisface mediante el desacoplamiento formal de la autovalidación en el contrato de su Outcome y la designación de la autoridad de validación externa ($\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}$, con $\text{owner} \neq u_{\text{target}}$), sin exigir el despliegue concurrente del Owner en tiempo de ejecución para evaluar a la unidad aislada. De igual modo, la conformidad individual respecto al `Purpose` (Criterio 1) se satisface al declarar formalmente un Purpose explícito e invariable desde su concepción, sin exigir que la propia unidad contenga lógica de autoevaluación reflexiva sobre su propósito, tarea que corresponde inferencialmente a la UCA de Análisis (Cíngulo) sobre la evidencia histórica.
 
 ---
 

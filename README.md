@@ -99,7 +99,7 @@ A UCA is conceived formally as a tuple:
 u = (p, d, C, O) ∈ ℙ × 𝔻 × 𝒫(ℂ) × 𝕆_def
 ```
 Where:
-- **`p` (Purpose)**: Functionally determines what the UCA is and what it pursues throughout its existence — guides all reactions.
+- **`p` (Purpose)**: Formulated by the creator (programmer) at Conception, functionally determines what the UCA is and what it pursues throughout its existence — guides all reactions and serves as the ontological referent for inferential evaluation by the Analysis UCA (Cingulate).
 - **`d` (Disposition)**: Set of constitutive conditions (`Definition`: Properties) and reactive subscriptions (`reactTo`) determining how its capabilities are predisposed to behave and interconnect.
 - **`C` (Capabilities)**: Operational resources (algorithms, transforms, tools, models, other UCAs) constituting the unit's functional boundaries ($\forall b \in \text{Behaviors}(u), \text{requiredCapabilities}(b) \subseteq C_u$).
 - **`O` (Outcome)**: Formally defines the observable change produced as a consequence of the UCA's activity, structured with empirical properties (`Properties`), deterministic criteria (`Criteria`), and an external `Owner` (UCA or Human as Terminal Owner) holding exclusive validation authority.
@@ -165,7 +165,7 @@ flowchart TD
 ## 📜 Fundamental Principles of the Model
 
 1. **Conception determines what UCA exists.**
-2. **Purpose functionally determines what UCA is and what it pursues throughout its existence.**
+2. **Purpose, formulated by the creator at Conception, functionally determines what the UCA is and what it pursues throughout its existence, being inferentially evaluated by the Analysis UCA.**
 3. **Capabilities determine the boundaries of what the UCA can do.**
 4. **Disposition determines how those Capabilities are constituted and predisposed via their Definition and reactTo.**
 5. **Stimulus is the reception by a UCA of an external observable change to its functional boundary that triggers its reaction, mechanically mediated by Reception.**
@@ -183,7 +183,7 @@ flowchart TD
 
 A software component conforms to the **UCA Core** if and only if:
 
-1. It defines an explicit, dedicated, stable, implementation-independent **Purpose** (`P`).
+1. It defines an explicit, invariant **Purpose** (`P`) formulated by its creator at Conception, operable as an ontological referent for external inferential evaluation.
 2. It has a declarative **Disposition** (`D`) (`Definition` + `reactTo`) conditioning its behaviour and reactive connections.
 3. It operates using an explicit and bounded set of **Capabilities** (`C`).
 4. It executes strictly upon receiving an activating **Stimulus** (`S`) external to its functional boundary.
@@ -193,7 +193,7 @@ A software component conforms to the **UCA Core** if and only if:
 
 **Non-requirements for conformance**: An implementation does *not* require a secondary source of functional direction, nor a formal Context container as mandatory universal stimulus structures, Observation or Perception as lifecycle phases, Memory, Identity, Learning, Adaptation, a Coordinator, Dispatcher, Orchestrator or Supervisor, an LLM, external causality, an Impulse envelope, an Event Bus, a global state snapshot, Synapses, or demonstrated emergent cognitive behaviour to conform to UCA.
 
-Conformance evaluates the **individual unit** against the UCA contract, not whether the system as a whole exhibits cognitive behaviour. Individual unit conformance regarding the `Owner` is satisfied through the formal decoupling of self-validation in its Outcome contract and the designation of the external validation authority ($\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}$, with $\text{owner} \ne u_{\text{target}}$), without requiring concurrent runtime deployment of the Owner to evaluate the unit in isolation.
+Conformance evaluates the **individual unit** against the UCA contract, not whether the system as a whole exhibits cognitive behaviour. Individual unit conformance regarding the `Owner` is satisfied through the formal decoupling of self-validation in its Outcome contract and the designation of the external validation authority ($\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}$, with $\text{owner} \ne u_{\text{target}}$), without requiring concurrent runtime deployment of the Owner to evaluate the unit in isolation. Likewise, individual unit conformance regarding `Purpose` (Criterion 1) is satisfied by formally declaring an explicit, invariant Purpose from conception, without requiring the unit to contain internal reflective self-evaluation logic over its purpose, a task that belongs inferentially to the Analysis UCA (Cingulate) over accumulated historical evidence.
 
 ---
 

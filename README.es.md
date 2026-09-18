@@ -99,7 +99,7 @@ Una UCA es concebida formalmente como una tupla:
 u = (p, d, C, O) ∈ ℙ × 𝔻 × 𝒫(ℂ) × 𝕆_def
 ```
 Donde:
-- **`p` (Purpose)**: Determina funcionalmente qué UCA es y aquello que persigue durante toda su existencia — orienta toda reacción.
+- **`p` (Purpose)**: Determinado por el creador (programador) en Conception, define funcionalmente qué UCA es y aquello que persigue durante toda su existencia — orienta toda reacción y sirve de referente ontológico para la evaluación inferencial de la UCA de Análisis (Cíngulo).
 - **`d` (Disposition)**: Conjunto de condiciones constitutivas (`Definition`: Properties) y suscripciones reactivas (`reactTo`) que determinan cómo sus capacidades están predispuestas para comportarse e interconectarse.
 - **`C` (Capabilities)**: Recursos operacionales (algoritmos, transforms, herramientas, modelos, otras UCAs) que constituyen los límites funcionales de la unidad ($\forall b \in \text{Behaviors}(u), \text{requiredCapabilities}(b) \subseteq C_u$).
 - **`O` (Outcome)**: Define formalmente el cambio observable producido como consecuencia de la actividad de la UCA, estructurado con propiedades empíricas (`Properties`), criterios deterministas (`Criteria`) y un `Owner` externo (UCA o Humano como Terminal Owner) con autoridad exclusiva de validación.
@@ -165,7 +165,7 @@ flowchart TD
 ## 📜 Principios Fundamentales del Modelo
 
 1. **Conception determina qué UCA existe.**
-2. **Purpose determina funcionalmente qué UCA es y aquello que persigue durante toda su existencia.**
+2. **Purpose, definido por el creador en Conception, determina funcionalmente qué UCA es y aquello que persigue durante toda su existencia, siendo evaluado inferencialmente por la UCA de Análisis.**
 3. **Capabilities determinan los límites de lo que la UCA puede hacer.**
 4. **Disposition determina cómo esas Capabilities están constituidas y predispuestas mediante su Definition y reactTo.**
 5. **Stimulus es la recepción por una UCA de un cambio observable externo a su frontera funcional que provoca su reacción, mediada mecánicamente por Reception.**
@@ -183,7 +183,7 @@ flowchart TD
 
 Un componente de software cumple con el **UCA Core** si y solo si:
 
-1. Define un **Purpose** (`P`) propio, explícito, estable e independiente de la implementación.
+1. Define un **Purpose** (`P`) propio, explícito e invariante formulado por su creador en Conception, operable como contrato ontológico para la evaluación inferencial externa.
 2. Tiene una **Disposition** (`D`) declarativa (`Definition` + `reactTo`) que condiciona su comportamiento y reactividad.
 3. Opera mediante un conjunto explícito y acotado de **Capabilities** (`C`).
 4. Se ejecuta estrictamente al recibir un **Stimulus** activador (`S`) externo a su frontera funcional.
@@ -193,7 +193,7 @@ Un componente de software cumple con el **UCA Core** si y solo si:
 
 **No-requisitos para la conformidad**: Una implementación *no* requiere una segunda fuente de dirección funcional ni un contenedor formal de Context como estructuras universales obligatorias del estímulo, Observation ni Perception como fases del ciclo de vida, Memory, Identity, Learning, Adaptation, un Coordinador, Dispatcher, Orquestador o Supervisor, un LLM, causalidad externa, un sobre Impulse, un Event Bus, un snapshot de estado global, Sinapsis, ni comportamiento cognitivo emergente demostrado para ser conforme con UCA.
 
-La conformidad evalúa la **unidad individual** frente al contrato UCA, no si el sistema en su conjunto exhibe comportamiento cognitivo. La conformidad individual de la unidad respecto al `Owner` se satisface mediante el desacoplamiento formal de la autovalidación en el contrato de su Outcome y la designación de la autoridad de validación externa ($\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}$, con $\text{owner} \ne u_{\text{target}}$), sin exigir el despliegue concurrente del Owner en tiempo de ejecución para evaluar a la unidad aislada.
+La conformidad evalúa la **unidad individual** frente al contrato UCA, no si el sistema en su conjunto exhibe comportamiento cognitivo. La conformidad individual de la unidad respecto al `Owner` se satisface mediante el desacoplamiento formal de la autovalidación en el contrato de su Outcome y la designación de la autoridad de validación externa ($\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}$, con $\text{owner} \ne u_{\text{target}}$), sin exigir el despliegue concurrente del Owner en runtime para evaluar a la unidad aislada. De igual modo, la conformidad individual respecto al `Purpose` (Criterio 1) se satisface al declarar formalmente un Purpose explícito e invariable desde su concepción, sin exigir que la propia unidad contenga lógica de autoevaluación reflexiva sobre su propósito, tarea que corresponde inferencialmente a la UCA de Análisis (Cíngulo) sobre la evidencia histórica.
 
 ---
 
