@@ -2599,7 +2599,7 @@ constructor(id: string, name: string, config?: Config)
 ```
 - Calls `Adn(id, name, nervousSystem)` constructor.
 - Assigns `this.channel` and `this.registry`. Disposition is not passed via `config`; it is an innate ontological property defined physically within the class (`public disposition: TDisposition`).
-- Binds the internal channel via `this.bindChannel(proxy)`.
+- Innervates the internal channel via `this.innervateChannel(proxy)`.
 - Wraps the instance in a reactive Proxy (`wrapWithProxy(this)`) and returns it, transparently intercepting property mutations.
 
 #### 12.3.3 Lifecycle and Capability Mounting Methods

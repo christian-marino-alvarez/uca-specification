@@ -2582,7 +2582,7 @@ constructor(id: string, name: string, config?: Config)
 ```
 - Invoca al constructor de `Adn(id, name, nervousSystem)`.
 - Asigna `this.channel` y `this.registry`. La disposición no se inyecta externamente por `config`; es una propiedad ontológica innata definida físicamente en la propia clase (`public disposition: TDisposition`).
-- Conecta el canal interno mediante `this.bindChannel(proxy)`.
+- Inerva el canal interno mediante `this.innervateChannel(proxy)`.
 - Envuelve la instancia en un Proxy reactivo (`wrapWithProxy(this)`) y lo retorna, garantizando la interceptación transparente de mutaciones de propiedades.
 
 #### 12.3.3 Métodos de Ciclo de Vida y Montaje de Capabilities
