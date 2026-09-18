@@ -133,7 +133,7 @@ Se distingue rigurosamente entre una instancia conceptual individual (representa
 | $\mathbb{O}$ | $o \in \mathbb{O}$ | Outcome: cambio observable estructurado $(\text{Properties}, \text{Criteria}, \text{Owner})$ producido por una UCA como consecuencia de su actividad. |
 | $\text{Compliance}$ | $\text{comp} \in \{\text{PASS}, \text{FAIL}\}$ | Compliance: evaluación determinista de los Criteria de un Outcome. |
 | $\text{Validation}$ | $\text{val} \in \{\text{APPROVED}, \text{REJECTED}\}$ | Validation: decisión contextual y juicio de aceptación emitido exclusivamente por el Owner del Outcome. |
-| $\text{Owner}$ | $u_{\text{owner}} \in \mathbb{U}$ | Owner: UCA externa con autoridad en el contexto para validar o rechazar el Outcome ($u_{\text{owner}} \neq u_{\text{target}}$). |
+| $\text{Owner}$ | $\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}$ | Owner: UCA externa o Humano (Terminal Owner) con autoridad en el contexto para validar o rechazar el Outcome ($\text{owner} \neq u_{\text{target}}$). |
 | $\mathbb{M}\text{ut}$ | $\mu \in \mathbb{M}\text{ut}$ | Mutation: cambio atómico identificable sobre la Disposition. |
 | $\mathbb{E}$ | $e \in \mathbb{E}$ | Evidence: observaciones y evaluaciones acumuladas sobre el comportamiento. |
 | $\mathbb{H}$ | $H \in \mathbb{H}$ | History: registro acumulado de evidencia histórica multiejecución $[s, o, \text{Compliance}, \text{Validation}, d, t, \mu, x]$. |
@@ -152,8 +152,8 @@ Las expresiones normativas deben preferir relaciones explícitas con nombre fren
 - **$\text{reactsTo}(\text{target}, \text{change})$**: Afirma una relación reactiva declarada donde una Capability o interacción responde a un cambio local observable.
 - **$\text{satisfies}(v, n)$**: Afirma que el valor $v$ cumple las restricciones y el tipo declarados por la Nature $n$ ($v \in \text{validDomain}(n)$).
 - **$\text{complies}(o)$**: Afirma la evaluación determinista de los Criteria de $o$. Retorna $\text{PASS}$ si todos los Criteria se cumplen, o $\text{FAIL}$ en caso contrario.
-- **$\text{validates}(u_{\text{owner}}, o)$**: Afirma el juicio operacional emitido por el Owner sobre $o$. Retorna $\text{APPROVED}$ si el Owner valida el outcome en su contexto de uso, o $\text{REJECTED}$ si lo rechaza.
-- **$\text{hasOwner}(o, u_{\text{owner}})$**: Asocia el Outcome $o$ con la UCA externa $u_{\text{owner}}$ que ostenta la autoridad exclusiva de validación. Invariante estricta: $u_{\text{owner}} \ne u_{\text{target}}$.
+- **$\text{validates}(\text{owner}, o)$**: Afirma el juicio operacional emitido por el Owner sobre $o$. Retorna $\text{APPROVED}$ si el Owner valida el outcome en su contexto de uso, o $\text{REJECTED}$ si lo rechaza.
+- **$\text{hasOwner}(o, \text{owner})$**: Asocia el Outcome $o$ con la entidad externa $\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}$ que ostenta la autoridad exclusiva de validación. Invariante estricta: $\text{owner} \ne u_{\text{target}}$.
 
 #### 4. Semántica de Flechas y Operadores
 
@@ -172,8 +172,8 @@ Las expresiones normativas deben preferir relaciones explícitas con nombre fren
 3. **Independencia Temporal vs Evaluativa**: $\text{precedes}(o_1, o_2)$ MUST NOT implicar que $o_2$ es mejor, superior o más deseable que $o_1$.
 4. **Reactividad vs Causalidad**: La declaración $\text{reactsTo}(x, y)$ establece dependencia de activación reactiva, pero MUST NOT implicar automáticamente una teoría formal de causalidad metafísica o global.
 5. **Aislamiento de Capas**: Conceptos de infraestructura o transporte (como `Impulse`, perteneciente a Runtime) MUST NOT introducirse como requisitos del modelo formal de UCA Core.
-6. **Disociación Estricta entre Compliance y Validation**: $\text{complies}(o) = \text{PASS}$ MUST NOT implicar $\text{validates}(u_{\text{owner}}, o) = \text{APPROVED}$, y $\text{complies}(o) = \text{FAIL}$ MUST NOT implicar $\text{validates}(u_{\text{owner}}, o) = \text{REJECTED}$. Los cuatro estados de cruce son empíricamente válidos.
-7. **Prohibición de Autovalidación**: Para todo Outcome $o$ producido por una UCA $u_{\text{target}}$, $\text{hasOwner}(o, u_{\text{owner}}) \implies u_{\text{owner}} \ne u_{\text{target}}$. Una Target UCA MUST NOT validar ni aprobar sus propios Outcomes.
+6. **Disociación Estricta entre Compliance y Validation**: $\text{complies}(o) = \text{PASS}$ MUST NOT implicar $\text{validates}(\text{owner}, o) = \text{APPROVED}$, y $\text{complies}(o) = \text{FAIL}$ MUST NOT implicar $\text{validates}(\text{owner}, o) = \text{REJECTED}$. Los cuatro estados de cruce son empíricamente válidos.
+7. **Prohibición de Autovalidación**: Para todo Outcome $o$ producido por una UCA $u_{\text{target}}$, $\text{hasOwner}(o, \text{owner}) \implies \text{owner} \ne u_{\text{target}}$. Una Target UCA MUST NOT validar ni aprobar sus propios Outcomes.
 8. **Evolución Mediada e Histórica**: La evolución de una UCA requiere evidencia histórica acumulada ($H \in \mathbb{H}$) multiejecución procesada por UCAs especializadas (Tracking, Analysis, Evolution); una UCA MUST NOT auto-evolucionar directamente en respuesta a un Outcome individual o aislado.
 9. **Carácter Relacional de Outcome y Stimulus**: Un cambio observable $\Delta x$ producido por una UCA $u_A$ ($\text{Outcome}(u_A, \Delta x)$) y recibido por una UCA $u_B$ provocando su reacción ($\text{Stimulus}(u_B, \Delta x)$) representa dos posiciones relacionales del mismo cambio respecto de fronteras funcionales distintas. $\text{Outcome}$ y $\text{Stimulus}$ MUST NOT tratarse como tipos ontológicos disjuntos que requieran transformación o conversión en runtime.
 10. **No Inferencia Automática de Stimulus**: $\text{Outcome}(u_A, \Delta x)$ MUST NOT implicar automáticamente $\exists u_B : \text{Stimulus}(u_B, \Delta x)$. Un cambio observable solo constituye un Stimulus para una UCA receptora si es recibido mecánicamente y su Disposition provoca una reacción reactiva.
@@ -929,7 +929,10 @@ Outcome
    - **Expected**: El valor de referencia o rango admisible requerido para satisfacer la regla (ej. `300ms`, `> 0`, `[0.0..1.0]`).
 
 3. **Outcome.Owner**:
-   Identifica a la UCA externa ($u_{\text{owner}} \in \mathbb{U}, u_{\text{owner}} \neq u_{\text{target}}$) en cuyo contexto operativo se consumen, integran o surten efecto las consecuencias observables del Outcome. El Owner valida las consecuencias observables del Outcome, no la secuencia interna de Actions utilizada para producirlas.
+   Identifica a la entidad externa ($\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}, \text{owner} \neq u_{\text{target}}$) en cuyo contexto operativo se consumen, integran o surten efecto las consecuencias observables del Outcome. El Owner es la única entidad formalmente facultada para emitir un juicio de aceptación y conveniencia contextual (`Validation`), validando las consecuencias observables del Outcome y no la secuencia interna de Actions utilizada para producirlas.
+
+   > **Resolución de la Regresión del Owner y Cierre Teleológico en el Humano**:
+   > Si todo Outcome exigiera que su Owner fuera obligatoriamente otra UCA, se produciría una regresión infinita ($UCA_1 \to UCA_2 \to UCA_3 \to \dots \infty$). En cualquier sistema cognitivo o computacional real, la jerarquía teleológica no es infinita ni recursiva: se cierra en la cúspide en el **Humano** (Terminal Owner / Root Owner). El interlocutor humano no es una UCA; es la fuente externa primaria de propósito y la autoridad última de validación contextual de los Outcomes emitidos por el organismo.
 
 #### Evaluación y Decisión: Compliance vs. Validation
 
@@ -943,7 +946,7 @@ Target UCA
     │
     ├── Criteria ──────► Compliance (PASS | FAIL)   [Evaluación determinista objetiva]
     │
-    └── Owner ─────────► Validation (APPROVED | REJECTED) [Decisión contextual externa]
+    └── Owner ─────────► Validation (APPROVED | REJECTED) [Decisión contextual externa: UCA o Humano]
 ```
 
 - **Compliance ($\text{comp} \in \{\text{PASS}, \text{FAIL}\}$)**:
@@ -953,15 +956,15 @@ Target UCA
 
 - **Validation ($\text{val} \in \{\text{APPROVED}, \text{REJECTED}\}$)**:
   Es el juicio u ordenamiento de conveniencia contextual emitido exclusivamente por el `Owner`.
-  $$\text{validates}(u_{\text{owner}}, o) \in \{\text{APPROVED}, \text{REJECTED}\}$$
-  El Owner determina si las consecuencias observables del Outcome resultan admisibles, pertinentes y operativamente útiles dentro de su propio dominio y contexto funcional.
+  $$\text{validates}(\text{owner}, o) \in \{\text{APPROVED}, \text{REJECTED}\}$$
+  El Owner (sea una UCA consumidora en la jerarquía o el Humano en la cúspide) determina si las consecuencias observables del Outcome resultan admisibles, pertinentes y operativamente útiles dentro de su propio dominio y contexto funcional.
 
 #### Disociación Estricta: Compliance ≠ Validation
 
 `Compliance` y `Validation` son dimensiones formalmente ortogonales. Está terminantemente prohibido asumir equivalencia o inferencia unidireccional entre ambas:
 
-- **$\text{complies}(o) = \text{PASS} \not\implies \text{validates}(u_{\text{owner}}, o) = \text{APPROVED}$**: Un Outcome puede cumplir todos sus criterios técnicos objetivos y, no obstante, ser rechazado por el Owner por inadecuación situacional.
-- **$\text{complies}(o) = \text{FAIL} \not\implies \text{validates}(u_{\text{owner}}, o) = \text{REJECTED}$**: Un Outcome puede violar un criterio técnico formal y, aun así, ser aceptado por el Owner por tolerancia contextual, urgencia o resiliencia operativa.
+- **$\text{complies}(o) = \text{PASS} \not\implies \text{validates}(\text{owner}, o) = \text{APPROVED}$**: Un Outcome puede cumplir todos sus criterios técnicos objetivos y, no obstante, ser rechazado por el Owner por inadecuación situacional.
+- **$\text{complies}(o) = \text{FAIL} \not\implies \text{validates}(\text{owner}, o) = \text{REJECTED}$**: Un Outcome puede violar un criterio técnico formal y, aun así, ser aceptado por el Owner por tolerancia contextual, urgencia o resiliencia operativa.
 
 De esta disociación emergen cuatro estados de evidencia empírica irreducible:
 
@@ -975,7 +978,7 @@ De esta disociación emergen cuatro estados de evidencia empírica irreducible:
 #### Invariante Estricta de Prohibición de Autovalidación
 
 > **El Target UCA MUST NOT validar ni aprobar sus propios Outcomes.**
-> $$\forall o \in \mathbb{O}, \quad \text{hasOwner}(o, u_{\text{owner}}) \implies u_{\text{owner}} \neq u_{\text{target}}$$
+> $$\forall o \in \mathbb{O}, \quad \text{hasOwner}(o, \text{owner}) \implies \text{owner} \neq u_{\text{target}}$$
 
 Una Target UCA puede computar determinísticamente el `Compliance` de sus propios criterios (ya que se trata de un cálculo objetivo sobre sus `Properties`), pero **carece ontológicamente de la perspectiva contextual y de la autoridad para validarse a sí misma**. Toda validación que no provenga de un Owner externo independiente es formalmente inválida en el modelo UCA.
 
@@ -2163,8 +2166,8 @@ Una entidad o componente de software cumple con el **UCA Core** si y solo si sat
    $$\forall u \in \mathbb{U}, \exists s \in \mathbb{S} : \text{triggers}(s, u)$$
 5. **Reacción Interna Orientada por Purpose**: Ejecuta un proceso interno de Reaction compuesto por Actions e interacciones que persiguen su Purpose dentro de los límites de sus Capabilities y Disposition.
    $$\forall (u, s) \text{ activo}, \exists r \in \mathbb{R}\text{xn} : \text{triggers}(s, u)$$
-6. **Producción de Outcome Estructurado y Gobernable**: Produce uno o más Outcomes observables estructurados en $(\text{Properties}, \text{Criteria}, \text{Owner})$, donde los Criteria son deterministas y el Owner es una UCA externa.
-   $$\forall (u_{\text{target}}, s) \text{ activo}, \exists o \in \mathbb{O} : \text{produces}(u_{\text{target}}, o) \land \text{hasOwner}(o, u_{\text{owner}}) \land (u_{\text{owner}} \ne u_{\text{target}})$$
+6. **Producción de Outcome Estructurado y Gobernable**: Produce uno o más Outcomes observables estructurados en $(\text{Properties}, \text{Criteria}, \text{Owner})$, donde los Criteria son deterministas y se designa formalmente un Owner externo ($\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}, \text{owner} \ne u_{\text{target}}$).
+   $$\forall (u_{\text{target}}, s) \text{ activo}, \exists o \in \mathbb{O} : \text{produces}(u_{\text{target}}, o) \land \text{hasOwner}(o, \text{owner}) \land (\text{owner} \ne u_{\text{target}})$$
 7. **Descomposición por Purpose**: Trata a otro componente como UCA solo si dicho componente posee un Purpose propio y diferenciado.
    $$\forall u' \text{ compuesta en } u, u' \in \mathbb{U} \iff \exists! p' \in \mathbb{P} : \text{hasPurpose}(u', p') \land p' \neq p_u$$
 
@@ -2184,7 +2187,7 @@ Todo sistema o arquitectura conforme con UCA DEBE satisfacer rigurosamente las s
 10. **Aislamiento entre Semántica Core y Runtime**: `Signal` e `Impulse` son mecanismos técnicos y vehículos de transporte de infraestructura en tiempo de ejecución, y NO deben identificarse ontológicamente con `Stimulus` u `Outcome`.
 11. **Determinismo de Compliance**: El `Compliance` DEBE evaluarse determinísticamente a partir de la verificación objetiva de los `Criteria` sobre las `Properties`.
 12. **Autoridad Exclusiva de Validación**: La `Validation` DEBE ser emitida exclusiva y contextualmente por el `Owner` del Outcome (la entidad demandante de la ejecución).
-13. **Prohibición Estricta de Autovalidación**: El `Target UCA` NO DEBE validar ni aprobar sus propios `Outcomes` ($\text{hasOwner}(o, u_{\text{owner}}) \implies u_{\text{owner}} \neq u_{\text{target}}$).
+13. **Prohibición Estricta de Autovalidación**: El `Target UCA` NO DEBE validar ni aprobar sus propios `Outcomes` ($\text{hasOwner}(o, \text{owner}) \implies \text{owner} \neq u_{\text{target}}$).
 14. **Disociación Estricta Compliance ≠ Validation**: `Compliance` no implica `Validation` (`PASS` $\not\implies$ `APPROVED`, `FAIL` $\not\implies$ `REJECTED`). Las cuatro combinaciones son empíricamente válidas e irreducibles.
 15. **Evolución Basada en Evidencia Histórica**: La evolución de una UCA DEBE basarse en el análisis de evidencia histórica multiejecución acumulada ($H \in \mathbb{H}$).
 16. **Prohibición de Autoevolución Directa Aislada**: Una UCA NO DEBE auto-evolucionar directamente en respuesta a un `Outcome` individual o aislado.
@@ -2212,7 +2215,7 @@ Un componente **no** necesita ninguno de los siguientes para cumplir con UCA:
 - estado global o snapshots;
 - comportamiento cognitivo emergente demostrado.
 
-La conformidad evalúa la **unidad individual** frente al contrato UCA. No evalúa si el sistema en su conjunto exhibe comportamiento cognitivo.
+La conformidad evalúa la **unidad individual** frente al contrato UCA. No evalúa si el sistema en su conjunto exhibe comportamiento cognitivo. La conformidad individual de la unidad respecto al `Owner` se satisface mediante el desacoplamiento formal de la autovalidación en el contrato de su Outcome y la designación de la autoridad de validación externa ($\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}$, con $\text{owner} \neq u_{\text{target}}$), sin exigir el despliegue concurrente del Owner en tiempo de ejecución para evaluar a la unidad aislada.
 
 ---
 

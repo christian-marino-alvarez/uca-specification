@@ -102,7 +102,7 @@ Donde:
 - **`p` (Purpose)**: Determina funcionalmente qué UCA es y aquello que persigue durante toda su existencia — orienta toda reacción.
 - **`d` (Disposition)**: Conjunto de condiciones constitutivas (`Definition`: Properties) y suscripciones reactivas (`reactTo`) que determinan cómo sus capacidades están predispuestas para comportarse e interconectarse.
 - **`C` (Capabilities)**: Recursos operacionales (algoritmos, transforms, herramientas, modelos, otras UCAs) que constituyen los límites funcionales de la unidad ($\forall b \in \text{Behaviors}(u), \text{requiredCapabilities}(b) \subseteq C_u$).
-- **`O` (Outcome)**: Define formalmente el cambio observable producido como consecuencia de la actividad de la UCA, estructurado con propiedades empíricas (`Properties`), criterios deterministas (`Criteria`) y un `Owner` externo con autoridad exclusiva de validación.
+- **`O` (Outcome)**: Define formalmente el cambio observable producido como consecuencia de la actividad de la UCA, estructurado con propiedades empíricas (`Properties`), criterios deterministas (`Criteria`) y un `Owner` externo (UCA o Humano como Terminal Owner) con autoridad exclusiva de validación.
 
 Una activación se define formalmente como:
 ```text
@@ -131,7 +131,7 @@ Conception ──► u(p, d, C, O) ──► Reception(Δx) ──► s ──�
 ```
 
 > **El Outcome pertenece a quien ejecuta (Target UCA).**  
-> **La evaluación pertenece a quien demanda la ejecución (el Owner externo).**  
+> **La evaluación pertenece a quien demanda la ejecución (el Owner externo: UCA o Humano).**  
 > **La evaluación objetiva de criterios (`Compliance`: PASS | FAIL) es determinista.**  
 > **La validación contextual (`Validation`: APPROVED | REJECTED) pertenece exclusivamente al Owner.**  
 > **La evolución es un proceso histórico asíncrono mediado por evidencia acumulada.**
@@ -149,7 +149,7 @@ flowchart TD
     PROC --> OUT[Outcome: Cambio observable Δx con Properties]
     OUT --> CRIT[Criteria: Reglas universales]
     CRIT --> COMP[Compliance: PASS | FAIL]
-    OUT & UCA --> OWN[Owner UCA externa]
+    OUT & UCA --> OWN[Owner externo: UCA o Humano]
     OWN --> VAL[Validation: APPROVED | REJECTED]
     COMP & VAL --> TRK[Tracker UCA]
     TRK --> HIST[(History: Evidencia multiejecución)]
@@ -188,12 +188,12 @@ Un componente de software cumple con el **UCA Core** si y solo si:
 3. Opera mediante un conjunto explícito y acotado de **Capabilities** (`C`).
 4. Se ejecuta estrictamente al recibir un **Stimulus** activador (`S`) externo a su frontera funcional.
 5. Ejecuta una **Reaction** interna compuesta por Actions y reacciones que persigue su Purpose dentro de los límites de sus Capabilities y Disposition.
-6. Produce uno o más **Outcomes** (`O`) estructurados con Properties empíricas, Criteria objetivos y un Owner externo con potestad de validación, satisfaciendo el principio de no auto-validación.
+6. Produce uno o más **Outcomes** (`O`) estructurados con Properties empíricas, Criteria objetivos y un Owner externo (UCA o Humano como Terminal Owner) con potestad de validación, satisfaciendo el principio de no auto-validación.
 7. Trata a otro componente como UCA solo si dicho componente posee un Purpose propio y diferenciado.
 
 **No-requisitos para la conformidad**: Una implementación *no* requiere una segunda fuente de dirección funcional ni un contenedor formal de Context como estructuras universales obligatorias del estímulo, Observation ni Perception como fases del ciclo de vida, Memory, Identity, Learning, Adaptation, un Coordinador, Dispatcher, Orquestador o Supervisor, un LLM, causalidad externa, un sobre Impulse, un Event Bus, un snapshot de estado global, Sinapsis, ni comportamiento cognitivo emergente demostrado para ser conforme con UCA.
 
-La conformidad evalúa la **unidad individual** frente al contrato UCA. No evalúa si el sistema en su conjunto exhibe comportamiento cognitivo.
+La conformidad evalúa la **unidad individual** frente al contrato UCA, no si el sistema en su conjunto exhibe comportamiento cognitivo. La conformidad individual de la unidad respecto al `Owner` se satisface mediante el desacoplamiento formal de la autovalidación en el contrato de su Outcome y la designación de la autoridad de validación externa ($\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}$, con $\text{owner} \ne u_{\text{target}}$), sin exigir el despliegue concurrente del Owner en tiempo de ejecución para evaluar a la unidad aislada.
 
 ---
 

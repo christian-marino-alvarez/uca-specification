@@ -126,7 +126,7 @@ A strict distinction is maintained between an entity domain (set) and an individ
 | $\mathbb{O}$ | $o \in \mathbb{O}$ | Outcome: structured observable change $(\text{Properties}, \text{Criteria}, \text{Owner})$ produced by a UCA as a consequence of its activity |
 | $\text{Compliance}$ | $\text{comp} \in \{\text{PASS}, \text{FAIL}\}$ | Compliance: deterministic evaluation of an Outcome's Criteria |
 | $\text{Validation}$ | $\text{val} \in \{\text{APPROVED}, \text{REJECTED}\}$ | Validation: contextual decision and acceptance judgment emitted exclusively by the Outcome's Owner |
-| $\text{Owner}$ | $u_{\text{owner}} \in \mathbb{U}$ | Owner: external UCA with authority in the operational context to validate or reject the Outcome ($u_{\text{owner}} \neq u_{\text{target}}$) |
+| $\text{Owner}$ | $\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}$ | Owner: external UCA or Human (Terminal Owner) with authority in the operational context to validate or reject the Outcome ($\text{owner} \neq u_{\text{target}}$) |
 | $\mathbb{M}\text{ut}$ | $\mu \in \mathbb{M}\text{ut}$ | Mutation (atomic transformation of Disposition) |
 | $\mathbb{E}$ | $e \in \mathbb{E}$ | Evidence (observable empirical information) |
 | $\mathbb{H}$ | $H \in \mathbb{H}$ | History: accumulated record of multi-execution historical evidence $[s, o, \text{Compliance}, \text{Validation}, d, t, \mu, x]$ |
@@ -158,8 +158,8 @@ Generic arrows ($\to$) with multiple interpretations are prohibited in normative
    - $\text{preservesPurpose}(u, \mu)$: Mutation $\mu$ preserves the invariant purpose of unit $u$.
    - $\text{withinCapabilities}(u, \mu)$: Mutation $\mu$ remains strictly within the operational boundaries of the capabilities of $u$.
    - $\text{complies}(o)$: Deterministic evaluation of the Criteria of $o$. Returns $\text{PASS}$ if all Criteria are strictly satisfied, or $\text{FAIL}$ otherwise.
-   - $\text{validates}(u_{\text{owner}}, o)$: Operational acceptance decision emitted exclusively by the Owner over $o$. Returns $\text{APPROVED}$ if the Owner accepts the outcome in its context, or $\text{REJECTED}$ otherwise.
-   - $\text{hasOwner}(o, u_{\text{owner}})$: Associates Outcome $o$ with the external UCA $u_{\text{owner}}$ holding exclusive validation authority. Invariant: $u_{\text{owner}} \neq u_{\text{target}}$.
+   - $\text{validates}(\text{owner}, o)$: Operational acceptance decision emitted exclusively by the Owner over $o$. Returns $\text{APPROVED}$ if the Owner accepts the outcome in its context, or $\text{REJECTED}$ otherwise.
+   - $\text{hasOwner}(o, \text{owner})$: Associates Outcome $o$ with the external entity $\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}$ holding exclusive validation authority. Invariant: $\text{owner} \neq u_{\text{target}}$.
 
 6. **State Difference**:
    - $\text{difference}(s_0, s_1)$: Denotes the observable delta $\Delta$ between initial state $s_0$ and subsequent state $s_1$.
@@ -186,8 +186,8 @@ $\Delta$ **MUST NOT** be interpreted as qualitative improvement, optimization, p
 5. **Temporal precedence MUST NOT imply qualitative improvement.**
 6. **Reactive dependency MUST NOT automatically imply causality.**
 7. **Runtime concepts MUST NOT be introduced into the UCA Core formal model unless required by Core conformance.**
-8. **Strict Dissociation between Compliance and Validation**: $\text{complies}(o) = \text{PASS}$ MUST NOT imply $\text{validates}(u_{\text{owner}}, o) = \text{APPROVED}$, and $\text{complies}(o) = \text{FAIL}$ MUST NOT imply $\text{validates}(u_{\text{owner}}, o) = \text{REJECTED}$. All four cross-combinations are empirically valid.
-9. **Strict Prohibition of Self-Validation**: For every Outcome $o$ produced by $u_{\text{target}}$, $\text{hasOwner}(o, u_{\text{owner}}) \implies u_{\text{owner}} \ne u_{\text{target}}$. A Target UCA MUST NOT validate or approve its own Outcomes.
+8. **Strict Dissociation between Compliance and Validation**: $\text{complies}(o) = \text{PASS}$ MUST NOT imply $\text{validates}(\text{owner}, o) = \text{APPROVED}$, and $\text{complies}(o) = \text{FAIL}$ MUST NOT imply $\text{validates}(\text{owner}, o) = \text{REJECTED}$. All four cross-combinations are empirically valid.
+9. **Strict Prohibition of Self-Validation**: For every Outcome $o$ produced by $u_{\text{target}}$, $\text{hasOwner}(o, \text{owner}) \implies \text{owner} \ne u_{\text{target}}$. A Target UCA MUST NOT validate or approve its own Outcomes.
 10. **Mediated and Historical Evolution**: UCA evolution requires accumulated multi-execution historical evidence ($H \in \mathbb{H}$) processed by specialized functional roles (Tracking, Analysis, Evolution); a UCA MUST NOT self-evolve directly in response to an isolated Outcome.
 11. **Relational Nature of Outcome and Stimulus**: An observable change $\Delta x$ produced by $u_A$ ($\text{Outcome}(u_A, \Delta x)$) and received by $u_B$ triggering its reaction ($\text{Stimulus}(u_B, \Delta x)$) represents two relational positions of the same change across different functional boundaries. $\text{Outcome}$ and $\text{Stimulus}$ MUST NOT be treated as disjoint ontological types requiring runtime conversion.
 12. **No Automatic Inference of Stimulus**: $\text{Outcome}(u_A, \Delta x)$ MUST NOT automatically imply $\exists u_B : \text{Stimulus}(u_B, \Delta x)$. An observable change only constitutes a Stimulus for a receiving UCA if received mechanically and its Disposition triggers a reaction.
@@ -939,7 +939,7 @@ Outcome
 │   └── Objective, non-subjective rules on Properties to deterministically evaluate the Outcome.
 │       └── Criterion { Observation, Condition, Expected }
 └── Owner
-    └── External UCA in whose operational context the unit operates, holding exclusive validation authority.
+    └── External entity (UCA or Human) in whose operational context the unit operates, holding exclusive validation authority.
 ```
 
 1. **Outcome.Properties**:
@@ -952,7 +952,10 @@ Outcome
    - **Expected**: The reference value or admissible range required to satisfy the rule (e.g., `300ms`, `> 0`, `[0.0..1.0]`).
 
 3. **Outcome.Owner**:
-   Identifies the external UCA ($u_{\text{owner}} \in \mathbb{U}, u_{\text{owner}} \neq u_{\text{target}}$) in whose operational context the observable consequences of the Outcome are consumed, integrated, or take effect. The Owner is the sole entity formally authorized to emit a validation judgment and acceptance decision, validating the observable consequences rather than internal action sequences.
+   Identifies the external entity ($\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}, \text{owner} \neq u_{\text{target}}$) in whose operational context the observable consequences of the Outcome are consumed, integrated, or take effect. The Owner is the sole entity formally authorized to emit a validation judgment and acceptance decision (`Validation`), validating the observable consequences rather than internal action sequences.
+
+   > **Resolution of Owner Infinite Regress and Teleological Closure in the Human (Terminal Owner)**:
+   > If every Outcome strictly required its Owner to be another UCA, an infinite regress would occur ($UCA_1 \to UCA_2 \to UCA_3 \to \dots \infty$). In any real cognitive or computational system, the teleological hierarchy is neither infinite nor cyclical: it terminates at the apex in the **Human** (Terminal Owner / Root Owner). The human interlocutor is not a UCA; they are the primary external source of purpose and the ultimate contextual validation authority for the Outcomes produced by the organism.
 
 #### Evaluation and Decision: Compliance vs. Validation
 
@@ -966,7 +969,7 @@ Target UCA
     │
     ├── Criteria ──────► Compliance (PASS | FAIL)   [Deterministic objective evaluation]
     │
-    └── Owner ─────────► Validation (APPROVED | REJECTED) [External contextual decision]
+    └── Owner ─────────► Validation (APPROVED | REJECTED) [External contextual decision: UCA or Human]
 ```
 
 - **Compliance ($\text{comp} \in \{\text{PASS}, \text{FAIL}\}$)**:
@@ -976,15 +979,15 @@ Target UCA
 
 - **Validation ($\text{val} \in \{\text{APPROVED}, \text{REJECTED}\}$)**:
   The contextual fitness judgment and operational decision emitted exclusively by the `Owner`.
-  $$\text{validates}(u_{\text{owner}}, o) \in \{\text{APPROVED}, \text{REJECTED}\}$$
-  The Owner determines whether the observable consequences of the Outcome are admissible, pertinent, and operationally useful within its own domain and functional context.
+  $$\text{validates}(\text{owner}, o) \in \{\text{APPROVED}, \text{REJECTED}\}$$
+  The Owner (whether a consuming UCA in the hierarchy or the Human at the apex) determines whether the observable consequences of the Outcome are admissible, pertinent, and operationally useful within its own domain and functional context.
 
 #### Strict Dissociation: Compliance ≠ Validation
 
 `Compliance` and `Validation` are formally orthogonal dimensions. Assuming equivalence or one-way implication between them is strictly prohibited:
 
-- **$\text{complies}(o) = \text{PASS} \not\implies \text{validates}(u_{\text{owner}}, o) = \text{APPROVED}$**: An Outcome may satisfy all technical criteria objectively and yet be rejected by the Owner due to situational inadequacy.
-- **$\text{complies}(o) = \text{FAIL} \not\implies \text{validates}(u_{\text{owner}}, o) = \text{REJECTED}$**: An Outcome may fail a formal technical criterion and yet be accepted by the Owner due to contextual tolerance, urgency, or operational resilience.
+- **$\text{complies}(o) = \text{PASS} \not\implies \text{validates}(\text{owner}, o) = \text{APPROVED}$**: An Outcome may satisfy all technical criteria objectively and yet be rejected by the Owner due to situational inadequacy.
+- **$\text{complies}(o) = \text{FAIL} \not\implies \text{validates}(\text{owner}, o) = \text{REJECTED}$**: An Outcome may fail a formal technical criterion and yet be accepted by the Owner due to contextual tolerance, urgency, or operational resilience.
 
 From this dissociation emerge four irreducible empirical evidence states:
 
@@ -998,7 +1001,7 @@ From this dissociation emerge four irreducible empirical evidence states:
 #### Strict Invariant: Prohibition of Self-Validation
 
 > **The Target UCA MUST NOT validate or approve its own Outcomes.**
-> $$\forall o \in \mathbb{O}, \quad \text{hasOwner}(o, u_{\text{owner}}) \implies u_{\text{owner}} \neq u_{\text{target}}$$
+> $$\forall o \in \mathbb{O}, \quad \text{hasOwner}(o, \text{owner}) \implies \text{owner} \neq u_{\text{target}}$$
 
 A Target UCA may deterministically compute the `Compliance` of its own criteria (as this is an objective computation over its `Properties`), but **it ontologically lacks the contextual perspective and authority to validate itself**. Any validation not originating from an independent external Owner is formally invalid in the UCA model.
 
@@ -2189,8 +2192,8 @@ A software entity or component conforms to the **UCA Core** if and only if it sa
    $$\forall u \in \mathbb{U}, \exists s \in \mathbb{S} : \text{triggers}(s, u)$$
 5. **Purpose-Driven Internal Reaction**: Executes an internal process of Reaction composed of Actions and reactions pursuing its Purpose within the boundaries of its Capabilities and Disposition.
    $$\forall (u, s) \text{ active}, \exists r \in \mathbb{R}\text{xn} : \text{triggers}(s, u)$$
-6. **Structured and Governed Outcome Production**: Produces one or more observable Outcomes structured into $(\text{Properties}, \text{Criteria}, \text{Owner})$, where Criteria are deterministic and the Owner is an external UCA.
-   $$\forall (u_{\text{target}}, s) \text{ active}, \exists o \in \mathbb{O} : \text{produces}(u_{\text{target}}, o) \land \text{hasOwner}(o, u_{\text{owner}}) \land (u_{\text{owner}} \ne u_{\text{target}})$$
+6. **Structured and Governed Outcome Production**: Produces one or more observable Outcomes structured into $(\text{Properties}, \text{Criteria}, \text{Owner})$, where Criteria are deterministic and an external Owner is formally designated ($\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}, \text{owner} \ne u_{\text{target}}$).
+   $$\forall (u_{\text{target}}, s) \text{ active}, \exists o \in \mathbb{O} : \text{produces}(u_{\text{target}}, o) \land \text{hasOwner}(o, \text{owner}) \land (\text{owner} \ne u_{\text{target}})$$
 7. **Purpose-Driven Decomposition**: Treats another component as a UCA only if that component possesses a dedicated, differentiated Purpose.
    $$\forall u' \text{ composed in } u, u' \in \mathbb{U} \iff \exists! p' \in \mathbb{P} : \text{hasPurpose}(u', p') \land p' \neq p_u$$
 
@@ -2210,7 +2213,7 @@ Every system or architecture conforming to UCA MUST strictly satisfy the followi
 10. **Decoupling Between Core Semantics and Runtime**: `Signal` and `Impulse` are technical mechanisms and infrastructure transport vehicles in runtime, and MUST NOT be ontologically identified with `Stimulus` or `Outcome`.
 11. **Deterministic Compliance**: `Compliance` MUST be evaluated deterministically through the objective verification of `Criteria` against `Properties`.
 12. **Exclusive Validation Authority**: `Validation` MUST be emitted exclusively and contextually by the `Owner` of the Outcome (the entity demanding execution).
-13. **Strict Prohibition of Self-Validation**: The `Target UCA` MUST NOT validate or approve its own `Outcomes` ($\text{hasOwner}(o, u_{\text{owner}}) \implies u_{\text{owner}} \neq u_{\text{target}}$).
+13. **Strict Prohibition of Self-Validation**: The `Target UCA` MUST NOT validate or approve its own `Outcomes` ($\text{hasOwner}(o, \text{owner}) \implies \text{owner} \neq u_{\text{target}}$).
 14. **Strict Dissociation Compliance ≠ Validation**: `Compliance` does not imply `Validation` (`PASS` $\not\implies$ `APPROVED`, `FAIL` $\not\implies$ `REJECTED`). All four combinations are empirically valid and irreducible.
 15. **Evolution Based on Historical Evidence**: The evolution of a UCA MUST be based on the analysis of accumulated multi-execution historical evidence ($H \in \mathbb{H}$).
 16. **Prohibition of Direct Isolated Self-Evolution**: A UCA MUST NOT self-evolve directly in response to an individual or isolated `Outcome`.
@@ -2238,7 +2241,7 @@ A component does **not** need any of the following to conform to UCA:
 - global state or snapshots;
 - demonstrated emergent cognitive behaviour.
 
-Conformance evaluates the **individual unit** against the UCA contract. It does not evaluate whether the system as a whole exhibits cognitive behaviour.
+Conformance evaluates the **individual unit** against the UCA contract. It does not evaluate whether the system as a whole exhibits cognitive behaviour. Individual unit conformance regarding the `Owner` is satisfied through the formal decoupling of self-validation in its Outcome contract and the designation of the external validation authority ($\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}$, with $\text{owner} \neq u_{\text{target}}$), without requiring concurrent runtime deployment of the Owner to evaluate the unit in isolation.
 
 ---
 
