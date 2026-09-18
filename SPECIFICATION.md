@@ -1471,7 +1471,7 @@ History (H₀ ∈ ℍ) ──► [Tracking ──► Analysis ──► Evolutio
                                        Mutation Proposal μ₁ (atomic)
                                                       │
                                                       ▼
-Target UCA₁ (p, d₁, C, O)  where d₁ = difference(d₀, d₁)
+Target UCA₁ (p, d₁, C, O)  where ΔD = difference(D₀, D₁)
      │
      │ Subsequent multi-event recorded executions
      ▼
@@ -1481,7 +1481,7 @@ History (H₁ ∈ ℍ) ──► [Tracking ──► Analysis ──► Evolutio
                                        Mutation Proposal μ₂ (atomic)
                                                       │
                                                       ▼
-Target UCA₂ (p, d₂, C, O)  where d₂ = difference(d₁, d₂)
+Target UCA₂ (p, d₂, C, O)  where ΔD = difference(D₁, D₂)
      │
     ...
 ```
@@ -2024,7 +2024,7 @@ Target UCA: Ear (Disposition: bufferSize = 2048, Nature: [512..4096])
                             │        formally verifies satisfies(1024, Nature) = true)
                             ▼
                     Target UCA (Ear) applies atomic mutation:
-                    D₁ = difference(D₀, D₁) with bufferSize = 1024
+                    ΔD = difference(D₀, D₁) with bufferSize = 1024
                             │
                             ▼
              Opening of new historical observation window
