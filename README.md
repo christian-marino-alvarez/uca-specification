@@ -100,7 +100,7 @@ u = (p, d, C, O) ∈ ℙ × 𝔻 × 𝒫(ℂ) × 𝕆_def
 ```
 Where:
 - **`p` (Purpose)**: Functionally determines what the UCA is and what it pursues throughout its existence — guides all reactions.
-- **`d` (Disposition)**: Set of constitutive, parametric (`Properties`: Function, Nature, Value), and interactive (`Interactions`: Definition, Target, Signal, When) conditions determining how its capabilities are predisposed to behave and interact.
+- **`d` (Disposition)**: Set of constitutive conditions (`Definition`: Properties) and reactive subscriptions (`reactTo`) determining how its capabilities are predisposed to behave and interconnect.
 - **`C` (Capabilities)**: Operational resources (algorithms, transforms, tools, models, other UCAs) constituting the unit's functional boundaries ($\forall b \in \text{Behaviors}(u), \text{requiredCapabilities}(b) \subseteq C_u$).
 - **`O` (Outcome)**: Formally defines the observable change produced as a consequence of the UCA's activity, structured with empirical properties (`Properties`), deterministic criteria (`Criteria`), and an external `Owner` holding exclusive validation authority.
 
@@ -114,7 +114,7 @@ Where:
 
 The fundamental and evolutionary lifecycle:
 ```text
-Conception ──► u(p, d, C, O) ──► Reception(Δx) ──► s ──► Reaction (Actions & Interactions) ──► Outcome (Δx)
+Conception ──► u(p, d, C, O) ──► Reception(Δx) ──► s ──► Reaction (Actions & Reactions) ──► Outcome (Δx)
                                  ▲                                                                 │
                                  │                                                       Criteria ─┼──► Compliance (PASS | FAIL)
                                  │                                                                 │
@@ -144,7 +144,7 @@ flowchart TD
     CHG[Observable change: Δx] --> REC[Reception: Mechanical & universal]
     REC --> STIM[Stimulus: Triggers reaction in UCA]
     STIM --> UCA
-    UCA --> RXN[Internal Reaction: Actions & interactions between Capabilities]
+    UCA --> RXN[Internal Reaction: Actions & reactions between Capabilities]
     RXN --> PROC[Emergent Reactive Process]
     PROC --> OUT[Outcome: Observable change Δx with Properties]
     OUT --> CRIT[Criteria: Universal rules]
@@ -167,12 +167,12 @@ flowchart TD
 1. **Conception determines what UCA exists.**
 2. **Purpose functionally determines what UCA is and what it pursues throughout its existence.**
 3. **Capabilities determine the boundaries of what the UCA can do.**
-4. **Disposition determines how those Capabilities are constituted and predisposed to behave and interact.**
+4. **Disposition determines how those Capabilities are constituted and predisposed via their Definition and reactTo.**
 5. **Stimulus is the reception by a UCA of an external observable change to its functional boundary that triggers its reaction, mechanically mediated by Reception.**
 6. **Reception is a universal, non-cognitive reactive mechanism of UCA Core; Perception is a specialized, optional function dependent on Purpose.**
-7. **Capabilities react through Interactions and not through direct dependencies between them.**
+7. **Capabilities react through local reactive subscriptions (reactTo) and not through direct dependencies between them.**
 8. **Action is any internal operation or transition belonging to the Reaction of a UCA. Outcome is the external observable consequence of such reaction.**
-9. **The Process emerges from reactive interactions between Capabilities according to their Dispositions.**
+9. **The Process emerges from reactive connections between Capabilities according to their Dispositions.**
 10. **Outcome is the observable change produced by a UCA's activity, structured in Properties, Criteria, and Owner, with objective Compliance evaluation (PASS | FAIL) and external contextual validation (Validation: APPROVED | REJECTED).**
 11. **Evolution is an asynchronous historical process mediated by specialized roles (Tracker, Analyzer, Evolution) over accumulated evidence (History), strictly prohibiting direct self-evolution upon isolated outcomes.**
 12. **The minimal unit of Evolution is an atomic, bounded, observable, and potentially reversible Mutation within Nature, where $\Delta\text{Disposition} = \text{difference}(D_0, D_1)$ expresses state difference and never intrinsic improvement.**
@@ -184,10 +184,10 @@ flowchart TD
 A software component conforms to the **UCA Core** if and only if:
 
 1. It defines an explicit, dedicated, stable, implementation-independent **Purpose** (`P`).
-2. It has a declarative **Disposition** (`D`) conditioning its behaviour and interactions.
+2. It has a declarative **Disposition** (`D`) (`Definition` + `reactTo`) conditioning its behaviour and reactive connections.
 3. It operates using an explicit and bounded set of **Capabilities** (`C`).
 4. It executes strictly upon receiving an activating **Stimulus** (`S`) external to its functional boundary.
-5. It executes an internal **Reaction** composed of Actions and interactions pursuing its Purpose within the boundaries of its Capabilities and Disposition.
+5. It executes an internal **Reaction** composed of Actions and reactions pursuing its Purpose within the boundaries of its Capabilities and Disposition.
 6. It produces one or more **Outcomes** (`O`) structured with empirical Properties, objective Criteria, and an external Owner holding validation authority, adhering to the non-self-validation invariant.
 7. It treats another component as a UCA only if that component has a dedicated, differentiated Purpose.
 

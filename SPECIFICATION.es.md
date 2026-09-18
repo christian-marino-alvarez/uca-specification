@@ -93,9 +93,9 @@ Los conceptos que puedan expresarse mediante Purpose, Disposition, Outcome o com
 3. **Capabilities determinan los límites de lo que la UCA puede hacer.**
 4. **Disposition determina cómo esas Capabilities están constituidas y predispuestas para comportarse e interactuar.**
 5. **Stimulus es una señal externa a la frontera de la UCA cuya recepción provoca la reacción de una UCA ya concebida.**
-6. **Las Capabilities reaccionan mediante Interactions y no mediante dependencias directas entre ellas.**
-7. **El Process emerge de las interacciones reactivas entre Capabilities conforme a sus Dispositions.**
-8. **Outcome es la consecuencia observable de dicha actividad, mientras que Action y Reaction pertenecen al dominio interno encapsulado de la UCA.**
+6. **Las Capabilities reaccionan mediante su predisposición reactTo y no mediante dependencias directas ni pipelines centrales.**
+7. **El Process y las Actions emergen dinámicamente de las relaciones reactivas locales entre Capabilities conforme a sus Dispositions.**
+8. **Outcome es la consecuencia observable de dicha actividad, validada ontológicamente de forma inmutable, mientras que Action y Reaction pertenecen al dominio interno encapsulado de la UCA.**
 9. **Evolution modifica la Disposition sin abandonar el Purpose ni los límites de las Capabilities.**
 10. **La unidad mínima de Evolution es una Mutation atómica, limitada, observable y potencialmente reversible.**
 
@@ -124,10 +124,10 @@ Se distingue rigurosamente entre una instancia conceptual individual (representa
 | $\mathbb{M}$ | $m \in \mathbb{M}$ | Mechanism: procedimiento computacional operativo de una Primitive Capability. |
 | $\text{Prop}$ | $\text{prop} \in \text{Prop}$ | Property: variable declarativa o paramétrica $(\text{function}, \text{nature}, \text{value})$. |
 | $\text{Nat}$ | $n \in \text{Nat}$ | Nature: especificación intrínseca del espacio de mutación válido de una Property. |
-| $\text{Inter}$ | $\text{inter} \in \text{Inter}$ | Interaction: relación reactiva declarada $(\text{definition}, \text{target}, \text{signal}, \text{when})$. |
+| $\text{reactTo}$ | $r \in \text{reactTo}$ | Suscripción reactiva declarada: fuentes observables ante las que reacciona la Capability. |
 | $\mathbb{S}$ | $s \in \mathbb{S}$ | Stimulus: recepción por una UCA de un cambio observable externo a su dominio que provoca su reacción. |
 | $\text{Reception}$ | $\text{receives}(u, \Delta x)$ | Reception: mecanismo universal, mecánico y no cognitivo por el cual una UCA recibe un cambio observable externo a su dominio que puede provocar su reacción. |
-| $\mathbb{R}\text{xn}$ | $r \in \mathbb{R}\text{xn}$ | Reaction: proceso interno desencadenado por un Stimulus, compuesto por las Actions e interacciones internas. |
+| $\mathbb{R}\text{xn}$ | $r \in \mathbb{R}\text{xn}$ | Reaction: proceso interno desencadenado por un Stimulus, compuesto por las Actions y reacciones internas. |
 | $\mathbb{A}$ | $a \in \mathbb{A}$ | Action: operación o transición interna perteneciente a la Reaction encapsulada de la UCA. |
 | $\mathbb{X}$ | $x \in \mathbb{X}$ | Context: información situacional o sustrato contextual de soporte (patrón opcional, §4). |
 | $\mathbb{O}$ | $o \in \mathbb{O}$ | Outcome: cambio observable estructurado $(\text{Properties}, \text{Criteria}, \text{Owner})$ producido por una UCA como consecuencia de su actividad. |
@@ -255,7 +255,7 @@ ENCAPSULATED INTERNAL DOMAIN
 Reaction
 Actions
 Mechanisms
-internal interactions
+internal reactions
 internal process
 ```
 
@@ -432,21 +432,14 @@ Primitive Capability
     │   │   └── Value
     │   └── ...
     │
-    └── Interactions
-        ├── Interaction (Relaciones reactivas entre Capabilities)
-        │   ├── Definition
-        │   ├── Target
-        │   ├── Signal
-        │   └── When
-        └── ...
+    └── reactTo (Fuentes observables ante las que reacciona)
 ```
 
 En forma resumida:
-- **Mechanism** = cómo funciona (qué procedimiento proporciona la capacidad).
-- **Configuration** = dimensión constitutiva de Properties (cómo está constituido).
-- **Parametrization** = dimensión de ajuste de Properties (cómo está ajustado).
-- **Interactions** = cómo reacciona ante otras Capabilities.
-- **Disposition** = `Properties` + `Interactions`.
+- **Mechanism** = procedimiento interno concreto que proporciona la capacidad funcional.
+- **Definition** = constitución y parametrización autodescriptiva de la Capability (cómo está constituida y ajustada).
+- **reactTo** = aquello ante lo que reacciona (determina la conexión reactiva local con otras Capabilities o estímulos).
+- **Disposition** = `Definition` + `reactTo`.
 
 #### Definición de Mechanism
 
@@ -476,14 +469,15 @@ Cada Property de una Capability es autodescriptiva y comprende:
 3. **Property.Value**:
    > Representa el estado concreto actual de la propiedad dentro de los límites establecidos por su Nature.
 
-#### Anatomía de las Interactions
+#### reactTo y Conexión Reactiva Local
 
-Las Capabilities no dependen directamente unas de otras ni son orquestadas por un procesador o pipeline central imperativo. Reaccionan mediante relaciones declaradas en sus Dispositions:
+Las Capabilities no dependen directamente unas de otras ni son orquestadas por un procesador o pipeline central imperativo. Reaccionan localmente ante cambios observables o Outcomes declarados en su `reactTo`:
 
-1. **Interaction.Definition**: Describe el propósito funcional de la interacción.
-2. **Interaction.Target**: Identifica qué elemento externo observa la interacción (`Capability.Property`).
-3. **Interaction.Signal**: Describe la información recibida por la Capability a consecuencia de la interacción para producir su reacción.
-4. **Interaction.When**: Condición declarativa que determina cuándo el cambio en el Target debe provocar la reacción.
+```text
+observable Δ / Outcome(A) ──► matches B.reactTo ──► B reacts ──► Outcome(B) ──► matches C.reactTo ──► C reacts
+```
+
+La topología de ejecución emerge exclusivamente de estas relaciones reactivas locales.
 
 #### Ejemplo Canónico: SherpaRecognition
 
@@ -495,8 +489,7 @@ Primitive Capability: SherpaRecognition
 │       Sherpa-ONNX y un modelo neuronal transductor
 │
 └── Disposition
-    │
-    ├── Properties
+    ├── Definition (Properties)
     │   ├── modelDir: { Function: "Directorio del modelo ASR", Nature: [path, readonly], Value: "models/asr-es" }
     │   ├── modelType: { Function: "Arquitectura del transductor", Nature: ["zipformer2"], Value: "zipformer2" }
     │   ├── provider: { Function: "Backend de cómputo", Nature: ["cpu", "cuda"], Value: "cpu" }
@@ -510,12 +503,7 @@ Primitive Capability: SherpaRecognition
     │   ├── decodingMethod: { Function: "Algoritmo de búsqueda de hipótesis", Nature: ["greedy_search", "modified_beam_search"], Value: "modified_beam_search" }
     │   └── hotwordsScore: { Function: "Ponderación contextual de hotwords", Nature: [0.0..10.0], Value: 2.5 }
     │
-    └── Interactions
-        └── onFloatAudioReceived:
-            ├── Definition: "Procesar muestras normalizadas para decodificación acústica"
-            ├── Target: "PcmToFloat.output"
-            ├── Signal: "Float32Array"
-            └── When: "Target.hasSamples == true"
+    └── reactTo: ["PcmToFloat.outcome"]
 ```
 
 #### Dos Profundidades de Cambio y Adaptación en Disposition
@@ -549,24 +537,12 @@ Una UCA concreta está constituida por capacidades concretas. La Disposition efe
 ```text
 Disposition(Ear)
         │
-        ├── Disposition(EchoCancellation)
-        │   ├── Properties
-        │   └── Interactions
-        ├── Disposition(AudioFraming)
-        │   ├── Properties
-        │   └── Interactions
-        ├── Disposition(PcmToFloat)
-        │   ├── Properties
-        │   └── Interactions
-        ├── Disposition(SherpaRecognition)
-        │   ├── Properties
-        │   └── Interactions
-        ├── Disposition(EchoTextFilter)
-        │   ├── Properties
-        │   └── Interactions
-        └── Disposition(EarCoherence)
-            ├── Properties
-            └── Interactions
+        ├── Disposition(EchoCancellation) { Definition, reactTo }
+        ├── Disposition(AudioFraming) { Definition, reactTo }
+        ├── Disposition(PcmToFloat) { Definition, reactTo }
+        ├── Disposition(SherpaRecognition) { Definition, reactTo }
+        ├── Disposition(EchoTextFilter) { Definition, reactTo }
+        └── Disposition(EarCoherence) { Definition, reactTo }
 ```
 
 No se duplican innecesariamente estos parámetros en una segunda estructura abstracta. La UCA conoce la constitución concreta de sus capacidades y sus respectivas Dispositions.
@@ -576,7 +552,7 @@ No se duplican innecesariamente estos parámetros en una segunda estructura abst
 Las Dispositions de las capacidades que forman una UCA no deben entenderse como configuraciones independientes. Su combinación determina el comportamiento emergente de la UCA respecto a su `Purpose`:
 
 ```text
-Dispositions de las Capabilities (Properties + Interactions)
+Dispositions de las Capabilities (Definition + reactTo)
                          │
                          ▼
                     armonización
@@ -591,7 +567,7 @@ Dispositions de las Capabilities (Properties + Interactions)
                       Purpose
 ```
 
-> **Armonizar una UCA puede requerir modificar tanto las Properties (Configuration/Parametrization) como las Interactions de las capacidades que la constituyen.**
+> **Armonizar una UCA puede requerir modificar tanto las Properties/Parámetros (Configuration/Parametrization) como las conexiones reactivas (`reactTo`) de las capacidades que la constituyen.**
 
 El `Purpose` proporciona el criterio superior respecto al cual se evalúa la armonización de las capacidades.
 
@@ -1446,7 +1422,7 @@ Una UCA cualquiera no requiere métodos como `perceive()`, `interpret()` ni razo
 
 El Core define que la Disposition condiciona el comportamiento y las interacciones de una unidad.
 
-> **Evolution es el proceso por el cual UCAs especializadas utilizan evidencia histórica de la actividad de otras UCAs para determinar cambios permitidos sobre su Disposition, preservando su Purpose, sus Capabilities y la Nature de sus Properties e Interactions.**
+> **Evolution es el proceso por el cual UCAs especializadas utilizan evidencia histórica de la actividad de otras UCAs para determinar cambios permitidos sobre su Disposition, preservando su Purpose, sus Capabilities y la Nature de su Disposition.**
 
 Distinción ontológica fundamental:
 ```text
@@ -1542,7 +1518,7 @@ El modelo UCA prohíbe taxativamente que una unidad altere su propia `Dispositio
 > **La unidad mínima de Evolution es una Mutation atómica de la Disposition.**
 
 Una Mutation ($\mu \in \mathbb{M}\text{ut}$) produce una alteración $\Delta D = \text{difference}(D_0, D_1)$ que debe ser:
-- **pequeña e identificable**: focalizada en una Property o Interaction concreta;
+- **pequeña e identificable**: focalizada en una Property o reactTo concreto;
 - **limitada**: circunscrita a los límites de Nature ($\text{satisfies}(\text{value}_{new}, \text{nature})$);
 - **validable**: verificable formalmente antes de su aplicación;
 - **medible**: observable empíricamente en subsecuentes Outcomes históricos;
@@ -1551,14 +1527,14 @@ Una Mutation ($\mu \in \mathbb{M}\text{ut}$) produce una alteración $\Delta D =
 
 #### Tipos de Mutación: Paramétrica y Estructural
 
-1. **Mutación Paramétrica**: Ajuste del estado o valor de una Property (`Property.Value`), manteniendo Purpose, Nature e Interactions constantes:
+1. **Mutación Paramétrica**: Ajuste del estado o valor de una Property (`Property.Value`), manteniendo Purpose, Nature y reactTo constantes:
    ```text
    SherpaRecognition.hotwordsScore: 2.5 ──► 3.0   (donde satisfies(3.0, Nature))
    ```
-2. **Mutación Estructural**: Modificación de una Interaction (`Disposition.Interactions`) para alterar el flujo reactivo emergente sin modificar el código fuente de las Capabilities:
+2. **Mutación Estructural**: Modificación de las relaciones reactivas (`Disposition.reactTo`) para alterar las conexiones emergentes entre Capabilities sin modificar su código fuente:
    ```text
-   t₀: Capability A ──► Capability B
-   t₁: Capability C ──► Capability A ──► Capability B
+   t₀: Capability B.reactTo = ['CapabilityA.outcome']
+   t₁: Capability B.reactTo = ['CapabilityC.outcome']
    ```
 
 #### Secuencialidad Temporal y Reversibilidad de la Disposición
@@ -1627,12 +1603,12 @@ El estado $D_1$ resultante de aplicar una mutación $\mu$ constituye únicamente
 
 #### Principios de Observación Evolutiva
 
-1. **Interpretación Declarativa sin Acoplamiento Hardcodeado**: El observador evolutivo inspecciona `Property.Function`, `Property.Nature`, `Property.Value` e `Interactions` (Definition, Target, Signal, When), razonando sobre la adaptación sin requerir código específico de cada Capability ni confundir las funciones paramétricas con el Purpose propio de la UCA.
+1. **Interpretación Declarativa sin Acoplamiento Hardcodeado**: El observador evolutivo inspecciona `Property.Function`, `Property.Nature`, `Property.Value` y `reactTo` de cada Capability, razonando sobre la adaptación sin requerir código específico de cada Capability ni confundir las funciones paramétricas con el Purpose propio de la UCA.
 2. **Validación Estricta contra Nature**: Ninguna mutación puede aplicarse si viola la `Nature` declarada de la propiedad ($\neg\text{satisfies}(\text{value}, \text{nature})$). La seguridad evolutiva proviene de la propia constitución declarativa.
 3. **Fuera del Camino Crítico de Ejecución**: Los roles evolutivos actúan de forma asíncrona, desacoplada y sobre evidencia acumulada. No constituyen un árbitro síncrono ni un cuello de botella para las reacciones de la Target UCA.
 4. **Optimización Local Acotada**: El contexto de optimización permanece pequeño y localizado:
    ```text
-   Target UCA Purpose + Capabilities + Properties + Interactions + History (H) ──► Contexto de Análisis
+   Target UCA Purpose + Capabilities + Disposition (Definition + reactTo) + History (H) ──► Contexto de Análisis
    ```
 5. **Falsabilidad Experimental y Evaluación Explícita**: Toda mutación atómica genera una hipótesis comprobable empíricamente frente a una nueva serie de Outcomes históricos evaluados:
    - **Evidencia favorable**: La tasa de `Compliance: PASS` y `Validation: APPROVED` en el histórico posterior respalda la hipótesis bajo los criterios del Owner.
@@ -1889,8 +1865,7 @@ Capabilities (Capacidades Primitivas Concretas y sus Dispositions)
 │       │   ├── maxThresholdRms: { Function: "Umbral máximo RMS acústico", Nature: [100..2000], Value: 450 }
 │       │   ├── decayMs: { Function: "Tiempo de caída de atenuación", Nature: [50..2000ms], Value: 350 }
 │       │   └── bargeInHoldMs: { Function: "Retención de estado de corte", Nature: [50..2000ms], Value: 400 }
-│       └── Interactions:
-│           └── onAudioInput: { Definition: "Atenuar eco de señal cruda", Target: "AudioInput.stream", Signal: "Int16Array", When: "Target.hasData == true" }
+│       └── reactTo: ["AudioInput.stream"]
 │
 ├── AudioFraming
 │   ├── Mechanism: Materialización temporal de la señal en fragmentos discretos
@@ -1899,8 +1874,7 @@ Capabilities (Capacidades Primitivas Concretas y sus Dispositions)
 │       │   ├── sampleRate: { Function: "Frecuencia de muestreo", Nature: [16000], Value: 16000 }
 │       │   ├── frameSize: { Function: "Tamaño discreto de fragmento", Nature: [160..16000], Value: 1600 }
 │       │   └── emitPartialOnFlush: { Function: "Emitir fragmento parcial al vaciar buffer", Nature: [boolean], Value: false }
-│       └── Interactions:
-│           └── onCleanAudio: { Definition: "Fragmentar audio atenuado", Target: "EchoCancellation.output", Signal: "Int16Array", When: "Target.hasData == true" }
+│       └── reactTo: ["EchoCancellation.output"]
 │
 ├── PcmToFloat
 │   ├── Mechanism: Normalización y conversión de enteros Int16 a coma flotante Float32
@@ -1909,8 +1883,7 @@ Capabilities (Capacidades Primitivas Concretas y sus Dispositions)
 │       │   ├── inputType: { Function: "Tipo de entrada numérica", Nature: ["Int16"], Value: "Int16" }
 │       │   ├── outputType: { Function: "Tipo de salida numérica", Nature: ["Float32"], Value: "Float32" }
 │       │   └── scale: { Function: "Factor divisor de normalización", Nature: [32768.0], Value: 32768.0 }
-│       └── Interactions:
-│           └── onAudioFrame: { Definition: "Normalizar fragmento de audio a coma flotante", Target: "AudioFraming.output", Signal: "Int16Array", When: "Target.frameReady == true" }
+│       └── reactTo: ["AudioFraming.output"]
 │
 ├── SherpaRecognition
 │   ├── Mechanism: Reconocimiento online de voz mediante modelo neuronal transductor (Sherpa-ONNX)
@@ -1928,8 +1901,7 @@ Capabilities (Capacidades Primitivas Concretas y sus Dispositions)
 │       │   ├── rule3MinUtteranceLength: { Function: "Longitud máxima de elocución", Nature: [5.0..60.0s], Value: 20.0 }
 │       │   ├── decodingMethod: { Function: "Método de decodificación", Nature: ["greedy_search", "modified_beam_search"], Value: "modified_beam_search" }
 │       │   └── hotwordsScore: { Function: "Ponderación contextual de hotwords", Nature: [0.0..10.0], Value: 2.5 }
-│       └── Interactions:
-│           └── onFloatSamples: { Definition: "Decodificar habla de muestras normalizadas", Target: "PcmToFloat.output", Signal: "Float32Array", When: "Target.hasSamples == true" }
+│       └── reactTo: ["PcmToFloat.output"]
 │
 ├── EchoTextFilter
 │   ├── Mechanism: Filtrado y atenuación léxica de transcripciones autogeneradas
@@ -1939,16 +1911,14 @@ Capabilities (Capacidades Primitivas Concretas y sus Dispositions)
 │       │   ├── decayMs: { Function: "Ventana temporal de atenuación léxica", Nature: [500..10000ms], Value: 2500 }
 │       │   ├── mismatchThreshold: { Function: "Tolerancia de discrepancia léxica", Nature: [0..5], Value: 1 }
 │       │   └── minWordLength: { Function: "Longitud mínima de palabra a evaluar", Nature: [1..10], Value: 3 }
-│       └── Interactions:
-│           └── onRawTranscript: { Definition: "Filtrar ecos textuales de transcripciones crudas", Target: "SherpaRecognition.output", Signal: "RawTranscript", When: "Target.textAvailable == true" }
+│       └── reactTo: ["SherpaRecognition.output"]
 │
 └── EarCoherence
     ├── Mechanism: Normalización estructural y preservación de continuidad temporal de Chunks
     └── Disposition:
         ├── Properties:
         │   └── outputSchema: { Function: "Esquema canónico de salida", Nature: ["Chunk"], Value: "Chunk" }
-        └── Interactions:
-            └── onFilteredTranscript: { Definition: "Estructurar chunk coherente final", Target: "EchoTextFilter.output", Signal: "FilteredTranscript", When: "Target.isValid == true" }
+        └── reactTo: ["EchoTextFilter.output"]
 
 Outcome Canónico Estructurado
 │
@@ -2063,14 +2033,14 @@ Target UCA: Ear (Disposition: bufferSize = 2048, Nature: [512..4096])
 
 El propósito fundamental de este ejemplo es ilustrar **cómo cualquier proceso tradicional o secuencial (como un pipeline de procesamiento de audio y transcripción) puede representarse formalmente mediante UCA** sin necesidad de orquestadores centrales ni tuberías rígidas cableadas en código.
 
-En lugar de un flujo secuencial imperativo hardcodeado, el proceso emerge de las relaciones reactivas declaradas en las Dispositions de las Capabilities (`Interactions` y `Properties`):
+En lugar de un flujo secuencial imperativo hardcodeado, el proceso emerge de las relaciones reactivas declaradas en las Dispositions de las Capabilities (`reactTo` y `Properties`):
 - `AudioFraming.frameSize: 1600` (tamaño de fragmento de audio).
 - `EchoCancellation.decayMs: 350` y `bargeInHoldMs: 400` (gestión de umbral de eco y corte).
 - `SherpaRecognition.rule2MinTrailingSilence: 0.4` (segundos de silencio para cierre de segmento).
 - `EchoTextFilter.decayMs: 2500` (ventana temporal de atenuación de eco textual).
 
 **Reconfigurabilidad del Orden del Proceso**:
-Dado que el flujo no está fijado en la arquitectura del código sino en las `Interactions` declarativas de la Disposition, **el orden del pipeline puede redefinirse o reestructurarse dinámicamente si resultara pertinente** (por ejemplo, mediante una mutación estructural en Evolution, §4.3). Si la evidencia empírica mostrara que aplicar cancelación de eco después del framing o introducir una etapa previa de filtrado acústico optimiza la transcripción, la Disposition de las Capabilities puede reconfigurar sus Targets y Signals para alterar la secuencia reactiva emergente sin modificar el código de las capacidades ni la identidad de la UCA:
+Dado que el flujo no está fijado en la arquitectura del código sino en las declaraciones `reactTo` de la Disposition de cada Capability, **el orden del proceso puede redefinirse o reestructurarse dinámicamente si resultara pertinente** (por ejemplo, mediante una mutación estructural en Evolution, §4.3). Si la evidencia empírica mostrara que aplicar cancelación de eco después del framing o introducir una etapa previa de filtrado acústico optimiza la transcripción, la Disposition de las Capabilities puede reconfigurar sus suscripciones `reactTo` para alterar la secuencia reactiva emergente sin modificar el código de las capacidades ni la identidad de la UCA:
 ```text
 t₀ (orden inicial):      AudioInput ──► EchoCancellation ──► AudioFraming ──► PcmToFloat ──► ...
 t₁ (orden redefinido):   AudioInput ──► AudioFraming ──► EchoCancellation ──► PcmToFloat ──► ...
@@ -2276,14 +2246,9 @@ Esta cuestión queda formalmente resuelta en §2.7, §2.11 y §3.3:
 2. **No Inferencia Automática**: Un Outcome puede existir sin constituir jamás un Stimulus si ninguna otra UCA está predispuesta a reaccionar ante él ($\text{Outcome}(u_A, \Delta x) \not\implies \exists u_B : \text{Stimulus}(u_B, \Delta x)$).
 3. **Desacoplamiento de Contexto**: El sustrato contextual ($x \in \mathbb{X}$) es un patrón arquitectónico compositivo y opcional (§4), no un requisito universal del Core. La distinción entre estimulación directa y contexto depende exclusivamente de la `Disposition` de la UCA receptora.
 
-### 9.6 Semántica y Sobrecarga Ontológica de `Interaction.Signal`
+### 9.6 Semántica y Sobrecarga Ontológica de `Interaction.Signal` [CERRADA]
 
-En el modelo de Capabilities primitivas (§2.4 y §7.1), el campo `Interaction.Signal` se utiliza simultáneamente en los ejemplos para representar:
-- Tipos de datos en memoria (ej. `Int16Array`, `Float32Array`);
-- Cargas útiles o eventos con semántica de dominio (ej. `RawTranscript`, `FilteredTranscript`);
-- Mecanismo o medio de transporte físico entre propiedades observadas.
-
-Esta sobrecarga ontológica entre *tipo de dato*, *evento cognitivo* y *canal de propagación* permanece abierta y no debe resolverse mediante atajos formales sin validación arquitectónica.
+Esta cuestión queda resuelta formalmente mediante la simplificación de `Disposition` y la eliminación de la entidad `Interaction` (§2.4). Las Capabilities ya no declaran `Interaction.Signal` de forma aislada, sino suscripciones reactivas locales (`reactTo: ['Capability.outcome', ...]`), donde la emisión y tipado de señales discurre sobre canales reactivos y eventos de `Outcome`, eliminando la ambigüedad ontológica previa.
 
 ### 9.7 Causalidad frente a Reactividad y Propagación Temporal
 
@@ -2357,7 +2322,7 @@ Las arquitecturas orientadas a eventos (Event-Driven Architecture) y los princip
 - **Detonación reactiva**: El flujo de procesamiento no procede de una llamada imperativa descendente, sino de la reacción ante una señal, evento o cambio en el entorno:
   $$\text{External Signal} \to \text{Stimulus} \to \text{UCA} \to \text{Action} \to \text{Outcome}$$
 - **Desacoplamiento temporal y espacial**: Quien emite una señal no controla ni conoce el ciclo de vida interno del receptor.
-- **Interacciones reactivas intra-unidad**: Las `Interactions` declaradas in la Disposition de una UCA siguen una semántica estrictamente reactiva ante cambios observables locales (`reactsTo`).
+- **Interacciones reactivas intra-unidad**: Las relaciones reactivas (`reactTo`) declaradas en la Disposition de cada Capability siguen una semántica estrictamente reactiva ante cambios observables locales.
 
 **Diferencias Conceptuales**:
 - **Nivel de abstracción**: Los Sistemas Reactivos prescriben patrones técnicos y propiedades de ingeniería de sistemas (elasticidad, resiliencia, contrapresión o *backpressure*, brokers de mensajería). UCA formula un contrato funcional a nivel de unidad; no prescribe la presencia obligatoria de un Event Bus, brokers de mensajes, patrones Observer ni flujos reactivos de código en el Core.
@@ -2470,7 +2435,7 @@ Capabilities (C)
 
 Disposition (d)
     determina cómo están constituidas y predispuestas
-    sus Capabilities mediante Properties e Interactions.
+    sus Capabilities mediante su Definition y reactTo.
 
 Outcome (O)
     define formalmente las consecuencias observables producidas,
@@ -2558,9 +2523,9 @@ Esta sección formaliza el contrato de programación e implementación concreta 
 | `DispositionSnapshot` | `{ version: number; timestamp: number; disposition: T; mutation?: MutationEvent; }` | Instantánea inmutable que captura el estado íntegro de la disposición en un punto del tiempo, permitiendo navegación y reversión secuencial de configuraciones. |
 | `SignalListener` | `(signal: Signal) => Promise<void> \| void` | Función de callback invocada ante la recepción de una señal en el canal interno. |
 | `IChannel` | `broadcast(signal: Signal): void;`<br>`subscribe(listener: SignalListener): () => void;` | Contrato del bus de comunicación local intra-organismo. Desacopla la emisión de señales de los receptores suscritos. |
-| `CapabilityConstructor` | `new (id: string, name: string, config?: Config) => Uca` | Firma del constructor para clases que extienden `Uca` y pueden ser instanciadas dinámicamente como capabilities subordinadas. |
+| `CapabilityConstructor` | `new (id: string, name: string, config: Config) => Uca` | Firma del constructor para clases que extienden `Uca` y pueden ser instanciadas dinámicamente como capabilities subordinadas. |
 | `IRegistry` | `register<T>(name: string, ctor: CapabilityConstructor<T>): void;`<br>`get<T>(name: string): CapabilityConstructor<T> \| undefined;`<br>`has(name: string): boolean;` | Contrato del catálogo superior que mapea nombres de capabilities en `camelCase` con sus correspondientes constructores de clase. |
-| `Config` | `{ channel?: IChannel; nervousSystem?: INervousSystem; registry?: IRegistry; }` | Parámetros de configuración e inyección de dependencias para la inicialización de una UCA. |
+| `Config` | `{ channel: IChannel; nervousSystem?: INervousSystem; registry?: IRegistry; }` | Parámetros de configuración e inyección de dependencias para la inicialización de una UCA. El `channel` es obligatorio para garantizar la inervación compartida dentro del organismo. |
 
 ### 12.3 Especificación de la Clase Base `Uca`
 
@@ -2571,19 +2536,19 @@ La clase abstracta base `Uca` gobierna el ciclo de vida, el montaje innato de ó
 - `public abstract purpose: string`: Propósito ontológico inmutable que define y orienta la unidad a lo largo de su existencia.
 - `public capabilities: Record<string, Record<string, unknown>>`: Diccionario declarativo de capabilities innatas y sus disposiciones, con claves obligatorias en formato `camelCase`.
 - `public disposition?: Record<string, unknown>`: Configuración paramétrica e interactiva inyectada en la unidad durante su instanciación.
-- `protected channel: IChannel`: Instancia del canal local de señales. Si no se suministra en `Config`, se inicializa una nueva instancia aislada de `Channel`.
+- `protected channel: IChannel`: Instancia del canal local de señales inyectado obligatoriamente en `Config`.
 - `protected registry: IRegistry`: Referencia al catálogo de capabilities utilizado para resolver constructores. Por defecto utiliza `defaultRegistry`.
 - `protected reactTo: string[]`: Array declarativo de señales en formato `<SourceUca>.<property>` ante las cuales la UCA debe reaccionar.
 
 #### 12.3.2 Constructor
 
 ```typescript
-constructor(id: string, name: string, config?: Config)
+constructor(id: string, name: string, config: Config)
 ```
 - Invoca al constructor de `Adn(id, name, nervousSystem)`.
-- Asigna `this.channel` y `this.registry`. La disposición no se inyecta externamente por `config`; es una propiedad ontológica innata definida físicamente en la propia clase (`public disposition: TDisposition`).
-- Inerva el canal interno mediante `this.innervateChannel(proxy)`.
-- Envuelve la instancia en un Proxy reactivo (`wrapWithProxy(this)`) y lo retorna, garantizando la interceptación transparente de mutaciones de propiedades.
+- Asigna `this.channel = config.channel` y `this.registry`. La disposición no se inyecta externamente por `config`; es una propiedad ontológica innata definida físicamente en la propia clase (`public disposition: TDisposition`).
+- Inerva el canal interno mediante `this.innervate(membrane)`.
+- Envuelve la instancia en su membrana reactiva (`createMembrane(this)`) y la retorna, garantizando la interceptación transparente de mutaciones de propiedades.
 
 #### 12.3.3 Métodos de Ciclo de Vida y Montaje de Capabilities
 
