@@ -82,7 +82,7 @@ Esta especificación abierta define el contrato conceptual de una Unidad Cogniti
 **La especificación NO prescribe**:
 - Una topología cognitiva o jerarquía obligatoria;
 - Unidades cognitivas específicas que todo sistema deba instanciar;
-- Analogías biológicas o neuroanatómicas;
+- Analogías biológicas o neuroanatómicas (el Core es estrictamente computacional; las denominaciones biomiméticas usadas en ejemplos o runtimes de referencia son convenciones de dominio no normativas);
 - Una tecnología de comunicación o broker de mensajes particular;
 - Un modelo de lenguaje, framework o proveedor específico;
 - Un motor de memoria o base de datos concreto;

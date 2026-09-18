@@ -57,7 +57,7 @@ Cognitive behaviour belongs to the system level. It is not a property of any ind
 
 This specification does **not** prescribe:
 - a specific cognitive topology or hierarchy;
-- biological or neuroanatomical analogies;
+- biological or neuroanatomical analogies (UCA Core is strictly computational and functional; biomimetic designations used in examples or runtime reference implementations, such as *Thalamus*, *Cingulate*, *Adn*, or *nervousSystem*, are illustrative domain conventions and do not constitute normative concepts);
 - specific cognitive units that every system must instantiate;
 - a particular communication technology or message broker;
 - a specific language model, framework, or vendor;
@@ -667,7 +667,7 @@ To ensure maximum conceptual clarity and avoid ontological ambiguities, the univ
 
 1. **Purpose**: functionally determines the UCA and guides all its reactions.
 2. **Stimulus**: signal external to the UCA boundary whose reception triggers its reaction.
-3. **Interaction.Signal**: internal signal through which its Capabilities interact and react.
+3. **Internal Reactive Signal (`reactTo`)**: internal reactive event emitted by a Capability to which other local Capabilities react through subscriptions (`reactTo: ['Capability.outcome']`) within the Disposition (§2.3).
 
 ```text
                  Purpose
@@ -678,7 +678,7 @@ To ensure maximum conceptual clarity and avoid ontological ambiguities, the univ
 Stimulus ──────►│   UCA   │
                │         │
                │ C₁ ───► C₂
-               │   Signal│
+               │  reactTo│
                │         │
                └────┬────┘
                     │
@@ -704,11 +704,11 @@ External Signal
 │    ▼                             │
 │ Capability A                     │
 │    │                             │
-│    │ Interaction.Signal          │
+│    │ reactTo ('CapabilityA.outcome')
 │    ▼                             │
 │ Capability B                     │
 │    │                             │
-│    │ Interaction.Signal          │
+│    │ reactTo ('CapabilityB.outcome')
 │    ▼                             │
 │ Capability C                     │
 │                                  │
@@ -720,7 +720,7 @@ External Signal
 
 Therefore:
 - `Stimulus` operates at the **inter-UCA / exterior → UCA** level (external signal crossing the UCA boundary and triggering its reaction).
-- `Interaction.Signal` operates at the **intra-UCA / Capability → Capability** level (internal signal between capabilities declared within the Disposition to coordinate the emergent reactive process).
+- **Internal reactive signals (`reactTo`)** operate at the **intra-UCA / Capability → Capability** level (intermediate internal events or outcomes emitted within the unit to which local capabilities declared in the Disposition subscribe via `reactTo` to coordinate the emergent reactive process).
 
 ---
 
@@ -906,7 +906,7 @@ Ear UCA
 ├── Disposition₀ / internal implementation: Sherpa Mechanism
 └── Disposition₁ / internal implementation: alternative ASR engine
 
-Consumers (Thalamus):
+Consumers (e.g., Thalamus / SpeechConsumer UCA):
 Continue depending exclusively on the Outcome (text: "Hola"), not on the internal mechanism.
 ```
 
@@ -972,7 +972,7 @@ Outcome
    Identifies the external entity ($\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}, \text{owner} \neq u_{\text{target}}$) in whose operational context the observable consequences of the Outcome are consumed, integrated, or take effect. The Owner is the sole entity formally authorized to emit a validation judgment and acceptance decision (`Validation`), validating the observable consequences rather than internal action sequences.
 
    > **Resolution of Owner Infinite Regress and Teleological Closure in the Human (Terminal Owner)**:
-   > If every Outcome strictly required its Owner to be another UCA, an infinite regress would occur ($UCA_1 \to UCA_2 \to UCA_3 \to \dots \infty$). In any real cognitive or computational system, the teleological hierarchy is neither infinite nor cyclical: it terminates at the apex in the **Human** (Terminal Owner / Root Owner). The human interlocutor is not a UCA; they are the primary external source of purpose and the ultimate contextual validation authority for the Outcomes produced by the organism.
+   > If every Outcome strictly required its Owner to be another UCA, an infinite regress would occur ($UCA_1 \to UCA_2 \to UCA_3 \to \dots \infty$). In any real cognitive or computational system, the teleological hierarchy is neither infinite nor cyclical: it terminates at the apex in the **Human** (Terminal Owner / Root Owner). The human interlocutor is not a UCA; they are the primary external source of purpose and the ultimate contextual validation authority for the Outcomes produced by the system or composite agent.
 
 #### Evaluation and Decision: Compliance vs. Validation
 
@@ -1550,7 +1550,7 @@ $$\text{Disposition}_0 \longrightarrow \text{Outcomes} \longrightarrow \text{Com
 The `Evolution` role formulates and applies atomic mutations upon `Disposition` ($\Delta D = \text{difference}(D_0, D_1)$). It **MUST NOT** rewrite or directly intervene in internal `Actions`. Future actions and transitions will change emergently and intrinsically as a consequence of the new Disposition, Mechanisms, and internal reactions.
 
 > **Role Composability**:
-> `Tracking`, `Analysis`, and `Evolution` are composable functional responsibilities, not rigid mandatory class names of the UCA Core. A cognitive architecture may instantiate them as independent UCAs (e.g., `Tracker UCA`, `Analyzer UCA`, `Evolution UCA`) or integrate them into composite cognitive organs (such as a `Cingulate UCA`).
+> `Tracking`, `Analysis`, and `Evolution` are composable functional responsibilities, not rigid mandatory class names of the UCA Core. A cognitive architecture may instantiate them as independent UCAs (e.g., `Tracker UCA`, `Analyzer UCA`, `Evolution UCA`) or integrate them into composite cognitive subsystems (such as an `Analyzer UCA`, illustratively modeled biomimetically as a `Cingulate UCA` in certain domains).
 
 #### Strict Invariant: Prohibition of Direct Self-Evolution on Isolated Outcomes
 
@@ -1590,7 +1590,7 @@ $$[D_0, D_1, \dots, D_n]$$
 
 - **Conception State ($D_0$)**: Represents the initial baseline disposition declared physically on the class at unit inception. It forms the absolute lower boundary of reversibility (a UCA cannot revert to a state prior to its own conception).
 - **Reactive Reversibility**: In the presence of unfavorable historical evidence or operational restoration demands, the UCA can revert its state to any previous configuration $D_k$ via `revert()` or `revertTo(version)`.
-- **Biological Synchronization**: Value restoration upon reversion is intrinsically reactive: each property updated during rollback emits its corresponding `MutationEvent`, ensuring that the composite organism and channel subscribers immediately synchronize with the restored state.
+- **Reactive Synchronization**: Value restoration upon reversion is intrinsically reactive: each property updated during rollback emits its corresponding `MutationEvent`, ensuring that subscribed intra-UCA capabilities immediately synchronize with the restored state.
 
 #### Inviolable Boundaries of Evolution
 
@@ -2129,7 +2129,7 @@ u_A (Purpose: act)
                                                              └── produces(u_B, o_B): perceived representation
 ```
 
-`u_B` is structurally identical to any other UCA: $u_B = (p_B, d_B, C_B) \in \mathbb{U}$. Its Purpose requires perception.
+`u_B` is structurally identical to any other UCA: $u_B = (p_B, d_B, C_B, O_B) \in \mathbb{U}$. Its Purpose requires perception, and its Outcome set $O_B$ exposes the produced perceived representation ($o_B \in O_B$).
 
 ---
 
@@ -2167,7 +2167,7 @@ u_A (Disposition d_A,0)
                            d_A,0 ──mutation──► d_A,1  (applied to u_A)
 ```
 
-Where $\Delta d_A = \text{difference}(d_{A,0}, d_{A,1})$. `u_B` requires no special structure. Its Purpose justifies its activity.
+Where $\Delta d_A = \text{difference}(d_{A,0}, d_{A,1})$. The adapting unit is likewise a standard UCA $u_B = (p_B, d_B, C_B, O_B) \in \mathbb{U}$ requiring no special structure: its Purpose justifies its activity and its Outcome $o_B \in O_B$ exposes the calculated mutation $\Delta d_A$.
 
 ---
 
@@ -2368,7 +2368,7 @@ Event-Driven Architectures (EDA) and the principles of Reactive Systems (Bonér 
 
 **Similarities with UCA**:
 - **Reactive Triggering**: Processing flow does not proceed from a top-down imperative call, but from reaction to a signal, event, or environmental change:
-  $$	ext{External Signal} 	o 	ext{Stimulus} 	o 	ext{UCA} 	o 	ext{Action} 	o 	ext{Outcome}$$
+  $$\text{External Signal} \to \text{Stimulus} \to \text{UCA} \to \text{Action} \to \text{Outcome}$$
 - **Temporal and Spatial Decoupling**: The emitter of a signal neither controls nor knows the receiver's internal lifecycle.
 - **Intra-Unit Reactive Connections**: The reactive relations (`reactTo`) declared in the Disposition of each Capability follow strictly reactive semantics upon local observable changes.
 
@@ -2434,15 +2434,15 @@ LIDA (Learning Intelligent Distribution Agent; Franklin et al., 2007, 2016) is a
 - **Multilevel Adaptation**: Recognizes that adaptation takes place across different temporal scales and abstraction levels.
 
 **Conceptual Differences**:
-- **Absence of a Fixed Cognitive Cycle**: LIDA roots its dynamics in the strict, periodic execution of a universal cognitive cycle (Perception $	o$ Attention $	o$ Selection $	o$ Action). In UCA Core, no mandatory lifecycle phases or predefined universal cognitive phases exist. Each UCA reacts asynchronously upon receiving its own Stimulus, and sequential or cyclic coordination emerges, if needed, through inter-unit composition topology (§3) or Cognitive Architecture (§4).
-- **Non-Universal Memory Modules**: In LIDA, episodic, semantic, and attentional memory subsystems are mandatory system modules. In UCA, memory is an optional responsibility that may or may not be modeled as a specialized UCA when required by the functional domain (see §7.2, Hippocampus UCA).
+- **Absence of a Fixed Cognitive Cycle**: LIDA roots its dynamics in the strict, periodic execution of a universal cognitive cycle (Perception $\to$ Attention $\to$ Selection $\to$ Action). In UCA Core, no mandatory lifecycle phases or predefined universal cognitive phases exist. Each UCA reacts asynchronously upon receiving its own Stimulus, and sequential or cyclic coordination emerges, if needed, through inter-unit composition topology (§3) or Cognitive Architecture (§4).
+- **Non-Universal Memory Modules**: In LIDA, episodic, semantic, and attentional memory subsystems are mandatory system modules. In UCA, memory is an optional functional responsibility that may or may not be modeled as a specialized UCA when required by the functional domain (e.g., modeled as a specialized memory UCA; see §4.3, §7.2–§7.5).
 
 ### 10.9 Self-Adaptive Systems, Cybernetics, and Autonomic Computing
 
 Classical cybernetics (Ashby, 1956 - *Design for a Brain* and the law of requisite variety) and autonomic computing architectures (Kephart & Chess, 2003 - MAPE-K loop: Monitor, Analyze, Plan, Execute, Knowledge) established theoretical foundations for feedback-driven adaptation and homeostasis in the face of environmental disturbances.
 
 **Similarities with UCA**:
-- **Adaptation Governed by Invariant Bounds**: In Ashby's cybernetics and autonomic computing, the system adjusts its internal parameters to keep essential variables within viable limits. In UCA, this principle is manifested directly in the formalization of **Evolution**: a `Mutation` ($\mu \in \mathbb{M}	ext{ut}$) adapts the unit's `Disposition` ($d$) while strictly preserving its invariant `Purpose` ($	ext{preservesPurpose}(u, \mu)$) within the bounded space of its `Capabilities` ($	ext{withinCapabilities}(u, \mu)$) and property `Nature`.
+- **Adaptation Governed by Invariant Bounds**: In Ashby's cybernetics and autonomic computing, the system adjusts its internal parameters to keep essential variables within viable limits. In UCA, this principle is manifested directly in the formalization of **Evolution**: a `Mutation` ($\mu \in \mathbb{M}\text{ut}$) adapts the unit's `Disposition` ($d$) while strictly preserving its invariant `Purpose` ($\text{preservesPurpose}(u, \mu)$) within the bounded space of its `Capabilities` ($\text{withinCapabilities}(u, \mu)$) and property `Nature`.
 - **Use of Empirical Evidence**: Adaptation proceeds from observing previous observable consequences (`Evidence`), rather than arbitrary source code modifications.
 
 **Conceptual Differences**:
@@ -2523,29 +2523,33 @@ The existence of historical precedents exploring reactivity, specialization, or 
 
 ## 12. Runtime Specification and Reference Implementation (TypeScript)
 
+> [!NOTE]
+> **Nature of Reference Implementation and Software Conventions**:
+> This section describes the TypeScript runtime reference implementation derived from the *Extensio Agents* library. For backward compatibility with that historical codebase, the runtime preserves class identifiers such as the base class `Adn` and the `nervousSystem` impulse channel. It is explicitly clarified that these designations are concrete software development conventions of that library and **do not constitute normative concepts or prescriptive biological analogies of the UCA Core**, which remains strictly computational, formal, and agnostic to organic metaphors.
+
 This section formalizes the programming contract and concrete reference implementation for Autonomous Cognitive Units in TypeScript/JavaScript runtimes.
 
 ### 12.1 Runtime Programming Model Principles
 
-1. **Inheritance and Biological Lifecycle (`Adn`)**:
-   Every UCA extends the fundamental base class `Adn`, possessing a deterministic identity (`id`), contextual logger, nervous system channel (`nervousSystem`), and activation via `live()`.
+1. **Inheritance and Runtime Lifecycle (`Adn`)**:
+   Every UCA extends the fundamental base class `Adn`, possessing a deterministic identity (`id`), contextual logger, impulse channel (`nervousSystem`), and activation via `live()`.
 
 2. **Mandatory Purpose Declaration (`purpose`)**:
    Each UCA explicitly declares its ontological purpose (`public purpose: string`), which invariantly governs all its decisions and reactions.
 
 3. **Higher-Domain Capability Catalog (`Registry`)**:
-   Capability classes are registered decoupled in a higher-domain catalog (`Registry.register(name, Ctor)`), avoiding tight coupling of direct imports between the organism and its concrete organs.
+   Capability classes are registered decoupled in a higher-domain catalog (`Registry.register(name, Ctor)`), avoiding tight coupling of direct imports between the parent unit and its subordinate capabilities.
 
 4. **Innate Capability Composition and Dispositions**:
-   An organism or UCA declares its biological capabilities and initial parameterization via a declarative dictionary where **each key must obligatorily be defined in `camelCase` format**:
+   A composite unit or agent declares its subordinate capabilities and initial parameterization via a declarative dictionary where **each key must obligatorily be defined in `camelCase` format**:
    ```typescript
    public capabilities = {
        <camelCaseName>: <dispositionObject>
    };
    ```
-   Upon activating the UCA, each capability is instantiated independently and isolated (`new Ctor(...)`), receiving its own `disposition`, the shared channel, and the nervous system. Capabilities are directly accessible on the instance as `camelCase` properties (e.g., `agent.acousticEar`, `agent.vocalMouth`).
+   Upon activating the UCA, each capability is instantiated independently and isolated (`new Ctor(...)`), receiving its own `disposition`, the shared channel, and the impulse system. Capabilities are directly accessible on the instance as `camelCase` properties (e.g., `agent.acousticEar`, `agent.vocalMouth`).
 
-   > **Coexistence of Capabilities Sharing the Same Mechanism / Class (§2.3)**: In strict accordance with Section 2.3, the identity of a Primitive Capability is determined by its Mechanism. Nothing prevents two distinct capabilities of the same organism from sharing the same concrete Mechanism or class (e.g., `leftEar` and `rightEar` sharing the `AcousticEar` class, dual optical sensors, or dual actuators of the same type). Within the organism, each capability is distinguished uniquely by its functional `camelCase` key.
+   > **Coexistence of Capabilities Sharing the Same Mechanism / Class (§2.3)**: In strict accordance with Section 2.3, the identity of a Primitive Capability is determined by its Mechanism. Nothing prevents two distinct capabilities of the same unit from sharing the same concrete Mechanism or class (e.g., `leftEar` and `rightEar` sharing the `AcousticEar` class, dual optical sensors, or dual actuators of the same type). Within the unit, each capability is distinguished uniquely by its functional `camelCase` key.
    >
    > To preserve strict determinism in `canProcess()` when capabilities share the same class or mechanism, runtime signals carry the functional capability key (`sourceName`), the concrete class (`sourceType`), and the unique instance identifier (`source`), enabling receiving units to discriminate either by specific role (`leftEar.isListening`) or polymorphically across the class (`AcousticEar.isListening`).
 
@@ -2570,10 +2574,10 @@ This section formalizes the programming contract and concrete reference implemen
 | `MutationEvent` | `Signal<T> & { oldValue: T; newValue: T; }` | Atomic event emitted upon modification of any property in the disposition (`this.disposition`). Provides evolutionary traceability of $\Delta d$, reporting previous value (`oldValue`) and new value (`newValue`). |
 | `DispositionSnapshot` | `{ version: number; timestamp: number; disposition: T; mutation?: MutationEvent; }` | Immutable snapshot capturing full disposition state at a given point in time, enabling chronological inspection and sequential reversion. |
 | `SignalListener` | `(signal: Signal) => Promise<void> \| void` | Callback function invoked upon receiving a signal on the internal channel. |
-| `IChannel` | `broadcast(signal: Signal): void;`<br>`subscribe(listener: SignalListener): () => void;` | Intra-organism local communication bus contract. Decouples signal broadcasting from subscribed receivers. |
+| `IChannel` | `broadcast(signal: Signal): void;`<br>`subscribe(listener: SignalListener): () => void;` | Intra-unit local communication bus contract. Decouples signal broadcasting from subscribed receivers. |
 | `CapabilityConstructor` | `new (id: string, name: string, config: Config) => Uca` | Constructor signature for classes extending `Uca` that can be dynamically instantiated as subordinate capabilities. |
 | `IRegistry` | `register<T>(name: string, ctor: CapabilityConstructor<T>): void;`<br>`get<T>(name: string): CapabilityConstructor<T> \| undefined;`<br>`has(name: string): boolean;` | Higher-domain catalog contract mapping `camelCase` capability names to class constructors. |
-| `Config` | `{ channel: IChannel; nervousSystem?: INervousSystem; registry?: IRegistry; }` | Configuration and dependency injection parameters for UCA initialization. `channel` is required to ensure shared innervation across the organism. |
+| `Config` | `{ channel: IChannel; nervousSystem?: INervousSystem; registry?: IRegistry; }` | Configuration and dependency injection parameters for UCA initialization. `channel` is required to ensure shared communication across unit capabilities. |
 
 ### 12.3 Base `Uca` Class Specification
 
@@ -2601,18 +2605,18 @@ constructor(id: string, name: string, config: Config)
 #### 12.3.3 Lifecycle and Capability Mounting Methods
 
 - `public override async live(): Promise<void>`:
-  Entrypoint for the UCA biological lifecycle. First invokes `this.mountCapabilities()` to instantiate and mount all subordinate organs declared in `capabilities`, then delegates to `super.live()`.
+  Entrypoint for the UCA runtime lifecycle. First invokes `this.mountCapabilities()` to instantiate and mount all subordinate capabilities declared in `capabilities`, then delegates to `super.live()`.
 - `private mountCapabilities(): void`:
   Private method that deterministically iterates over the keys of `this.capabilities`. For each capability name, verifies if the property already exists on the instance; if absent, delegates mounting to `this.attach(name)`.
 - `private attach<T extends Uca>(name: string): T`:
-  Private method that resolves the capability constructor via `this.registry.get(name)`. If registered, creates the child instance with a deterministic identifier (`${this.id}::${name}`), sharing the channel (`this.channel`), nervous system (`this._ns`), and registry (`this.registry`), and mounts it as a direct property on the UCA under its `camelCase` name. The capability is born with its innate physical disposition and rejects external constructor configuration.
+  Private method that resolves the capability constructor via `this.registry.get(name)`. If registered, creates the child instance with a deterministic identifier (`${this.id}::${name}`), sharing the channel (`this.channel`), impulse system (`this._ns`), and registry (`this.registry`), and mounts it as a direct property on the UCA under its `camelCase` name. The capability is born with its innate physical disposition and rejects external constructor configuration.
 
 > [!NOTE]
-> **Operational Modulation and Reconfiguration via Impulses**: In accordance with biological organ architecture, a UCA never receives imperative external parameterization. All reconfiguration or operational modulation is transmitted exclusively through neural impulses (`Impulse`) via the `NervousSystem`, processed internally in its `react(impulse)` hook to sovereignly update its disposition.
+> **Operational Modulation and Reconfiguration via Impulses**: In strict accordance with sovereign UCA reactivity, a UCA never receives imperative external parameterization. All reconfiguration or operational modulation is transmitted exclusively through neural impulses (`Impulse`) via the `NervousSystem`, processed internally in its `react(impulse)` hook to sovereignly update its disposition.
 
 #### 12.3.4 Unified Reactive Cycle (Impulse and Signal)
 
-The runtime consolidates a **single reactive cycle** in `Adn`/`Uca` regardless of whether the stimulus originates from inter-domain macrostructures (`Impulse`) or local subordinate organs (`Signal`):
+The runtime consolidates a **single reactive cycle** in `Adn`/`Uca` regardless of whether the stimulus originates from inter-domain macrostructures (`Impulse`) or internal subordinate capabilities (`Signal`):
 
 ```text
                  UCA
@@ -2649,7 +2653,7 @@ The runtime consolidates a **single reactive cycle** in `Adn`/`Uca` regardless o
 - `protected override async postReact(next: unknown): Promise<void>`:
   Post-reaction lifecycle hook inherited from `Adn` for stabilization and post-processing tasks.
 
-> **Strict Domain Isolation**: The `Channel` is an intra-domain local bus for biological coordination between internal capabilities. No property mutation or internal signal is propagated to the `NervousSystem`. The `NervousSystem` is reserved strictly for cognitive impulses between agents and higher-order structures.
+> **Strict Domain Isolation**: The `Channel` is an intra-domain local bus for internal coordination between capabilities. No property mutation or internal signal is propagated to the `NervousSystem`. The `NervousSystem` is reserved strictly for cognitive impulses between agents and higher-order structures.
 
 #### 12.3.5 Disposition Reactivity and Mutation Events
  
@@ -2661,7 +2665,7 @@ The runtime consolidates a **single reactive cycle** in `Adn`/`Uca` regardless o
     When an internal property of `this.disposition` is modified (e.g., `this.disposition.sampleRate = 48000` following an incoming reconfiguration impulse):
     - Emits a `MutationEvent` on the instance itself (`target.emit('mutation', event)` and `target.emit('mutation:<property>', event)`).
     - Broadcasts the event across the local intra-domain `Channel` (`channel.broadcast(event)`).
-    - The parent organism forwards the event (`forwardMutation`), enabling full observability on the composite agent (`agent.on('mutation', ...)`).
+    - The parent unit or aggregating agent forwards the event (`forwardMutation`), enabling full observability on the composite agent (`agent.on('mutation', ...)`).
  4. **Direct Subscription to Disposition Properties (`reactTo`)**:
     Properties of the disposition constitute the observable space to which other UCAs can react. Receiver UCAs do NOT need to qualify `.disposition.<property>`. Subscription is transparent and direct using the canonical format:
     ```typescript
@@ -2670,17 +2674,17 @@ The runtime consolidates a **single reactive cycle** in `Adn`/`Uca` regardless o
         'acousticEar.sampleRate', // Or direct discrimination by capability key
     ];
     ```
-    The reactive engine (`canProcessSignal`) automatically correlates the mutated property name (`property`) with the emitter (`sourceType` or `sourceName`), guaranteeing fully decoupled intra-organism reactivity.
+    The reactive engine (`canProcessSignal`) automatically correlates the mutated property name (`property`) with the emitter (`sourceType` or `sourceName`), guaranteeing fully decoupled intra-unit reactivity.
  5. **Sequential History and Reversion Methods (`revert`, `revertTo`)**:
     Every UCA exposes its evolutionary sequence and operational methods to restore prior configurations:
     - `public get dispositionSequence(): readonly DispositionSnapshot<TDisposition>[]`: Returns the immutable chronological sequence of snapshots $[D_0, D_1, \dots, D_n]$.
     - `public revert(steps: number = 1): boolean`: Rewinds $N$ steps to a prior configuration. Returns `false` if already at the baseline inception state ($D_0$).
     - `public revertTo(version: number): boolean`: Restores the configuration matching a specific version number.
-    Each reversion updates `this.disposition` via its reactive Proxy, automatically dispatching the necessary mutation events to keep the entire organism synchronized.
+    Each reversion updates `this.disposition` via its reactive Proxy, automatically dispatching the necessary mutation events to keep all unit capabilities synchronized.
 
 ### 12.4 Canonical Reference Example (Non-Normative)
 
-> **Clarification Note:** The code presented below is **strictly a non-normative usage example**. Its sole purpose is to practically illustrate how the formal runtime principles of UCA translate into TypeScript. It does not prescribe a fixed architecture nor does it limit the diversity of capabilities or organisms that can be developed under this specification.
+> **Clarification Note:** The code presented below is **strictly a non-normative usage example**. Its sole purpose is to practically illustrate how the formal runtime principles of UCA translate into TypeScript. It does not prescribe a fixed architecture nor does it limit the diversity of capabilities or architectures that can be developed under this specification.
 
 ```typescript
 import { Uca, defaultRegistry, Signal } from './uca/index.js';
@@ -2738,9 +2742,9 @@ export class VocalMouth extends Uca<VocalMouthDisposition> {
 defaultRegistry.register('acousticEar', AcousticEar);
 defaultRegistry.register('vocalMouth', VocalMouth);
 
-// 3. Organism with Innate Capabilities and Disposition
+// 3. Composite Agent with Innate Capabilities and Disposition
 export class ConversationalAgent extends Uca {
-    public override purpose = 'Biological interactive speech agent';
+    public override purpose = 'Interactive speech agent';
     public override capabilities = {
         acousticEar: { sampleRate: 16000, framingMs: 100 },
         vocalMouth: { voice: 'alloy', rate: 1.0 },

@@ -125,9 +125,9 @@ export class VocalMouth extends BaseUca {
     }
 }
 
-// 2. Organismo con Capabilities Innatas y Disposición en camelCase
+// 2. Agente Compuesto con Capabilities Innatas y Disposición en camelCase
 export class ConversationalAgent extends BaseUca {
-    public override purpose = 'Agente biológico de alocución interactiva';
+    public override purpose = 'Agente de alocución interactiva';
     public override capabilities = {
         acousticEar: { sampleRate: 16000, framingMs: 100 },
         vocalMouth: { voice: 'alloy', rate: 1.0 },

@@ -82,7 +82,7 @@ This open specification defines the conceptual contract of an Artificial Cogniti
 **The specification does NOT prescribe**:
 - A mandatory cognitive topology or hierarchy;
 - Specific cognitive units that every system must instantiate;
-- Biological or neuroanatomical analogies;
+- Biological or neuroanatomical analogies (UCA Core is strictly computational; biomimetic designations used in examples or runtime references are non-normative domain conventions);
 - A particular communication technology or message broker;
 - A specific language model, framework, or vendor;
 - A concrete memory or storage engine;

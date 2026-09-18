@@ -13,6 +13,6 @@ This folder contains non-normative reference examples demonstrating how to use a
 Demonstrates:
 - Primitive capabilities (`AcousticEar`, `VocalMouth`) inheriting from `Uca`.
 - Decoupled registration in `defaultRegistry` using `camelCase` identifiers.
-- Organism (`ConversationalAgent`) declaring innate capabilities and dispositions via `camelCase` keys.
+- Composite agent (`ConversationalAgent`) declaring innate capabilities and dispositions via `camelCase` keys.
 - Automatic property mutation detection via reactive Proxy.
 - Decoupled signal dispatch and reactive execution via `reactTo`.
