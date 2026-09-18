@@ -2557,9 +2557,9 @@ Esta sección formaliza el contrato de programación e implementación concreta 
 | `MutationEvent` | `Signal<T> & { oldValue: T; newValue: T; }` | Evento atómico emitido ante la modificación de cualquier propiedad de la disposición (`this.disposition`). Permite trazabilidad evolutiva de $\Delta d$, reportando el valor anterior (`oldValue`) y el nuevo (`newValue`). |
 | `DispositionSnapshot` | `{ version: number; timestamp: number; disposition: T; mutation?: MutationEvent; }` | Instantánea inmutable que captura el estado íntegro de la disposición en un punto del tiempo, permitiendo navegación y reversión secuencial de configuraciones. |
 | `SignalListener` | `(signal: Signal) => Promise<void> \| void` | Función de callback invocada ante la recepción de una señal en el canal interno. |
-| `IChannel` | `emit(signal: Signal): void;`<br>`subscribe(listener: SignalListener): () => void;` | Contrato del bus de comunicación local intra-organismo. Desacopla la emisión de señales de los receptores suscritos. |
+| `IChannel` | `broadcast(signal: Signal): void;`<br>`subscribe(listener: SignalListener): () => void;` | Contrato del bus de comunicación local intra-organismo. Desacopla la emisión de señales de los receptores suscritos. |
 | `CapabilityConstructor` | `new (id: string, name: string, config?: Config) => Uca` | Firma del constructor para clases que extienden `Uca` y pueden ser instanciadas dinámicamente como capabilities subordinadas. |
-| `IRegistry` | `register(name: string, ctor: CapabilityConstructor): void;`<br>`resolve(name: string): CapabilityConstructor \| undefined;` | Contrato del catálogo superior que mapea nombres de capabilities en `camelCase` con sus correspondientes constructores de clase. |
+| `IRegistry` | `register<T>(name: string, ctor: CapabilityConstructor<T>): void;`<br>`get<T>(name: string): CapabilityConstructor<T> \| undefined;`<br>`has(name: string): boolean;` | Contrato del catálogo superior que mapea nombres de capabilities en `camelCase` con sus correspondientes constructores de clase. |
 | `Config` | `{ channel?: IChannel; nervousSystem?: INervousSystem; registry?: IRegistry; }` | Parámetros de configuración e inyección de dependencias para la inicialización de una UCA. |
 
 ### 12.3 Especificación de la Clase Base `Uca`

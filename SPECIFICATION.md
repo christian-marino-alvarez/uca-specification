@@ -2574,9 +2574,9 @@ This section formalizes the programming contract and concrete reference implemen
 | `MutationEvent` | `Signal<T> & { oldValue: T; newValue: T; }` | Atomic event emitted upon modification of any property in the disposition (`this.disposition`). Provides evolutionary traceability of $\Delta d$, reporting previous value (`oldValue`) and new value (`newValue`). |
 | `DispositionSnapshot` | `{ version: number; timestamp: number; disposition: T; mutation?: MutationEvent; }` | Immutable snapshot capturing full disposition state at a given point in time, enabling chronological inspection and sequential reversion. |
 | `SignalListener` | `(signal: Signal) => Promise<void> \| void` | Callback function invoked upon receiving a signal on the internal channel. |
-| `IChannel` | `emit(signal: Signal): void;`<br>`subscribe(listener: SignalListener): () => void;` | Intra-organism local communication bus contract. Decouples signal broadcasting from subscribed receivers. |
+| `IChannel` | `broadcast(signal: Signal): void;`<br>`subscribe(listener: SignalListener): () => void;` | Intra-organism local communication bus contract. Decouples signal broadcasting from subscribed receivers. |
 | `CapabilityConstructor` | `new (id: string, name: string, config?: Config) => Uca` | Constructor signature for classes extending `Uca` that can be dynamically instantiated as subordinate capabilities. |
-| `IRegistry` | `register(name: string, ctor: CapabilityConstructor): void;`<br>`resolve(name: string): CapabilityConstructor \| undefined;` | Higher-domain catalog contract mapping `camelCase` capability names to class constructors. |
+| `IRegistry` | `register<T>(name: string, ctor: CapabilityConstructor<T>): void;`<br>`get<T>(name: string): CapabilityConstructor<T> \| undefined;`<br>`has(name: string): boolean;` | Higher-domain catalog contract mapping `camelCase` capability names to class constructors. |
 | `Config` | `{ channel?: IChannel; nervousSystem?: INervousSystem; registry?: IRegistry; }` | Configuration and dependency injection parameters for UCA initialization. |
 
 ### 12.3 Base `Uca` Class Specification
