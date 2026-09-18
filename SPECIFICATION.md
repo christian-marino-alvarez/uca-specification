@@ -57,7 +57,7 @@ Cognitive behaviour belongs to the system level. It is not a property of any ind
 
 This specification does **not** prescribe:
 - a specific cognitive topology or hierarchy;
-- biological or neuroanatomical analogies (UCA Core is strictly computational and functional; biomimetic designations used in examples or runtime reference implementations, such as *Thalamus*, *Cingulate*, *Adn*, or *nervousSystem*, are illustrative domain conventions and do not constitute normative concepts);
+- biological or neuroanatomical analogies (UCA Core is strictly computational and functional; biomimetic designations used in the runtime reference implementation, such as *Adn* or *nervousSystem*, are illustrative conventions of that development library and do not constitute normative concepts);
 - specific cognitive units that every system must instantiate;
 - a particular communication technology or message broker;
 - a specific language model, framework, or vendor;
@@ -906,7 +906,7 @@ Ear UCA
 ├── Disposition₀ / internal implementation: Sherpa Mechanism
 └── Disposition₁ / internal implementation: alternative ASR engine
 
-Consumers (e.g., Thalamus / SpeechConsumer UCA):
+Consumers (Agent UCA):
 Continue depending exclusively on the Outcome (text: "Hola"), not on the internal mechanism.
 ```
 
@@ -1258,7 +1258,7 @@ Ear UCA
 └── Observable Consequence (Outcome):
     ├── Properties: text = "" → "Hello", latency = 115ms, confidence = 0.94
     ├── Criteria: text.length > 0, latency < 300ms, confidence >= 0.70
-    └── Owner: Thalamus UCA
+    └── Owner: Agent UCA
 ```
 
 From outside the unit:
@@ -1277,18 +1277,18 @@ observable change (Δtext)
 Signal / Impulse (runtime propagation mechanism)
  │
  ▼
-Thalamus UCA
+Agent UCA
  │
  ├── Reception (mechanical at the boundary)
  │
- ├── Stimulus(Thalamus) (triggers reaction according to Disposition)
+ ├── Stimulus(Agent) (triggers reaction according to Disposition)
  │
- └── Reaction(Thalamus)
+ └── Reaction(Agent)
 ```
 
-The consuming UCA (`Thalamus`) **does not need to know** the PCM conversion, AEC, Sherpa execution, or token aggregation to react to `"Hello"`. It reacts exclusively to the observable change at its boundary (`Stimulus`).
+The consuming UCA (`Agent`) **does not need to know** the PCM conversion, AEC, Sherpa execution, or token aggregation to react to `"Hello"`. It reacts exclusively to the observable change at its boundary (`Stimulus`).
 
-Furthermore, if `Ear UCA` modifies its internal implementation (for example, substituting the Sherpa Mechanism for another engine or reorganizing its internal Action sequence), `Thalamus` continues operating without disruption as long as the Outcome contract and Properties are preserved.
+Furthermore, if `Ear UCA` modifies its internal implementation (for example, substituting the Sherpa Mechanism for another engine or reorganizing its internal Action sequence), `Agent` continues operating without disruption as long as the Outcome contract and Properties are preserved.
 
 ---
 
@@ -1448,9 +1448,9 @@ Speech Recognition (interpretive capability)
     │
     │ Outcome(Ear)
     ▼
-Thalamus UCA
+Agent UCA
     │
-    │ Reception ──► Stimulus(Thalamus)
+    │ Reception ──► Stimulus(Agent)
     ▼
 react()
 ```
@@ -1981,7 +1981,7 @@ Canonical Structured Outcome
 │   ├── validDuration: { Observation: "end - start",  Condition: ">=", Expected: 0 }
 │   └── maxLatency:    { Observation: "latency",      Condition: "<=", Expected: 300 }
 │
-└── Owner: Thalamus UCA    (external UCA holding validation authority)
+└── Owner: Agent UCA    (external UCA holding validation authority)
 ```
 
 Emergent reactive interconnection flow:
@@ -2011,7 +2011,7 @@ EarCoherence (reactTo: ["EchoTextFilter.outcome"])
 Ear Outcome: Chunk { text, start, end, latency }
     │
     ├── Criteria ────────► Compliance (deterministic PASS | FAIL)
-    └── Owner (Thalamus) ► Validation (contextual APPROVED | REJECTED)
+    └── Owner (Agent) ───► Validation (contextual APPROVED | REJECTED)
 ```
 
 #### Canonical Scenario of Mediated Historical Evolution: Ear UCA
@@ -2027,7 +2027,7 @@ Target UCA: Ear (Disposition: bufferSize = 2048, Nature: [512..4096])
     │
     ├── Criteria ────────► Compliance: FAIL (due to latency = 410ms > 300ms)
     │
-    └── Owner (Thalamus) ► Validation: REJECTED (Owner discards chunk due to unacceptable delay)
+    └── Owner (Agent) ───► Validation: REJECTED (Owner discards chunk due to unacceptable delay)
                             │
                             ▼
                        Tracker UCA
@@ -2051,7 +2051,7 @@ Target UCA: Ear (Disposition: bufferSize = 2048, Nature: [512..4096])
 ```
 
 1. **Initial Constitution ($D_0$)**:
-   `Ear UCA` is predisposed with `AudioFraming.bufferSize = 2048`. Its `Outcome` formally declares the criterion `latency <= 300ms` and names `Thalamus UCA` as its `Owner`.
+   `Ear UCA` is predisposed with `AudioFraming.bufferSize = 2048`. Its `Outcome` formally declares the criterion `latency <= 300ms` and names `Agent UCA` as its `Owner`.
 2. **Reactive Execution**:
    A complex acoustic stimulus arrives. `Ear UCA` executes its reactive process and emits the Outcome:
    `o = { text: "cognitive architecture", start: 1200, end: 1850, latency: 410 }`.
@@ -2059,7 +2059,7 @@ Target UCA: Ear (Disposition: bufferSize = 2048, Nature: [512..4096])
    Evaluation of the Criteria of $o$ automatically and mathematically produces:
    `Compliance = FAIL` (the 410ms latency exceeds the 300ms upper threshold).
 4. **Contextual Validation Judgment by Owner**:
-   `Thalamus UCA` evaluates the Outcome within the ongoing active stream. Because a 410ms lag disrupts conversational fluency, the Owner formally emits:
+   `Agent UCA` evaluates the Outcome within the ongoing active stream. Because a 410ms lag disrupts conversational fluency, the Owner formally emits:
    `Validation = REJECTED`.
 5. **Logging in Tracker UCA**:
    The `Tracker UCA` role captures the immutable evidence tuple and appends it to the historical collection:

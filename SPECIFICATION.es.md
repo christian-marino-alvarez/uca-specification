@@ -58,7 +58,7 @@ El comportamiento cognitivo pertenece al nivel del sistema. No es una propiedad 
 
 Esta especificación **no** prescribe:
 - una topología cognitiva o jerarquía específica;
-- analogías biológicas o neuroanatómicas (el UCA Core es estrictamente computacional y funcional; las denominaciones biomiméticas empleadas en ejemplos o en la implementación de referencia del runtime, como *Thalamus*, *Cingulate*, *Adn* o *nervousSystem*, son convenciones ilustrativas de dominio y no constituyen conceptos normativos);
+- analogías biológicas o neuroanatómicas (el UCA Core es estrictamente computacional y funcional; las denominaciones biomiméticas empleadas en la implementación de referencia del runtime, como *Adn* o *nervousSystem*, son convenciones ilustrativas de esa librería de desarrollo y no constituyen conceptos normativos);
 - unidades cognitivas específicas que todo sistema deba instanciar;
 - una tecnología de comunicación o broker de mensajes particular;
 - un modelo de lenguaje, framework o proveedor específico;
@@ -883,7 +883,7 @@ Ear UCA
 ├── Disposition₀ / implementación interna: Mechanism Sherpa
 └── Disposition₁ / implementación interna: otro motor ASR
 
-Consumidores (Thalamus):
+Consumidores (Agent UCA):
 Continúan dependiendo exclusivamente de Outcome (text: "Hola"), no del mecanismo interno.
 ```
 
@@ -1235,7 +1235,7 @@ Ear UCA
 └── Observable Consequence (Outcome):
     ├── Properties: text = "" → "Hola", latency = 115ms, confidence = 0.94
     ├── Criteria: text.length > 0, latency < 300ms, confidence >= 0.70
-    └── Owner: Thalamus UCA
+    └── Owner: Agent UCA
 ```
 
 Desde el exterior de la unidad:
@@ -1254,18 +1254,18 @@ observable change (Δtext)
 Signal / Impulse (mecanismo runtime de propagación)
  │
  ▼
-Thalamus UCA
+Agent UCA
  │
  ├── Reception (mecánica en la frontera)
  │
- ├── Stimulus(Thalamus) (provoca reacción según su Disposition)
+ ├── Stimulus(Agent) (provoca reacción según su Disposition)
  │
- └── Reaction(Thalamus)
+ └── Reaction(Agent)
 ```
 
-La UCA consumidora (`Thalamus`) **no necesita conocer** la conversión PCM, el AEC, la ejecución de Sherpa ni la agregación de tokens para reaccionar a `"Hola"`. Reacciona exclusivamente ante el cambio observable en su frontera (`Stimulus`).
+La UCA consumidora (`Agent`) **no necesita conocer** la conversión PCM, el AEC, la ejecución de Sherpa ni la agregación de tokens para reaccionar a `"Hola"`. Reacciona exclusivamente ante el cambio observable en su frontera (`Stimulus`).
 
-Asimismo, si `Ear UCA` modifica internamente su implementación (por ejemplo, sustituyendo el Mechanism Sherpa por otro motor o reorganizando su secuencia de Actions internas), `Thalamus` continúa operando sin alteración mientras se mantenga el contrato y las Properties del Outcome.
+Asimismo, si `Ear UCA` modifica internamente su implementación (por ejemplo, sustituyendo el Mechanism Sherpa por otro motor o reorganizando su secuencia de Actions internas), `Agent` continúa operando sin alteración mientras se mantenga el contrato y las Properties del Outcome.
 
 ---
 
@@ -1425,9 +1425,9 @@ Speech Recognition (capacidad de interpretación)
     │
     │ Outcome(Ear)
     ▼
-Thalamus UCA
+Agent UCA
     │
-    │ Reception ──► Stimulus(Thalamus)
+    │ Reception ──► Stimulus(Agent)
     ▼
 react()
 ```
@@ -1955,7 +1955,7 @@ Outcome Canónico Estructurado
 │   ├── validDuration: { Observation: "end - start",  Condition: ">=", Expected: 0 }
 │   └── maxLatency:    { Observation: "latency",      Condition: "<=", Expected: 300 }
 │
-└── Owner: Thalamus UCA    (UCA externa con autoridad de validación)
+└── Owner: Agent UCA    (UCA externa con autoridad de validación)
 ```
 
 Flujo reactivo emergente de interconexiones (diagrama informativo):
@@ -1985,7 +1985,7 @@ EarCoherence (reactTo: ["EchoTextFilter.outcome"])
 Ear Outcome: Chunk { text, start, end, latency }
     │
     ├── Criteria ────────► Compliance (PASS | FAIL determinista)
-    └── Owner (Thalamus) ► Validation (APPROVED | REJECTED contextual)
+    └── Owner (Agent) ───► Validation (APPROVED | REJECTED contextual)
 ```
 
 #### Escenario Canónico de Evolución Histórica Mediada: Ear UCA
@@ -2001,7 +2001,7 @@ Target UCA: Ear (Disposition: bufferSize = 2048, Nature: [512..4096])
     │
     ├── Criteria ────────► Compliance: FAIL (debido a latency = 410ms > 300ms)
     │
-    └── Owner (Thalamus) ► Validation: REJECTED (el Owner descarta el chunk por latencia inaceptable)
+    └── Owner (Agent) ───► Validation: REJECTED (el Owner descarta el chunk por latencia inaceptable)
                             │
                             ▼
                        Tracker UCA
@@ -2025,7 +2025,7 @@ Target UCA: Ear (Disposition: bufferSize = 2048, Nature: [512..4096])
 ```
 
 1. **Constitución Inicial ($D_0$)**:
-   `Ear UCA` está predispuesta con `AudioFraming.bufferSize = 2048`. Su `Outcome` declara formalmente el criterio `latency <= 300ms` y a `Thalamus UCA` como su `Owner`.
+   `Ear UCA` está predispuesta con `AudioFraming.bufferSize = 2048`. Su `Outcome` declara formalmente el criterio `latency <= 300ms` y a `Agent UCA` como su `Owner`.
 2. **Ejecución Reactiva**:
    Llega un estímulo acústico complejo. `Ear UCA` ejecuta su proceso reactivo y emite el Outcome:
    `o = { text: "arquitectura cognitiva", start: 1200, end: 1850, latency: 410 }`.
@@ -2033,7 +2033,7 @@ Target UCA: Ear (Disposition: bufferSize = 2048, Nature: [512..4096])
    La evaluación de los Criteria de $o$ arroja de forma automática y matemática:
    `Compliance = FAIL` (la latencia de 410ms excede el límite máximo de 300ms).
 4. **Juicio Contextual de Validation por el Owner**:
-   `Thalamus UCA` evalúa el Outcome dentro del flujo activo. Dado que un retraso de 410ms interrumpe la cadencia conversacional fluida, el Owner emite formalmente:
+   `Agent UCA` evalúa el Outcome dentro del flujo activo. Dado que un retraso de 410ms interrumpe la cadencia conversacional fluida, el Owner emite formalmente:
    `Validation = REJECTED`.
 5. **Registro en Tracker UCA**:
    El rol `Tracker UCA` captura la tupla de evidencia inmutable y la añade a la colección histórica:
