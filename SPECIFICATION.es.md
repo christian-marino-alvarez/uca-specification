@@ -328,33 +328,23 @@ Una UCA no pasa por fases rígidas de arranque y finalización. Reacciona a los 
  └───────────────────────────────────────┼───────────────────────────────────┘
                                          ▼
                                       Outcome
-                                      ├── Properties
-                                      ├── Criteria ──► Compliance
-                                      └── Owner ─────► Validation
-                                                            │
-                                                            ▼
-                                                  ┌───────────────────┐
-                                                  │    Tracker UCA    │
-                                                  └─────────┬─────────┘
-                                                            ▼
-                                                    History (H ∈ ℍ)
-                                                            │
-                                                            ▼
-                                                  ┌───────────────────┐
-                                                  │   Analyzer UCA    │
-                                                  └─────────┬─────────┘
-                                                            ▼
-                                                   Analysis / Patterns
-                                                            │
-                                                            ▼
-                                                  ┌───────────────────┐
-                                                  │   Evolution UCA   │
-                                                  └─────────┬─────────┘
-                                                            ▼
+                                       ├── Properties
+                                       ├── Criteria ──► Compliance
+                                       └── Owner ─────► Validation
+                                                             │
+                                                             ▼
+                                                Evaluación Mediada Externa
+                                             (Owner / Owner Raíz / Creador)
+                                                             │
+                                                             ▼
+                                                  Impulse de Reconfiguración
+                                                  o Reversión (revert mediado)
+                                                             │
+                                                             ▼
  ┌───────────────────────────────────────────────────────────────────────────┐
  │ TARGET UCA                                                                │
- │   evolved Reaction ◄────────────── ΔDisposition ◄───── Mutation Proposal  │
- │   (Actions & Process)           (D₁ = diff(D₀, D₁))                       │
+ │   evolved Reaction ◄────────────── ΔDisposition ◄───── react(Impulse)     │
+ │   (Actions & Process)         (ΔD = difference(D₀, D₁))                   │
  │              │                                                            │
  └──────────────┼────────────────────────────────────────────────────────────┘
                 ▼
@@ -725,24 +715,24 @@ Stimulus ≠ Outcome
 
 La definición canónica de Stimulus en el UCA Core es:
 
-> **Stimulus es la recepción por una UCA de un cambio observable externo a su dominio que provoca su reacción.**
+> **Stimulus es un cambio observable recibido en la frontera de una UCA que coincide con una regla declarada en la Disposition de sus Capabilities (`reactTo`). Como consecuencia observada, dicho cambio provoca la activación del proceso reactivo interno (`Reaction`) de la unidad.**
 
 ```text
-external observable change
+external observable change (Δx)
            │
            ▼
-      Reception
+      Reception (receives(u, Δx))
            │
-           ▼
+           ▼ matches(d.reactTo, Δx)
         Stimulus
            │
-           ▼
+           ▼ [consecuencia observada: triggers(s, u)]
         Reaction
 ```
 
 Características normativas del Stimulus:
-- **es la recepción de un cambio observable externo** al dominio de la UCA receptora;
-- **provoca una reacción** reactiva en dicha UCA conforme a su Disposition;
+- **es un cambio observable recibido en la frontera** que coincide formalmente con las reglas de suscripción de la Disposition (`reactTo`);
+- **provoca una reacción** como propiedad y consecuencia observada de dicha coincidencia;
 - **no requiere interpretación cognitiva ni percepción previa**;
 - **no contiene ni redefine el Purpose**;
 - **no prescribe una Action**;
@@ -998,6 +988,17 @@ De esta disociación emergen cuatro estados de evidencia empírica irreducible:
 > $$\forall o \in \mathbb{O}, \quad \text{hasOwner}(o, \text{owner}) \implies \text{owner} \neq u_{\text{target}}$$
 
 Una Target UCA puede computar determinísticamente el `Compliance` de sus propios criterios (ya que se trata de un cálculo objetivo sobre sus `Properties`), pero **carece ontológicamente de la perspectiva contextual y de la autoridad para validarse a sí misma**. Toda validación que no provenga de un Owner externo independiente es formalmente inválida en el modelo UCA.
+
+#### Owner Raíz
+
+> **Toda cadena de Validation MUST terminar en un Owner Raíz.**
+
+Un **Owner Raíz** es un observador no-UCA (humano o entorno con autoridad declarada) cuya Validation no requiere a su vez un Owner.
+
+- Un Owner Raíz NO es una UCA y no está sujeto al contrato UCA.
+- Todo sistema de UCAs MUST declarar explícitamente su(s) Owner(s) Raíz.
+- La cadena Owner(o) → Owner(Owner(o)) → ... MUST ser finita y MUST terminar en un Owner Raíz.
+- Se permiten ciclos entre UCAs solo si existe al menos un Owner Raíz que valide el ciclo completo.
 
 #### Outcomes Parciales y Streaming
 
@@ -1480,30 +1481,11 @@ Target UCA₂ (p, d₂, C, O)  donde ΔD = difference(D₁, D₂)
     ...
 ```
 
-#### Roles Funcionales de la Arquitectura Evolutiva
+#### Ausencia de Roles Fijos de Evolución y Mediación Externa
 
-La evolución de una UCA no se ejecuta como una autoadaptación interna no supervisada, sino a través de tres responsabilidades o roles funcionales especializados y desacoplados:
+La arquitectura UCA **no define roles ni entidades fijas de evolución** (`Tracker`, `Analyzer`, `Evolution`). La adaptación ontológica no es una maquinaria multiagente interna del Core ni requiere agentes especializados permanentes en tiempo de ejecución.
 
-1. **Tracking (Registro de Historia Observable)**:
-   Registra de forma inmutable la evidencia generada durante las ejecuciones de la Target UCA. Cada entrada del histórico modela formalmente la tupla multivariable:
-   $$h = [s, o, \text{Compliance}, \text{Validation}, d, \text{timestamp}, \mu, x] \in \mathbb{H}$$
-   Donde:
-   - $s \in \mathbb{S}$: Estímulo recibido que detonó la reacción.
-   - $o \in \mathbb{O}$: Outcome producido ($o.\text{Properties}$).
-   - $\text{Compliance} \in \{\text{PASS}, \text{FAIL}\}$: Evaluación determinista de los Criteria de $o$.
-   - $\text{Validation} \in \{\text{APPROVED}, \text{REJECTED}\}$: Juicio de aceptación emitido exclusivamente por el Owner.
-   - $d \in \mathbb{D}$: Disposición efectiva activa de la UCA en el momento de la ejecución.
-   - $\text{timestamp}$: Punto temporal inmutable de la ejecución.
-   - $\mu \in \mathbb{M}\text{ut}$: Identificador o versión de la mutación activa.
-   - $x \in \mathbb{X}$: Contexto situacional o ambiental de soporte.
-
-2. **Analysis (Identificación de Patrones, Correlaciones y Evaluación Inferencial del Purpose)**:
-   Examina el corpus histórico multiejecución ($H \in \mathbb{H}$) sin intervenir en el flujo reactivo directo. Su responsabilidad comprende:
-   - Leer el `Purpose` ontológico inmutable definido por el creador en la Target UCA y evaluar inferencialmente si las consecuencias observables ($o$) y las validaciones del Owner se alinean efectivamente con dicho propósito o si existe deriva funcional.
-   - Identificar correlaciones empíricas sistemáticas entre parámetros específicos de la Disposition ($d$), el contexto situacional ($x$) y los resultados cruzados de Compliance y Validation (por ejemplo: *"el valor de bufferSize = 2048 correlaciona con un 41% de rechazos por latencia bajo alta concurrencia, frente a un 4% de fallos cuando bufferSize = 1024"*).
-
-3. **Evolution (Determinación y Propuesta de Mutaciones Atómicas)**:
-   A partir del análisis de evidencia histórica acumulada, deduce hipótesis de ajuste y formula una mutación atómica admisible ($\mu \in \mathbb{M}\text{ut}$) sobre la Disposition de la Target UCA, verificando formalmente que satisfaga las restricciones de Nature antes de su emisión.
+Toda adaptación o evolución de la `Disposition` está **estrictamente mediada desde el exterior** por el creador humano o por el `Owner` (y en última instancia por el `Owner Raíz`). La Target UCA se limita a registrar su secuencia cronológica inmutable de configuraciones ($[D_0, D_1, \dots, D_n]$) y a proveer mecanismos protegidos de reversión (`revert()`).
 
 #### Relación Experimental $\text{Disposition} \to \text{Outcome}$ y Evidencia Encapsulada
 
@@ -1526,8 +1508,6 @@ $$\text{Disposition}_0 \longrightarrow \text{Outcomes} \longrightarrow \text{Com
 
 El rol de `Evolution` formula y aplica mutaciones atómicas sobre la `Disposition` ($\Delta D = \text{difference}(D_0, D_1)$). **MUST NOT** reescribir ni intervenir directamente sobre las `Actions` internas. Las futuras acciones y transiciones cambiarán de forma emergente e intrínseca como consecuencia de la nueva Disposition, los Mechanisms y las interacciones internas.
 
-> **Composabilidad de Roles**:
-> `Tracking`, `Analysis` y `Evolution` son responsabilidades funcionales composables, no nombres rígidos obligatorios de clases del UCA Core. Una arquitectura cognitiva puede materializarlos mediante UCAs independientes (ej. `Tracker UCA`, `Analyzer UCA`, `Evolution UCA`) o integrarlos en subsistemas cognitivos compuestos (como un `Analyzer UCA`, ilustrado biomiméticamente como `Cingulate UCA` en ciertos dominios).
 
 #### Invariante Estricta: Prohibición de Autoevolución Directa ante Outcomes Aislados
 
@@ -1566,7 +1546,7 @@ Toda UCA mantiene una secuencia cronológica inmutable de sus configuraciones ef
 $$[D_0, D_1, \dots, D_n]$$
 
 - **Estado de Concepción ($D_0$)**: Representa la disposición constitutiva inicial declarada físicamente en la clase al nacer la unidad. Constituye el límite inferior absoluto de reversibilidad (la UCA no puede revertirse a un estado anterior a su propia concepción).
-- **Reversibilidad Reactiva**: Ante evidencia histórica desfavorable o necesidad operativa de restauración, la UCA puede revertir su estado a cualquier configuración previa $D_k$ mediante `revert()` o `revertTo(version)`.
+- **Reversibilidad Mediada y Protegida**: Ante evidencia histórica desfavorable o necesidad operativa de restauración, la UCA revierte su estado a una configuración previa $D_k$ mediante métodos protegidos `revert()` o `revertTo(version)`. Para preservar la no-imperatividad y la prohibición de auto-evolución, estos métodos **MUST NOT ser públicos** ni invocados de forma autónoma no mediada por la propia UCA; se ejecutan soberanamente dentro del ciclo reactivo `react(impulse)` al recibir un `Impulse` explícito de reversión emitido por el `Owner` o el mediador externo.
 - **Sincronización Reactiva**: La restauración de valores al revertir es intrínsecamente reactiva: cada propiedad modificada durante el rollback emite su correspondiente `MutationEvent`, permitiendo que las capacidades suscritas a nivel intra-UCA se sincronicen de forma automática e inmediata con el estado recuperado.
 
 #### Límites Inviolables de Evolution
@@ -1596,25 +1576,13 @@ Target UCA ──► Outcome ──► Criteria ──► Compliance (PASS | FAI
                   └──► Owner ────────► Validation (APPROVED | REJECTED)
                                             │
                                             ▼
-                                       Tracker UCA
+                                  Owner Raíz / Mediador
                                             │
                                             ▼
-                                    History (H ∈ ℍ)
+                    Impulse de Reconfiguración o Reversión (revert mediado)
                                             │
                                             ▼
-                                       Analyzer UCA
-                                            │
-                                            ▼
-                                    Analysis / Patterns
-                                            │
-                                            ▼
-                                      Evolution UCA
-                                            │
-                                            ▼
-                  Validación de Nature ──► Mutation Proposal (μ)
-                                            │
-                                            ▼
-                     Target UCA ◄──── ΔDisposition = diff(D₀, D₁)
+                     Target UCA ◄──── react(Impulse) [ΔD = difference(D₀, D₁)]
 ```
 
 #### Semántica Estricta de $\Delta\text{Disposition}$
@@ -1832,30 +1800,54 @@ Si dicha abstracción es necesaria permanece como pregunta abierta. Synapse no f
 
 ---
 
-### 6.6 La Hipótesis Falsable
+### 6.6 Hipótesis Falsables
 
-> **¿Puede emerger comportamiento cognitivo de la interacción de UCAs acotadas por propósito, mientras cada unidad individual permanece estructuralmente limitada a $u = (p, d, C, O)$ y conductualmente limitada a $(u, s) \to a \to o$?**
+**H1 (Adaptación mediada).** Un bucle de ajuste mediado que aplica Mutations atómicas dentro de Nature mejora la tasa de Compliance=PASS y Validation=APPROVED respecto a: (a) Disposition estática, (b) mutación aleatoria dentro de Nature, (c) optimización estándar (bandits / optimización bayesiana), sin modificar código ni pesos.
 
-Esta es la pregunta experimental central que plantea UCA. Es falsable:
-- Un sistema que satisfaga todos los criterios de conformidad UCA pero no produzca ningún comportamiento cognitivo reconocible constituye evidencia en contra de la hipótesis.
-- Un sistema que demuestre comportamiento cognitivo mientras cada unidad satisface únicamente el contrato mínimo constituye evidencia positiva.
+**H2 (Composición).** Un sistema de UCAs sin coordinador central iguala o supera, bajo la misma batería de tareas y los mismos mecanismos, a: (a) un pipeline fijo y (b) un monolito (p. ej. un LLM único).
+
+**H3 (Reconocimiento).** Evaluadores humanos ciegos reconocen el comportamiento del sistema como cognitivo con una frecuencia estadísticamente superior a la de los baselines.
+
+La cognición se define aquí de forma **relacional**: es una atribución del Owner Raíz, no un predicado determinista. H3 es, por tanto, un enunciado sobre la Validation del Owner Raíz.
 
 ---
 
-### 6.7 Criterios de Validación Empírica
+### 6.7 Protocolo de Validación Empírica
 
-Para validar empíricamente el modelo UCA, una implementación debe demostrar que un conjunto de unidades es capaz de:
-1. Recibir un estímulo;
-2. Reaccionar según sus propósitos especializados sin un controlador central monolítico;
-3. Colaborar mediante intercambio de Stimuli y Outcomes;
-4. Generar una acción hacia el entorno exterior;
-5. Recibir retroalimentación respecto a dicha acción;
-6. Utilizar esa evidencia para diagnosticar desviaciones;
-7. Adaptar una o más Dispositions;
-8. Reaccionar correctamente en un escenario futuro equivalente;
-9. Lograrlo **sin modificación de código fuente**;
-10. Lograrlo **sin reentrenamiento de pesos de modelos**;
-11. Lograrlo **sin reglas cableadas ad-hoc** diseñadas para el caso de prueba.
+**P1. Preregistro.** Antes de ejecutar, MUST fijarse y publicarse: batería de tareas, métricas, umbrales, baselines, tamaño de muestra y análisis estadístico. Ningún criterio puede modificarse tras observar resultados.
+
+**P2. Separación de evidencia.** MUST registrarse por separado:
+- Canal C (Compliance): tareas con respuesta verificable de forma determinista.
+- Canal V (Validation): juicio de evaluadores humanos.
+Los resultados de ambos canales MUST reportarse independientemente y NO usarse para entrenar el mismo bucle evolutivo sin declararlo.
+
+**P3. Evaluadores.** Mínimo N evaluadores independientes, ciegos al origen del comportamiento (UCAs / monolito / pipeline). Se MUST reportar el acuerdo entre evaluadores (κ de Cohen o α de Krippendorff). Con acuerdo inferior al umbral preregistrado, H3 no es evaluable.
+
+**P4. Baselines.** Todo experimento MUST incluir: Disposition estática, mutación aleatoria, optimizador estándar, pipeline fijo y monolito.
+
+**P5. Evidencia mínima por mutación.** Cada Mutation MUST evaluarse con $\ge n_{min}$ Outcomes bajo $D_1$ en condiciones comparables a $D_0$ (A/B o ventanas alternadas, no periodos con cargas distintas), con prueba estadística preregistrada. Sin significancia, la Mutation se clasifica como neutra.
+
+**P6. Control de sesgo de complacencia.** Un subconjunto de tareas MUST tener respuesta correcta que contradiga la preferencia probable del evaluador. Una mejora de Validation sin mejora de Compliance en ese subconjunto se reporta como indicio de complacencia, no de mejora.
+
+**P7. Ablación.** Si una Capability es un LLM u otro modelo, se MUST incluir una ablación que aísle la contribución de la composición frente a la del modelo.
+
+**P8. Estabilidad.** Se MUST reportar: tasa de reversiones, oscilación de propiedades y presencia de ciclos en reactTo.
+
+**P9. Criterio de falsación.** Cada hipótesis MUST declarar de antemano qué resultado la refuta. Ejemplo: *"H2 se refuta si el monolito supera al sistema de UCAs en Compliance por más de $\delta$ en $\ge k$ de las $m$ tareas"*.
+
+#### Diseño Mínimo del Experimento (Banco Ear)
+
+| Elemento | Propuesta |
+|---|---|
+| **Tarea** | Transcripción de voz bajo cambios de ruido y carga de CPU |
+| **Canal C** | WER, latencia, tasa de cumplimiento de Criteria (automático) |
+| **Canal V** | Evaluadores humanos puntúan la utilidad conversacional de los chunks |
+| **Mutaciones** | `frameSize`, `rule2MinTrailingSilence`, `decayMs`, `hotwordsScore` y un cambio de `reactTo` |
+| **Baselines** | Estática, aleatoria, bayesiana, pipeline fijo |
+| **Estabilidad** | Reversiones por 1000 Outcomes, detección de ciclos |
+| **Refutación de H1** | Sin mejora significativa sobre aleatoria/bayesiana con el mismo presupuesto de evidencia |
+
+> `Ear` constituye un banco riguroso para H1, con métricas verificables y pocas dependencias. Para H2 y H3 se requiere además un sistema multi-UCA y una tarea de coordinación emergente (por ejemplo, un agente conversacional con memoria).
 
 ---
 
@@ -2004,24 +1996,18 @@ Target UCA: Ear (Disposition: bufferSize = 2048, Nature: [512..4096])
     └── Owner (Agent) ───► Validation: REJECTED (el Owner descarta el chunk por latencia inaceptable)
                             │
                             ▼
-                       Tracker UCA
+                     Cadena hacia el Owner Raíz (Humano)
                             │
                             ▼
-                         History (registro acumulado de 1000 outcomes multievento)
+           Mediación Externa: Emisión de Impulse correctivo
                             │
                             ▼
-                       Analyzer UCA (correlaciona: bufferSize = 2048 genera 41% de fallos de latencia,
-                            │        mientras que bufferSize = 1024 genera solo un 4% de fallos)
-                            ▼
-                       Evolution UCA (formula propuesta de mutación: bufferSize 2048 ──► 1024;
-                            │        valida formalmente que satisfies(1024, Nature) = true)
-                            ▼
-                    Target UCA (Ear) aplica mutación atómica:
+                    Target UCA (Ear) procesa react(Impulse):
                     ΔD = difference(D₀, D₁) con bufferSize = 1024
+                    (o revert protegido a D₀ si la hipótesis fracasa)
                             │
                             ▼
-             Apertura de nuevo periodo de observación histórica
-             (sin asumir a priori D₁ > D₀, a la espera de nueva evidencia)
+             Apertura de nuevo periodo de observación empírica
 ```
 
 1. **Constitución Inicial ($D_0$)**:
@@ -2181,14 +2167,14 @@ Una entidad o componente de software cumple con el **UCA Core** si y solo si sat
    $$\forall u \in \mathbb{U}, \exists d \in \mathbb{D} : \text{hasDisposition}(u, d)$$
 3. **Capabilities Acotadas**: Opera mediante un conjunto explícito y acotado de Capabilities.
    $$\forall u \in \mathbb{U}, \exists C \subseteq \mathbb{C}, C \neq \emptyset : \text{hasCapabilities}(u, C)$$
-4. **Activación Reactiva por Estímulo**: Se ejecuta estrictamente al ser detonada por un Stimulus externo que cruza su frontera funcional.
-   $$\forall u \in \mathbb{U}, \exists s \in \mathbb{S} : \text{triggers}(s, u)$$
+4. **Activación Reactiva por Estímulo**: Se ejecuta estrictamente al ser detonada por un Stimulus externo que cruza su frontera funcional y coincide con una regla declarada en `reactTo`.
+   $$\forall u, \forall s: \text{receives}(u, \Delta x) \land \text{matches}(d.\text{reactTo}, \Delta x) \implies \text{triggers}(s, u)$$$$
 5. **Reacción Interna Orientada por Purpose**: Ejecuta un proceso interno de Reaction compuesto por Actions e interacciones que persiguen su Purpose dentro de los límites de sus Capabilities y Disposition.
    $$\forall (u, s) \text{ activo}, \exists r \in \mathbb{R}\text{xn} : \text{triggers}(s, u)$$
 6. **Producción de Outcome Estructurado y Gobernable**: Produce uno o más Outcomes observables estructurados en $(\text{Properties}, \text{Criteria}, \text{Owner})$, donde los Criteria son deterministas y se designa formalmente un Owner externo ($\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}, \text{owner} \ne u_{\text{target}}$).
    $$\forall (u_{\text{target}}, s) \text{ activo}, \exists o \in \mathbb{O} : \text{produces}(u_{\text{target}}, o) \land \text{hasOwner}(o, \text{owner}) \land (\text{owner} \ne u_{\text{target}})$$
-7. **Descomposición por Purpose**: Trata a otro componente como UCA solo si dicho componente posee un Purpose propio y diferenciado.
-   $$\forall u' \text{ compuesta en } u, u' \in \mathbb{U} \iff \exists! p' \in \mathbb{P} : \text{hasPurpose}(u', p') \land p' \neq p_u$$
+7. **Descomposición por Purpose**: Trata a otro componente como UCA solo si dicho componente posee un Purpose propio y diferenciado respecto de las demás capacidades de la unidad.
+   $$u' \in \mathbb{U} \iff \text{hasPurpose}(u', p') \land \nexists u'' \in C_u : p'' = p'$$$$
 
 ### 8.1 Invariantes Fundamentales del Modelo UCA
 
@@ -2547,7 +2533,7 @@ Esta sección formaliza el contrato de programación e implementación concreta 
 
 | Interfaz / Tipo | Definición | Responsabilidad |
 |---|---|---|
-| `Signal` | `{ source: string; sourceName: string; sourceType: string; property: string; value: unknown; timestamp: number; }` | Representa una señal atómica generada ante la mutación de una propiedad en una UCA emisora. Contiene el identificador unívoco de la instancia (`source`), su clave en la unidad (`sourceName`), su clase ontológica (`sourceType`), la propiedad mutada (`property`), el valor (`value`) y la marca temporal (`timestamp`). |
+| `Signal` | `{ type?: string; source: string; sourceName: string; sourceType: string; property: string; value: unknown; timestamp: number; traceId?: string; dispositionVersion?: number; }` | Representa una señal atómica generada ante la mutación de una propiedad en una UCA emisora. Contiene identificador de evento (`type`), emisor (`source`, `sourceName`, `sourceType`), propiedad (`property`), valor (`value`), timestamp (`timestamp`), trazabilidad de ejecución (`traceId`) y versión de la disposición (`dispositionVersion`) para atribuibilidad histórica. |
 | `MutationEvent` | `Signal<T> & { oldValue: T; newValue: T; }` | Evento atómico emitido ante la modificación de cualquier propiedad de la disposición (`this.disposition`). Permite trazabilidad evolutiva de $\Delta d$, reportando el valor anterior (`oldValue`) y el nuevo (`newValue`). |
 | `DispositionSnapshot` | `{ version: number; timestamp: number; disposition: T; mutation?: MutationEvent; }` | Instantánea inmutable que captura el estado íntegro de la disposición en un punto del tiempo, permitiendo navegación y reversión secuencial de configuraciones. |
 | `SignalListener` | `(signal: Signal) => Promise<void> \| void` | Función de callback invocada ante la recepción de una señal en el canal interno. |
@@ -2653,12 +2639,14 @@ La arquitectura UCA restringe la generación de mutaciones **única y exclusivam
    ];
    ```
    El motor reactivo (`canProcessSignal`) correlaciona automáticamente el nombre de la propiedad mutada (`property`) con el emisor (`sourceType` o `sourceName`), garantizando la reactividad intra-unidad desacoplada.
-5. **Historial Secuencial y Métodos de Reversión (`revert`, `revertTo`)**:
-   Toda UCA expone su secuencia evolutiva y métodos para restaurar configuraciones previas:
+5. **Historial Secuencial y Métodos Protegidos de Reversión (`revert`, `revertTo`)**:
+   Toda UCA registra su secuencia evolutiva y provee mecanismos de rollback estrictamente mediados:
    - `public get dispositionSequence(): readonly DispositionSnapshot<TDisposition>[]`: Retorna la cronología inmutable de snapshots $[D_0, D_1, \dots, D_n]$.
-   - `public revert(steps: number = 1): boolean`: Retrocede $N$ pasos hacia la configuración previa. Retorna `false` si ya se encuentra en el estado inicial de concepción ($D_0$).
-   - `public revertTo(version: number): boolean`: Restaura la configuración correspondiente a un número de versión específico.
-   Cada reversión actualiza `this.disposition` mediante su Proxy reactivo, desencadenando automáticamente los eventos de mutación requeridos para mantener sincronizadas a todas las capabilities de la unidad.
+   - `protected revert(steps: number = 1): boolean`: Retrocede $N$ pasos hacia la configuración previa. Retorna `false` si ya se encuentra en el estado inicial de concepción ($D_0$).
+   - `protected revertTo(version: number): boolean`: Restaura la configuración correspondiente a un número de versión específico.
+   
+   > [!IMPORTANT]
+   > **Prohibición de Exposición Pública y Autoevolución**: `revert()` y `revertTo()` son métodos protegidos (`protected`). La UCA no puede revertirse de forma autónoma no mediada, ni expone métodos públicos imperativos. La reversión se ejecuta soberanamente al procesar un `Impulse` de reversión transmitido por el `Owner` o mediador externo (`{ action: 'revert', steps: 1 }`). Cada reversión actualiza `this.disposition` mediante su Proxy reactivo, desencadenando los correspondientes `MutationEvent`.
 
 ### 12.4 Ejemplo Canónico de Referencia (No Normativo)
 
@@ -2688,6 +2676,7 @@ export interface AcousticEarDisposition {
 
 export class AcousticEar extends Uca<AcousticEarDisposition> {
     public override purpose = 'Percepción acústica y transcripción continua de voz';
+    public readonly owner = 'ConversationalAgent'; // Owner UCA
     public override disposition: AcousticEarDisposition = {
         sampleRate: 16000,
         framingMs: 100,
@@ -2718,6 +2707,7 @@ export interface VocalMouthDisposition {
 
 export class VocalMouth extends Uca<VocalMouthDisposition> {
     public override purpose = 'Síntesis y alocución vocal hacia el exterior';
+    public readonly owner = 'ConversationalAgent'; // Owner UCA
     public override disposition: VocalMouthDisposition = {
         voice: 'alloy',
         rate: 1.0,
@@ -2745,28 +2735,33 @@ defaultRegistry.register('vocalMouth', VocalMouth);
 // 4. Agente Compuesto: Composición Recursiva de UCAs (§3.1)
 export class ConversationalAgent extends Uca {
     public override purpose = 'Agente de alocución interactiva';
+    public readonly rootOwner = 'HumanArchitect'; // Owner Raíz (humano/creador)
+
+    // No se duplican las disposiciones innatas; se habilitan las UCAs constituyentes
     public override capabilities = {
-        acousticEar: { sampleRate: 16000, framingMs: 100 },
-        vocalMouth: { voice: 'alloy', rate: 1.0 },
+        acousticEar: {},
+        vocalMouth: {},
     };
 }
 
 // 5. Uso del Agente: Reactividad Pura mediante Señales (Sin Mutaciones Externas)
 export async function runVoiceAgentExample(): Promise<void> {
-    const agent = new ConversationalAgent('agent-001', 'ConversationalAgent');
+    // El canal común se inyecta externamente evitando invocar propiedades protegidas
+    const channel = new SimpleChannel();
+    const agent = new ConversationalAgent('agent-001', 'ConversationalAgent', { channel });
 
     // Cada UCA constituyente se instancia de forma aislada y soberana
     const ear = (agent as unknown as Record<string, AcousticEar>)['acousticEar'];
     const mouth = (agent as unknown as Record<string, VocalMouth>)['vocalMouth'];
 
     console.log(`Propósito del Agente: ${agent.purpose}`);
-    console.log('Disposición de acousticEar:', ear.disposition);
-    console.log('Disposición de vocalMouth:', mouth.disposition);
+    console.log(`Owner Raíz del Agente: ${agent.rootOwner}`);
+    console.log('Disposición innata de acousticEar:', ear.disposition);
+    console.log('Disposición innata de vocalMouth:', mouth.disposition);
 
-    // Activación reactiva pura: la comunicación con el exterior se realiza exclusivamente
-    // mediante señales o impulsos. Las propiedades internas NUNCA se alteran desde fuera;
-    // se actualizan internamente en la propia clase al reaccionar al estímulo recibido.
-    agent.channel.broadcast({
+    // Activación reactiva pura: el broadcast es asíncrono y se espera con await
+    // para asegurar que las reacciones internas concluyan antes de inspeccionar consecuencias
+    await channel.broadcast({
         type: 'Environment.audioInput',
         source: 'Environment',
         sourceName: 'environment',
@@ -2776,8 +2771,7 @@ export async function runVoiceAgentExample(): Promise<void> {
         timestamp: Date.now(),
     });
 
-    // Consecuencia observable: acousticEar ha reaccionado internamente
-    // y vocalMouth ha reaccionado a la señal emitida por acousticEar
+    // Consecuencia observable garantizada tras la finalización del ciclo reactivo:
     console.log('Estado interno de acousticEar (isListening):', ear.isListening);
     console.log('Cola de habla en vocalMouth:', mouth.speechQueue);
 }
