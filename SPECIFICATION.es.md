@@ -1896,7 +1896,7 @@ Capabilities (Capacidades Primitivas Concretas y sus Dispositions)
 │       │   ├── sampleRate: { Function: "Frecuencia de muestreo", Nature: [16000], Value: 16000 }
 │       │   ├── frameSize: { Function: "Tamaño discreto de fragmento", Nature: [160..16000], Value: 1600 }
 │       │   └── emitPartialOnFlush: { Function: "Emitir fragmento parcial al vaciar buffer", Nature: [boolean], Value: false }
-│       └── reactTo: ["EchoCancellation.output"]
+│       └── reactTo: ["EchoCancellation.outcome"]
 │
 ├── PcmToFloat
 │   ├── Mechanism: Normalización y conversión de enteros Int16 a coma flotante Float32
@@ -1905,7 +1905,7 @@ Capabilities (Capacidades Primitivas Concretas y sus Dispositions)
 │       │   ├── inputType: { Function: "Tipo de entrada numérica", Nature: ["Int16"], Value: "Int16" }
 │       │   ├── outputType: { Function: "Tipo de salida numérica", Nature: ["Float32"], Value: "Float32" }
 │       │   └── scale: { Function: "Factor divisor de normalización", Nature: [32768.0], Value: 32768.0 }
-│       └── reactTo: ["AudioFraming.output"]
+│       └── reactTo: ["AudioFraming.outcome"]
 │
 ├── SherpaRecognition
 │   ├── Mechanism: Reconocimiento online de voz mediante modelo neuronal transductor (Sherpa-ONNX)
@@ -1923,7 +1923,7 @@ Capabilities (Capacidades Primitivas Concretas y sus Dispositions)
 │       │   ├── rule3MinUtteranceLength: { Function: "Longitud máxima de elocución", Nature: [5.0..60.0s], Value: 20.0 }
 │       │   ├── decodingMethod: { Function: "Método de decodificación", Nature: ["greedy_search", "modified_beam_search"], Value: "modified_beam_search" }
 │       │   └── hotwordsScore: { Function: "Ponderación contextual de hotwords", Nature: [0.0..10.0], Value: 2.5 }
-│       └── reactTo: ["PcmToFloat.output"]
+│       └── reactTo: ["PcmToFloat.outcome"]
 │
 ├── EchoTextFilter
 │   ├── Mechanism: Filtrado y atenuación léxica de transcripciones autogeneradas
@@ -1933,14 +1933,14 @@ Capabilities (Capacidades Primitivas Concretas y sus Dispositions)
 │       │   ├── decayMs: { Function: "Ventana temporal de atenuación léxica", Nature: [500..10000ms], Value: 2500 }
 │       │   ├── mismatchThreshold: { Function: "Tolerancia de discrepancia léxica", Nature: [0..5], Value: 1 }
 │       │   └── minWordLength: { Function: "Longitud mínima de palabra a evaluar", Nature: [1..10], Value: 3 }
-│       └── reactTo: ["SherpaRecognition.output"]
+│       └── reactTo: ["SherpaRecognition.outcome"]
 │
 └── EarCoherence
     ├── Mechanism: Normalización estructural y preservación de continuidad temporal de Chunks
     └── Disposition:
         ├── Properties:
         │   └── outputSchema: { Function: "Esquema canónico de salida", Nature: ["Chunk"], Value: "Chunk" }
-        └── reactTo: ["EchoTextFilter.output"]
+        └── reactTo: ["EchoTextFilter.outcome"]
 
 Outcome Canónico Estructurado
 │
@@ -1958,28 +1958,28 @@ Outcome Canónico Estructurado
 └── Owner: Thalamus UCA    (UCA externa con autoridad de validación)
 ```
 
-Flujo reactivo emergente de interacciones (diagrama informativo):
+Flujo reactivo emergente de interconexiones (diagrama informativo):
 
 ```text
-AudioInput
-    │ (Property changes)
+AudioInput.stream
+    │
     ▼
-EchoCancellation (Interaction: onAudioInput)
-    │ (Property changes)
-    ▼
-AudioFraming (Interaction: onCleanAudio)
-    │ (Property changes)
-    ▼
-PcmToFloat (Interaction: onAudioFrame)
-    │ (Property changes)
-    ▼
-SherpaRecognition (Interaction: onFloatSamples)
-    │ (Property changes)
-    ▼
-EchoTextFilter (Interaction: onRawTranscript)
-    │ (Property changes)
-    ▼
-EarCoherence (Interaction: onFilteredTranscript)
+EchoCancellation (reactTo: ["AudioInput.stream"])
+    │
+    ▼ emitOutcome
+AudioFraming (reactTo: ["EchoCancellation.outcome"])
+    │
+    ▼ emitOutcome
+PcmToFloat (reactTo: ["AudioFraming.outcome"])
+    │
+    ▼ emitOutcome
+SherpaRecognition (reactTo: ["PcmToFloat.outcome"])
+    │
+    ▼ emitOutcome
+EchoTextFilter (reactTo: ["SherpaRecognition.outcome"])
+    │
+    ▼ emitOutcome
+EarCoherence (reactTo: ["EchoTextFilter.outcome"])
     │
     ▼
 Ear Outcome: Chunk { text, start, end, latency }
