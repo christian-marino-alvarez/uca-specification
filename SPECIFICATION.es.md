@@ -2511,21 +2511,24 @@ Esta sección formaliza el contrato de programación e implementación concreta 
 2. **Declaración Obligatoria de Propósito (`purpose`)**:
    Cada UCA declara explícitamente su propósito ontológico (`public purpose: string`), el cual rige de forma invariante todas sus decisiones y reacciones.
 
-3. **Catálogo de Capabilities en Dominio Superior (`Registry`)**:
-   Las clases de capabilities se registran desacopladamente en un catálogo superior (`Registry.register(name, Ctor)`), evitando el acoplamiento rígido de importaciones directas entre la unidad superior y sus capabilities subordinadas.
+3. **Catálogo de UCAs en Dominio Superior (`Registry`)**:
+   Las clases de UCAs primitivas se registran desacopladamente en un catálogo superior (`Registry.register(name, Ctor)`), evitando el acoplamiento rígido de importaciones directas al componer recursivamente unidades subordinadas (§3.1).
 
-4. **Composición Innata de Capabilities y Disposiciones**:
-   Una unidad compuesta o agente declara sus capabilities subordinadas y su parametrización inicial mediante un diccionario declarativo donde **cada clave debe definirse obligatoriamente en formato `camelCase`**:
+4. **Composición Recursiva de UCAs Primitivas**:
+   Una UCA compuesta o macroestructura declara las UCAs primitivas constituyentes que la integran mediante un diccionario declarativo donde **cada clave debe definirse obligatoriamente en formato `camelCase`**:
    ```typescript
    public capabilities = {
        <camelCaseName>: <dispositionObject>
    };
    ```
-   Al activarse la UCA, cada capability es instanciada de forma independiente y aislada (`new Ctor(...)`), inyectándosele su propia `disposition`, el canal común y el sistema de impulsos. Las capacidades quedan directamente disponibles en la instancia como propiedades en `camelCase` (ej. `agent.acousticEar`, `agent.vocalMouth`).
+   Al activarse la UCA compuesta, cada UCA constituyente es instanciada de forma soberana e independiente (`new Ctor(...)`), inyectándosele su propia `disposition`, el canal común y el sistema de impulsos. Las unidades subordinadas quedan directamente disponibles en la instancia como propiedades en `camelCase` (ej. `agent.acousticEar`, `agent.vocalMouth`). Cada una de estas UCAs primitivas utiliza internamente **capacidades terminales puras** (mecanismos algorítmicos o técnicos sin `Uca` ni `purpose`, conforme a §3.2) para ejecutar sus operaciones.
 
-   > **Coexistencia de Capabilities con Mismo Mechanism / Clase (§2.3)**: En estricta concordancia con la Sección 2.3, la identidad de una Primitive Capability está determinada por su Mechanism. Nada impide que dos capabilities distintas de una misma unidad compartan el mismo Mechanism o clase concreta (ej. `leftEar` y `rightEar` compartiendo la clase `AcousticEar`, dos sensores ópticos o dos actuadores del mismo tipo). Dentro de la unidad, cada capability se distingue unívocamente por su clave funcional en formato `camelCase`.
+   > **Deslinde Ontológico: Capabilities Terminales vs. UCAs Primitivas (§3.1 y §3.2)**:
+   > - **Capacidad Terminal (Mecanismo Puro, §3.2)**: Es funcionalidad computacional pura (clases o funciones sin heredar de `Uca` y sin `purpose`). Son meros instrumentos algorítmicos (transformadores, codecs, parsers, filtros).
+   > - **UCA Primitiva (§2.1 y §7.1)**: Es una unidad cognitiva atómica (`extends Uca`) que posee su propio `purpose`, su `disposition` y Outcomes estructurados, encapsulando capacidades terminales puras para procesar estímulos.
+   > - **Composición Recursiva (§3.1)**: Una UCA puede utilizar a otra UCA como recurso reactivo, preservando cada unidad su propia soberanía teleológica.
    >
-   > Para preservar el determinismo estricto en `canProcess()` ante capabilities que comparten clase o mecanismo, las señales de runtime transportan tanto la clave funcional de la capability (`sourceName`) como su clase concreta (`sourceType`) y el identificador unívoco de la instancia (`source`), permitiendo a las unidades receptoras discriminar tanto por rol específico (`leftEar.isListening`) como de forma transversal o polimórfica (`AcousticEar.isListening`).
+   > Para preservar el determinismo estricto en `canProcess()` ante unidades que comparten clase o mecanismo, las señales de runtime transportan tanto la clave funcional de la UCA (`sourceName`) como su clase concreta (`sourceType`) y el identificador unívoco de la instancia (`source`), permitiendo a las unidades receptoras discriminar tanto por rol específico (`leftEar.isListening`) como de forma transversal o polimórfica (`AcousticEar.isListening`).
 
 5. **Detección Automática de Mutación de Propiedades (Proxy Reactivo)**:
    La instancia de la UCA está envuelta en un Proxy reactivo. Cualquier mutación de propiedades públicas desencadena automáticamente una señal de broadcast en el canal interno (`Channel`) con la identidad completa de la instancia emisora (`source` id, clave `sourceName` en `camelCase`, y tipo `sourceType`). Las asignaciones redundantes (mismo valor) son suprimidas en tiempo real.
@@ -2534,7 +2537,7 @@ Esta sección formaliza el contrato de programación e implementación concreta 
    Cada UCA receptora define la lista de señales o propiedades ante las cuales reacciona:
    ```typescript
    protected reactTo = [
-       'acousticEar.isListening',    // Discriminación por clave de capability en camelCase
+       'acousticEar.isListening',    // Discriminación por clave de UCA en camelCase
        'AcousticEar.lastTranscript', // O discriminación por tipo ontológico
    ];
    ```
@@ -2549,9 +2552,10 @@ Esta sección formaliza el contrato de programación e implementación concreta 
 | `DispositionSnapshot` | `{ version: number; timestamp: number; disposition: T; mutation?: MutationEvent; }` | Instantánea inmutable que captura el estado íntegro de la disposición en un punto del tiempo, permitiendo navegación y reversión secuencial de configuraciones. |
 | `SignalListener` | `(signal: Signal) => Promise<void> \| void` | Función de callback invocada ante la recepción de una señal en el canal interno. |
 | `IChannel` | `broadcast(signal: Signal): void;`<br>`subscribe(listener: SignalListener): () => void;` | Contrato del bus de comunicación local intra-unidad. Desacopla la emisión de señales de los receptores suscritos. |
-| `CapabilityConstructor` | `new (id: string, name: string, config: Config) => Uca` | Firma del constructor para clases que extienden `Uca` y pueden ser instanciadas dinámicamente como capabilities subordinadas. |
-| `IRegistry` | `register<T>(name: string, ctor: CapabilityConstructor<T>): void;`<br>`get<T>(name: string): CapabilityConstructor<T> \| undefined;`<br>`has(name: string): boolean;` | Contrato del catálogo superior que mapea nombres de capabilities en `camelCase` con sus correspondientes constructores de clase. |
+| `UcaConstructor` | `new (id: string, name: string, config: Config) => Uca` | Firma del constructor para clases que extienden `Uca` y pueden ser instanciadas dinámicamente en el runtime o registradas en el catálogo. |
+| `IRegistry` | `register<T extends Uca>(name: string, ctor: UcaConstructor<T>): void;`<br>`get<T extends Uca>(name: string): UcaConstructor<T> \| undefined;`<br>`has(name: string): boolean;` | Contrato del catálogo superior que mapea nombres en `camelCase` con sus correspondientes constructores de UCAs. |
 | `Config` | `{ channel: IChannel; nervousSystem?: INervousSystem; registry?: IRegistry; }` | Parámetros de configuración e inyección de dependencias para la inicialización de una UCA. El `channel` es obligatorio para garantizar la comunicación compartida entre las capabilities de la unidad. |
+| `TerminalCapability` | `interface / class / function` (sin heredar de `Uca`) | Funcionalidad pura algorítmica, técnica o mecánica (codec, parser, DSP, driver) utilizada internamente por una UCA como Mechanism sin poseer Purpose ni autonomía (§3.2). |
 
 ### 12.3 Especificación de la Clase Base `Uca`
 
@@ -2576,14 +2580,14 @@ constructor(id: string, name: string, config: Config)
 - Inerva el canal interno mediante `this.innervate(membrane)`.
 - Envuelve la instancia en su membrana reactiva (`createMembrane(this)`) y la retorna, garantizando la interceptación transparente de mutaciones de propiedades.
 
-#### 12.3.3 Métodos de Ciclo de Vida y Montaje de Capabilities
+#### 12.3.3 Métodos de Ciclo de Vida y Montaje de UCAs Constituyentes
 
 - `public override async live(): Promise<void>`:
-  Punto de entrada al ciclo de vida de la UCA en el runtime. Invoca en primer término a `this.mountCapabilities()` para instanciar e inicializar todas las capabilities subordinadas declaradas en `capabilities`, y delega a continuación en `super.live()`.
+  Punto de entrada al ciclo de vida de la UCA en el runtime. Invoca en primer término a `this.mountCapabilities()` para instanciar e inicializar todas las UCAs subordinadas declaradas en `capabilities`, y delega a continuación en `super.live()`.
 - `private mountCapabilities(): void`:
-  Método privado que itera deterministamente sobre las claves de `this.capabilities`. Para cada nombre de capability, verifica si la propiedad ya existe en la instancia; si no existe, delega el montaje a `this.attach(name)`.
+  Método privado que itera deterministamente sobre las claves de `this.capabilities`. Para cada nombre de UCA constituyente, verifica si la propiedad ya existe en la instancia; si no existe, delega el montaje a `this.attach(name)`.
 - `private attach<T extends Uca>(name: string): T`:
-  Método privado que resuelve el constructor de la capability a través de `this.registry.get(name)`. Si el constructor está registrado, crea la instancia subordinada pasándole un identificador único concatenado (`${this.id}::${name}`), compartiendo el canal (`this.channel`), el sistema de impulsos (`this._ns`) y el registro (`this.registry`), y la asigna como propiedad directa de la UCA bajo el nombre `name` en `camelCase`. La capability nace con su propia disposición innata y no admite configuración externa por constructor.
+  Método privado que resuelve el constructor de la UCA constituyente a través de `this.registry.get(name)`. Si el constructor está registrado, crea la instancia subordinada pasándole un identificador único concatenado (`${this.id}::${name}`), compartiendo el canal (`this.channel`), el sistema de impulsos (`this._ns`) y el registro (`this.registry`), y la asigna como propiedad directa de la UCA bajo el nombre `name` en `camelCase`. La UCA subordinada nace con su propia disposición innata y no admite configuración externa por constructor.
 
 > [!NOTE]
 > **Modulación Operativa y Reconfiguración por Impulsos**: En estricta concordancia con la reactividad soberana de la UCA, la unidad no recibe parametrización imperativa externa. Toda reconfiguración o ajuste de su disposición operativa se transmite exclusivamente mediante impulsos (`Impulse`) a través del `NervousSystem`, siendo procesada internamente en su método `react(impulse)` para actualizar su estado de forma soberana.
@@ -2663,7 +2667,20 @@ La arquitectura UCA restringe la generación de mutaciones **única y exclusivam
 ```typescript
 import { Uca, defaultRegistry, Signal } from './uca/index.js';
 
-// 1. Definición de Capabilities Primitivas
+// 1. Capacidades Terminales: Funcionalidad Pura sin Uca ni Purpose (§3.2)
+export class AudioFramingService {
+    public sliceFrame(audioData: string, sampleRate: number, framingMs: number): string {
+        return `[frame:${sampleRate}Hz:${framingMs}ms] ${audioData}`;
+    }
+}
+
+export class SpeechSynthesizerService {
+    public synthesize(text: string, voice: string, rate: number): string {
+        return `[Voz sintetizada:${voice}:x${rate.toFixed(1)}] ${text}`;
+    }
+}
+
+// 2. UCAs Primitivas: poseen Purpose propio y usan capacidades terminales como mecanismos
 export interface AcousticEarDisposition {
     sampleRate: number;
     framingMs: number;
@@ -2679,12 +2696,17 @@ export class AcousticEar extends Uca<AcousticEarDisposition> {
     public lastTranscript = '';
     protected override reactTo = ['Environment.audioInput'];
 
+    // Capacidad terminal pura (mecanismo técnico sin Uca)
+    private readonly framingService = new AudioFramingService();
+
     public override async react(signal: Signal): Promise<void> {
         const { value } = signal;
         if (typeof value === 'string' && value.length > 0) {
-            // Las propiedades se alteran internamente en la clase como reacción al estímulo
             this.isListening = true;
             this.lastTranscript = value;
+            const { sampleRate, framingMs } = this.disposition;
+            const frame = this.framingService.sliceFrame(value, sampleRate, framingMs);
+            // Reacción interna observable
         }
     }
 }
@@ -2703,20 +2725,24 @@ export class VocalMouth extends Uca<VocalMouthDisposition> {
     public speechQueue: string[] = [];
     protected override reactTo = ['AcousticEar.lastTranscript'];
 
+    // Capacidad terminal pura (mecanismo técnico sin Uca)
+    private readonly synthesizerService = new SpeechSynthesizerService();
+
     public override async react(signal: Signal): Promise<void> {
         const { value } = signal;
         if (typeof value === 'string' && value.length > 0) {
-            // Reacción interna desacoplada
-            this.speechQueue.push(`[Voz sintetizada] ${value}`);
+            const { voice, rate } = this.disposition;
+            const spoken = this.synthesizerService.synthesize(value, voice, rate);
+            this.speechQueue.push(spoken);
         }
     }
 }
 
-// 2. Registro en Catálogo Superior (claves camelCase)
+// 3. Registro en Catálogo Superior de UCAs Primitivas (claves camelCase)
 defaultRegistry.register('acousticEar', AcousticEar);
 defaultRegistry.register('vocalMouth', VocalMouth);
 
-// 3. Agente Compuesto con Capabilities Innatas y Disposición
+// 4. Agente Compuesto: Composición Recursiva de UCAs (§3.1)
 export class ConversationalAgent extends Uca {
     public override purpose = 'Agente de alocución interactiva';
     public override capabilities = {
@@ -2725,11 +2751,11 @@ export class ConversationalAgent extends Uca {
     };
 }
 
-// 4. Uso del Agente: Reactividad Pura mediante Señales (Sin Mutaciones Externas)
+// 5. Uso del Agente: Reactividad Pura mediante Señales (Sin Mutaciones Externas)
 export async function runVoiceAgentExample(): Promise<void> {
     const agent = new ConversationalAgent('agent-001', 'ConversationalAgent');
 
-    // Cada capability se instancia aisladamente y queda expuesta en su propiedad camelCase
+    // Cada UCA constituyente se instancia de forma aislada y soberana
     const ear = (agent as unknown as Record<string, AcousticEar>)['acousticEar'];
     const mouth = (agent as unknown as Record<string, VocalMouth>)['vocalMouth'];
 
@@ -2739,7 +2765,7 @@ export async function runVoiceAgentExample(): Promise<void> {
 
     // Activación reactiva pura: la comunicación con el exterior se realiza exclusivamente
     // mediante señales o impulsos. Las propiedades internas NUNCA se alteran desde fuera;
-    // se setean internamente en la propia clase al reaccionar al estímulo recibido.
+    // se actualizan internamente en la propia clase al reaccionar al estímulo recibido.
     agent.channel.broadcast({
         type: 'Environment.audioInput',
         source: 'Environment',
@@ -2754,7 +2780,6 @@ export async function runVoiceAgentExample(): Promise<void> {
     // y vocalMouth ha reaccionado a la señal emitida por acousticEar
     console.log('Estado interno de acousticEar (isListening):', ear.isListening);
     console.log('Cola de habla en vocalMouth:', mouth.speechQueue);
-    // Salida: ['[Voz sintetizada] Hola, arquitecto cognitivo']
 }
 ```
 

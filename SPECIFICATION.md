@@ -2537,21 +2537,24 @@ This section formalizes the programming contract and concrete reference implemen
 2. **Mandatory Purpose Declaration (`purpose`)**:
    Each UCA explicitly declares its ontological purpose (`public purpose: string`), which invariantly governs all its decisions and reactions.
 
-3. **Higher-Domain Capability Catalog (`Registry`)**:
-   Capability classes are registered decoupled in a higher-domain catalog (`Registry.register(name, Ctor)`), avoiding tight coupling of direct imports between the parent unit and its subordinate capabilities.
+3. **Higher-Domain UCA Catalog (`Registry`)**:
+   Primitive UCA classes are registered decoupled in a higher-domain catalog (`Registry.register(name, Ctor)`), avoiding the tight coupling of direct imports when recursively composing subordinate units (§3.1).
 
-4. **Innate Capability Composition and Dispositions**:
-   A composite unit or agent declares its subordinate capabilities and initial parameterization via a declarative dictionary where **each key must obligatorily be defined in `camelCase` format**:
+4. **Recursive Composition of Primitive UCAs**:
+   A composite UCA or macrostructure declares the constituent primitive UCAs that integrate it via a declarative dictionary where **each key must obligatorily be defined in `camelCase` format**:
    ```typescript
    public capabilities = {
        <camelCaseName>: <dispositionObject>
    };
    ```
-   Upon activating the UCA, each capability is instantiated independently and isolated (`new Ctor(...)`), receiving its own `disposition`, the shared channel, and the impulse system. Capabilities are directly accessible on the instance as `camelCase` properties (e.g., `agent.acousticEar`, `agent.vocalMouth`).
+   Upon activating the composite UCA, each constituent UCA is instantiated sovereignly and independently (`new Ctor(...)`), receiving its own `disposition`, the shared channel, and the impulse system. Subordinate units are directly exposed on the instance as `camelCase` properties (e.g., `agent.acousticEar`, `agent.vocalMouth`). Each of these primitive UCAs internally utilizes **pure terminal capabilities** (algorithmic or technical mechanisms without `Uca` or `purpose`, conforming strictly to §3.2) to execute its operations.
 
-   > **Coexistence of Capabilities Sharing the Same Mechanism / Class (§2.3)**: In strict accordance with Section 2.3, the identity of a Primitive Capability is determined by its Mechanism. Nothing prevents two distinct capabilities of the same unit from sharing the same concrete Mechanism or class (e.g., `leftEar` and `rightEar` sharing the `AcousticEar` class, dual optical sensors, or dual actuators of the same type). Within the unit, each capability is distinguished uniquely by its functional `camelCase` key.
+   > **Ontological Demarcation: Terminal Capabilities vs. Primitive UCAs (§3.1 and §3.2)**:
+   > - **Terminal Capability (Pure Mechanism, §3.2)**: Pure computational functionality (classes or functions without extending `Uca` and without `purpose`). They are purely algorithmic instruments (transformers, codecs, parsers, filters, synthesizers).
+   > - **Primitive UCA (§2.1 and §7.1)**: Atomic cognitive unit (`extends Uca`) possessing its own `purpose`, `disposition`, and structured Outcomes, encapsulating pure terminal capabilities to process stimuli.
+   > - **Recursive Composition (§3.1)**: A UCA can use another UCA as a reactive resource, with each unit preserving its own teleological sovereignty.
    >
-   > To preserve strict determinism in `canProcess()` when capabilities share the same class or mechanism, runtime signals carry the functional capability key (`sourceName`), the concrete class (`sourceType`), and the unique instance identifier (`source`), enabling receiving units to discriminate either by specific role (`leftEar.isListening`) or polymorphically across the class (`AcousticEar.isListening`).
+   > To preserve strict determinism in `canProcess()` when units share the same class or mechanism, runtime signals carry the functional key (`sourceName`), concrete class (`sourceType`), and unique instance identifier (`source`), enabling receivers to discriminate either by specific role (`leftEar.isListening`) or polymorphically across the class (`AcousticEar.isListening`).
 
 5. **Automatic Property Mutation Detection (Reactive Proxy)**:
    The UCA instance is wrapped in a reactive Proxy. Any mutation of public properties automatically triggers a broadcast signal on the internal channel (`Channel`) carrying the complete identity of the emitter (`source` id, `sourceName` in `camelCase`, and `sourceType`). Redundant assignments (same value) are suppressed in real-time.
@@ -2575,9 +2578,10 @@ This section formalizes the programming contract and concrete reference implemen
 | `DispositionSnapshot` | `{ version: number; timestamp: number; disposition: T; mutation?: MutationEvent; }` | Immutable snapshot capturing full disposition state at a given point in time, enabling chronological inspection and sequential reversion. |
 | `SignalListener` | `(signal: Signal) => Promise<void> \| void` | Callback function invoked upon receiving a signal on the internal channel. |
 | `IChannel` | `broadcast(signal: Signal): void;`<br>`subscribe(listener: SignalListener): () => void;` | Intra-unit local communication bus contract. Decouples signal broadcasting from subscribed receivers. |
-| `CapabilityConstructor` | `new (id: string, name: string, config: Config) => Uca` | Constructor signature for classes extending `Uca` that can be dynamically instantiated as subordinate capabilities. |
-| `IRegistry` | `register<T>(name: string, ctor: CapabilityConstructor<T>): void;`<br>`get<T>(name: string): CapabilityConstructor<T> \| undefined;`<br>`has(name: string): boolean;` | Higher-domain catalog contract mapping `camelCase` capability names to class constructors. |
+| `UcaConstructor` | `new (id: string, name: string, config: Config) => Uca` | Constructor signature for classes extending `Uca` that can be dynamically instantiated in the runtime or registered in the catalog. |
+| `IRegistry` | `register<T extends Uca>(name: string, ctor: UcaConstructor<T>): void;`<br>`get<T extends Uca>(name: string): UcaConstructor<T> \| undefined;`<br>`has(name: string): boolean;` | Higher-domain catalog contract mapping `camelCase` names to UCA constructors. |
 | `Config` | `{ channel: IChannel; nervousSystem?: INervousSystem; registry?: IRegistry; }` | Configuration and dependency injection parameters for UCA initialization. `channel` is required to ensure shared communication across unit capabilities. |
+| `TerminalCapability` | `interface / class / function` (without extending `Uca`) | Pure algorithmic, technical, or mechanical functionality (codec, parser, DSP, driver) used internally by a UCA as a Mechanism without possessing Purpose or autonomy (§3.2). |
 
 ### 12.3 Base `Uca` Class Specification
 
@@ -2602,14 +2606,14 @@ constructor(id: string, name: string, config: Config)
 - Innervates the internal channel via `this.innervate(membrane)`.
 - Wraps the instance in a reactive membrane (`createMembrane(this)`) and returns it, transparently intercepting property mutations.
 
-#### 12.3.3 Lifecycle and Capability Mounting Methods
+#### 12.3.3 Lifecycle and Mounting Methods of Constituent UCAs
 
 - `public override async live(): Promise<void>`:
-  Entrypoint for the UCA runtime lifecycle. First invokes `this.mountCapabilities()` to instantiate and mount all subordinate capabilities declared in `capabilities`, then delegates to `super.live()`.
+  Entrypoint for the UCA runtime lifecycle. First invokes `this.mountCapabilities()` to instantiate and mount all subordinate UCAs declared in `capabilities`, then delegates to `super.live()`.
 - `private mountCapabilities(): void`:
-  Private method that deterministically iterates over the keys of `this.capabilities`. For each capability name, verifies if the property already exists on the instance; if absent, delegates mounting to `this.attach(name)`.
+  Private method that deterministically iterates over the keys of `this.capabilities`. For each constituent UCA name, verifies if the property already exists on the instance; if absent, delegates mounting to `this.attach(name)`.
 - `private attach<T extends Uca>(name: string): T`:
-  Private method that resolves the capability constructor via `this.registry.get(name)`. If registered, creates the child instance with a deterministic identifier (`${this.id}::${name}`), sharing the channel (`this.channel`), impulse system (`this._ns`), and registry (`this.registry`), and mounts it as a direct property on the UCA under its `camelCase` name. The capability is born with its innate physical disposition and rejects external constructor configuration.
+  Private method that resolves the constituent UCA constructor via `this.registry.get(name)`. If registered, creates the child instance with a deterministic identifier (`${this.id}::${name}`), sharing the channel (`this.channel`), impulse system (`this._ns`), and registry (`this.registry`), and mounts it as a direct property on the UCA under its `camelCase` name. The subordinate UCA is born with its innate physical disposition and rejects external constructor configuration.
 
 > [!NOTE]
 > **Operational Modulation and Reconfiguration via Impulses**: In strict accordance with sovereign UCA reactivity, a UCA never receives imperative external parameterization. All reconfiguration or operational modulation is transmitted exclusively through neural impulses (`Impulse`) via the `NervousSystem`, processed internally in its `react(impulse)` hook to sovereignly update its disposition.
@@ -2689,7 +2693,20 @@ The runtime consolidates a **single reactive cycle** in `Adn`/`Uca` regardless o
 ```typescript
 import { Uca, defaultRegistry, Signal } from './uca/index.js';
 
-// 1. Primitive Capability Definitions
+// 1. Terminal Capabilities: Pure Functionality without Uca or Purpose (§3.2)
+export class AudioFramingService {
+    public sliceFrame(audioData: string, sampleRate: number, framingMs: number): string {
+        return `[frame:${sampleRate}Hz:${framingMs}ms] ${audioData}`;
+    }
+}
+
+export class SpeechSynthesizerService {
+    public synthesize(text: string, voice: string, rate: number): string {
+        return `[Synthesized Voice:${voice}:x${rate.toFixed(1)}] ${text}`;
+    }
+}
+
+// 2. Primitive UCAs: possessing own Purpose and using terminal capabilities as mechanisms
 export interface AcousticEarDisposition {
     sampleRate: number;
     framingMs: number;
@@ -2705,12 +2722,17 @@ export class AcousticEar extends Uca<AcousticEarDisposition> {
     public lastTranscript = '';
     protected override reactTo = ['Environment.audioInput'];
 
+    // Pure terminal capability (technical mechanism without Uca)
+    private readonly framingService = new AudioFramingService();
+
     public override async react(signal: Signal): Promise<void> {
         const { value } = signal;
         if (typeof value === 'string' && value.length > 0) {
-            // Properties are mutated internally within the class upon stimulus reaction
             this.isListening = true;
             this.lastTranscript = value;
+            const { sampleRate, framingMs } = this.disposition;
+            const frame = this.framingService.sliceFrame(value, sampleRate, framingMs);
+            // Observable internal reaction
         }
     }
 }
@@ -2729,20 +2751,24 @@ export class VocalMouth extends Uca<VocalMouthDisposition> {
     public speechQueue: string[] = [];
     protected override reactTo = ['AcousticEar.lastTranscript'];
 
+    // Pure terminal capability (technical mechanism without Uca)
+    private readonly synthesizerService = new SpeechSynthesizerService();
+
     public override async react(signal: Signal): Promise<void> {
         const { value } = signal;
         if (typeof value === 'string' && value.length > 0) {
-            // Internal decoupled reaction
-            this.speechQueue.push(`[Synthesized Voice] ${value}`);
+            const { voice, rate } = this.disposition;
+            const spoken = this.synthesizerService.synthesize(value, voice, rate);
+            this.speechQueue.push(spoken);
         }
     }
 }
 
-// 2. Registry Registration (camelCase keys)
+// 3. Registry Registration of Primitive UCAs in Higher-Domain Catalog (camelCase keys)
 defaultRegistry.register('acousticEar', AcousticEar);
 defaultRegistry.register('vocalMouth', VocalMouth);
 
-// 3. Composite Agent with Innate Capabilities and Disposition
+// 4. Composite Agent: Recursive UCA Composition (§3.1)
 export class ConversationalAgent extends Uca {
     public override purpose = 'Interactive speech agent';
     public override capabilities = {
@@ -2751,11 +2777,11 @@ export class ConversationalAgent extends Uca {
     };
 }
 
-// 4. Agent Usage: Pure Signal Reactivity (No External Mutations)
+// 5. Agent Usage: Pure Signal Reactivity (No External Mutations)
 export async function runVoiceAgentExample(): Promise<void> {
     const agent = new ConversationalAgent('agent-001', 'ConversationalAgent');
 
-    // Each capability is instantiated in isolation and exposed via its camelCase property
+    // Each constituent UCA is instantiated in isolation and sovereignly
     const ear = (agent as unknown as Record<string, AcousticEar>)['acousticEar'];
     const mouth = (agent as unknown as Record<string, VocalMouth>)['vocalMouth'];
 
@@ -2780,7 +2806,6 @@ export async function runVoiceAgentExample(): Promise<void> {
     // reacted to the signal automatically broadcast by acousticEar
     console.log('Internal state of acousticEar (isListening):', ear.isListening);
     console.log('Speech queue in vocalMouth:', mouth.speechQueue);
-    // Output: ['[Synthesized Voice] Hello, cognitive architect']
 }
 ```
 

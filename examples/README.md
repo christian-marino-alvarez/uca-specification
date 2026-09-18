@@ -11,8 +11,9 @@ This folder contains non-normative reference examples demonstrating how to use a
 
 ### 1. Voice Agent Example (`voice-agent.example.ts`)
 Demonstrates:
-- Primitive capabilities (`AcousticEar`, `VocalMouth`) inheriting from `Uca`.
-- Decoupled registration in `defaultRegistry` using `camelCase` identifiers.
-- Composite agent (`ConversationalAgent`) declaring innate capabilities and dispositions via `camelCase` keys.
+- Pure terminal capabilities (`AudioFramingService`, `SpeechSynthesizerService`) providing pure algorithmic/mechanical functionality without extending `Uca` and without `purpose` (§3.2).
+- Primitive UCAs (`AcousticEar`, `VocalMouth`) inheriting from `Uca` with their own `purpose` and utilizing terminal capabilities internally as mechanisms.
+- Decoupled registration of primitive UCAs in `defaultRegistry` using `camelCase` identifiers.
+- Composite agent (`ConversationalAgent`) recursively composing constituent primitive UCAs (§3.1).
 - Automatic property mutation detection via reactive Proxy.
 - Decoupled signal dispatch and reactive execution via `reactTo`.

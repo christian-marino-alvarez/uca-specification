@@ -93,19 +93,48 @@ export class BaseUca {
     }
 }
 
-// 1. Primitive Capabilities
+// --- 1. Capacidades Terminales (Funcionalidad Pura sin Uca ni Purpose, §3.2) ---
+
+/**
+ * Capacidad terminal mecánica para encuadre y segmentación acústica.
+ * No extiende Uca ni posee Purpose (§3.2).
+ */
+export class AudioFramingService {
+    public sliceFrame(audioData: string, sampleRate: number, framingMs: number): string {
+        return `[frame:${sampleRate}Hz:${framingMs}ms] ${audioData}`;
+    }
+}
+
+/**
+ * Capacidad terminal puramente algorítmica para síntesis y conversión TTS.
+ * No extiende Uca ni posee Purpose (§3.2).
+ */
+export class SpeechSynthesizerService {
+    public synthesize(text: string, voice: string, rate: number): string {
+        return `[Voz sintetizada:${voice}:x${rate.toFixed(1)}] ${text}`;
+    }
+}
+
+// --- 2. UCAs Primitivas (poseen Purpose propio y usan capacidades terminales) ---
+
 export class AcousticEar extends BaseUca {
     public override purpose = 'Percepción acústica y transcripción continua de voz';
     public isListening = false;
     public lastTranscript = '';
     protected override reactTo = ['Environment.audioInput'];
 
+    // Capacidad terminal pura (mecanismo sin Uca)
+    private readonly framingService = new AudioFramingService();
+
     public override async react(signal: Signal): Promise<void> {
         const { value } = signal;
         if (typeof value === 'string' && value.length > 0) {
             this.isListening = true;
             this.lastTranscript = value;
-            console.log(`AcousticEar: Percibido estímulo acústico -> "${value}"`);
+            const sampleRate = (this.disposition?.sampleRate as number) ?? 16000;
+            const framingMs = (this.disposition?.framingMs as number) ?? 100;
+            const frame = this.framingService.sliceFrame(value, sampleRate, framingMs);
+            console.log(`AcousticEar: Percibido estímulo acústico -> "${value}" (${frame})`);
         }
     }
 }
@@ -115,17 +144,23 @@ export class VocalMouth extends BaseUca {
     public speechQueue: string[] = [];
     protected override reactTo = ['AcousticEar.lastTranscript'];
 
+    // Capacidad terminal pura (mecanismo sin Uca)
+    private readonly synthesizerService = new SpeechSynthesizerService();
+
     public override async react(signal: Signal): Promise<void> {
         const { value } = signal;
         if (typeof value === 'string' && value.length > 0) {
-            const spoken = `[Voz sintetizada] ${value}`;
+            const voice = (this.disposition?.voice as string) ?? 'alloy';
+            const rate = (this.disposition?.rate as number) ?? 1.0;
+            const spoken = this.synthesizerService.synthesize(value, voice, rate);
             this.speechQueue.push(spoken);
             console.log(`VocalMouth: Emitiendo alocución -> "${spoken}"`);
         }
     }
 }
 
-// 2. Agente Compuesto con Capabilities Innatas y Disposición en camelCase
+// --- 3. Composición Recursiva de UCAs Primitivas (§3.1) ---
+
 export class ConversationalAgent extends BaseUca {
     public override purpose = 'Agente de alocución interactiva';
     public override capabilities = {
@@ -138,7 +173,7 @@ export class ConversationalAgent extends BaseUca {
 
     constructor(id: string, name: string, config?: UcaConfig) {
         super(id, name, config);
-        // Cada capability se instancia de forma aislada inyectándole su propia disposición
+        // Cada UCA primitiva constituyente se instancia de forma soberana con su disposición
         this.acousticEar = new AcousticEar(`${id}-ear`, 'acousticEar', {
             channel: this.channel,
             disposition: this.capabilities.acousticEar,
