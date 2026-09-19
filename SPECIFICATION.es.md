@@ -2607,7 +2607,7 @@ El runtime consolida un **único ciclo reactivo** en `Adn`/`Uca` independienteme
 - `public async processInput(input: unknown): Promise<void>`:
   Punto de entrada reactivo común definido en `Adn`. Valida `canProcess(input)` y, si es verdadero, ejecuta secuencialmente la cadena asíncrona `preReact(input) -> react(next) -> postReact(next)`.
 - `public override canProcess(item: unknown): boolean`:
-  Evalúa si la entrada reactiva puede ser procesada. Si `item` es un `Signal`, comprueba si coincide con alguna regla declarada en `this.reactTo` (`type`, `sourceName.property`, `sourceType.property` o `source.property`) y suprime autoreacciones (`signal.source !== this.id`). Si es un `Impulse`, delega en la lógica de procesamiento de impulsos de `Adn`.
+  Normaliza y evalúa la entrada reactiva bajo un único camino unificado: si `item` es un `Impulse`, lo transforma soberanamente a `Signal` (si ya es un `Signal`, no realiza transformación). Evalúa la señal resultante suprimiendo autorreacciones (`signal.source !== this.id`), admitiendo direccionamiento explícito (`signal.target === this.id`) o comprobando coincidencia determinista con las reglas declaradas en `this.reactTo`.
 - `private async handleSignal(signal: Signal): Promise<void>`:
   Receptor privado de señales suscripto al canal local. Ignora de forma inmediata señales cuyo `source` coincida con `this.id` y delega en `await this.processInput(signal)`.
 - `protected override async preReact(input: unknown): Promise<unknown>`:

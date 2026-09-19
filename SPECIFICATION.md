@@ -2628,7 +2628,7 @@ The runtime consolidates a **single reactive cycle** in `Adn`/`Uca` regardless o
 - `public async processInput(input: unknown): Promise<void>`:
   Common reactive entrypoint defined in `Adn`. Validates `canProcess(input)` and, if true, executes sequentially the asynchronous chain `preReact(input) -> react(next) -> postReact(next)`.
 - `public override canProcess(item: unknown): boolean`:
-  Evaluates whether the reactive input can be processed. If `item` is a `Signal`, checks deterministic matching against `this.reactTo` (`type`, `sourceName.property`, `sourceType.property`, or `source.property`) and suppresses self-reactions (`signal.source !== this.id`). If it is an `Impulse`, delegates to `Adn`'s impulse processing logic.
+  Normalizes and evaluates reactive input through a single unified path: if `item` is an `Impulse`, it is converted to a `Signal` (if already a `Signal`, no transformation is performed). Evaluates the resulting signal by suppressing self-reactions (`signal.source !== this.id`), honoring explicit targeting (`signal.target === this.id`), or verifying deterministic matching against rules declared in `this.reactTo`.
 - `private async handleSignal(signal: Signal): Promise<void>`:
   Private signal receiver subscribed to the local channel. Immediately discards signals where `source === this.id` and delegates to `await this.processInput(signal)`.
 - `protected override async preReact(input: unknown): Promise<unknown>`:
