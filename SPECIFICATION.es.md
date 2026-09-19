@@ -1670,6 +1670,196 @@ La condición universal es únicamente que el Stimulus se origine fuera de la fr
 
 ---
 
+### 4.10 Organ y Organism (Patrón de Composición)
+
+> **`Organ` y `Organism` son ROLES verificables en un grafo de composición, no tipos ontológicos del Core.**
+>
+> Toda entidad en estos niveles es formal y estructuralmente una UCA ($u \in \mathbb{U}$). Las distinciones de nivel emergen exclusivamente de las **clausuras relacionales** que satisface el grafo de interacciones.
+
+#### 4.10.1 Motivación: Insuficiencia de la Recursión Pura
+
+El UCA Core (§3.1 y §3.5) establece que una UCA puede utilizar a otra UCA como una de sus Capabilities. No obstante, definir un "Organ" simplemente como *"una UCA que contiene a otras UCAs"* no introduce ninguna distinción semántica respecto a la recursión ordinaria de Capabilities.
+
+Para que la estratificación de un sistema tenga significado arquitectónico y no colapse en recursión vacía, cada nivel de composición DEBE definirse por una **clausura relacional propia** respecto a su frontera observable:
+
+| Nivel | Clausura | Pregunta Arquitectónica | Frontera Observable Externa |
+|---|---|---|---|
+| **UCA** | **De Reacción** | ¿Reacciona y produce un Outcome estructurado sin exponer su dominio interno? | $\text{Outcome}(u)$ |
+| **Organ** | **Funcional (de Responsabilidad)** | ¿Posee un dominio de responsabilidad cerrado con validación interna y encapsulación de efectos? | $\text{Outcome}(g)$ (Outcomes de frontera del Organ) |
+| **Organism** | **De Viabilidad** | ¿Se sostiene dinámicamente (estímulo, evaluación y adaptación) sin más dependencia externa que su Owner Raíz? | Outcomes terminales validados por Owner Raíz |
+
+---
+
+#### 4.10.2 Organ: Condiciones de Conformidad de Rol
+
+Una UCA $g \in \mathbb{U}$ dentro de un sistema $S \subseteq \mathbb{U}$ desempeña el rol de **Organ** ($\text{isOrgan}(g, S)$) si y solo si satisface simultáneamente las tres condiciones de clausura funcional:
+
+1. **Cohesión de Dominio**:
+   El Purpose de $g$ ($p_g \in \mathbb{P}$) define un dominio de responsabilidad funcional unívoco, exógeno e invariante ($\exists! p_g$). Los Purposes de las UCAs constituyentes ($u_i \in \text{members}(g)$) son relacionalmente parciales respecto de $p_g$.
+   
+   > **Restricción**: Queda PROHIBIDO derivar o computar $p_g$ mediante agregación o composición algorítmica de los propósitos miembros. El carácter "parcial" es exclusivamente relacional ($\text{relationalPartial}(p_{u_i}, p_g)$): describe la contribución funcional del miembro al dominio del Organ, conservando cada UCA miembro un Purpose individual completo, propio e invariable.
+
+2. **Validación Interna**:
+   Los Outcomes generados por las UCAs constituyentes internas son consumidos y validados exclusivamente dentro de la frontera del Organ:
+   $$\forall u_i \in \text{members}(g), \forall o \in \text{Outcomes}(u_i) \implies \text{owner}(o) \in (\text{members}(g) \cup \{g\})$$
+   Ninguna UCA externa a $g$ ostenta la autoridad de validación sobre los Outcomes internos de los miembros. Únicamente los Outcomes emitidos por la raíz de la composición del Organ ($g$) hacia el sistema $S$ poseen un Owner externo a $g$.
+
+3. **Encapsulación y Sustituibilidad**:
+   Ninguna UCA externa al Organ puede declarar dependencias reactivas sobre los Outcomes internos de sus miembros:
+   $$\forall u_i \in \text{members}(g), \forall o \in \text{Outcomes}(u_i), \nexists u_k \in (S \setminus (\text{members}(g) \cup \{g\})) : \text{reactsTo}(u_k, o)$$
+   El Organ satisface la sustituibilidad de §2.9: la composición interna, topología reactiva o miembros de $g$ pueden modificarse o reemplazarse íntegramente sin alterar los contratos observables de los consumidores externos de $g$.
+
+> **Regla Anti-Inflación**: Si para que el sistema opere resulta necesario exponer Outcomes internos de los miembros a UCAs exteriores a la frontera de $g$, o si los Outcomes internos requieren validación externa, la estructura **MUST NOT** denominarse `Organ`; constituye simplemente un conjunto ordinario de UCAs interconectadas.
+
+---
+
+#### 4.10.3 Organism: Condiciones de Clausura de Viabilidad
+
+Un sistema o grafo conexo de composición $S \subseteq \mathbb{U}$ desempeña el rol de **Organism** ($\text{isOrganism}(S)$) si y solo si satisface simultáneamente las cuatro condiciones de clausura de viabilidad:
+
+1. **Clausura de Stimulus**:
+   El sistema contiene internamente todas las fuentes originarias de perturbación reactiva necesarias para su operación continua (§4.9: sensores de captura física, temporizadores de runtime o monitores homeostáticos internos). Las fuentes originarias forman parte constitutiva de $S$:
+   $$\text{stimulusSources}(S) \subseteq S$$
+
+2. **Clausura de Evaluación**:
+   El sistema contiene internamente la maquinaria UCA especializada para observar, registrar y analizar la evidencia histórica multiejecución ($\mathbb{H}$) de su propio comportamiento (roles de History, Tracking y Analysis; §4.4):
+   $$\text{evaluates}(S) \subseteq S$$
+
+3. **Clausura de Adaptación**:
+   El sistema contiene internamente la capacidad de formular, verificar y aplicar Mutations atómicas sobre las Dispositions de sus componentes (§4.3) dentro de los límites seguros de sus Natures:
+   $$\text{adapts}(S) \subseteq S$$
+
+4. **Owner Raíz Declarado**:
+   Toda cadena de delegación de validación sobre los Outcomes que cruzan la frontera exterior del Organism culmina en al menos un Owner Raíz (§2.10.x):
+   $$\forall o \in \text{boundaryOutcomes}(S) \implies \text{owner}(o) \in \text{RootOwners}$$
+
+---
+
+#### 4.10.4 Definición Operativa de Autonomía
+
+> **La autonomía NO es una facultad, derecho ni propiedad ontológica de ninguna UCA ni de ningún Organ.**
+>
+> Toda UCA y todo Organ permanecen estrictamente reactivos ante la recepción de un Stimulus externo a su frontera local (§2.12).
+
+La **autonomía** es una **propiedad emergente exclusiva del sistema** ($\text{isOrganism}(S)$). Se define operacionalmente como la concurrencia simultánea de las tres clausuras sistémicas (Stimulus, Evaluación y Adaptación) dentro de su frontera, ancladas en la validación contextual de un Owner Raíz externo.
+
+*Consecuencia Arquitectónica*: Las funciones de supervisión evolutiva (Tracking, Analysis, Evolution) dejan de modelarse como agentes privilegiados o excepciones estructurales: operan formalmente como **Organs reguladores** integrados en el Organism, sometidos a las mismas leyes reactivas que cualquier otra UCA.
+
+---
+
+#### 4.10.5 Formalización y Predicados Canónicos
+
+Sea $S \subseteq \mathbb{U}$ un conjunto de UCAs que forman un grafo de composición:
+
+$$\text{isOrgan}(g, S) \iff g \in S \land \text{members}(g) \neq \emptyset \land \forall u_i \in \text{members}(g), \forall o \in \text{Outcomes}(u_i) : \Big( \text{owner}(o) \in (\text{members}(g) \cup \{g\}) \land \nexists u_k \in \big(S \setminus (\text{members}(g) \cup \{g\})\big) : \text{reactsTo}(u_k, o) \Big)$$
+
+$$\text{isOrganism}(S) \iff \text{stimulusSources}(S) \subseteq S \land \text{evaluates}(S) \subseteq S \land \text{adapts}(S) \subseteq S \land \forall o \in \text{boundaryOutcomes}(S) : \text{owner}(o) \in \text{RootOwners}$$
+
+##### Tabla de Predicados y Funciones Auxiliares
+
+| Símbolo / Predicado | Dominio Formal | Definición Normativa |
+|---|---|---|
+| $\text{members}(g)$ | $g \in \mathbb{U} \to \mathcal{P}(\mathbb{U})$ | Conjunto de UCAs que actúan formalmente como Capabilities constitutivas directas o indirectas de $g$. |
+| $\text{Outcomes}(u)$ | $u \in \mathbb{U} \to \mathcal{P}(\mathbb{O})$ | Conjunto de todos los Outcomes declarados que la UCA $u$ puede producir como consecuencia observable de su actividad. |
+| $\text{owner}(o)$ | $o \in \mathbb{O} \to \mathbb{U} \cup \mathbb{H}\text{uman}$ | Función de proyección que extrae la entidad externa designada con autoridad exclusiva de validación para el Outcome $o$. |
+| $\text{stimulusSources}(S)$ | $\mathcal{P}(\mathbb{U}) \to \mathcal{P}(\mathbb{U})$ | Conjunto de UCAs que capturan o generan las perturbaciones iniciales que originan las cadenas reactivas de $S$ (§4.9). |
+| $\text{evaluates}(S)$ | $\mathcal{P}(\mathbb{U}) \to \mathcal{P}(\mathbb{U})$ | Conjunto de UCAs de $S$ cuyo Purpose comprende el registro, agregación y análisis de evidencia histórica sobre Outcomes de $S$. |
+| $\text{adapts}(S)$ | $\mathcal{P}(\mathbb{U}) \to \mathcal{P}(\mathbb{U})$ | Conjunto de UCAs de $S$ cuyo Purpose comprende el cómputo y aplicación atómica de mutaciones ($\Delta d$) sobre componentes de $S$. |
+| $\text{boundaryOutcomes}(S)$ | $\mathcal{P}(\mathbb{U}) \to \mathcal{P}(\mathbb{O})$ | Conjunto de Outcomes producidos por UCAs de $S$ cuyos destinatarios o consumidores son externos a la frontera de $S$. |
+| $\text{RootOwners}$ | $\mathcal{P}(\mathbb{U} \cup \mathbb{H}\text{uman})$ | Conjunto de observadores con autoridad declarada que constituyen el cierre terminal no regresivo de validación (§2.10.x). |
+
+---
+
+#### 4.10.6 Catálogo Orientativo de Familias de Organs (No Normativo)
+
+Las siguientes familias de Organs son patrones arquitectónicos frecuentes en sistemas cognitivos. **No son obligatorias ni exhaustivas**. Un Organism viable mínimo puede constituirse únicamente con dos Organs (por ejemplo, Sensorio-Efector y Regulador):
+
+| Familia | Dominio de Responsabilidad | Integración de Outcomes | Ejemplo |
+|---|---|---|---|
+| **Sensorial** | Convertir perturbaciones físicas o del entorno en Outcomes estructurados. | No consume Outcomes cognitivos; integra lecturas sensoriales locales. | `Hearing` (Acoustic Capture, VAD, ASR) |
+| **Efectora** | Sintetizar cambios observables orientados a modificar el entorno exterior. | Consume representaciones intermedias y produce alocución física, motora o IPC. | `Vocal` (TTS, Prosodia, Streaming de Audio) |
+| **Integradora** | Sintetizar Outcomes de múltiples Organs para persistir contexto o identidad operativa. | Agrega Outcomes semánticos, recuerdos consolidados o estados conversacionales. | `Memory`, `Executive Context` |
+| **Reguladora** | Monitorear el desempeño histórico y computar mutaciones atómicas adaptativas. | Evalúa pares $(\text{Compliance}, \text{Validation})$ y emite mutaciones de Disposition. | `Evolution Organ` (Tracking, Analysis, Adaptation) |
+
+---
+
+#### 4.10.7 Nota sobre la Metáfora Biológica
+
+> [!NOTE]
+> Los términos `Organ` y `Organism`, al igual que `Adn` y `nervousSystem` en la especificación de referencia, constituyen una **convención de nomenclatura descriptiva y un patrón taxonómico de ingeniería de software**.
+>
+> Su utilización NO afirma equivalencia biológica estricta, autopoiesis metabólica ni teleología natural. Su único valor radica en proporcionar un vocabulario riguroso de diseño para articular niveles de composición sin recurrir a nociones centralistas de jerarquía, coordinación privilegiada u orquestación imperativa.
+
+---
+
+#### 4.10.8 Ejemplo Progresivo: De UCA Compuesta a Organism
+
+##### Paso 1: UCA Compuesta Simple (No es Organ ni Organism)
+
+```text
+Agente Conversacional (UCA)
+├── Purpose: "Interactuar vocalmente"
+├── Capabilities:
+│   ├── Ear (UCA: captura audio y transcribe)
+│   └── Mouth (UCA: sintetiza voz)
+└── rootOwner: "HumanArchitect" (declarado como string)
+```
+
+*Diagnóstico Arquitectónico*:
+- **¿Por qué NO es Organ?** `Ear` y `Mouth` exponen sus Outcomes directamente en el espacio de nombres del agente sin clausura funcional diferenciada.
+- **¿Por qué NO es Organism?** Los estímulos son inyectados exclusivamente desde un entorno exterior pasivo. No existe maquinaria de registro ni análisis de evidencia histórica (History/Tracking/Analysis). No existe capacidad de proponer ni aplicar Mutations (Adaptación). `rootOwner` es un metadato declarativo sin canal de validación activo.
+
+##### Paso 2: Introducción del Organ `Hearing` (Clausura Funcional)
+
+```text
+Organ Hearing (UCA)
+├── Purpose: "Proveer flujo de transcripción segmentado y limpio"
+├── Capabilities Internas (members):
+│   ├── AudioCapture (UCA) ──produces(pcm)──► Owner: EchoFilter
+│   ├── EchoFilter (UCA)   ──produces(cleanPcm)──► Owner: TurnSegmenter
+│   └── TurnSegmenter (UCA)──produces(segment)──► Owner: Organ Hearing
+└── Observable Boundary Outcome:
+    └── UtteranceChunk (Properties: text, confidence; Owner: ConversationalAgent)
+```
+
+*Diagnóstico Arquitectónico*:
+- **Cumple `isOrgan`**:
+  1. *Cohesión*: Su Purpose delimita un dominio cerrado (audición robusta).
+  2. *Validación Interna*: Los Outcomes de `AudioCapture` y `EchoFilter` son validados estrictamente dentro del Organ (`EchoFilter` y `TurnSegmenter`).
+  3. *Encapsulación*: Ninguna UCA fuera de `Hearing` escucha ni reacciona a `cleanPcm` ni a buffers intermedios. Consumidores externos solo reciben `UtteranceChunk`.
+
+##### Paso 3: Constitución del Organism Completo (Clausura de Viabilidad)
+
+```text
+ORGANISM CONVERSACIONAL (Sistema S)
+│
+├── Organ Sensorial: Hearing
+│     └── [AudioCapture, EchoFilter, TurnSegmenter] ──► UtteranceChunk
+│
+├── Organ Efector: Speaking
+│     └── [TextSynthesizer, AudioStreamer] ──► AudioPlayback
+│
+├── Fuentes Internas de Stimulus (§4.9):
+│     └── HomeostaticSilenceMonitor (UCA temporizada de runtime)
+│
+├── Organ Regulador: AdaptationLoop
+│     ├── Tracker (UCA: captura pares [UtteranceChunk, Validation])
+│     ├── Analyzer (UCA: detecta degradación o desacuerdos de validación)
+│     └── Mutator (UCA: emite Δd atómico sobre silenceTimeout de Hearing)
+│
+└── Cierre Terminal de Validación:
+      └── Owner Raíz Humano (Terminal Owner): valida interacciones completas
+```
+
+*Diagnóstico Arquitectónico*:
+- **Cumple `isOrganism`**:
+  1. *Clausura de Stimulus*: Contiene su propio monitor de cadencia y silencio.
+  2. *Clausura de Evaluación*: El Organ regulador mantiene el historial y evalúa la evidencia.
+  3. *Clausura de Adaptación*: Aplica mutaciones paramétricas atómicas sobre sus componentes dentro de sus Natures.
+  4. *Owner Raíz*: Las consecuencias externas del sistema convergen en la validación soberana del evaluador humano exógeno.
+
+---
+
 ## 5. Runtime (Infraestructura)
 
 El Runtime suministra la infraestructura técnica de ejecución y comunicación. Está completamente desacoplado de las definiciones cognitivas.
@@ -1809,6 +1999,21 @@ Si dicha abstracción es necesaria permanece como pregunta abierta. Synapse no f
 **H3 (Reconocimiento).** Evaluadores humanos ciegos reconocen el comportamiento del sistema como cognitivo con una frecuencia estadísticamente superior a la de los baselines.
 
 La cognición se define aquí de forma **relacional**: es una atribución del Owner Raíz, no un predicado determinista. H3 es, por tanto, un enunciado sobre la Validation del Owner Raíz.
+
+**H4 (Viabilidad y Adaptación de Organism).** Un sistema de UCAs que satisface las cuatro condiciones de `isOrganism` (clausura de Stimulus, evaluación, adaptación y Owner Raíz) mantiene, ante perturbaciones continuas o cambios inducidos en las condiciones del entorno, una tasa compuesta de $\text{Compliance}=\text{PASS}$ y $\text{Validation}=\text{APPROVED}$ estadísticamente superior a la del mismo conjunto de unidades estructurado con Dispositions estáticas (sin clausura de adaptación).
+
+- **Baselines Requeridos (P4)**:
+  1. *Organism Estático*: Idéntica topología y componentes, con bucle de adaptación desactivado ($\Delta d = 0$).
+  2. *Mutación Estocástica no Mediada*: Idéntico sistema aplicando mutaciones aleatorias uniformes sobre el espacio $\text{Nat}$ sin mediación de análisis histórico.
+  3. *Pipeline Tradicional con Optimización Exógena*: Arquitectura procedural equivalente ajustada mediante optimizador bayesiano clásico de caja negra.
+- **Métricas Primarias (P2)**:
+  - Canal C: Tasa objetiva de Compliance sobre criterios deterministas de latencia, estabilidad acústica y completitud de tarea.
+  - Canal V: Puntuación de Validation emitida de forma ciega e independiente por evaluadores del Owner Raíz humano (P3).
+- **Control de Estabilidad (P8)**: Tasa de reversiones de mutación ($\text{revert}$) inferior al umbral preregistrado $\tau_{\text{rev}}$ y ausencia demostrada de oscilaciones cíclicas en `reactTo`.
+- **Criterio Explícito de Falsación (P9)**: H4 queda refutada si el Organism con adaptación no supera al Organism estático en al menos un 15% ($\delta \ge 0.15$, $p < 0.01$) en la tasa compuesta del Canal V tras $N$ ciclos de perturbación, o si la tasa de mutaciones con efecto neutro/degenerativo supera el 40% de las mutaciones aplicadas.
+
+> [!NOTE]
+> Que un Organism mantenga viabilidad operativa y estabilidad adaptativa mediante sus clausuras internas **NO implica** que la entidad sea consciente, inteligente ni cognitiva en un sentido ontológico fuerte. Satisface la hipótesis de autonomía sistémica y sustenta empíricamente las condiciones de verificación de H1 y H2, permaneciendo la atribución de cognición ligada estrictamente a la validación exógena de H3.
 
 ---
 
@@ -2218,9 +2423,17 @@ Un componente **no** necesita ninguno de los siguientes para cumplir con UCA:
 - un Event Bus;
 - Sinapsis o plasticidad relacional;
 - estado global o snapshots;
-- comportamiento cognitivo emergente demostrado.
+- comportamiento cognitivo emergente demostrado;
+- conformación de estructuras de `Organ` u `Organism` como requisito de unidad individual (constituyen patrones de composición arquitectónica verificables sobre el grafo de dependencias, no condiciones de validez de una UCA aislada).
 
 La conformidad evalúa la **unidad individual** frente al contrato UCA. No evalúa si el sistema en su conjunto exhibe comportamiento cognitivo. La conformidad individual de la unidad respecto al `Owner` se satisface mediante el desacoplamiento formal de la autovalidación en el contrato de su Outcome y la designación de la autoridad de validación externa ($\text{owner} \in \mathbb{U} \cup \mathbb{H}\text{uman}$, con $\text{owner} \neq u_{\text{target}}$), sin exigir el despliegue concurrente del Owner en tiempo de ejecución para evaluar a la unidad aislada. De igual modo, la conformidad individual respecto al `Purpose` (Criterio 1) se satisface al declarar formalmente un Purpose explícito e invariable desde su concepción, sin exigir que la propia unidad contenga lógica de autoevaluación reflexiva sobre su propósito, tarea que corresponde inferencialmente a la UCA de Análisis (Cíngulo) sobre la evidencia histórica.
+
+### 8.2 Verificación de Conformidad de Patrones de Composición
+
+La verificación de conformidad para los roles de **Organ** y **Organism** (§4.10) no introduce entidades ontológicas adicionales ni altera los criterios de conformidad del UCA Core (§8). Se realiza formalmente como una verificación estructural e inferencial sobre el grafo de dependencias del sistema:
+
+1. **Conformidad de Organ ($\text{isOrgan}(g, S)$)**: Se verifica determinísticamente demostrando sobre el grafo: (a) que todo Outcome de los miembros de $g$ declara como Owner a una entidad perteneciente a $\text{members}(g) \cup \{g\}$; y (b) que ninguna suscripción reactiva (`reactTo`) de una UCA exterior a $g$ tiene como destino un Outcome interno de los miembros.
+2. **Conformidad de Organism ($\text{isOrganism}(S)$)**: Se verifica demostrando: (a) la presencia de componentes generadores de estímulo dentro de $S$; (b) la presencia de unidades con propósito de captura y análisis de evidencia histórica; (c) la presencia de unidades capaces de emitir y aplicar mutaciones dentro de $\text{Nat}$; y (d) que todo Outcome de frontera exterior posee un camino finito de delegación de validación que concluye en al menos un Owner Raíz conforme a §2.10.x.
 
 ---
 
@@ -2424,6 +2637,7 @@ La siguiente tabla resume de forma neutral y descriptiva cómo UCA comparte y co
 | **Adaptación Paramétrica** | Autonomic Computing, Cybernetics | Modificación atómica de la Disposition ($\Delta d$) mediante Mutations dentro del espacio delimitado por la Nature, preservando Purpose y Capabilities. |
 | **Ausencia de Estado Global** | Actor Model, Subsumption | UCA Core prescinde de memorias globales compartidas, pizarras o snapshots centralizados. |
 | **Dirección Teleológica** | Contraste con Soar, LIDA, BDI | Adopción de `Purpose` constitutivo propio como única fuente de dirección funcional. La UCA no recibe metas; recibe perturbaciones o datos. |
+| **Clausura por Niveles de Composición** | Sistemas Complejos, Cibernética de Segundo Orden, Arquitecturas de Módulos Funcionales | Distinción formal de tres niveles mediante clausuras operacionales: UCA (clausura de Reacción), Organ (clausura de responsabilidad con validación interna y encapsulación de efectos) y Organism (clausura de viabilidad: estímulo, evaluación y adaptación con Owner Raíz). Ningún nivel asume orquestación centralizada ni autovalidación. |
 
 ---
 
