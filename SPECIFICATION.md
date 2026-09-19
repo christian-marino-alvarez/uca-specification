@@ -2601,40 +2601,35 @@ constructor(id: string, name: string, config: Config)
 
 #### 12.3.4 Unified Reactive Cycle (Impulse and Signal)
 
-The runtime consolidates a **single reactive cycle** in `Adn`/`Uca` regardless of whether the stimulus originates from inter-domain macrostructures (`Impulse`) or internal subordinate capabilities (`Signal`):
+The runtime formalizes strict separation of responsibilities between `Adn` and `Uca`, consolidating a single reactive cycle based exclusively on signals:
 
 ```text
-                 UCA
-                  │
-         ┌────────┴────────┐
-         │                 │
-   NervousSystem        Channel
-         │                 │
-      Impulse            Signal
-         │                 │
-         └────────┬────────┘
-                  │
-             processInput()
-                  │
-             canProcess()
-                  │
-              preReact()
-                  │
-                react()
-                  │
-             postReact()
+ADN
+│
+├── receives runtime input (processInput)
+├── normalizes Impulse → Signal
+├── preserves it if already a Signal
+└── delivers Signal to reactive cycle
+        ↓
+UCA
+│
+├── canProcess(signal)
+│      └── does this Signal correspond to me?
+│
+└── react(signal)
+       └── functional behavior
 ```
 
 - `public async processInput(input: unknown): Promise<void>`:
-  Common reactive entrypoint defined in `Adn`. Validates `canProcess(input)` and, if true, executes sequentially the asynchronous chain `preReact(input) -> react(next) -> postReact(next)`.
-- `public override canProcess(item: unknown): boolean`:
-  Normalizes and evaluates reactive input through a single unified path: if `item` is an `Impulse`, it is converted to a `Signal` (if already a `Signal`, no transformation is performed). Evaluates the resulting signal by suppressing self-reactions (`signal.source !== this.id`), honoring explicit targeting (`signal.target === this.id`), or verifying deterministic matching against rules declared in `this.reactTo`.
+  Common reactive entrypoint defined in `Adn`. Captures impulse state, normalizes `input` to `Signal` (or preserves it if already a `Signal`), and delivers the signal to the reactive chain `canProcess(signal) -> preReact(signal) -> react(signal) -> postReact(signal)`.
+- `public override canProcess(signal: Signal): boolean`:
+  In `Uca`, evaluates exclusively whether the delivered `Signal` corresponds to this unit (`does this Signal correspond to me?`): suppresses self-reactions (`signal.source !== this.id`), honors explicit targeting (`signal.target === this.id`), or checks deterministic matching against rules declared in `this.reactTo`.
 - `private async handleSignal(signal: Signal): Promise<void>`:
   Private signal receiver subscribed to the local channel. Immediately discards signals where `source === this.id` and delegates to `await this.processInput(signal)`.
-- `protected override async preReact(input: unknown): Promise<unknown>`:
-  Pre-reaction lifecycle hook inherited from `Adn` that validates and prepares input state prior to reaction.
-- `public override async react(item: unknown): Promise<void>`:
-  Protected extension point for UCA subclasses to execute domain-specific reactive logic for inputs that passed `canProcess`.
+- `protected override async preReact(signal: Signal): Promise<unknown>`:
+  Pre-reaction lifecycle hook inherited from `Adn` that prepares and validates input state prior to reaction.
+- `public override async react(signal: Signal): Promise<void>`:
+  Sovereign extension point for UCA subclasses to execute domain-specific functional behavior for validated signals.
 - `protected override async postReact(next: unknown): Promise<void>`:
   Post-reaction lifecycle hook inherited from `Adn` for stabilization and post-processing tasks.
 
