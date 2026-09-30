@@ -3,9 +3,8 @@ import * as assert from 'node:assert';
 import { Uca } from '../../../../core/uca.js';
 import type { Signal } from '../../../../core/types.js';
 import { App } from '../index.js';
-import { SignalType, type AppExecutionResult } from '../types.js';
+import { SignalType } from '../types.js';
 import { __ID__ } from '../constants.js';
-import { SignalType as StyleSignalType, type StyleDesignResult } from '../../style-builder/types.js';
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
@@ -23,43 +22,38 @@ function testApp_IdentityAndDefaults(): void {
     app.denervate();
 }
 
-function testApp_InitAndGenerateFlow(): void {
+function testApp_LifecycleSignals(): void {
     const bus = new EventTarget();
-    const app = new App('app-demo').innervate(bus);
-
+    const app = new App('test-app').innervate(bus);
     let readyReceived = false;
-    let executionResult: AppExecutionResult | undefined;
+    let startedReceived = false;
+    let stoppedReceived = false;
 
     bus.addEventListener(SignalType.READY, () => {
         readyReceived = true;
     });
-
-    bus.addEventListener(SignalType.RENDERED, (event: Event) => {
-        executionResult = (event as CustomEvent<Signal<AppExecutionResult>>).detail.value;
+    bus.addEventListener(SignalType.STARTED, () => {
+        startedReceived = true;
+    });
+    bus.addEventListener(SignalType.STOPPED, () => {
+        stoppedReceived = true;
     });
 
     emitSignal(bus, SignalType.INIT, {});
     assert.strictEqual(readyReceived, true);
 
-    const mockStyleResult: StyleDesignResult = {
-        viewTitle: 'Demo App View',
-        palette: { primary: '#2563eb' },
-        elementStyles: [{ elementId: 'box-1', theme: 'light', classes: ['ext-box'] }],
-    };
+    emitSignal(bus, SignalType.START, {});
+    assert.strictEqual(startedReceived, true);
 
-    // Simulate completion from the composed StyleBuilder
-    emitSignal(bus, StyleSignalType.STYLED, mockStyleResult);
-
-    assert.ok(executionResult !== undefined);
-    assert.strictEqual(executionResult.style.viewTitle, 'Demo App View');
-    assert.strictEqual(executionResult.style.elementStyles.length, 1);
+    emitSignal(bus, SignalType.STOP, {});
+    assert.strictEqual(stoppedReceived, true);
 
     app.denervate();
 }
 
 function runAllAppTests(): void {
     testApp_IdentityAndDefaults();
-    testApp_InitAndGenerateFlow();
+    testApp_LifecycleSignals();
     console.log('✔ All App UCA minimal architecture tests passed successfully.');
 }
 

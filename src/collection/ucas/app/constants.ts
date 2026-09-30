@@ -1,7 +1,7 @@
 export const __ID__ = 'app';
 
-export const __DEFAULT_SIGNALS__ = [
+export const __DEFAULT_SIGNALS__: readonly string[] = [
     'app.init',
-    'app.generate',
-    'app.abort',
+    'app.start',
+    'app.stop',
 ] as const;

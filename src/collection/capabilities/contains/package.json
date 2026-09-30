@@ -1,0 +1,38 @@
+{
+  "name": "@uca/capability-contains",
+  "version": "0.1.0",
+  "description": "UCA Contains predicate capability",
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js",
+      "default": "./index.ts"
+    },
+    "./types": {
+      "types": "./types.d.ts",
+      "import": "./types.js",
+      "default": "./types.ts"
+    },
+    "./types.js": {
+      "types": "./types.d.ts",
+      "import": "./types.js",
+      "default": "./types.ts"
+    },
+    "./constants": {
+      "types": "./constants.d.ts",
+      "import": "./constants.js",
+      "default": "./constants.ts"
+    },
+    "./constants.js": {
+      "types": "./constants.d.ts",
+      "import": "./constants.js",
+      "default": "./constants.ts"
+    }
+  },
+  "dependencies": {
+    "@uca/core": "^0.1.0"
+  }
+}

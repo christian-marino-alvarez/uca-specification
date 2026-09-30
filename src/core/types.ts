@@ -118,3 +118,15 @@ export interface DispositionSnapshot {
     readonly outputs?: readonly Port[];
     readonly capabilities?: readonly DispositionSnapshot[];
 }
+
+/**
+ * DispositionMutation: Mutación declarativa aplicable a una UCA o Capability.
+ * Permite reconfigurar su descripción, señales reactivas y propiedades en tiempo de ejecución.
+ */
+export interface DispositionMutation {
+    readonly id: string;
+    readonly description?: string;
+    readonly reactTo?: readonly string[];
+    readonly properties?: Record<string, unknown>;
+}
+

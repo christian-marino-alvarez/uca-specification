@@ -1,0 +1,29 @@
+{
+  "name": "@uca/box",
+  "version": "0.1.0",
+  "description": "UCA Box layout structural component",
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js",
+      "default": "./index.ts"
+    },
+    "./types": {
+      "types": "./types.d.ts",
+      "import": "./types.js",
+      "default": "./types.ts"
+    },
+    "./types.js": {
+      "types": "./types.d.ts",
+      "import": "./types.js",
+      "default": "./types.ts"
+    }
+  },
+  "dependencies": {
+    "@uca/core": "^0.1.0",
+    "@uca/capability-web-component": "^0.1.0"
+  }
+}

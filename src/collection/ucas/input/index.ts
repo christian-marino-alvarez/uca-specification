@@ -50,15 +50,19 @@ export class Input extends Uca<Body> {
     }
 
     private handleCreate(value: unknown): void {
-        const payload = (value ?? {}) as { container?: HTMLElement } & Body;
-        const attributes = this.buildAttributes(WEB_COMPONENT_ID);
-        this.pulse(CapabilitySignalType.RENDERED, { id: this.id, container: payload.container, attributes });
+        const payload = (value ?? {}) as { id?: string; container?: HTMLElement } & Body;
+        const targetId = payload.id ?? this.id;
+        const baseAttributes = this.buildAttributes(WEB_COMPONENT_ID);
+        const attributes = payload.placeholder ? { ...baseAttributes, placeholder: payload.placeholder } : baseAttributes;
+        this.pulse(CapabilitySignalType.RENDERED, { id: targetId, container: payload.container, attributes });
     }
 
     private handleUpdate(value: unknown): void {
-        const payload = (value ?? {}) as { container?: HTMLElement } & Body;
-        const attributes = this.buildAttributes(WEB_COMPONENT_ID);
-        this.pulse(CapabilitySignalType.UPDATED, { id: this.id, container: payload.container, attributes });
+        const payload = (value ?? {}) as { id?: string; container?: HTMLElement } & Body;
+        const targetId = payload.id ?? this.id;
+        const baseAttributes = this.buildAttributes(WEB_COMPONENT_ID);
+        const attributes = payload.placeholder ? { ...baseAttributes, placeholder: payload.placeholder } : baseAttributes;
+        this.pulse(CapabilitySignalType.UPDATED, { id: targetId, container: payload.container, attributes });
     }
 
     private handleRemove(value: unknown): void {
@@ -135,17 +139,26 @@ export class Input extends Uca<Body> {
 
     private getWebComponentAttributes(): Record<string, unknown> {
         const { aim } = this.disposition;
-        const { value, placeholder, disabled, readOnly, fontSize, color, backgroundColor, fontFamily } = aim.body ?? {};
-        const mapping: Record<string, unknown> = {
+        const { value, placeholder, disabled, readOnly } = aim.body ?? {};
+        const isEditable = disabled || readOnly ? 'false' : 'true';
+        return {
             'value': value,
             'placeholder': placeholder,
             'disabled': disabled ? '' : undefined,
             'readonly': readOnly ? '' : undefined,
+            'contenteditable': isEditable,
+            ...this.getStyleAttributes(),
+        };
+    }
+
+    private getStyleAttributes(): Record<string, unknown> {
+        const { aim } = this.disposition;
+        const { fontSize, color, backgroundColor, fontFamily } = aim.body ?? {};
+        return {
             'data-font-size': fontSize,
             'data-color': color,
             'data-background-color': backgroundColor,
             'data-font-family': fontFamily,
         };
-        return mapping;
     }
 }

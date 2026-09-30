@@ -1,4 +1,4 @@
-import type { CapabilityConstructor, Cooky, Disposition, DispositionSnapshot, ICapability, Signal } from './types.js';
+import type { CapabilityConstructor, Cooky, Disposition, DispositionMutation, DispositionSnapshot, ICapability, Signal } from './types.js';
 import { Capability } from './capability.js';
 
 /**
@@ -11,7 +11,6 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
     public readonly purpose: string;
     public override target?: EventTarget;
     private readonly registry: Map<string, ICapability>;
-    private instantiatedFromCooky: boolean;
 
     constructor(id: string, purpose: string) {
         super(id);
@@ -19,13 +18,16 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         this.purpose = purpose;
         this.target = new EventTarget();
         this.registry = new Map();
-        this.instantiatedFromCooky = false;
     }
 
     public override innervate(target?: EventTarget, disposition?: Disposition<TBody>): this {
         const activeTarget = target || this.target || new EventTarget();
         super.innervate(activeTarget, disposition);
-        this.resolveIntrinsicCapabilities(activeTarget);
+        for (const [CapabilityClass, capabilityDisposition] of this.capabilities()) {
+            const targetId = this.getTargetId(CapabilityClass, capabilityDisposition);
+            const capability = (targetId ? this.registry.get(targetId) : undefined) ?? this.createCapability(CapabilityClass, capabilityDisposition);
+            capability.innervate(activeTarget, capabilityDisposition);
+        }
         return this;
     }
 
@@ -47,8 +49,27 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         return { id, purpose, description: aim.description, reactTo, inputs, outputs, capabilities };
     }
 
+    public reconfigure(mutation: DispositionMutation): this {
+        const updated = this.mergeDisposition(this.disposition, mutation);
+        return this.innervate(this.target, updated as Disposition<TBody>);
+    }
+
+    public reconfigureCapability(id: string, mutation: DispositionMutation): boolean {
+        const capability = this.registry.get(id);
+        if (!capability) { return false; }
+        const updated = this.mergeDisposition(capability.disposition, mutation);
+        capability.innervate(this.target, updated);
+        return true;
+    }
+
     protected attach(capability: ICapability): this {
-        this.registerCapabilityInstance(capability, this.target);
+        const { id } = capability;
+        const existing = this.registry.get(id);
+        if (existing && existing !== capability) {
+            existing.denervate();
+        }
+        this.registry.set(id, capability);
+        capability.innervate(this.target);
         return this;
     }
 
@@ -108,51 +129,30 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         return { id, description: aim.description, reactTo, inputs, outputs };
     }
 
-    private registerCapabilityInstance(capability: ICapability, target?: EventTarget, disposition?: Disposition): void {
-        const existing = this.registry.get(capability.id);
-        if (existing && existing !== capability) {
-            existing.denervate();
-        }
-        capability.innervate(target, disposition);
-        this.registry.set(capability.id, capability);
-    }
-
-    private createCapabilityInstance(CapabilityClass: CapabilityConstructor, disposition: Disposition): ICapability {
-        const bodyId = (disposition.aim.body as { id?: string } | undefined)?.id;
+    private createCapability(CapabilityClass: CapabilityConstructor, disposition: Disposition): ICapability {
+        const { aim } = disposition;
+        const { id: bodyId } = (aim.body as { id?: string } | undefined) ?? {};
         const Factory = CapabilityClass as unknown as new (id?: string) => ICapability;
         const instance = bodyId !== undefined ? new Factory(bodyId) : new Factory();
+        this.registry.set(instance.id, instance);
         return instance;
     }
 
-    private instantiateFromCookyDeclaration(activeTarget: EventTarget): void {
-        const declarations = this.capabilities();
-        for (const [CapabilityClass, disposition] of declarations) {
-            const instance = this.createCapabilityInstance(CapabilityClass, disposition);
-            this.registerCapabilityInstance(instance, activeTarget, disposition);
-        }
-        this.instantiatedFromCooky = true;
+    private getTargetId(CapabilityClass: CapabilityConstructor, disposition: Disposition): string | undefined {
+        const { aim } = disposition;
+        const { id: bodyId } = (aim.body as { id?: string } | undefined) ?? {};
+        const staticId = (CapabilityClass as unknown as { __ID__?: string }).__ID__;
+        return bodyId ?? staticId;
     }
 
-    private reinnervateRegisteredCapabilities(activeTarget: EventTarget): void {
-        const declarations = this.capabilities();
-        for (const [CapabilityClass, disposition] of declarations) {
-            const bodyId = (disposition.aim.body as { id?: string } | undefined)?.id;
-            const targetId = bodyId ?? (CapabilityClass as unknown as { __ID__?: string }).__ID__;
-            const capability = targetId ? this.registry.get(targetId) : undefined;
-            if (capability) {
-                capability.innervate(activeTarget, disposition);
-            }
-        }
-        for (const capability of this.registry.values()) {
-            capability.innervate(activeTarget);
-        }
-    }
 
-    private resolveIntrinsicCapabilities(activeTarget: EventTarget): void {
-        if (!this.instantiatedFromCooky) {
-            this.instantiateFromCookyDeclaration(activeTarget);
-        } else {
-            this.reinnervateRegisteredCapabilities(activeTarget);
-        }
+    private mergeDisposition(current: Disposition, mutation: DispositionMutation): Disposition {
+        const { description, reactTo, properties } = mutation;
+        const { aim } = current;
+        const currentBody = (aim.body as Record<string, unknown> | undefined) ?? {};
+        const updatedBody = properties !== undefined ? { ...currentBody, ...properties } : currentBody;
+        const updatedAim = { ...aim, description: description ?? aim.description, body: updatedBody };
+        const updatedReactTo = reactTo !== undefined ? [...reactTo] : current.reactTo;
+        return { ...current, aim: updatedAim, reactTo: updatedReactTo };
     }
 }

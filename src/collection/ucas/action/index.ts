@@ -50,17 +50,19 @@ export class Action extends Uca<Body> {
     }
 
     private handleCreate(value: unknown): void {
-        const payload = (value ?? {}) as { container?: HTMLElement } & Body;
+        const payload = (value ?? {}) as { id?: string; container?: HTMLElement } & Body;
+        const targetId = payload.id ?? this.id;
         const attributes = this.buildAttributes(WEB_COMPONENT_ID);
         const text = payload.label ?? this.disposition.aim.body?.label;
-        this.pulse(CapabilitySignalType.RENDERED, { id: this.id, container: payload.container, text, attributes });
+        this.pulse(CapabilitySignalType.RENDERED, { id: targetId, container: payload.container, text, attributes });
     }
 
     private handleUpdate(value: unknown): void {
-        const payload = (value ?? {}) as { container?: HTMLElement } & Body;
+        const payload = (value ?? {}) as { id?: string; container?: HTMLElement } & Body;
+        const targetId = payload.id ?? this.id;
         const attributes = this.buildAttributes(WEB_COMPONENT_ID);
         const text = payload.label ?? this.disposition.aim.body?.label;
-        this.pulse(CapabilitySignalType.UPDATED, { id: this.id, container: payload.container, text, attributes });
+        this.pulse(CapabilitySignalType.UPDATED, { id: targetId, container: payload.container, text, attributes });
     }
 
     private handleRemove(value: unknown): void {

@@ -70,6 +70,7 @@ export class WebComponent extends Capability<Body> {
     protected override react(signal: Signal): void {
         const { property, value } = signal;
         const payload = this.extractPayload(value);
+        if (!this.matchesTargetId(payload?.id)) { return; }
         const targetId = payload?.id ?? this.id;
         switch (property) {
             case SignalType.REMOVED:
@@ -86,6 +87,15 @@ export class WebComponent extends Capability<Body> {
         }
     }
 
+    private matchesTargetId(targetId?: string): boolean {
+        if (!targetId) { return true; }
+        const { aim } = this.disposition;
+        const { id: configuredId } = aim.body ?? {};
+        if (!configuredId) { return true; }
+        const matches = targetId === configuredId || targetId.startsWith(`${configuredId}-`);
+        return matches;
+    }
+
     private defineComponentTag(): void {
         const tag = this.getTag();
         if (!this.isCustomElementDefined(tag)) {
@@ -94,6 +104,15 @@ export class WebComponent extends Capability<Body> {
     }
 
     private createComponent(id: string, payload?: Body): HTMLElement {
+        const existing = this.getElement(id);
+        if (existing) {
+            this.updateComponent(id, payload);
+            return existing;
+        }
+        return this.instantiateComponent(id, payload);
+    }
+
+    private instantiateComponent(id: string, payload?: Body): HTMLElement {
         const tag = this.getTag(payload?.tag);
         const element = this.instance(id, tag);
         this.mountElement(element, payload?.container);
@@ -208,7 +227,8 @@ export class WebComponent extends Capability<Body> {
     private buildEventContext(id: string, event: Event): EventContext {
         const { type, target } = event;
         const { detail } = (event as CustomEvent);
-        const { value, checked } = (target ?? {}) as { value?: unknown; checked?: boolean };
+        const { value: rawValue, checked, textContent } = (target ?? {}) as { value?: unknown; checked?: boolean; textContent?: string };
+        const value = rawValue !== undefined ? rawValue : (textContent ?? undefined);
         const context: EventContext = { id, event: type, value, checked, detail };
         return context;
     }

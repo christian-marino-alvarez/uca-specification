@@ -52,9 +52,9 @@ class VehicleUca extends Uca {
         super(id, purpose);
     }
 
-    public override innervate(target?: EventTarget): this {
-        const disposition = Capability.createDisposition(this.purpose, undefined, ['move', 'consume']);
-        return super.innervate(target, disposition);
+    public override innervate(target?: EventTarget, disposition?: Disposition): this {
+        const active = disposition ?? Capability.createDisposition(this.purpose, undefined, ['move', 'consume']);
+        return super.innervate(target, active);
     }
 
     protected override capabilities(): Cooky {
@@ -552,6 +552,30 @@ async function testCore_BuildAttributesDistinguishesCapabilities(): Promise<void
     uca.denervate();
 }
 
+async function testIntrospection_DescribeProducesSnapshot(): Promise<void> {
+    const vehicle = new VehicleUca('vehicle-01', 'Transportar pasajeros');
+    vehicle.innervate();
+    const snapshot = vehicle.describe();
+    const { id, purpose, capabilities } = snapshot;
+    assert.strictEqual(id, 'vehicle-01');
+    assert.strictEqual(purpose, 'Transportar pasajeros');
+    assert.strictEqual(capabilities?.length, 2);
+    assert.strictEqual(capabilities?.[0]?.id, 'move');
+    vehicle.denervate();
+}
+
+async function testReconfigure_UpdatesUcaAndCapabilities(): Promise<void> {
+    const vehicle = new VehicleUca('vehicle-02', 'Transportar');
+    vehicle.innervate();
+    vehicle.reconfigure({ id: 'vehicle-02', description: 'Transporte aéreo', reactTo: ['fly'] });
+    assert.strictEqual(vehicle.describe().description, 'Transporte aéreo');
+    assert.deepStrictEqual(vehicle.describe().reactTo, ['fly']);
+    const updated = vehicle.reconfigureCapability('move', { id: 'move', description: 'Vuelo rápido' });
+    assert.strictEqual(updated, true);
+    assert.strictEqual(vehicle.describe().capabilities?.[0]?.description, 'Vuelo rápido');
+    vehicle.denervate();
+}
+
 async function runAllTests(): Promise<void> {
     await testDeclaration_CookyMapping();
     await testDeclaration_EmptyUca();
@@ -571,7 +595,9 @@ async function runAllTests(): Promise<void> {
     await testLifecycle_MultipleInnervatedSelectiveReaction();
     await testHtmlAcceptance_ReactionMaterializesDomResource();
     await testCore_BuildAttributesDistinguishesCapabilities();
-    console.log('✔ All 18 Core UCA lifecycle, Cooky and attribute mapping tests passed successfully.');
+    await testIntrospection_DescribeProducesSnapshot();
+    await testReconfigure_UpdatesUcaAndCapabilities();
+    console.log('✔ All 20 Core UCA lifecycle, Cooky, attribute mapping, introspection and reconfigure tests passed successfully.');
 }
 
 runAllTests().catch((error: unknown) => {

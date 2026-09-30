@@ -1,0 +1,45 @@
+{
+  "name": "@uca/core",
+  "version": "0.1.0",
+  "description": "Core ontological primitives for Universal Cognitive Architecture",
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js",
+      "default": "./index.ts"
+    },
+    "./capability": {
+      "types": "./capability.d.ts",
+      "import": "./capability.js",
+      "default": "./capability.ts"
+    },
+    "./capability.js": {
+      "types": "./capability.d.ts",
+      "import": "./capability.js",
+      "default": "./capability.ts"
+    },
+    "./uca": {
+      "types": "./uca.d.ts",
+      "import": "./uca.js",
+      "default": "./uca.ts"
+    },
+    "./uca.js": {
+      "types": "./uca.d.ts",
+      "import": "./uca.js",
+      "default": "./uca.ts"
+    },
+    "./types": {
+      "types": "./types.d.ts",
+      "import": "./types.js",
+      "default": "./types.ts"
+    },
+    "./types.js": {
+      "types": "./types.d.ts",
+      "import": "./types.js",
+      "default": "./types.ts"
+    }
+  }
+}
