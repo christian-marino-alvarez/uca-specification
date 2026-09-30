@@ -486,6 +486,89 @@ observable Δ / Outcome(A) ──► matches B.reactTo ──► B reacts ──
 
 La topología de ejecución emerge exclusivamente de estas relaciones reactivas locales.
 
+#### La Ley Cuádruple de la Capability
+
+Toda Capability dentro del modelo UCA opera bajo una ley causal atómica e invariante estructurada en cuatro fases secuenciales:
+
+```text
+  REACCIÓN   ──►    ACCIÓN    ──►   RESULTADO   ──►    EVENTO
+ (disposition)   (mechanism)        (outcome)         (signal)
+```
+
+1. **Reacción**: La Capability percibe un cambio observable en su entorno o medio. Mediante su `disposition.reactTo` (o predicado `canReact(signal)`), evalúa si el estímulo entrante le concierne.
+2. **Acción**: Si la condición de reacción se satisface, se activa la ejecución del procedimiento computacional operativo (`Mechanism`) con la información recibida.
+3. **Resultado**: La ejecución de la acción genera una transformación concreta de datos o estado (`Outcome`).
+4. **Evento**: El resultado se emite como un nuevo cambio observable estructurado (`Signal { source, property, value, timestamp }`), quedando disponible para que otros observadores o capacidades predispuestas reaccionen a él.
+
+#### Dualidad Reactiva: Local (Intradominio) vs. Impulsos (Interdominio)
+
+La reactividad del sistema opera estrictamente bajo dos niveles de alcance:
+
+1. **Nivel Intradominio (Intra-UCA — Conexión Reactiva Local)**:
+   - Las Primitive Capabilities que constituyen una misma UCA se comunican mediante **relaciones reactivas locales directas en memoria**.
+   - No atraviesan el Sistema Nervioso (`NervousSystem`) ni saturan el bus con sobrecostes de transporte o serialización.
+   - Es una reactividad de micro-latencia, privada y determinista.
+
+2. **Nivel Interdominio (Inter-UCA — Transporte por Impulsos)**:
+   - La comunicación entre distintas UCAs se efectúa **exclusivamente mediante Impulsos** gestionados por el Sistema Nervioso (`NervousSystem`).
+   - Cada Impulso transporta el cambio observable emitido por una UCA hacia otra UCA remota, garantizando correlación (`correlationId`), trazabilidad temporal y desacoplamiento absoluto de dominios.
+
+#### El Principio de Uca-Bridge y Renombrado de Namespace
+
+Una UCA actúa como un **Bridge** natural de eventos entre sus capacidades internas y el mundo exterior, sin requerir búferes ni mutaciones imperativas de estado intermedio:
+
+1. **Encapsulación y Aislamiento Interno**:
+   Las capacidades internas operan bajo sus propios identificadores y producen resultados locales (ej. `SherpaRecognition.outcome`). El mundo exterior desconoce por completo la existencia de dichas capacidades internas.
+2. **Renombrado Soberano de Namespace**:
+   Cuando la capability terminal o expuesta produce su resultado, la UCA actúa de bridge firmando y emitiendo el evento hacia el exterior bajo **su propia identidad**:
+   ```text
+   { source: 'EarUca', property: 'outcome', value: transcriptChunk }
+   ```
+3. **Contrato Externo Único**:
+   Las UCAs observadoras externas no se acoplan a componentes privados, sino que declaran su reactividad contra el contrato público de la UCA: `reactTo: ['EarUca.outcome']`.
+
+#### La Capability de Transporte (Aferente / Eferente) y Privacidad Declarativa
+
+La comunicación de una UCA con el Sistema Nervioso no se realiza mediante métodos ad-hoc o puertas traseras imperativas en la clase UCA, sino a través de una **Capability ordinaria especializada en Transporte** que obedece idénticamente a la Ley Cuádruple:
+
+- **Vía Aferente (Entrada / Percepción)**:
+  La Capability de Transporte se suscribe al medio exterior. Al recibir un Impulso externo que coincide con las necesidades de las capacidades internas de la UCA, lo inyecta en el flujo reactivo local.
+- **Vía Eferente (Salida / Emisión)**:
+  La Capability de Transporte posee su propia `disposition.reactTo` configurada para escuchar los eventos internos que la UCA haya determinado hacer públicos. Al reaccionar a un resultado interno, lo empaqueta como Impulso exterior bajo la identidad de la UCA.
+- **Privacidad Declarativa**:
+  Aquellos resultados o pasos intermedios de capacidades internas que **no** estén explícitamente declarados en el `reactTo` de la Capability de Transporte permanecen estrictamente privados dentro de la UCA y nunca se emiten al Sistema Nervioso.
+
+#### Composabilidad Fractal: La UCA como Capability
+
+El modelo UCA es estrictamente **fractal y composable**:
+
+- Una UCA de orden superior (ej. `AuditorySystemUca`, `AgentUca`) puede registrar en su conjunto de capacidades a otra UCA completa (ej. `EarUca`).
+- **Hacia la UCA contenedora (Padre)**: La sub-UCA se expone como una capacidad más, con sus fuentes reactivas (`reactTo`) y su evento observable resultante (`outcome`).
+- **Hacia su interior (Hija)**: La sub-UCA preserva íntegramente su ontología como organismo autónomo: su propio `Purpose`, su propio conjunto de `Capabilities` locales y su propia `Disposition`.
+- La composabilidad recursiva permite ensamblar jerarquías cognitivas de cualquier escala sin alterar las primitivas funcionales mínimas.
+
+#### Ciclo de Vida Biológico: Inervación (`innervate`), Registro (`register`) y Desinervación (`denervate`)
+
+El ciclo vital operativo de una UCA y sus capacidades se articula bajo tres transiciones ontológicas y biológicas formales:
+
+1. **Inervación (`innervate`)**:
+   En el momento de su concepción/construcción, la UCA ejecuta internamente `this.innervate()`. Este procedimiento lee la declaración de capacidades retornada por `capabilities()` e instancia cada capacidad, registrándola de forma atómica en el organismo.
+2. **Adopción en Registro (`register`)**:
+   Una `Capability` nace conociendo únicamente su nombre y su disposición funcional. En el momento en que es registrada en la UCA mediante `uca.register(capability)`, se produce el enlace vital:
+   - La UCA confiere soberanamente su identidad y namespace a la Capability (`capability.register(this.name)`).
+   - A partir de ese instante, las variables internas, eventos y resultados emitidos por la capability se prefijan y publican bajo la identidad de la UCA contenedora (`<Uca>.<property>`).
+3. **Desinervación (`denervate`)**:
+   Al cesar la actividad de la UCA (fin de sesión, apagado o destrucción), se invoca `uca.denervate()`. Este método itera sobre su registro de capacidades invocando `capability.denervate()`, lo que retira todos los listeners de eventos asociados en el bus reactivo (`ucaEventBus`), garantizando ausencia total de fugas de memoria.
+4. **Inspección mediante `registry`**:
+   La UCA no introduce métodos getter redundantes (`getCapability`, `getCapabilities`). Toda introspección se efectúa directamente a través de la interfaz nativa de su mapa público `uca.registry: Map<string, ICapability>`.
+
+#### Propiedades Virtuales Tipadas y DX con `<Uca>.<propiedad>`
+
+La UCA no contiene campos de estado físicos ni mutables en su definición de clase. Las propiedades observables son **puramente virtuales**:
+- Se materializan en tiempo de ejecución como eventos canónicos en el bus: `<Uca>.<propiedad>`.
+- Cada clase UCA declara sus propiedades observables como constantes estáticas (`public static readonly <prop> = '<Uca>.<prop>'`).
+- Esto confiere una experiencia de desarrollo (DX) de primer nivel, habilitando autocompletado en el IDE (`reactTo: [AudioUca.transcription]`), tipado estricto en compilación y prevención de errores tipográficos.
+
 #### Ejemplo Canónico: SherpaRecognition
 
 ```text
@@ -593,6 +676,36 @@ Ear B
 ```
 
 Ambas son `Ear`. Pero no poseen necesariamente las mismas capacidades ni la misma Disposition efectiva. Su comportamiento y efectividad pueden ser distintos.
+
+#### Separación Ontológica entre Declaración de Capabilities y Sobrescritura de Disposition en Herencia
+
+En la ontología UCA, **Capabilities** y **Disposition** son dos dimensiones conceptuales distintas que no deben fusionarse monolíticamente:
+
+- **Capabilities**: Define **qué sabe hacer** la UCA (el catálogo de mecanismos operativos disponibles).
+- **Disposition**: Define **cómo están configuradas y conectadas** esas capacidades para una UCA en particular (sus `properties` y sus suscripciones `reactTo`).
+
+##### Gobierno Soberano y Sobrescritura Limpia en Herencia
+
+Al heredar de una UCA base, la UCA hija hereda los mecanismos operativos constitutivos del padre. La separación formal entre ambas dimensiones permite que la UCA hija pueda:
+1. **Añadir nuevas capacidades** declarando nuevos mecanismos.
+2. **Redefinir o ajustar libremente la Disposition** de cualquier capacidad (propia o heredada) sin necesidad de clonar, encapsular mediante `super` ni reimplementar los mecanismos operativos subyacentes.
+
+```text
+BaseUca
+├── Capabilities: [transport]
+└── Disposition: { transport: { reactTo: ['*'] } }
+     │
+     └── hereda
+          ▼
+EarUca
+├── Capabilities: [transport (heredado), speechRecognizer (nuevo)]
+└── Disposition:  {
+      transport: { reactTo: ['speechRecognizer.outcome'] }, // Sobrescritura soberana de la disposición heredada
+      speechRecognizer: { reactTo: ['Microphone.audio'], properties: { sampleRate: 16000 } }
+    }
+```
+
+La UCA contenedora es la dueña absoluta de la `Disposition` de sus capacidades: dos UCAs pueden compartir un mismo mecanismo heredado pero asignarle disposiciones, sensibilidades reactivas y parametrizaciones completamente distintas.
 
 ---
 
@@ -2697,298 +2810,151 @@ La existencia de antecedentes históricos que hayan explorado la reactividad, la
 
 ## 12. Especificación de Runtime e Implementación de Referencia (TypeScript)
 
-> [!NOTE]
-> **Naturaleza de la Implementación de Referencia y Convenciones de Software**:
-> Esta sección describe la implementación de referencia del runtime TypeScript derivada de la biblioteca *Extensio Agents*. Por razones de compatibilidad con dicha base de código histórica, el runtime conserva identificadores como la clase base `Adn` y el canal `nervousSystem`. Se explicita que estas denominaciones son convenciones de software concretas de esta biblioteca y **no constituyen conceptos normativos ni analogías biológicas prescriptivas del UCA Core**, el cual es puramente computacional, formal y agnóstico a metáforas orgánicas.
+Esta sección define el contrato formal de programación e implementación concreta de referencia para Unidades Cognitivas Autónomas en runtimes modernos de TypeScript/JavaScript (`src/core/uca/`).
 
-Esta sección formaliza el contrato de programación e implementación concreta de referencia para Unidades Cognitivas Autónomas en runtimes de TypeScript/JavaScript.
+### 12.1 Principios del Modelo de Programación
 
-### 12.1 Principios del Modelo de Programación en Runtime
-
-1. **Herencia y Ciclo de Vida en el Runtime (`Adn`)**:
-   Toda UCA extiende la clase base fundamental `Adn`, disponiendo de identidad determinista (`id`), logger contextual, canal al sistema de impulsos (`nervousSystem`) y activación mediante `live()`.
-
-2. **Declaración Obligatoria de Propósito (`purpose`)**:
-   Cada UCA declara explícitamente su propósito ontológico (`public purpose: string`), el cual rige de forma invariante todas sus decisiones y reacciones.
-
-3. **Catálogo de UCAs en Dominio Superior (`Registry`)**:
-   Las clases de UCAs primitivas se registran desacopladamente en un catálogo superior (`Registry.register(name, Ctor)`), evitando el acoplamiento rígido de importaciones directas al componer recursivamente unidades subordinadas (§3.1).
-
-4. **Composición Recursiva de UCAs Primitivas**:
-   Una UCA compuesta o macroestructura declara las UCAs primitivas constituyentes que la integran mediante un diccionario declarativo donde **cada clave debe definirse obligatoriamente en formato `camelCase`**:
-   ```typescript
-   public capabilities = {
-       <camelCaseName>: <dispositionObject>
-   };
-   ```
-   Al activarse la UCA compuesta, cada UCA constituyente es instanciada de forma soberana e independiente (`new Ctor(...)`), inyectándosele su propia `disposition`, el canal común y el sistema de impulsos. Las unidades subordinadas quedan directamente disponibles en la instancia como propiedades en `camelCase` (ej. `agent.acousticEar`, `agent.vocalMouth`). Cada una de estas UCAs primitivas utiliza internamente **capacidades terminales puras** (mecanismos algorítmicos o técnicos sin `Uca` ni `purpose`, conforme a §3.2) para ejecutar sus operaciones.
-
-   > **Deslinde Ontológico: Capabilities Terminales vs. UCAs Primitivas (§3.1 y §3.2)**:
-   > - **Capacidad Terminal (Mecanismo Puro, §3.2)**: Es funcionalidad computacional pura (clases o funciones sin heredar de `Uca` y sin `purpose`). Son meros instrumentos algorítmicos (transformadores, codecs, parsers, filtros).
-   > - **UCA Primitiva (§2.1 y §7.1)**: Es una unidad cognitiva atómica (`extends Uca`) que posee su propio `purpose`, su `disposition` y Outcomes estructurados, encapsulando capacidades terminales puras para procesar estímulos.
-   > - **Composición Recursiva (§3.1)**: Una UCA puede utilizar a otra UCA como recurso reactivo, preservando cada unidad su propia soberanía teleológica.
-   >
-   > Para preservar el determinismo estricto en `canProcess()` ante unidades que comparten clase o mecanismo, las señales de runtime transportan tanto la clave funcional de la UCA (`sourceName`) como su clase concreta (`sourceType`) y el identificador unívoco de la instancia (`source`), permitiendo a las unidades receptoras discriminar tanto por rol específico (`leftEar.isListening`) como de forma transversal o polimórfica (`AcousticEar.isListening`).
-
-5. **Detección Automática de Mutación de Propiedades (Proxy Reactivo)**:
-   La instancia de la UCA está envuelta en un Proxy reactivo. Cualquier mutación de propiedades públicas desencadena automáticamente una señal de broadcast en el canal interno (`Channel`) con la identidad completa de la instancia emisora (`source` id, clave `sourceName` en `camelCase`, y tipo `sourceType`). Las asignaciones redundantes (mismo valor) son suprimidas en tiempo real.
-
-6. **Reactividad Declarativa (`reactTo`)**:
-   Cada UCA receptora define la lista de señales o propiedades ante las cuales reacciona:
-   ```typescript
-   protected reactTo = [
-       'acousticEar.isListening',    // Discriminación por clave de UCA en camelCase
-       'AcousticEar.lastTranscript', // O discriminación por tipo ontológico
-   ];
-   ```
-   La UCA discrimina de forma $O(1)$ en `canProcess(signal)` y delega inmediatamente al método `react(signal)`.
+1. **Pureza y Minimalismo Ontológico**:
+   Toda UCA se constituye formalmente a partir de su tríada fundamental: **Purpose**, **Capabilities** y **Disposition**. No depende de clases heredadas pesadas ni de frameworks de orquestación externos.
+2. **Propósito Obligatorio e Inmutable (`purpose`)**:
+   Toda UCA declara su propósito ontológico como propiedad pública inmutable en su constructor (`public readonly purpose: string`).
+3. **Bus Nativo Web-Standard (`EventTarget`)**:
+   La comunicación reactiva intra-UCA se apoya exclusivamente en la primitiva estándar `EventTarget` (disponible de forma nativa tanto en Node.js 18+ como en navegadores y runtimes modernos). Cero dependencias externas y micro-latencia en memoria.
+4. **La Capability como `EventListenerObject` Nativo**:
+   La clase `Capability` implementa la interfaz nativa `EventListenerObject` (`handleEvent(event)`). El bus local enruta las señales de forma directa y atómica a la capacidad sin necesidad de envolturas, proxies o lambdas anónimas.
+5. **Validación Dual: Integridad de Esquema y Reglas de Compliance**:
+   Cada pulso de una capability se somete a una doble compuerta previa a su difusión:
+   - **`OutcomeSchema`**: Valida estructuralmente el payload del resultado mediante Zod (`safeParse`) o funciones validadoras puras.
+   - **`Compliance`**: Evalúa deterministamente las propiedades emitidas frente a los `criteria` de la disposición mediante la función `evaluate`, certificando si la salida cumple el contrato (`'PASS'`) o lo transgrede (`'FAIL'`).
+6. **Declaración Flexible de Capabilities**:
+   El organismo define sus capacidades mediante el método abstracto `capabilities()`, admitiendo tanto un listado tipado de instancias (`readonly ICapability[]`) como un diccionario declarativo de disposiciones (`Record<string, CapabilityDisposition | ICapability>`).
 
 ### 12.2 Interfaces y Contratos de Tipado (`types.ts`)
 
 | Interfaz / Tipo | Definición | Responsabilidad |
 |---|---|---|
-| `Signal` | `{ type?: string; source: string; sourceName: string; sourceType: string; property: string; value: unknown; timestamp: number; traceId?: string; dispositionVersion?: number; }` | Representa una señal atómica generada ante la mutación de una propiedad en una UCA emisora. Contiene identificador de evento (`type`), emisor (`source`, `sourceName`, `sourceType`), propiedad (`property`), valor (`value`), timestamp (`timestamp`), trazabilidad de ejecución (`traceId`) y versión de la disposición (`dispositionVersion`) para atribuibilidad histórica. |
-| `MutationEvent` | `Signal<T> & { oldValue: T; newValue: T; }` | Evento atómico emitido ante la modificación de cualquier propiedad de la disposición (`this.disposition`). Permite trazabilidad evolutiva de $\Delta d$, reportando el valor anterior (`oldValue`) y el nuevo (`newValue`). |
-| `DispositionSnapshot` | `{ version: number; timestamp: number; disposition: T; mutation?: MutationEvent; }` | Instantánea inmutable que captura el estado íntegro de la disposición en un punto del tiempo, permitiendo navegación y reversión secuencial de configuraciones. |
-| `SignalListener` | `(signal: Signal) => Promise<void> \| void` | Función de callback invocada ante la recepción de una señal en el canal interno. |
-| `IChannel` | `broadcast(signal: Signal): void;`<br>`subscribe(listener: SignalListener): () => void;` | Contrato del bus de comunicación local intra-unidad. Desacopla la emisión de señales de los receptores suscritos. |
-| `UcaConstructor` | `new (id: string, name: string, config: Config) => Uca` | Firma del constructor para clases que extienden `Uca` y pueden ser instanciadas dinámicamente en el runtime o registradas en el catálogo. |
-| `IRegistry` | `register<T extends Uca>(name: string, ctor: UcaConstructor<T>): void;`<br>`get<T extends Uca>(name: string): UcaConstructor<T> \| undefined;`<br>`has(name: string): boolean;` | Contrato del catálogo superior que mapea nombres en `camelCase` con sus correspondientes constructores de UCAs. |
-| `Config` | `{ channel: IChannel; nervousSystem?: INervousSystem; registry?: IRegistry; }` | Parámetros de configuración e inyección de dependencias para la inicialización de una UCA. El `channel` es obligatorio para garantizar la comunicación compartida entre las capabilities de la unidad. |
-| `TerminalCapability` | `interface / class / function` (sin heredar de `Uca`) | Funcionalidad pura algorítmica, técnica o mecánica (codec, parser, DSP, driver) utilizada internamente por una UCA como Mechanism sin poseer Purpose ni autonomía (§3.2). |
+| `Signal<T>` | `{ domain: string; source: string; property: string; value: T; timestamp?: number; }` | Representación mínima de un cambio observable. Identifica el dominio o UCA emisora (`domain`), el origen del pulso (`source`), la propiedad mutada (`property`), el valor (`value`) y la marca temporal opcional (`timestamp`). |
+| `Compliance` | `'PASS' \| 'FAIL'` | Estado binario de conformidad ontológica que dictamina si un resultado respeta las reglas y restricciones del organismo. |
+| `Outcome<T>` | `{ properties: T; compliance: Compliance; }` | Contenedor atómico del resultado producido por una Capability, vinculando las propiedades materiales con su estado de compliance. |
+| `OutcomeSchema<T>` | `{ safeParse(data: unknown): ... } \| ((data: unknown) => boolean)` | Contrato de validación estructural compatible con esquemas Zod o validadores booleanos personalizados. |
+| `CapabilityReaction` | `(this: ICapability, signal: Signal, capability?: ICapability) => unknown` | Procedimiento reactivo ejecutado ante la recepción de una señal coincidente con `reactTo`. |
+| `CapabilityEvaluator` | `(this: ICapability, properties: unknown, criteria?: Record<string, unknown>) => Compliance` | Evaluador que dictamina el `Compliance` de las propiedades frente a los criterios de la disposición. |
+| `CapabilityDisposition<TPulses>` | `{ reactTo: string[]; criteria?: Record<string, unknown>; pulses?: readonly TPulses[]; evaluate?: CapabilityEvaluator; react?: CapabilityReaction; }` | Configuración reactiva que declara a qué señales responde (`reactTo`), qué eventos emite (`pulses`), qué criterios exige (`criteria`), cómo evalúa (`evaluate`) y cómo actúa (`react`). |
+| `ICapability` | `{ readonly name: string; disposition: CapabilityDisposition; ... }` | Interfaz formal que debe satisfacer toda capacidad inervable dentro de una UCA. |
+| `CapabilitiesDeclaration` | `Record<string, CapabilityDisposition \| ICapability> \| readonly ICapability[]` | Declaración de capabilities admitida en `Uca.capabilities()`. |
 
-### 12.3 Especificación de la Clase Base `Uca`
+### 12.3 Especificación de la Clase `Capability` (`capability.ts`)
 
-La clase abstracta base `Uca` gobierna el ciclo de vida, el montaje innato de capabilities subordinadas y el despacho reactivo de señales en el runtime.
-
-#### 12.3.1 Propiedades
-
-- `public abstract purpose: string`: Propósito ontológico inmutable que define y orienta la unidad a lo largo de su existencia.
-- `public capabilities: Record<string, Record<string, unknown>>`: Diccionario declarativo de capabilities innatas y sus disposiciones, con claves obligatorias en formato `camelCase`.
-- `public disposition?: Record<string, unknown>`: Configuración paramétrica e interactiva inyectada en la unidad durante su instanciación.
-- `protected channel: IChannel`: Instancia del canal local de señales inyectado obligatoriamente en `Config`.
-- `protected registry: IRegistry`: Referencia al catálogo de capabilities utilizado para resolver constructores. Por defecto utiliza `defaultRegistry`.
-- `protected reactTo: string[]`: Array declarativo de señales en formato `<SourceUca>.<property>` ante las cuales la UCA debe reaccionar.
-
-#### 12.3.2 Constructor
+La clase `Capability` implementa `ICapability` y `EventListenerObject`:
 
 ```typescript
-constructor(id: string, name: string, config: Config)
-```
-- Invoca al constructor de `Adn(id, name, nervousSystem)`.
-- Asigna `this.channel = config.channel` y `this.registry`. La disposición no se inyecta externamente por `config`; es una propiedad ontológica innata definida físicamente en la propia clase (`public disposition: TDisposition`).
-- Inerva el canal interno mediante `this.innervate(membrane)`.
-- Envuelve la instancia en su membrana reactiva (`createMembrane(this)`) y la retorna, garantizando la interceptación transparente de mutaciones de propiedades.
-
-#### 12.3.3 Métodos de Ciclo de Vida y Montaje de UCAs Constituyentes
-
-- `public override async live(): Promise<void>`:
-  Punto de entrada al ciclo de vida de la UCA en el runtime. Invoca en primer término a `this.mountCapabilities()` para instanciar e inicializar todas las UCAs subordinadas declaradas en `capabilities`, y delega a continuación en `super.live()`.
-- `private mountCapabilities(): void`:
-  Método privado que itera deterministamente sobre las claves de `this.capabilities`. Para cada nombre de UCA constituyente, verifica si la propiedad ya existe en la instancia; si no existe, delega el montaje a `this.attach(name)`.
-- `private attach<T extends Uca>(name: string): T`:
-  Método privado que resuelve el constructor de la UCA constituyente a través de `this.registry.get(name)`. Si el constructor está registrado, crea la instancia subordinada pasándole un identificador único concatenado (`${this.id}::${name}`), compartiendo el canal (`this.channel`), el sistema de impulsos (`this._ns`) y el registro (`this.registry`), y la asigna como propiedad directa de la UCA bajo el nombre `name` en `camelCase`. La UCA subordinada nace con su propia disposición innata y no admite configuración externa por constructor.
-
-> [!NOTE]
-> **Modulación Operativa y Reconfiguración por Impulsos**: En estricta concordancia con la reactividad soberana de la UCA, la unidad no recibe parametrización imperativa externa. Toda reconfiguración o ajuste de su disposición operativa se transmite exclusivamente mediante impulsos (`Impulse`) a través del `NervousSystem`, siendo procesada internamente en su método `react(impulse)` para actualizar su estado de forma soberana.
-
-#### 12.3.4 Ciclo Reactivo Unificado (Impulse y Signal)
-
-El runtime consolida un **único ciclo reactivo** en `Adn`/`Uca` independientemente de si la entrada proviene del exterior/macroestructura (`Impulse`) o de las capabilities subordinadas internas (`Signal`):
-
-```text
-                 UCA
-                  │
-         ┌────────┴────────┐
-         │                 │
-   NervousSystem        Channel
-         │                 │
-      Impulse            Signal
-         │                 │
-         └────────┬────────┘
-                  │
-             processInput()
-                  │
-             canProcess()
-                  │
-              preReact()
-                  │
-                react()
-                  │
-             postReact()
+export class Capability implements ICapability, EventListenerObject {
+    public readonly name: string;
+    public readonly outcomeSchema?: OutcomeSchema;
+    // ...
+}
 ```
 
-- `public async processInput(input: unknown): Promise<void>`:
-  Punto de entrada reactivo común definido en `Adn`. Valida `canProcess(input)` y, si es verdadero, ejecuta secuencialmente la cadena asíncrona `preReact(input) -> react(next) -> postReact(next)`.
-- `public override canProcess(item: unknown): boolean`:
-  Normaliza y evalúa la entrada reactiva bajo un único camino unificado: si `item` es un `Impulse`, lo transforma soberanamente a `Signal` (si ya es un `Signal`, no realiza transformación). Evalúa la señal resultante suprimiendo autorreacciones (`signal.source !== this.id`), admitiendo direccionamiento explícito (`signal.target === this.id`) o comprobando coincidencia determinista con las reglas declaradas en `this.reactTo`.
-- `private async handleSignal(signal: Signal): Promise<void>`:
-  Receptor privado de señales suscripto al canal local. Ignora de forma inmediata señales cuyo `source` coincida con `this.id` y delega en `await this.processInput(signal)`.
-- `protected override async preReact(input: unknown): Promise<unknown>`:
-  Hook previo heredado de `Adn` que prepara y valida el contexto antes de la reacción.
-- `public override async react(item: unknown): Promise<void>`:
-  Punto de extensión protegido y sobreescribible por las subclases de UCA para ejecutar su comportamiento reactivo específico ante los estímulos que han superado el filtro de `canProcess`.
-- `protected override async postReact(next: unknown): Promise<void>`:
-  Hook posterior heredado de `Adn` para estabilización y cierre del ciclo reactivo.
+1. **Constructor**:
+   Recibe `(name: string, disposition: CapabilityDisposition, outcomeSchema?: OutcomeSchema)`.
+2. **Ciclo de Vida Reactivo**:
+   - `innervate(ucaName: string, bus: EventTarget): void`: Conecta la capacidad al bus de la UCA, suscribiendo cada patrón declarado en `disposition.reactTo` mediante `this.bus.addEventListener(pattern, this)`.
+   - `denervate(): void`: Retira todos los listeners del bus (`removeEventListener`) y desacopla la referencia al bus para garantizar cero fugas de memoria.
+   - `disposition`: El getter y setter de disposición actualizan dinámicamente los listeners ante cualquier reconfiguración en caliente.
+3. **Despacho Reactivo (`handleEvent` y `react`)**:
+   - `handleEvent(event: Event)`: Extrae la señal del `CustomEvent<Signal>` e invoca `this.react(signal)`.
+   - `react(signal: Signal)`: Ejecuta la función `react` definida en la disposición con el contexto de la capacidad.
+4. **Emisión y Validación (`pulse`)**:
+   - `pulse(property: string, candidate: unknown): Signal<Outcome> | undefined`:
+     1. Evalúa `candidate` contra `this.outcomeSchema`. Si no es válido, retorna `undefined` y aborta la emisión.
+     2. Evalúa el estado de `Compliance` invocando `this.evaluate(candidate)`.
+     3. Empaqueta el `Outcome = { properties: data, compliance }`.
+     4. Genera el `Signal<Outcome>` firmado con `domain = this.ucaName ?? this.name` y `source = this.name`.
+     5. Emite un `CustomEvent(`${this.name}.${property}`, { detail: signal })` al bus interno.
 
-> **Aislamiento Estricto de Dominios**: El `Channel` es un bus local para la coordinación intra-unidad entre capabilities. Ningún cambio de propiedad ni señal interna se redirige al `NervousSystem`. El `NervousSystem` se reserva para impulsos entre agentes y módulos mayores.
+### 12.4 Especificación de la Clase Base `Uca` (`uca.ts`)
 
-#### 12.3.5 Reactividad de la Disposición y Eventos de Mutación
+La clase abstracta `Uca` es la unidad ontológica fundamental del sistema:
 
-La arquitectura UCA restringe la generación de mutaciones **única y exclusivamente a las propiedades definidas en la disposición (`this.disposition`)**. Las propiedades operativas ordinarias de la clase UCA (como flags de ejecución o colas locales) no interceptan ni emiten mutaciones, evitando sobrecarga y garantizando que el espacio evolutivo observable sea estrictamente la disposición ontológica:
+```typescript
+export abstract class Uca {
+    public readonly id: string;
+    public readonly name: string;
+    public readonly purpose: string;
+    private readonly registry: Map<string, ICapability>;
+    protected readonly bus: EventTarget;
+}
+```
 
-1. **Proxy Reactivo Exclusivo de Disposición**: Al acceder a `this.disposition`, se retorna un Proxy reactivo que intercepta las asignaciones a sus propiedades (`set` trap).
-2. **Supresión de Emisiones Redundantes**: Si el nuevo valor asignado a una propiedad de la disposición es idéntico al actual, la asignación se realiza silenciosamente sin emitir eventos ni señales, evitando bucles y ruido en el bus.
-3. **Disparo Automático de Eventos de Mutación**:
-   Cuando se modifica una propiedad interna de `this.disposition` (ej. `this.disposition.sampleRate = 48000` tras recibir un impulso de reconfiguración):
-   - Se emite un `MutationEvent` en la propia instancia (`target.emit('mutation', event)` y `target.emit('mutation:<property>', event)`).
-   - Se difunde el evento a través del `Channel` local intra-unidad (`channel.broadcast(event)`).
-   - La unidad o agente agregador retransmite el evento (`forwardMutation`), permitiendo observabilidad completa en el agente agregador (`agent.on('mutation', ...)`).
-4. **Suscripción Directa a Propiedades de Disposición (`reactTo`)**:
-   Las propiedades de la disposición constituyen el espacio observable ante el cual otras UCAs pueden reaccionar. No es necesario ni pertinente que una UCA receptora declare `.disposition.<propiedad>`. La suscripción se realiza de forma directa y transparente mediante la firma canónica:
+1. **Constructor**:
    ```typescript
-   protected reactTo = [
-       'AcousticEar.sampleRate', // Discriminación directa por tipo ontológico
-       'acousticEar.sampleRate', // O discriminación directa por clave funcional
-   ];
+   constructor(id: string, name: string, purpose: string)
    ```
-   El motor reactivo (`canProcessSignal`) correlaciona automáticamente el nombre de la propiedad mutada (`property`) con el emisor (`sourceType` o `sourceName`), garantizando la reactividad intra-unidad desacoplada.
-5. **Historial Secuencial y Métodos Protegidos de Reversión (`revert`, `revertTo`)**:
-   Toda UCA registra su secuencia evolutiva y provee mecanismos de rollback estrictamente mediados:
-   - `public get dispositionSequence(): readonly DispositionSnapshot<TDisposition>[]`: Retorna la cronología inmutable de snapshots $[D_0, D_1, \dots, D_n]$.
-   - `protected revert(steps: number = 1): boolean`: Retrocede $N$ pasos hacia la configuración previa. Retorna `false` si ya se encuentra en el estado inicial de concepción ($D_0$).
-   - `protected revertTo(version: number): boolean`: Restaura la configuración correspondiente a un número de versión específico.
-   
-   > [!IMPORTANT]
-   > **Prohibición de Exposición Pública y Autoevolución**: `revert()` y `revertTo()` son métodos protegidos (`protected`). La UCA no puede revertirse de forma autónoma no mediada, ni expone métodos públicos imperativos. La reversión se ejecuta soberanamente al procesar un `Impulse` de reversión transmitido por el `Owner` o mediador externo (`{ action: 'revert', steps: 1 }`). Cada reversión actualiza `this.disposition` mediante su Proxy reactivo, desencadenando los correspondientes `MutationEvent`.
+   Inicializa la identidad inmutable (`id`, `name`), el propósito ontológico (`purpose`), instancia el bus privado (`new EventTarget()`) y ejecuta automáticamente la inervación inicial (`this.innervate()`).
+2. **Método Abstracto `capabilities()`**:
+   ```typescript
+   public abstract capabilities(): CapabilitiesDeclaration;
+   ```
+   Define el catálogo y configuración inicial de capabilities que constituyen la unidad.
+3. **Inervación (`innervate`)**:
+   - `public innervate(capability?: ICapability): this`:
+     - Si se suministra una `capability`: invoca `capability.innervate(this.name, this.bus)` y la registra en `this.registry`.
+     - Si se invoca sin argumentos: procesa la declaración de `this.capabilities()` e inerva cada elemento.
+4. **Desinervación Limpia (`denervate`)**:
+   - `public denervate(): void`: Itera sobre todas las capacidades registradas en `this.registry` e invoca `capability.denervate?()`, desconectando por completo todos los listeners del bus.
+5. **Consulta Segura de Capacidades (`capability`)**:
+   - `public capability(name: string): ICapability | undefined`: Consulta determinista en $O(1)$ sobre el registro interno.
+6. **Emisión de Señales de Dominio (`pulse`)**:
+   - `public pulse<T = unknown>(property: string, value: T): Signal<T>`: Emite una señal observable a nivel de dominio (`${this.name}.${property}`).
 
-### 12.4 Ejemplo Canónico de Referencia (No Normativo)
-
-> **Nota aclaratoria:** El código presentado a continuación es **estrictamente un ejemplo de uso no normativo**. Su único propósito es ilustrar de manera práctica cómo se traducen los principios formales del runtime de UCA a TypeScript. No prescribe una arquitectura fija ni limita la diversidad de capacidades o arquitecturas que pueden desarrollarse conforme a esta especificación.
+### 12.5 Ejemplo Canónico de Referencia
 
 ```typescript
-import { Uca, defaultRegistry, Signal } from './uca/index.js';
+import { Uca, Capability } from './core/uca/index.js';
+import type { CapabilitiesDeclaration, Signal } from './core/uca/index.js';
 
-// 1. Capacidades Terminales: Funcionalidad Pura sin Uca ni Purpose (§3.2)
-export class AudioFramingService {
-    public sliceFrame(audioData: string, sampleRate: number, framingMs: number): string {
-        return `[frame:${sampleRate}Hz:${framingMs}ms] ${audioData}`;
+// 1. Capability Concreta (Sensor reactivo)
+export class SensorCapability extends Capability {
+    constructor() {
+        super('sensor', {
+            reactTo: ['environment.stimulus'],
+            pulses: ['reading'],
+            react: (sig: Signal) => {
+                const reading = { value: Number(sig.value) * 1.5 };
+                this.pulse('reading', reading);
+            },
+        });
     }
 }
 
-export class SpeechSynthesizerService {
-    public synthesize(text: string, voice: string, rate: number): string {
-        return `[Voz sintetizada:${voice}:x${rate.toFixed(1)}] ${text}`;
+// 2. Organismo UCA
+export class MonitorUca extends Uca {
+    constructor(id: string, name: string) {
+        super(id, name, 'Monitorizar perturbaciones y emitir lecturas calibradas');
+    }
+
+    public override capabilities(): CapabilitiesDeclaration {
+        return [
+            new SensorCapability(),
+            new Capability('actuator', {
+                reactTo: ['sensor.reading'],
+                react: (sig: Signal) => {
+                    console.log('Actuador activado por lectura:', sig.value);
+                },
+            }),
+        ];
     }
 }
+```
 
-// 2. UCAs Primitivas: poseen Purpose propio y usan capacidades terminales como mecanismos
-export interface AcousticEarDisposition {
-    sampleRate: number;
-    framingMs: number;
-}
+### 12.6 Verificación y Cobertura de Tests
 
-export class AcousticEar extends Uca<AcousticEarDisposition> {
-    public override purpose = 'Percepción acústica y transcripción continua de voz';
-    public readonly owner = 'ConversationalAgent'; // Owner UCA
-    public override disposition: AcousticEarDisposition = {
-        sampleRate: 16000,
-        framingMs: 100,
-    };
-    public isListening = false;
-    public lastTranscript = '';
-    protected override reactTo = ['Environment.audioInput'];
-
-    // Capacidad terminal pura (mecanismo técnico sin Uca)
-    private readonly framingService = new AudioFramingService();
-
-    public override async react(signal: Signal): Promise<void> {
-        const { value } = signal;
-        if (typeof value === 'string' && value.length > 0) {
-            this.isListening = true;
-            this.lastTranscript = value;
-            const { sampleRate, framingMs } = this.disposition;
-            const frame = this.framingService.sliceFrame(value, sampleRate, framingMs);
-            // Reacción interna observable
-        }
-    }
-}
-
-export interface VocalMouthDisposition {
-    voice: string;
-    rate: number;
-}
-
-export class VocalMouth extends Uca<VocalMouthDisposition> {
-    public override purpose = 'Síntesis y alocución vocal hacia el exterior';
-    public readonly owner = 'ConversationalAgent'; // Owner UCA
-    public override disposition: VocalMouthDisposition = {
-        voice: 'alloy',
-        rate: 1.0,
-    };
-    public speechQueue: string[] = [];
-    protected override reactTo = ['AcousticEar.lastTranscript'];
-
-    // Capacidad terminal pura (mecanismo técnico sin Uca)
-    private readonly synthesizerService = new SpeechSynthesizerService();
-
-    public override async react(signal: Signal): Promise<void> {
-        const { value } = signal;
-        if (typeof value === 'string' && value.length > 0) {
-            const { voice, rate } = this.disposition;
-            const spoken = this.synthesizerService.synthesize(value, voice, rate);
-            this.speechQueue.push(spoken);
-        }
-    }
-}
-
-// 3. Registro en Catálogo Superior de UCAs Primitivas (claves camelCase)
-defaultRegistry.register('acousticEar', AcousticEar);
-defaultRegistry.register('vocalMouth', VocalMouth);
-
-// 4. Agente Compuesto: Composición Recursiva de UCAs (§3.1)
-export class ConversationalAgent extends Uca {
-    public override purpose = 'Agente de alocución interactiva';
-    public readonly rootOwner = 'HumanArchitect'; // Owner Raíz (humano/creador)
-
-    // No se duplican las disposiciones innatas; se habilitan las UCAs constituyentes
-    public override capabilities = {
-        acousticEar: {},
-        vocalMouth: {},
-    };
-}
-
-// 5. Uso del Agente: Reactividad Pura mediante Señales (Sin Mutaciones Externas)
-export async function runVoiceAgentExample(): Promise<void> {
-    // El canal común se inyecta externamente evitando invocar propiedades protegidas
-    const channel = new SimpleChannel();
-    const agent = new ConversationalAgent('agent-001', 'ConversationalAgent', { channel });
-
-    // Cada UCA constituyente se instancia de forma aislada y soberana
-    const ear = (agent as unknown as Record<string, AcousticEar>)['acousticEar'];
-    const mouth = (agent as unknown as Record<string, VocalMouth>)['vocalMouth'];
-
-    console.log(`Propósito del Agente: ${agent.purpose}`);
-    console.log(`Owner Raíz del Agente: ${agent.rootOwner}`);
-    console.log('Disposición innata de acousticEar:', ear.disposition);
-    console.log('Disposición innata de vocalMouth:', mouth.disposition);
-
-    // Activación reactiva pura: el broadcast es asíncrono y se espera con await
-    // para asegurar que las reacciones internas concluyan antes de inspeccionar consecuencias
-    await channel.broadcast({
-        type: 'Environment.audioInput',
-        source: 'Environment',
-        sourceName: 'environment',
-        sourceType: 'Environment',
-        property: 'audioInput',
-        value: 'Hola, arquitecto cognitivo',
-        timestamp: Date.now(),
-    });
-
-    // Consecuencia observable garantizada tras la finalización del ciclo reactivo:
-    console.log('Estado interno de acousticEar (isListening):', ear.isListening);
-    console.log('Cola de habla en vocalMouth:', mouth.speechQueue);
-}
+El comportamiento del runtime de referencia está verificado mediante suites automatizadas:
+- Registro y ciclo de vida de capabilities (declaración por array y record).
+- Propagación de eventos intra-UCA mediante `EventTarget`.
+- Validación estricta con `OutcomeSchema` y esquemas tipados.
+- Filtrado y evaluación determinista de `Compliance` (`PASS` y `FAIL`).
+- Desinervación limpia (`denervate`) y erradicación total de fugas de memoria.
 ```
 
 ---

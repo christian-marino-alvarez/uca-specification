@@ -1,0 +1,58 @@
+import * as assert from 'node:assert';
+import { Capability } from '../../../../core/capability.js';
+import type { Signal } from '../../../../core/types.js';
+import { Multiply, SignalType, __ID__ } from '../index.js';
+
+function emitSignal(bus: EventTarget, property: string, value: unknown): void {
+    const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
+    bus.dispatchEvent(new CustomEvent(property, { detail: signal }));
+}
+
+function testMultiply_IdentityAndDefaults(): void {
+    const multiply = new Multiply();
+    assert.strictEqual(multiply.id, __ID__);
+    assert.strictEqual(Multiply.AIM, 'Multiply multiplier and multiplicand and pulse product');
+    assert.ok(multiply instanceof Capability);
+    multiply.denervate();
+}
+
+function testMultiply_CalculatesProduct(): void {
+    const bus = new EventTarget();
+    const multiply = new Multiply('multiply-test').innervate(bus);
+    let result: unknown = undefined;
+    bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
+        result = (event as CustomEvent<Signal<number>>).detail.value;
+    });
+
+    emitSignal(bus, SignalType.EVALUATE, [6, 7]);
+    assert.strictEqual(result, 42);
+
+    emitSignal(bus, SignalType.EVALUATE, [5, -3]);
+    assert.strictEqual(result, -15);
+
+    multiply.denervate();
+}
+
+function testMultiply_UsesFallbackDispositionAimBody(): void {
+    const bus = new EventTarget();
+    const disposition = Capability.createDisposition('Multiply fallback', { operands: [8, 9] as const });
+    const multiply = new Multiply('multiply-fallback').innervate(bus, disposition);
+    let result: unknown = undefined;
+    bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
+        result = (event as CustomEvent<Signal<number>>).detail.value;
+    });
+
+    emitSignal(bus, SignalType.EVALUATE, {});
+    assert.strictEqual(result, 72);
+
+    multiply.denervate();
+}
+
+function runAllMultiplyTests(): void {
+    testMultiply_IdentityAndDefaults();
+    testMultiply_CalculatesProduct();
+    testMultiply_UsesFallbackDispositionAimBody();
+    console.log('✔ All Multiply capability minimal architecture tests passed successfully.');
+}
+
+runAllMultiplyTests();

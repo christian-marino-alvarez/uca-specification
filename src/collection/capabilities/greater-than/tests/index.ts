@@ -1,0 +1,76 @@
+import * as assert from 'node:assert';
+import { Capability } from '../../../../core/capability.js';
+import type { Signal } from '../../../../core/types.js';
+import { GreaterThan, SignalType, __ID__ } from '../index.js';
+
+function emitSignal(bus: EventTarget, property: string, value: unknown): void {
+    const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
+    bus.dispatchEvent(new CustomEvent(property, { detail: signal }));
+}
+
+function testGreaterThan_IdentityAndDefaults(): void {
+    const gt = new GreaterThan();
+    assert.strictEqual(gt.id, __ID__);
+    assert.strictEqual(GreaterThan.AIM, 'Evaluate whether first operand is greater than second operand');
+    assert.ok(gt instanceof Capability);
+    gt.denervate();
+}
+
+function testGreaterThan_EvaluatesDirectArrayOperands(): void {
+    const bus = new EventTarget();
+    const gt = new GreaterThan('gt-test').innervate(bus);
+    let result: unknown = undefined;
+    bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
+        result = (event as CustomEvent<Signal<boolean>>).detail.value;
+    });
+
+    emitSignal(bus, SignalType.EVALUATE, [10, 5]);
+    assert.strictEqual(result, true);
+
+    emitSignal(bus, SignalType.EVALUATE, [3, 8]);
+    assert.strictEqual(result, false);
+
+    emitSignal(bus, SignalType.EVALUATE, [7, 7]);
+    assert.strictEqual(result, false);
+
+    gt.denervate();
+}
+
+function testGreaterThan_EvaluatesObjectPayload(): void {
+    const bus = new EventTarget();
+    const gt = new GreaterThan('gt-obj').innervate(bus);
+    let result: unknown = undefined;
+    bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
+        result = (event as CustomEvent<Signal<boolean>>).detail.value;
+    });
+
+    emitSignal(bus, SignalType.EVALUATE, { operands: [15, 12] });
+    assert.strictEqual(result, true);
+
+    gt.denervate();
+}
+
+function testGreaterThan_UsesFallbackDispositionAimBody(): void {
+    const bus = new EventTarget();
+    const disposition = Capability.createDisposition('Compare with fallback', { operands: [20, 10] as const });
+    const gt = new GreaterThan('gt-fallback').innervate(bus, disposition);
+    let result: unknown = undefined;
+    bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
+        result = (event as CustomEvent<Signal<boolean>>).detail.value;
+    });
+
+    emitSignal(bus, SignalType.EVALUATE, {});
+    assert.strictEqual(result, true);
+
+    gt.denervate();
+}
+
+function runAllGreaterThanTests(): void {
+    testGreaterThan_IdentityAndDefaults();
+    testGreaterThan_EvaluatesDirectArrayOperands();
+    testGreaterThan_EvaluatesObjectPayload();
+    testGreaterThan_UsesFallbackDispositionAimBody();
+    console.log('✔ All GreaterThan capability minimal architecture tests passed successfully.');
+}
+
+runAllGreaterThanTests();

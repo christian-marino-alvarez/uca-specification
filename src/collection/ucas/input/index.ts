@@ -1,0 +1,151 @@
+import { Uca } from '../../../core/uca.js';
+import { Capability } from '../../../core/capability.js';
+import type { Cooky, Disposition, Signal } from '../../../core/types.js';
+import { WebComponent, SignalType as CapabilitySignalType, __ID__ as WEB_COMPONENT_ID } from '../../capabilities/web-component/index.js';
+import type { Body } from './types.js';
+import { SignalType } from './types.js';
+
+export class Input extends Uca<Body> {
+    public static readonly PURPOSE: string = 'Capture entered textual data, its typography, appearance and make it available to the system';
+
+    public constructor(id: string = 'input') {
+        super(id, Input.PURPOSE);
+    }
+
+    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
+        const defaultSignals = [
+            SignalType.CREATE,
+            SignalType.UPDATE,
+            SignalType.REMOVE,
+            SignalType.CHANGE,
+            CapabilitySignalType.RENDERED,
+            CapabilitySignalType.UPDATED,
+            CapabilitySignalType.REMOVED,
+            CapabilitySignalType.EVENT,
+        ];
+        const activeDisposition = disposition ?? Capability.createDisposition(this.purpose, {}, defaultSignals);
+        const configured = activeDisposition.reactTo.length ? activeDisposition : { ...activeDisposition, reactTo: defaultSignals };
+        return super.innervate(target, configured);
+    }
+
+    protected override react(signal: Signal): void {
+        const { property, value } = signal;
+        switch (property) {
+            case SignalType.CREATE:
+                this.handleCreate(value);
+                break;
+            case SignalType.UPDATE:
+                this.handleUpdate(value);
+                break;
+            case SignalType.REMOVE:
+                this.handleRemove(value);
+                break;
+            case SignalType.CHANGE:
+                this.handleChange(value);
+                break;
+            default:
+                this.handleCapabilitySignal(property, value);
+                break;
+        }
+    }
+
+    private handleCreate(value: unknown): void {
+        const payload = (value ?? {}) as { container?: HTMLElement } & Body;
+        const attributes = this.buildAttributes(WEB_COMPONENT_ID);
+        this.pulse(CapabilitySignalType.RENDERED, { id: this.id, container: payload.container, attributes });
+    }
+
+    private handleUpdate(value: unknown): void {
+        const payload = (value ?? {}) as { container?: HTMLElement } & Body;
+        const attributes = this.buildAttributes(WEB_COMPONENT_ID);
+        this.pulse(CapabilitySignalType.UPDATED, { id: this.id, container: payload.container, attributes });
+    }
+
+    private handleRemove(value: unknown): void {
+        const payload = (value ?? {}) as { id?: string };
+        const id = payload.id ?? this.id;
+        this.pulse(CapabilitySignalType.REMOVED, { id });
+    }
+
+    private handleChange(value: unknown): void {
+        const { value: nextValue } = (value ?? {}) as { value?: string };
+        const properties = this.getDomainProperties();
+        this.pulse(SignalType.CHANGED, { ...properties, value: nextValue });
+    }
+
+    private handleCapabilitySignal(property: string, value: unknown): void {
+        const properties = this.getDomainProperties();
+        switch (property) {
+            case CapabilitySignalType.RENDERED:
+                this.pulse(SignalType.CREATED, properties);
+                break;
+            case CapabilitySignalType.UPDATED:
+                this.pulse(SignalType.UPDATED, properties);
+                break;
+            case CapabilitySignalType.REMOVED:
+                this.pulse(SignalType.REMOVED, properties);
+                break;
+            case CapabilitySignalType.EVENT:
+                this.handleUserEvent(value);
+                break;
+            default:
+                break;
+        }
+    }
+
+    private handleUserEvent(value: unknown): void {
+        const { event, value: eventValue } = (value ?? {}) as { event?: string; value?: unknown };
+        if (event === 'input' || event === 'change') {
+            const nextValue = eventValue !== undefined ? String(eventValue) : undefined;
+            this.handleChange({ value: nextValue });
+        }
+    }
+
+    private getDomainProperties(): Body {
+        const { aim } = this.disposition;
+        const properties = (aim.body ?? {}) as Body;
+        return properties;
+    }
+
+    protected override capabilities(): Cooky {
+        const attributes = this.buildAttributes(WEB_COMPONENT_ID);
+        const body = { id: this.id, attributes };
+        const purpose = 'Render interactive input in target presentation tree';
+        const disposition = Capability.createDisposition(purpose, body, this.getReactToSignals());
+        const cooky: Cooky = [[WebComponent, disposition]];
+        return cooky;
+    }
+
+    private getReactToSignals(): readonly string[] {
+        const reactTo = [
+            CapabilitySignalType.RENDERED,
+            CapabilitySignalType.UPDATED,
+            CapabilitySignalType.REMOVED,
+        ];
+        return reactTo;
+    }
+
+    protected override getAttributeMapping(capabilityId?: string): Record<string, unknown> {
+        switch (capabilityId) {
+            case WEB_COMPONENT_ID:
+            default:
+                return this.getWebComponentAttributes();
+        }
+    }
+
+    private getWebComponentAttributes(): Record<string, unknown> {
+        const { aim } = this.disposition;
+        const { value, placeholder, disabled, readOnly, fontSize, color, backgroundColor, fontFamily } = aim.body ?? {};
+        const mapping: Record<string, unknown> = {
+            'value': value,
+            'placeholder': placeholder,
+            'disabled': disabled ? '' : undefined,
+            'readonly': readOnly ? '' : undefined,
+            'data-font-size': fontSize,
+            'data-color': color,
+            'data-background-color': backgroundColor,
+            'data-font-family': fontFamily,
+        };
+        return mapping;
+    }
+}
