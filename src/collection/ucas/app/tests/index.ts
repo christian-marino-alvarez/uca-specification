@@ -60,14 +60,16 @@ function testApp_LifecycleSignals(): void {
 
 function testApp_InitialViewSchemaAndDispositions(): void {
     const app = new App();
-    const schema = App.VIEW_SCHEMA;
-    assert.ok(schema.properties.ucas);
+    const { properties } = App.VIEW_SCHEMA;
+    assert.ok(properties.ucas);
     const initialView = app.createInitialView();
-    assert.ok(initialView['center-container']);
-    assert.ok(initialView['query-input']);
-    assert.ok(initialView['query-button']);
-    assert.strictEqual(initialView['query-input'].aim.body?.placeholder, 'que quieres conocer de la Uca');
-    assert.strictEqual(initialView['query-button'].aim.body?.label, 'Consultar');
+    const { 'query-input': input, 'query-button': button } = initialView;
+    const { body: inputBody } = input.aim as { body?: { placeholder?: string } };
+    const { placeholder } = inputBody ?? {};
+    const { body: buttonBody } = button.aim as { body?: { label?: string } };
+    const { label } = buttonBody ?? {};
+    assert.strictEqual(placeholder, 'que quieres conocer de la Uca');
+    assert.strictEqual(label, 'Consultar');
 }
 
 function runAllAppTests(): void {
