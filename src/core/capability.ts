@@ -2,7 +2,7 @@ import {
     DispositionSignal,
     type Aim,
     type Disposition,
-    type DispositionAnnouncePayload,
+    type DispositionUpdatedPayload,
     type DispositionUpdatePayload,
     type ICapability,
     type Signal,
@@ -109,7 +109,7 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
         return payload;
     }
 
-    private static readonly CONTROL_SIGNALS = [DispositionSignal.UPDATE, DispositionSignal.QUERY] as const;
+    private static readonly CONTROL_SIGNALS = [DispositionSignal.UPDATE] as const;
 
     private connectReceptors(): void {
         const { reactTo = [] } = this.disposition;
@@ -138,9 +138,6 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
             case DispositionSignal.UPDATE:
                 this.handleDispositionUpdate(signal);
                 break;
-            case DispositionSignal.QUERY:
-                this.handleDispositionQuery();
-                break;
             default:
                 void this.executeReaction(signal);
                 break;
@@ -167,13 +164,8 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
             return;
         }
         this.innervate(undefined, disposition as Disposition<TBody>);
-        const updatedPayload: DispositionAnnouncePayload<TBody> = { id: this.id, disposition: this.disposition };
+        const updatedPayload: DispositionUpdatedPayload<TBody> = { id: this.id, disposition: this.disposition };
         this.pulse(DispositionSignal.UPDATED, updatedPayload);
-    }
-
-    private handleDispositionQuery(): void {
-        const announcePayload: DispositionAnnouncePayload<TBody> = { id: this.id, disposition: this.disposition };
-        this.pulse(DispositionSignal.ANNOUNCE, announcePayload);
     }
 
     private async executeReaction(signal: Signal): Promise<void> {

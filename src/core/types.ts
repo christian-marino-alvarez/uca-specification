@@ -50,13 +50,11 @@ export interface Disposition<TBody = unknown> {
 }
 
 /**
- * DispositionSignal: Señales nerviosas ontológicas para inspección y actualización reactiva de la disposición.
+ * DispositionSignal: Señales nerviosas ontológicas para actualización reactiva de la disposición.
  */
 export enum DispositionSignal {
     UPDATE = 'disposition.update',
     UPDATED = 'disposition.updated',
-    QUERY = 'disposition.query',
-    ANNOUNCE = 'disposition.announce',
 }
 
 export type DispositionSignalType = DispositionSignal;
@@ -70,9 +68,9 @@ export interface DispositionUpdatePayload<TBody = unknown> {
 }
 
 /**
- * DispositionAnnouncePayload: Contrato para anuncio reactivo de la disposición en el sistema nervioso.
+ * DispositionUpdatedPayload: Contrato emitido tras la actualización reactiva de la disposición.
  */
-export interface DispositionAnnouncePayload<TBody = unknown> {
+export interface DispositionUpdatedPayload<TBody = unknown> {
     readonly id: string;
     readonly disposition: Disposition<TBody>;
 }

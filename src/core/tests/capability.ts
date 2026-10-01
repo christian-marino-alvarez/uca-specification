@@ -135,34 +135,6 @@ function testCapability_DispositionUpdate(): void {
     otherCap.denervate();
 }
 
-function testCapability_DispositionQuery(): void {
-    const bus = new EventTarget();
-    const probe = new DummyProbeCapability('cap-query').innervate(bus, {
-        aim: { description: 'Query Probe' },
-        reactTo: ['probe.signal'],
-    });
-
-    const announcements: unknown[] = [];
-    bus.addEventListener(DispositionSignal.ANNOUNCE, (event: Event) => {
-        const customEvent = event as CustomEvent<Signal>;
-        announcements.push(customEvent.detail.value);
-    });
-
-    const querySignal: Signal = {
-        source: 'inspector',
-        property: DispositionSignal.QUERY,
-        value: {},
-        timestamp: Date.now(),
-    };
-    bus.dispatchEvent(new CustomEvent(DispositionSignal.QUERY, { detail: querySignal }));
-
-    assert.strictEqual(announcements.length, 1);
-    const first = announcements[0] as { id: string; disposition: Disposition };
-    assert.strictEqual(first.id, 'cap-query');
-    assert.strictEqual(first.disposition.aim.description, 'Query Probe');
-    probe.denervate();
-}
-
 function runAllCapabilityTests(): void {
     testCapability_CreationAndDisposition();
     testCapability_InnervateAndReaction();
@@ -170,7 +142,6 @@ function runAllCapabilityTests(): void {
     testCapability_DenervateDisconnectsAndClearsTarget();
     testCapability_ExtractPayload();
     testCapability_DispositionUpdate();
-    testCapability_DispositionQuery();
     console.log('✔ All Capability core tests passed successfully.');
 }
 
