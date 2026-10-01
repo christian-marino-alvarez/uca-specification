@@ -1,6 +1,6 @@
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
-import { TypeSafeClient } from '@typesafe-ai/sdk';
+import { TypeSafeClient, noul } from '@typesafe-ai/sdk';
 import { __ID__, __DEFAULT_SIGNALS__ } from './constants.js';
 import {
     type Body,
@@ -73,9 +73,19 @@ export class Jev extends Capability<Body> {
         const bodyLimit = aim.body?.limit ?? aim.body?.maxTokens;
         const effectiveLimit = limit ?? maxTokens ?? bodyLimit;
         const options = effectiveLimit !== undefined ? { limit: effectiveLimit, max_tokens: effectiveLimit } : {};
-        const response = await client.systemOne({ state: state as any, questions: questions as any, model, ...options });
+        const formattedQuestions = this.formatQuestions(questions ?? {});
+        const response = await client.systemOne({ state: state as any, questions: formattedQuestions as any, model, ...options });
         const answers = response as unknown as Record<string, unknown>;
         return { state, answers, model };
+    }
+
+    private formatQuestions(questions: Record<string, unknown>): Record<string, unknown> {
+        const result: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(questions)) {
+            const isNoul = typeof value === 'object' && value !== null && 'type' in value && (value as { type: string }).type === 'noul';
+            result[key] = isNoul ? value : noul(typeof value === 'string' ? value : key);
+        }
+        return Object.keys(result).length ? result : { answer: noul('Procesar consulta') };
     }
 
     private resolveClient(): TypeSafeClient {
@@ -89,7 +99,7 @@ export class Jev extends Capability<Body> {
         const { apiKey, baseURL } = config ?? {};
         const envKey = typeof process !== 'undefined' ? process.env?.JEV_API_KEY ?? process.env?.TYPESAFE_API_KEY : undefined;
         const resolvedApiKey = apiKey ?? envKey;
-        return new TypeSafeClient({ apiKey: resolvedApiKey, baseURL });
+        return new TypeSafeClient({ apiKey: resolvedApiKey, baseURL, dangerouslyAllowBrowser: true });
     }
 }
 

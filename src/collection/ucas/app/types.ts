@@ -23,5 +23,6 @@ export interface Body {
     readonly title?: string;
     readonly version?: string;
     readonly active?: boolean;
+    readonly request?: string;
     readonly initialView?: Record<string, Disposition>;
 }

@@ -601,6 +601,11 @@ var redact = (name, value) => {
   return value;
 };
 var redactHeaders = (headers) => Object.fromEntries(Object.entries(headers).map(([name, value]) => [name, redact(name, value)]));
+var noul = (instructions = null, criteria) => ({
+  type: "noul",
+  instructions,
+  criteria
+});
 var validateQuestions = (questions) => {
   if (Object.keys(questions).length === 0) throw new TypeSafeError("At least one question is required.");
   for (const [name, question] of Object.entries(questions)) {
@@ -997,9 +1002,18 @@ var Jev = class _Jev extends Capability {
     const bodyLimit = aim.body?.limit ?? aim.body?.maxTokens;
     const effectiveLimit = limit ?? maxTokens ?? bodyLimit;
     const options = effectiveLimit !== void 0 ? { limit: effectiveLimit, max_tokens: effectiveLimit } : {};
-    const response = await client.systemOne({ state, questions, model, ...options });
+    const formattedQuestions = this.formatQuestions(questions ?? {});
+    const response = await client.systemOne({ state, questions: formattedQuestions, model, ...options });
     const answers = response;
     return { state, answers, model };
+  }
+  formatQuestions(questions) {
+    const result = {};
+    for (const [key, value] of Object.entries(questions)) {
+      const isNoul = typeof value === "object" && value !== null && "type" in value && value.type === "noul";
+      result[key] = isNoul ? value : noul(typeof value === "string" ? value : key);
+    }
+    return Object.keys(result).length ? result : { answer: noul("Procesar consulta") };
   }
   resolveClient() {
     const { aim } = this.disposition;
@@ -1013,7 +1027,7 @@ var Jev = class _Jev extends Capability {
     const { apiKey, baseURL } = config ?? {};
     const envKey = typeof process !== "undefined" ? process.env?.JEV_API_KEY ?? process.env?.TYPESAFE_API_KEY : void 0;
     const resolvedApiKey = apiKey ?? envKey;
-    return new TypeSafeClient({ apiKey: resolvedApiKey, baseURL });
+    return new TypeSafeClient({ apiKey: resolvedApiKey, baseURL, dangerouslyAllowBrowser: true });
   }
 };
 
@@ -1254,6 +1268,7 @@ var DEFAULT_SIGNALS4 = [
   "app.start",
   "app.stop"
 ];
+var INITIAL_VIEW_NEED = "Crear una vista con un \xFAnico input y un bot\xF3n centrados en el medio de la p\xE1gina y que ponga en placeholder: que quieres conocer de la Uca";
 var VIEW_DISPOSITION_SCHEMA = {
   $schema: "http://json-schema.org/draft-07/schema#",
   title: "ViewDisposition",
@@ -1326,6 +1341,7 @@ var App = class _App extends Uca {
   static purpose = "Coordinate application lifecycle and scaffolding orchestration";
   static VIEW_SCHEMA = VIEW_DISPOSITION_SCHEMA;
   static INITIAL_VIEW = INITIAL_VIEW_DISPOSITION;
+  static INITIAL_NEED = INITIAL_VIEW_NEED;
   static disposition = {
     aim: { description: _App.purpose, body: { initialView: INITIAL_VIEW_DISPOSITION } },
     reactTo: [...DEFAULT_SIGNALS4],
@@ -1384,9 +1400,11 @@ var App = class _App extends Uca {
   }
   handleInit(value) {
     const payload = value ?? {};
-    const { title = "ready", initialView } = payload;
-    const view = initialView ?? this.createInitialView();
-    this.pulse("view-composer.compose" /* COMPOSE */, { ucas: view, schema: VIEW_DISPOSITION_SCHEMA });
+    const { title = "ready", request, initialView } = payload;
+    const viewNeed = request ?? INITIAL_VIEW_NEED;
+    const ucas = initialView ?? this.createInitialView();
+    const viewPayload = { request: viewNeed, schema: VIEW_DISPOSITION_SCHEMA, ucas };
+    this.pulse("view-composer.compose" /* COMPOSE */, viewPayload);
     this.pulse("app.ready" /* READY */, title);
   }
   handleStart() {

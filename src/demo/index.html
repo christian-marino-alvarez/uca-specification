@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>UCA Application — Input & Button Demo</title>
+  <title>UCA Application</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -16,147 +16,35 @@
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
       min-height: 100vh;
       display: flex;
-      flex-direction: column;
       align-items: center;
-      padding: 2.5rem 1.5rem;
-      gap: 1.8rem;
+      justify-content: center;
+      padding: 1.5rem;
     }
 
-    header {
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    header h1 {
-      font-size: 2.2rem;
-      font-weight: 700;
-      background: linear-gradient(135deg, #6366f1 0%, #38bdf8 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      letter-spacing: -0.5px;
-    }
-
-    header p {
-      color: #94a3b8;
-      font-size: 0.95rem;
-    }
-
-    /* ── Jev Key Config Bar ── */
-    .key-bar {
-      width: 100%;
-      max-width: 680px;
-      background: #0f172a;
-      border: 1px solid #1e293b;
-      border-radius: 12px;
-      padding: 0.8rem 1.2rem;
-      display: flex;
-      align-items: center;
-      gap: 0.8rem;
-      font-size: 0.9rem;
-    }
-
-    .key-bar label {
-      color: #cbd5e1;
-      font-weight: 500;
-      white-space: nowrap;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-
-    .key-bar input {
-      flex: 1;
-      background: #090e17;
-      border: 1px solid #334155;
-      color: #f8fafc;
-      padding: 0.5rem 0.8rem;
-      border-radius: 8px;
-      font-size: 0.88rem;
-      font-family: 'Fira Code', monospace;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    .key-bar input:focus {
-      border-color: #6366f1;
-    }
-
-    .key-bar button {
-      background: #334155;
-      color: #f8fafc;
-      border: none;
-      padding: 0.5rem 1rem;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 0.85rem;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-
-    .key-bar button:hover {
-      background: #475569;
-    }
-
-    .key-badge {
-      font-size: 0.75rem;
-      padding: 0.25rem 0.6rem;
-      border-radius: 9999px;
-      font-weight: 600;
-    }
-
-    .key-badge.set {
-      background: rgba(34, 197, 94, 0.15);
-      color: #4ade80;
-      border: 1px solid rgba(34, 197, 94, 0.3);
-    }
-
-    .key-badge.unset {
-      background: rgba(234, 179, 8, 0.15);
-      color: #facc15;
-      border: 1px solid rgba(234, 179, 8, 0.3);
-    }
-
-    /* ── App container holding pure UCA WebComponents ── */
     #app-container {
       width: 100%;
-      max-width: 680px;
-      background: #0f172a;
-      border: 1px solid #1e293b;
-      border-radius: 16px;
-      padding: 2.5rem 2rem;
+      max-width: 600px;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 1.5rem;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-      min-height: 200px;
-      transition: all 0.4s ease;
     }
 
-    .center-layout {
+    ext-box, .center-layout {
       width: 100%;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 1rem;
+      gap: 0.8rem;
     }
 
-    /* ── Custom elements rendered by UCA Capabilities ── */
     ext-input {
       display: block;
       flex: 1;
-      min-height: 50px;
-      line-height: 50px;
-      padding: 0 1.25rem;
+      height: 52px;
       border-radius: 12px;
       border: 1px solid #334155;
-      background: #090e17;
-      color: #f8fafc;
-      font-size: 15px;
-      outline: none;
+      background: #0f172a;
+      padding: 0 1.25rem;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
 
@@ -167,13 +55,13 @@
 
     ext-input input {
       width: 100%;
+      height: 100%;
       background: transparent;
       border: none;
-      color: inherit;
-      font-size: inherit;
+      color: #f8fafc;
+      font-size: 15px;
       font-family: inherit;
       outline: none;
-      line-height: 50px;
     }
 
     ext-input input::placeholder {
@@ -184,7 +72,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      height: 50px;
+      height: 52px;
       padding: 0 1.8rem;
       background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
       border: none;
@@ -210,107 +98,15 @@
       transform: translateY(0);
     }
 
-    ext-box {
-      display: block;
-      width: 100%;
-    }
-
-    /* ── Cognitive result card ── */
-    #result-card {
-      width: 100%;
-      max-width: 680px;
-      background: #111c33;
-      border: 1px solid #1e293b;
-      border-radius: 12px;
-      padding: 1.25rem 1.5rem;
-      display: none;
-      flex-direction: column;
-      gap: 0.6rem;
-      animation: fadeIn 0.3s ease;
-    }
-
-    #result-card.active {
-      display: flex;
-    }
-
-    #result-card h4 {
-      color: #38bdf8;
-      font-size: 0.9rem;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    #result-card p {
-      color: #e2e8f0;
-      font-size: 0.95rem;
-      line-height: 1.6;
-    }
-
-    /* ── Feedback status ── */
-    #status-display {
-      font-size: 0.85rem;
-      color: #38bdf8;
-      background: rgba(56, 189, 248, 0.1);
-      padding: 0.4rem 1rem;
-      border-radius: 20px;
-      border: 1px solid rgba(56, 189, 248, 0.2);
-    }
-
-    /* ── UCA Nervous Bus log panel ── */
-    #log-panel {
-      width: 100%;
-      max-width: 680px;
-      background: #090e17;
-      border: 1px solid #1e293b;
-      border-radius: 12px;
-      padding: 1rem;
-      max-height: 220px;
-      overflow-y: auto;
-      font-family: 'Fira Code', monospace;
-      font-size: 0.72rem;
-    }
-
-    #log-panel h3 {
-      color: #475569;
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 0.6rem;
-    }
-
-    .log-entry {
-      padding: 0.2rem 0;
-      border-bottom: 1px solid #131b2e;
-      display: flex;
-      gap: 0.6rem;
-    }
-
-    .log-source { color: #818cf8; min-width: 110px; }
-    .log-signal { color: #38bdf8; min-width: 160px; font-weight: 500; }
-    .log-value  { color: #64748b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
+    ext-action.loading {
+      opacity: 0.7;
+      cursor: wait;
+      pointer-events: none;
     }
   </style>
 </head>
 <body>
 
-  <header>
-    <h1>UCA Application</h1>
-    <p>Unidad Cognitiva Autónoma (UCA) fractal y reactiva</p>
-  </header>
-
-  <!-- Jev API Key Configuration Bar -->
-  <div class="key-bar">
-    <label for="key-input">🔑 Jev Key:</label>
-    <input id="key-input" type="password" placeholder="Pega tu clave Jev / TypeSafe..." />
-    <button id="save-key-btn">Guardar</button>
-    <span id="key-badge" class="key-badge unset">Sin clave</span>
-  </div>
-
-  <!-- App UCA Container: Centered Layout with Input & Button -->
   <div id="app-container">
     <ext-box id="center-container" class="center-layout">
       <ext-input id="query-input">
@@ -320,81 +116,20 @@
     </ext-box>
   </div>
 
-  <!-- Cognitive Result Output -->
-  <div id="result-card">
-    <h4>Respuesta Cognitiva (ViewComposer / Jev)</h4>
-    <p id="result-text"></p>
-  </div>
-
-  <div id="status-display">⚡ Sistema nervioso activo — Esperando interacción</div>
-
-  <!-- Bus log -->
-  <div id="log-panel">
-    <h3>🔌 UCA Nervous Bus Telemetry</h3>
-  </div>
-
   <script type="module">
-    import { App, Box, Input, Action, ViewComposer, SignalType } from './app.bundle.js';
+    import { App, Box, Input, Action, SignalType } from './app.bundle.js';
 
     const bus = new EventTarget();
-    const appContainer = document.getElementById('app-container');
-    const statusDisplay = document.getElementById('status-display');
-    const logPanel = document.getElementById('log-panel');
-    const keyInput = document.getElementById('key-input');
-    const saveKeyBtn = document.getElementById('save-key-btn');
-    const keyBadge = document.getElementById('key-badge');
     const queryField = document.getElementById('query-field');
     const queryButton = document.getElementById('query-button');
-    const resultCard = document.getElementById('result-card');
-    const resultText = document.getElementById('result-text');
 
-    // ── Key Management ──
-    const urlParams = new URLSearchParams(window.location.search);
-    const initialKey = urlParams.get('jevKey') || localStorage.getItem('JEV_API_KEY') || '';
-
-    function updateKeyBadge(key) {
-      if (key) {
-        keyBadge.textContent = 'Configurada ✔';
-        keyBadge.className = 'key-badge set';
-        keyInput.value = key;
-      } else {
-        keyBadge.textContent = 'Sin clave';
-        keyBadge.className = 'key-badge unset';
-      }
+    const urlKey = new URLSearchParams(window.location.search).get('jevKey');
+    const jevKey = urlKey || localStorage.getItem('JEV_API_KEY') || 'apikey_2220a5e11f50f7bf4fde86f23310761f00a3_10f29eeebad6c43b37c5c538cc0718cd6badba05ec7c3af37eac6f7bc0ec3d92';
+    if (jevKey) {
+      localStorage.setItem('JEV_API_KEY', jevKey);
     }
 
-    updateKeyBadge(initialKey);
-
-    saveKeyBtn.addEventListener('click', () => {
-      const key = keyInput.value.trim();
-      localStorage.setItem('JEV_API_KEY', key);
-      updateKeyBadge(key);
-      bus.dispatchEvent(new CustomEvent(SignalType.JEV_CONNECT, {
-        detail: { source: 'browser-ui', property: SignalType.JEV_CONNECT, value: { apiKey: key }, timestamp: Date.now() }
-      }));
-      statusDisplay.textContent = '🔑 Jev Key actualizada y conectada';
-    });
-
-    // ── Bus Telemetry Logger ──
-    function logSignal(signal) {
-      const entry = document.createElement('div');
-      entry.className = 'log-entry';
-      const val = signal.value !== undefined ? JSON.stringify(signal.value).slice(0, 90) : '';
-      entry.innerHTML =
-        `<span class="log-source">${signal.source ?? '?'}</span>` +
-        `<span class="log-signal">${signal.property}</span>` +
-        `<span class="log-value">${val}</span>`;
-      logPanel.appendChild(entry);
-      logPanel.scrollTop = logPanel.scrollHeight;
-    }
-
-    const originalDispatch = bus.dispatchEvent.bind(bus);
-    bus.dispatchEvent = function(event) {
-      if (event?.type !== '*' && event?.detail) { logSignal(event.detail); }
-      return originalDispatch(event);
-    };
-
-    // ── Innervate UCAs on Nervous Bus ──
+    // Instanciar e inervar UCAs
     const app = new App('main-app');
     const container = new Box('center-container');
     const inputUca = new Input('query-input');
@@ -405,47 +140,46 @@
     buttonUca.innervate(bus);
     app.innervate(bus);
 
-    // ── Interaction Handlers ──
-    function submitQuery() {
+    function triggerInquiry() {
       const query = queryField.value.trim();
       if (!query) { return; }
-      statusDisplay.textContent = `🧠 Procesando consulta: "${query}"...`;
-      bus.dispatchEvent(new CustomEvent(SignalType.ACTION_TRIGGER, {
-        detail: { source: 'user-click', property: SignalType.ACTION_TRIGGER, value: { query }, timestamp: Date.now() }
-      }));
+      queryButton.classList.add('loading');
+      queryButton.textContent = 'Pensando...';
       bus.dispatchEvent(new CustomEvent(SignalType.VIEW_COMPOSE, {
-        detail: { source: 'user-inquiry', property: SignalType.VIEW_COMPOSE, value: { request: query }, timestamp: Date.now() }
+        detail: {
+          source: 'user-inquiry',
+          property: SignalType.VIEW_COMPOSE,
+          value: { request: query },
+          timestamp: Date.now()
+        }
       }));
     }
 
-    queryButton.addEventListener('click', submitQuery);
+    queryButton.addEventListener('click', triggerInquiry);
     queryField.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') { submitQuery(); }
+      if (e.key === 'Enter') { triggerInquiry(); }
     });
 
-    // ── Bus Event Listeners ──
-    bus.addEventListener(SignalType.READY, () => {
-      statusDisplay.textContent = '✅ App lista e inicializada con Input y Botón centrados';
+    bus.addEventListener(SignalType.VIEW_COMPOSED, () => {
+      queryButton.classList.remove('loading');
+      queryButton.textContent = 'Consultar';
     });
 
-    bus.addEventListener(SignalType.VIEW_COMPOSED, (event) => {
-      const detail = event?.detail?.value;
-      if (detail) {
-        resultCard.classList.add('active');
-        resultText.textContent = `Vista orquestada con ${detail.graph?.nodes?.length ?? 3} nodos UCA: ${JSON.stringify(detail.graph?.nodes ?? [])}`;
-      }
-    });
-
-    // ── Initialize App ──
-    bus.dispatchEvent(new CustomEvent(SignalType.INIT, {
-      detail: { source: 'browser', property: SignalType.INIT, value: {}, timestamp: Date.now() }
+    // Iniciar con la necesidad de crear la vista
+    bus.dispatchEvent(new CustomEvent(SignalType.JEV_CONNECT, {
+      detail: { source: 'init', property: SignalType.JEV_CONNECT, value: { apiKey: jevKey }, timestamp: Date.now() }
     }));
 
-    if (initialKey) {
-      bus.dispatchEvent(new CustomEvent(SignalType.JEV_CONNECT, {
-        detail: { source: 'browser-init', property: SignalType.JEV_CONNECT, value: { apiKey: initialKey }, timestamp: Date.now() }
-      }));
-    }
+    bus.dispatchEvent(new CustomEvent(SignalType.INIT, {
+      detail: {
+        source: 'browser',
+        property: SignalType.INIT,
+        value: {
+          request: 'Crear una vista con un único input y un botón centrados en el medio de la página y que ponga en placeholder: que quieres conocer de la Uca'
+        },
+        timestamp: Date.now()
+      }
+    }));
   </script>
 </body>
 </html>

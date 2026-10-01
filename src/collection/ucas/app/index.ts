@@ -1,13 +1,14 @@
 import { Uca } from '@uca/core/uca';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
 import { ViewComposer, SignalType as ViewComposerSignalType } from '@uca/view-composer';
-import { __ID__, DEFAULT_SIGNALS, INITIAL_VIEW_DISPOSITION, VIEW_DISPOSITION_SCHEMA } from './constants.js';
+import { __ID__, DEFAULT_SIGNALS, INITIAL_VIEW_DISPOSITION, INITIAL_VIEW_NEED, VIEW_DISPOSITION_SCHEMA } from './constants.js';
 import { type Body, DataType, SignalType } from './types.js';
 
 export class App extends Uca<Body> {
     public static override purpose: string = 'Coordinate application lifecycle and scaffolding orchestration';
     public static readonly VIEW_SCHEMA = VIEW_DISPOSITION_SCHEMA;
     public static readonly INITIAL_VIEW = INITIAL_VIEW_DISPOSITION;
+    public static readonly INITIAL_NEED = INITIAL_VIEW_NEED;
 
     public static override disposition: Disposition<Body> = {
         aim: { description: App.purpose, body: { initialView: INITIAL_VIEW_DISPOSITION } },
@@ -73,9 +74,11 @@ export class App extends Uca<Body> {
 
     private handleInit(value: unknown): void {
         const payload = (value ?? {}) as Body;
-        const { title = 'ready', initialView } = payload;
-        const view = initialView ?? this.createInitialView();
-        this.pulse(ViewComposerSignalType.COMPOSE, { ucas: view, schema: VIEW_DISPOSITION_SCHEMA });
+        const { title = 'ready', request, initialView } = payload;
+        const viewNeed = request ?? INITIAL_VIEW_NEED;
+        const ucas = initialView ?? this.createInitialView();
+        const viewPayload = { request: viewNeed, schema: VIEW_DISPOSITION_SCHEMA, ucas };
+        this.pulse(ViewComposerSignalType.COMPOSE, viewPayload);
         this.pulse(SignalType.READY, title);
     }
 

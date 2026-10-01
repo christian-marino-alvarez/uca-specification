@@ -10,6 +10,8 @@ export const DEFAULT_SIGNALS: readonly string[] = [
 
 export const __DEFAULT_SIGNALS__ = DEFAULT_SIGNALS;
 
+export const INITIAL_VIEW_NEED = 'Crear una vista con un único input y un botón centrados en el medio de la página y que ponga en placeholder: que quieres conocer de la Uca';
+
 export const VIEW_DISPOSITION_SCHEMA = {
     $schema: 'http://json-schema.org/draft-07/schema#',
     title: 'ViewDisposition',
