@@ -184,7 +184,7 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
             return;
         }
         this.innervate(undefined, disposition as Disposition<TBody>);
-        this.pulse('local-storage.set', { key: this.id, value: JSON.stringify(this.disposition) });
+        this.pulse('local-storage.set', { key: this.id, value: this.disposition });
         const updatedPayload: DispositionUpdatedPayload<TBody> = { id: this.id, disposition: this.disposition };
         this.pulse(DispositionSignal.UPDATED, updatedPayload);
     }
