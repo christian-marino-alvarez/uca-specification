@@ -1,9 +1,9 @@
 import { DomHarness } from '../../../../../tests/shared/dom-harness.js';
 import * as assert from 'node:assert';
-import { Uca } from '../../../../core/uca.js';
-import { Capability } from '../../../../core/capability.js';
-import type { Signal } from '../../../../core/types.js';
+import { Uca } from '@uca/core/uca';
+import type { Disposition, Signal } from '@uca/core/types';
 import { Picture } from '../index.js';
+import type { Body } from '../types.js';
 
 function emitSignal(picture: Picture, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
@@ -19,13 +19,18 @@ function testPicture_Existence(): void {
 
 function testPicture_RenderMaterializesCustomElementWithOptions(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Hero banner picture', {
-        source: 'https://example.com/banner.jpg',
-        alt: 'Hero banner',
-        dimensions: { width: 800, height: 600 },
-        quality: 95,
-        sharpness: 8,
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Hero banner picture',
+            body: {
+                source: 'https://example.com/banner.jpg',
+                alt: 'Hero banner',
+                dimensions: { width: 800, height: 600 },
+                quality: 95,
+                sharpness: 8,
+            },
+        },
+    };
     const picture = new Picture().innervate(undefined, disposition);
     emitSignal(picture, 'element.rendered', { container });
     const element = container.querySelector('ext-picture');
@@ -65,13 +70,18 @@ function testPicture_RemoveDestroysFromDom(): void {
 
 function testPicture_PulsesDomainSignalsPassingProperties(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Picture with domain properties', {
-        source: 'https://example.com/art.png',
-        alt: 'Artwork',
-        dimensions: { width: 400, height: 300 },
-        quality: 90,
-        sharpness: 5,
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Picture with domain properties',
+            body: {
+                source: 'https://example.com/art.png',
+                alt: 'Artwork',
+                dimensions: { width: 400, height: 300 },
+                quality: 90,
+                sharpness: 5,
+            },
+        },
+    };
     const picture = new Picture().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     picture.target?.addEventListener('picture.created', (event: Event) => {
@@ -96,10 +106,15 @@ function testPicture_PulsesDomainSignalsPassingProperties(): void {
 
 function testPicture_ReactsToDomainRequestSignals(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Picture with domain properties', {
-        source: 'https://example.com/photo.png',
-        alt: 'Photo',
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Picture with domain properties',
+            body: {
+                source: 'https://example.com/photo.png',
+                alt: 'Photo',
+            },
+        },
+    };
     const picture = new Picture().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     picture.target?.addEventListener('picture.created', (event: Event) => {

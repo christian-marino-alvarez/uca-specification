@@ -5,6 +5,9 @@
   "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",
+  "scripts": {
+    "test": "tsx tests/index.ts && tsx tests/uca.ts && tsx tests/capability.ts"
+  },
   "exports": {
     ".": {
       "types": "./index.d.ts",

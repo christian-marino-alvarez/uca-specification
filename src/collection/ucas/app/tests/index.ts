@@ -1,7 +1,7 @@
 import '../../../../../tests/shared/dom-harness.js';
 import * as assert from 'node:assert';
-import { Uca } from '../../../../core/uca.js';
-import type { Signal } from '../../../../core/types.js';
+import { Uca } from '@uca/core/uca';
+import type { Signal } from '@uca/core/types';
 import { App } from '../index.js';
 import { SignalType } from '../types.js';
 import { __ID__ } from '../constants.js';
@@ -11,50 +11,55 @@ function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     bus.dispatchEvent(new CustomEvent(property, { detail: signal }));
 }
 
-function testApp_IdentityAndDefaults(): void {
+function testApp_Identity(): void {
     const app = new App();
-    assert.strictEqual(app.id, __ID__);
-    assert.strictEqual(app.purpose, App.PURPOSE);
+    const { id, purpose } = app;
+    assert.strictEqual(id, __ID__);
+    assert.strictEqual(purpose, App.purpose);
     assert.ok(app instanceof Uca);
+}
+
+function testApp_Disposition(): void {
+    const app = new App();
     app.innervate();
-    assert.strictEqual(app.disposition.inputs?.length, 3);
-    assert.strictEqual(app.disposition.outputs?.length, 3);
+    const { disposition } = app;
+    const { inputs, outputs } = disposition;
+    assert.strictEqual(inputs?.length, 3);
+    assert.strictEqual(outputs?.length, 4);
     app.denervate();
+}
+
+function setupLifecycleListeners(bus: EventTarget): { getResults: () => { ready: boolean; started: boolean; stopped: boolean } } {
+    let ready = false;
+    let started = false;
+    let stopped = false;
+    bus.addEventListener(SignalType.READY, () => { ready = true; });
+    bus.addEventListener(SignalType.STARTED, () => { started = true; });
+    bus.addEventListener(SignalType.STOPPED, () => { stopped = true; });
+    return { getResults: () => ({ ready, started, stopped }) };
 }
 
 function testApp_LifecycleSignals(): void {
     const bus = new EventTarget();
     const app = new App('test-app').innervate(bus);
-    let readyReceived = false;
-    let startedReceived = false;
-    let stoppedReceived = false;
+    const { getResults } = setupLifecycleListeners(bus);
 
-    bus.addEventListener(SignalType.READY, () => {
-        readyReceived = true;
-    });
-    bus.addEventListener(SignalType.STARTED, () => {
-        startedReceived = true;
-    });
-    bus.addEventListener(SignalType.STOPPED, () => {
-        stoppedReceived = true;
-    });
-
-    emitSignal(bus, SignalType.INIT, {});
-    assert.strictEqual(readyReceived, true);
-
+    emitSignal(bus, SignalType.INIT, { title: 'Test App', version: '1.0.0' });
     emitSignal(bus, SignalType.START, {});
-    assert.strictEqual(startedReceived, true);
-
     emitSignal(bus, SignalType.STOP, {});
-    assert.strictEqual(stoppedReceived, true);
 
+    const { ready, started, stopped } = getResults();
+    assert.strictEqual(ready, true);
+    assert.strictEqual(started, true);
+    assert.strictEqual(stopped, true);
     app.denervate();
 }
 
 function runAllAppTests(): void {
-    testApp_IdentityAndDefaults();
+    testApp_Identity();
+    testApp_Disposition();
     testApp_LifecycleSignals();
-    console.log('✔ All App UCA minimal architecture tests passed successfully.');
+    console.log('✔ All App UCA scaffolding tests passed successfully.');
 }
 
 runAllAppTests();

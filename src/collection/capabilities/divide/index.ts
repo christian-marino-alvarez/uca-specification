@@ -1,36 +1,22 @@
-import { Capability } from '../../../core/capability.js';
-import type { Disposition, Signal } from '../../../core/types.js';
-import { type Body, type Operands, type Outcome, SignalType } from './types.js';
+import { Capability } from '@uca/core/capability';
+import type { Disposition, Signal } from '@uca/core/types';
+import { type Body, type Operands, type Outcome, DataType, SignalType } from './types.js';
 import { __ID__, __DEFAULT_SIGNALS__ } from './constants.js';
 
 export class Divide extends Capability<Body> {
     public static readonly AIM: string = 'Divide dividend by divisor and pulse outcome with result and rest';
 
-    private static createDefaultDisposition(): Disposition<Body> {
-        const disposition = Capability.createDisposition<Body>(Divide.AIM, {}, [...__DEFAULT_SIGNALS__], {
-            inputs: [{ signal: SignalType.EVALUATE, type: '[number, number]', description: 'Operands [dividend, divisor]' }],
-            outputs: [{ signal: SignalType.EVALUATED, type: '{ result: number, rest: number }', description: 'Outcome { result, rest }' }],
-        });
-        return disposition;
-    }
+    public static override disposition: Disposition<Body> = {
+        aim: { description: Divide.AIM, body: {} },
+        reactTo: [...__DEFAULT_SIGNALS__],
+        inputs: [{ signal: SignalType.EVALUATE, type: DataType.OPERANDS, description: 'Operands [dividend, divisor]' }],
+        outputs: [{ signal: SignalType.EVALUATED, type: DataType.OUTCOME, description: 'Outcome { result, rest }' }],
+    };
 
     public constructor(id: string = __ID__) {
-        super(id, Divide.createDefaultDisposition());
+        super(id);
     }
 
-    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
-        const baseDisposition = disposition ?? this.disposition;
-        const { reactTo = [] } = baseDisposition;
-        const signals = reactTo.length > 0 ? reactTo : [...__DEFAULT_SIGNALS__];
-        const activeDisposition: Disposition<Body> = { ...baseDisposition, reactTo: signals };
-        super.innervate(target, activeDisposition);
-        return this;
-    }
-
-
-    public override denervate(): void {
-        super.denervate();
-    }
 
     protected override react(signal: Signal): void {
         const { value } = signal;

@@ -3,6 +3,11 @@ export enum SignalType {
     EVALUATED = 'less-than.evaluated',
 }
 
+export enum DataType {
+    OPERANDS = 'Operands',
+    BOOLEAN = 'boolean',
+}
+
 export type Operands = readonly [number, number];
 
 export interface Body {

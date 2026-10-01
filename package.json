@@ -15,11 +15,6 @@
       "types": "./dist/core/index.d.ts",
       "import": "./dist/core/index.js",
       "default": "./dist/core/index.js"
-    },
-    "./collection": {
-      "types": "./dist/collection/index.d.ts",
-      "import": "./dist/collection/index.js",
-      "default": "./dist/collection/index.js"
     }
   },
   "workspaces": [
@@ -28,26 +23,8 @@
     "src/collection/ucas/*"
   ],
   "scripts": {
-    "build": "tsc && npx esbuild src/collection/ucas/app/index.ts --bundle --format=esm --target=es2022 --outfile=dist/app.bundle.js",
-    "bundle": "npx esbuild src/collection/ucas/app/index.ts --bundle --format=esm --target=es2022 --outfile=dist/app.bundle.js",
-    "clean": "rm -rf dist && mkdir -p dist",
-    "demo": "npm run clean && npm run bundle && cp src/demo/index.html dist/index.html && npm run demo:serve",
-    "demo:serve": "npx serve dist -l 3000",
-    "test": "npm run test:core && npm run test:capabilities && npm run test:box && npm run test:picture && npm run test:input && npm run test:dropdown && npm run test:list && npm run test:access && npm run test:action && npm run test:collector && npm run test:toggle && npm run test:choice && npm run test:logger && npm run test:app",
-    "test:core": "npx tsx src/core/tests/index.ts && npx tsx src/core/tests/uca.ts && npx tsx src/core/tests/capability.ts",
-    "test:capabilities": "npx tsx src/collection/capabilities/web-component/tests/index.ts && npx tsx src/collection/capabilities/web-component/tests/helpers.ts && npx tsx src/collection/capabilities/web-component/tests/constants.ts && npx tsx src/collection/capabilities/equal/tests/index.ts && npx tsx src/collection/capabilities/loop/tests/index.ts && npx tsx src/collection/capabilities/greater-than/tests/index.ts && npx tsx src/collection/capabilities/less-than/tests/index.ts && npx tsx src/collection/capabilities/contains/tests/index.ts && npx tsx src/collection/capabilities/divide/tests/index.ts && npx tsx src/collection/capabilities/multiply/tests/index.ts && npx tsx src/collection/capabilities/css/tests/index.ts",
-    "test:box": "npx tsx src/collection/ucas/box/tests/index.ts",
-    "test:picture": "npx tsx src/collection/ucas/picture/tests/index.ts",
-    "test:input": "npx tsx src/collection/ucas/input/tests/index.ts",
-    "test:dropdown": "npx tsx src/collection/ucas/dropdown/tests/index.ts",
-    "test:list": "npx tsx src/collection/ucas/list/tests/index.ts",
-    "test:access": "npx tsx src/collection/ucas/access/tests/index.ts",
-    "test:action": "npx tsx src/collection/ucas/action/tests/index.ts",
-    "test:collector": "npx tsx src/collection/ucas/collector/tests/index.ts",
-    "test:toggle": "npx tsx src/collection/ucas/toggle/tests/index.ts",
-    "test:choice": "npx tsx src/collection/ucas/choice/tests/index.ts",
-    "test:logger": "npx tsx src/collection/ucas/logger/tests/index.ts",
-    "test:app": "npx tsx src/collection/ucas/app/tests/index.ts",
+    "build": "tsc",
+    "test": "npm test --workspaces --if-present",
     "typecheck": "tsc --noEmit"
   },
   "repository": {

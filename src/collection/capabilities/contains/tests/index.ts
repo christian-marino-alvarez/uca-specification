@@ -1,6 +1,6 @@
 import * as assert from 'node:assert';
-import { Capability } from '../../../../core/capability.js';
-import type { Signal } from '../../../../core/types.js';
+import { Capability } from '@uca/core/capability';
+import type { Signal } from '@uca/core/types';
 import { Contains, SignalType, __ID__ } from '../index.js';
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
@@ -52,7 +52,7 @@ function testContains_ArrayItem(): void {
 
 function testContains_UsesFallbackDispositionAimBody(): void {
     const bus = new EventTarget();
-    const disposition = Capability.createDisposition('Contains fallback', { operands: ['universe', 'verse'] as const });
+    const disposition: Disposition<Body> = { aim: { description: 'Contains fallback', body: { operands: ['universe', 'verse'] as const } }, reactTo: [SignalType.EVALUATE] };
     const contains = new Contains('contains-fallback').innervate(bus, disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {

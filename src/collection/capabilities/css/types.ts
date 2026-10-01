@@ -8,6 +8,12 @@ export enum SignalType {
     ERROR = 'css.error',
 }
 
+export enum DataType {
+    CSS_RULE = 'CssRule',
+    STRING = 'string',
+    UNKNOWN = 'unknown',
+}
+
 export interface CssRule {
     readonly selector: string;
     readonly declarations: Record<string, string>;

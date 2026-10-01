@@ -1,37 +1,22 @@
-import { Capability } from '../../../core/capability.js';
-import type { Disposition, Signal } from '../../../core/types.js';
-import { type Body, type Operands, SignalType } from './types.js';
+import { Capability } from '@uca/core/capability';
+import type { Disposition, Signal } from '@uca/core/types';
+import { type Body, type Operands, DataType, SignalType } from './types.js';
 import { __ID__, __DEFAULT_SIGNALS__ } from './constants.js';
 
 export class GreaterThan extends Capability<Body> {
     public static readonly AIM: string = 'Evaluate whether first operand is greater than second operand';
 
-    private static createDefaultDisposition(): Disposition<Body> {
-        const disposition = Capability.createDisposition<Body>(GreaterThan.AIM, {}, [...__DEFAULT_SIGNALS__], {
-            inputs: [{ signal: SignalType.EVALUATE, type: 'Operands', description: 'Operands [first, second]' }],
-            outputs: [{ signal: SignalType.EVALUATED, type: 'boolean', description: 'Boolean result of greater-than evaluation' }],
-        });
-        return disposition;
-    }
-
+    public static override disposition: Disposition<Body> = {
+        aim: { description: GreaterThan.AIM, body: {} },
+        reactTo: [...__DEFAULT_SIGNALS__],
+        inputs: [{ signal: SignalType.EVALUATE, type: DataType.OPERANDS, description: 'Operands [first, second]' }],
+        outputs: [{ signal: SignalType.EVALUATED, type: DataType.BOOLEAN, description: 'Boolean result of greater-than evaluation' }],
+    };
 
     public constructor(id: string = __ID__) {
-        super(id, GreaterThan.createDefaultDisposition());
+        super(id);
     }
 
-    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
-        const baseDisposition = disposition ?? this.disposition;
-        const { reactTo = [] } = baseDisposition;
-        const signals = reactTo.length > 0 ? reactTo : [...__DEFAULT_SIGNALS__];
-        const activeDisposition: Disposition<Body> = { ...baseDisposition, reactTo: signals };
-        super.innervate(target, activeDisposition);
-        return this;
-    }
-
-
-    public override denervate(): void {
-        super.denervate();
-    }
 
     protected override react(signal: Signal): void {
         const { value } = signal;

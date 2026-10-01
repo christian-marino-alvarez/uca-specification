@@ -1,46 +1,44 @@
-import { Capability } from '../../../core/capability.js';
-import type { Disposition, Signal } from '../../../core/types.js';
+import { Capability } from '@uca/core/capability';
+import type { Disposition, Signal } from '@uca/core/types';
 import { __ID__, __DEFAULT_SIGNALS__ } from './constants.js';
 import {
     type Body,
     type CssRule,
     type SheetAdapter,
+    DataType,
     SignalType,
 } from './types.js';
 
 export class Css extends Capability<Body> {
     public static readonly AIM: string = 'Create and manage reusable OOCSS rules as independent style resources';
 
-    private static createDefaultDisposition(): Disposition<Body> {
-        return Capability.createDisposition<Body>(Css.AIM, {}, [...__DEFAULT_SIGNALS__], {
-            inputs: [
-                { signal: SignalType.CREATE, type: 'CssRule', description: 'Create new reusable CSS rule' },
-                { signal: SignalType.UPDATE, type: 'CssRule', description: 'Update existing CSS rule declarations' },
-                { signal: SignalType.REMOVE, type: 'string', description: 'Remove CSS rule by selector' },
+    public static override disposition: Disposition<Body> = {
+        aim: { description: Css.AIM, body: {} },
+        reactTo: [...__DEFAULT_SIGNALS__],
+        inputs: [
+                { signal: SignalType.CREATE, type: DataType.CSS_RULE, description: 'Create new reusable CSS rule' },
+                { signal: SignalType.UPDATE, type: DataType.CSS_RULE, description: 'Update existing CSS rule declarations' },
+                { signal: SignalType.REMOVE, type: DataType.STRING, description: 'Remove CSS rule by selector' },
             ],
             outputs: [
-                { signal: SignalType.CREATED, type: 'CssRule', description: 'Notification that CSS rule was created' },
-                { signal: SignalType.UPDATED, type: 'CssRule', description: 'Notification that CSS rule was updated' },
-                { signal: SignalType.REMOVED, type: 'string', description: 'Notification that CSS rule was removed' },
-                { signal: SignalType.ERROR, type: 'unknown', description: 'CSS operation error' },
+                { signal: SignalType.CREATED, type: DataType.CSS_RULE, description: 'Notification that CSS rule was created' },
+                { signal: SignalType.UPDATED, type: DataType.CSS_RULE, description: 'Notification that CSS rule was updated' },
+                { signal: SignalType.REMOVED, type: DataType.STRING, description: 'Notification that CSS rule was removed' },
+                { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'CSS operation error' },
             ],
-        });
-    }
+    };
 
     private sheet?: SheetAdapter;
     private readonly ruleIndexes: Map<string, number>;
 
     public constructor(id: string = __ID__) {
-        super(id, Css.createDefaultDisposition());
+        super(id);
         this.ruleIndexes = new Map();
     }
 
+
     public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
-        const baseDisposition = disposition ?? this.disposition;
-        const { reactTo = [] } = baseDisposition;
-        const signals = reactTo.length > 0 ? reactTo : [...__DEFAULT_SIGNALS__];
-        const activeDisposition: Disposition<Body> = { ...baseDisposition, reactTo: signals };
-        super.innervate(target, activeDisposition);
+        super.innervate(target, disposition);
         this.ensureStyleSheet();
         return this;
     }

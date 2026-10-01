@@ -3,6 +3,11 @@ export enum SignalType {
     EVALUATED = 'divide.evaluated',
 }
 
+export enum DataType {
+    OPERANDS = 'Operands',
+    OUTCOME = 'Outcome',
+}
+
 export type Operands = readonly [number, number];
 
 export interface Outcome {

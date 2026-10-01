@@ -2,6 +2,7 @@ import * as assert from 'node:assert';
 import { JSDOM } from 'jsdom';
 import {
     Capability,
+    type CapabilityConstructor,
     type Cooky,
     Uca,
     type Disposition,
@@ -13,8 +14,11 @@ const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
 const { document } = dom.window;
 
 class MockCapability extends Capability {
-    constructor(id: string, disposition: Disposition) {
-        super(id, disposition);
+    constructor(id: string, disposition?: Disposition) {
+        super(id);
+        if (disposition) {
+            this.disposition = disposition;
+        }
     }
 
     protected override react(): void {}
@@ -45,21 +49,22 @@ class ConsumeCapability extends Capability {
 }
 
 class VehicleUca extends Uca {
+    public static override purpose = 'Transportar';
     public moved = false;
     public fuel = 0;
 
-    constructor(id = 'v1', purpose = 'Transportar') {
-        super(id, purpose);
+    constructor(id = 'v1') {
+        super(id);
     }
 
     public override innervate(target?: EventTarget, disposition?: Disposition): this {
-        const active = disposition ?? Capability.createDisposition(this.purpose, undefined, ['move', 'consume']);
+        const active = disposition ?? { aim: { description: this.purpose }, reactTo: ['move', 'consume'] };
         return super.innervate(target, active);
     }
 
     protected override capabilities(): Cooky {
-        const moveDisp = Capability.createDisposition('Mover vehículo', undefined, ['start']);
-        const consumeDisp = Capability.createDisposition('Consumir combustible', undefined, ['start']);
+        const moveDisp: Disposition = { aim: { description: 'Mover vehículo' }, reactTo: ['start'] };
+        const consumeDisp: Disposition = { aim: { description: 'Consumir combustible' }, reactTo: ['start'] };
         const declarations: Cooky = [
             [MoveCapability, moveDisp],
             [ConsumeCapability, consumeDisp],
@@ -80,10 +85,6 @@ class VehicleUca extends Uca {
     public startTrip(fuelUsed: number): void {
         this.pulse('start', fuelUsed);
     }
-
-    public attachCapability(capability: ICapability): void {
-        this.attach(capability);
-    }
 }
 
 class CounterCapability extends Capability {
@@ -97,19 +98,20 @@ class CounterCapability extends Capability {
 }
 
 class DuplicateNameUca extends Uca {
+    public static override purpose = 'Contador';
     public count = 0;
 
-    constructor(id = 'dup', purpose = 'Contador') {
-        super(id, purpose);
+    constructor(id = 'dup') {
+        super(id);
     }
 
     public override innervate(target?: EventTarget): this {
-        const disposition = Capability.createDisposition(this.purpose, undefined, ['counter.increment']);
+        const disposition: Disposition = { aim: { description: this.purpose }, reactTo: ['counter.increment'] };
         return super.innervate(target, disposition);
     }
 
     protected override capabilities(): Cooky {
-        const disp = Capability.createDisposition('Contar pulsos', undefined, ['tick']);
+        const disp: Disposition = { aim: { description: 'Contar pulsos' }, reactTo: ['tick'] };
         const declarations: Cooky = [[CounterCapability, disp]];
         return declarations;
     }
@@ -132,7 +134,7 @@ const waitForDelay = async (duration = 30): Promise<void> => {
 
 // 1. Declaración de Capabilities mediante Cooky
 async function testDeclaration_CookyMapping(): Promise<void> {
-    const vehicle = new VehicleUca('decl-v', 'Transportar');
+    const vehicle = new VehicleUca('decl-v');
     vehicle.innervate();
     const moveCap = (vehicle as unknown as { registry: Map<string, ICapability> }).registry.get('move');
     const consumeCap = (vehicle as unknown as { registry: Map<string, ICapability> }).registry.get('consume');
@@ -144,7 +146,7 @@ async function testDeclaration_CookyMapping(): Promise<void> {
 
 // 2. Lifecycle: innervate conecta capabilities declaradas
 async function testLifecycle_InnervateConnects(): Promise<void> {
-    const vehicle = new VehicleUca('v1', 'Transportar').innervate();
+    const vehicle = new VehicleUca('v1').innervate();
     vehicle.startTrip(6);
     await waitForDelay();
     assert.strictEqual(vehicle.moved, true);
@@ -154,7 +156,7 @@ async function testLifecycle_InnervateConnects(): Promise<void> {
 
 // 3. Lifecycle: re-innervate no deja instancias huérfanas
 async function testLifecycle_ReinnervateNoOrphans(): Promise<void> {
-    const vehicle = new VehicleUca('v-re', 'Transportar').innervate();
+    const vehicle = new VehicleUca('v-re').innervate();
     vehicle.innervate();
     vehicle.startTrip(4);
     await waitForDelay();
@@ -164,7 +166,7 @@ async function testLifecycle_ReinnervateNoOrphans(): Promise<void> {
 
 // 4. Lifecycle: denervate desconecta todas las capabilities
 async function testLifecycle_DenervateDisconnects(): Promise<void> {
-    const uca = new DuplicateNameUca('d1', 'Counter').innervate();
+    const uca = new DuplicateNameUca('d1').innervate();
     uca.sendTick();
     await waitForDelay();
     assert.strictEqual(uca.count, 1);
@@ -172,90 +174,14 @@ async function testLifecycle_DenervateDisconnects(): Promise<void> {
     uca.sendTick();
     await waitForDelay();
     assert.strictEqual(uca.count, 1);
-}
-
-// 5. Lifecycle: Reemplazo por id denerva la instancia anterior
-async function testLifecycle_IdReplacementDenervatesPrevious(): Promise<void> {
-    const uca = new VehicleUca('v-replace', 'Transportar').innervate();
-    let oldDenervated = false;
-    const oldCap = new MockCapability('cap-x', Capability.createDisposition('Old', undefined, ['ping']));
-    const originalDenervate = oldCap.denervate.bind(oldCap);
-    oldCap.denervate = () => {
-        oldDenervated = true;
-        originalDenervate();
-    };
-    uca.attachCapability(oldCap);
-    const newCap = new MockCapability('cap-x', Capability.createDisposition('New', undefined, ['ping']));
-    uca.attachCapability(newCap);
-    assert.strictEqual(oldDenervated, true);
-    uca.denervate();
-}
-
-// 6. Registry: Fuente única de verdad para declarativas y dinámicas
-async function testRegistry_SingleSourceOfTruth(): Promise<void> {
-    const vehicle = new VehicleUca('v-single', 'Transportar').innervate();
-    const dynamic = new MockCapability('dyn', Capability.createDisposition('Dyn', undefined, ['start']));
-    vehicle.attachCapability(dynamic);
-    const registry = (vehicle as unknown as { registry: Map<string, ICapability> }).registry;
-    assert.strictEqual(registry.size, 3);
-    assert.ok(registry.has('move'));
-    assert.ok(registry.has('consume'));
-    assert.ok(registry.has('dyn'));
-    vehicle.denervate();
-}
-
-// 7. Targets: attach(capability) utiliza el target de la UCA
-async function testTargets_DefaultUsesUcaTarget(): Promise<void> {
-    const vehicle = new VehicleUca('v-target', 'Transportar').innervate();
-    const cap = new MockCapability('def-cap', Capability.createDisposition('Def', undefined, ['ping']));
-    vehicle.attachCapability(cap);
-    assert.strictEqual(cap.target, vehicle.target);
-    vehicle.denervate();
-}
-
-class MockElement {
-    public parent: MockElement | null = null;
-    public children: MockElement[] = [];
-
-    public appendChild(child: MockElement): void {
-        child.parent = this;
-        this.children.push(child);
-    }
-}
-
-class MockHtmlCapability extends Capability {
-    public readonly element: MockElement;
-
-    constructor(id = 'mock-html') {
-        super(id);
-        this.element = new MockElement();
-    }
-
-    protected override react(): void {}
-}
-
-// 8. Separación DOM: el target es exclusivamente nervioso y el elemento es recurso de dominio
-async function testSeparation_DomainResourceFromNervousTarget(): Promise<void> {
-    const vehicle = new VehicleUca('v-dom', 'Transportar').innervate();
-    const htmlCap = new MockHtmlCapability();
-    vehicle.attachCapability(htmlCap);
-    assert.strictEqual(htmlCap.target, vehicle.target);
-    assert.notStrictEqual(htmlCap.element, htmlCap.target);
-    const parentA = new MockElement();
-    const parentB = new MockElement();
-    parentA.appendChild(htmlCap.element);
-    assert.strictEqual(htmlCap.target, vehicle.target);
-    parentB.appendChild(htmlCap.element);
-    assert.strictEqual(htmlCap.target, vehicle.target);
-    vehicle.denervate();
 }
 
 class DashboardCapability extends Capability {
+    public static override disposition: Disposition = { aim: { description: 'Supervisar estado' }, reactTo: ['spark'] };
     public sparkDetected = false;
 
-    constructor(id = 'dashboard', disposition?: Disposition) {
-        const defaultDisp = Capability.createDisposition('Supervisar estado', undefined, ['spark']);
-        super(id, disposition ?? defaultDisp);
+    constructor(id = 'dashboard') {
+        super(id);
     }
 
     protected override react(): void {
@@ -264,9 +190,10 @@ class DashboardCapability extends Capability {
 }
 
 class SparkCapability extends Capability {
-    constructor(id = 'spark-plug', disposition?: Disposition) {
-        const defaultDisp = Capability.createDisposition('Chispa', undefined, ['ignite']);
-        super(id, disposition ?? defaultDisp);
+    public static override disposition: Disposition = { aim: { description: 'Chispa' }, reactTo: ['ignite'] };
+
+    constructor(id = 'spark-plug') {
+        super(id);
     }
 
     protected override react(): void {
@@ -275,12 +202,14 @@ class SparkCapability extends Capability {
 }
 
 class EngineUca extends Uca {
-    constructor(id = 'engine-core', purpose = 'Planta motriz') {
-        super(id, purpose);
+    public static override purpose = 'Planta motriz';
+
+    constructor(id = 'engine-core') {
+        super(id);
     }
 
     protected override capabilities(): Cooky {
-        const disp = Capability.createDisposition('Chispa', undefined, ['ignite']);
+        const disp: Disposition = { aim: { description: 'Chispa' }, reactTo: ['ignite'] };
         const declarations: Cooky = [[SparkCapability, disp]];
         return declarations;
     }
@@ -299,14 +228,16 @@ class SimpleButtonCapability extends Capability {
 }
 
 class MultiButtonUca extends Uca {
-    constructor() {
-        super('multi-btn', 'Multiples botones');
+    public static override purpose = 'Multiples botones';
+
+    constructor(id = 'multi-btn') {
+        super(id);
     }
 
     protected override capabilities(): Cooky {
-        const dispA = Capability.createDisposition('Start', { id: 'btn-start' }, ['button.click']);
-        const dispB = Capability.createDisposition('Submit', { id: 'btn-submit' }, ['button.click']);
-        const dispC = Capability.createDisposition('Cancel', { id: 'btn-cancel' }, ['button.click']);
+        const dispA: Disposition = { aim: { description: 'Start', body: { id: 'btn-start' } }, reactTo: ['button.click'] };
+        const dispB: Disposition = { aim: { description: 'Submit', body: { id: 'btn-submit' } }, reactTo: ['button.click'] };
+        const dispC: Disposition = { aim: { description: 'Cancel', body: { id: 'btn-cancel' } }, reactTo: ['button.click'] };
         const declarations: Cooky = [
             [SimpleButtonCapability, dispA],
             [SimpleButtonCapability, dispB],
@@ -317,8 +248,10 @@ class MultiButtonUca extends Uca {
 }
 
 class EmptyUca extends Uca {
-    constructor() {
-        super('empty-uca', 'UCA vacia');
+    public static override purpose = 'UCA vacia';
+
+    constructor(id = 'empty-uca') {
+        super(id);
     }
 
     protected override capabilities(): Cooky {
@@ -328,33 +261,46 @@ class EmptyUca extends Uca {
 }
 
 class ShipUca extends Uca {
-    public readonly dashboard: DashboardCapability;
-    public readonly engine: EngineUca;
+    public static override purpose = 'Nave';
 
-    constructor(id = 'ship-1', purpose = 'Nave') {
-        super(id, purpose);
-        this.dashboard = new DashboardCapability();
-        this.engine = new EngineUca();
-        this.attach(this.engine);
-        this.attach(this.dashboard);
+    constructor(id = 'ship-1') {
+        super(id);
+    }
+
+    protected override capabilities(): Cooky {
+        const engineDisp: Disposition = { aim: { description: 'Motor' }, reactTo: ['ignite'] };
+        const dashboardDisp: Disposition = { aim: { description: 'Dashboard' }, reactTo: ['spark'] };
+        const declarations: Cooky = [
+            [EngineUca as unknown as CapabilityConstructor, engineDisp],
+            [DashboardCapability, dashboardDisp],
+        ];
+        return declarations;
+    }
+
+    public get dashboard(): DashboardCapability | undefined {
+        return this.capability('dashboard') as DashboardCapability | undefined;
+    }
+
+    public get engine(): EngineUca | undefined {
+        return this.capability('engine-core') as EngineUca | undefined;
     }
 }
 
-// 9. Fractalidad: UCA hija comparte nervous target y denervate en cascada
+// 5. Fractalidad: UCA hija comparte nervous target y denervate en cascada
 async function testFractality_NestedUcaHierarchy(): Promise<void> {
     const ship = new ShipUca().innervate();
     ship.target?.dispatchEvent(new CustomEvent('ignite', { detail: { value: 1 } }));
     await waitForDelay();
-    assert.strictEqual(ship.dashboard.sparkDetected, true);
+    assert.strictEqual(ship.dashboard?.sparkDetected, true);
     ship.denervate();
     assert.strictEqual(ship.target, undefined);
-    assert.strictEqual(ship.engine.target, undefined);
+    assert.strictEqual(ship.engine?.target, undefined);
 }
 
-// 10. Aislamiento entre UCAs diferentes
+// 6. Aislamiento entre UCAs diferentes
 async function testInterUcaIsolation(): Promise<void> {
-    const v1 = new VehicleUca('v1', 'Transportar').innervate();
-    const v2 = new VehicleUca('v2', 'Transportar').innervate();
+    const v1 = new VehicleUca('v1').innervate();
+    const v2 = new VehicleUca('v2').innervate();
     v1.startTrip(5);
     await waitForDelay();
     assert.strictEqual(v1.moved, true);
@@ -408,7 +354,8 @@ class ProbeCapability extends Capability {
     public reactCount = 0;
 
     constructor(id: string, reactTo: string[]) {
-        super(id, Capability.createDisposition(`Probe ${id}`, undefined, reactTo));
+        super(id);
+        this.disposition = { aim: { description: `Probe ${this.id}` }, reactTo: [...reactTo] };
     }
 
     protected override react(): void {
@@ -464,12 +411,12 @@ async function testLifecycle_MultipleInnervatedSelectiveReaction(): Promise<void
 }
 
 class PrivateButtonCapability extends Capability {
+    public static override disposition: Disposition = { aim: { description: 'Boton Privado' }, reactTo: ['button.render'] };
     private domElement: HTMLElement | null = null;
     private readonly container: HTMLElement;
 
-    constructor(container: HTMLElement, config?: { id?: string; disposition?: Disposition }) {
-        const defaultDisp = Capability.createDisposition('Boton Privado', undefined, ['button.render']);
-        super(config?.id ?? 'private-btn', config?.disposition ?? defaultDisp);
+    constructor(container: HTMLElement, config?: { id?: string }) {
+        super(config?.id ?? 'private-btn');
         this.container = container;
     }
 
@@ -519,12 +466,17 @@ async function testHtmlAcceptance_ReactionMaterializesDomResource(): Promise<voi
 }
 
 class MultiCapabilityUca extends Uca<{ role?: string; label?: string; hidden?: boolean }> {
-    constructor(id = 'multi', purpose = 'Multi-capability testing') {
-        super(id, purpose);
+    public static override purpose = 'Multi-capability testing';
+
+    constructor(id = 'multi') {
+        super(id);
     }
 
     public override innervate(target?: EventTarget): this {
-        const disposition = Capability.createDisposition(this.purpose, { role: 'region', label: 'header', hidden: true });
+        const disposition: Disposition<{ role?: string; label?: string; hidden?: boolean }> = {
+            aim: { description: this.purpose, body: { role: 'region', label: 'header', hidden: true } },
+            reactTo: [],
+        };
         return super.innervate(target, disposition);
     }
 
@@ -552,30 +504,6 @@ async function testCore_BuildAttributesDistinguishesCapabilities(): Promise<void
     uca.denervate();
 }
 
-async function testIntrospection_DescribeProducesSnapshot(): Promise<void> {
-    const vehicle = new VehicleUca('vehicle-01', 'Transportar pasajeros');
-    vehicle.innervate();
-    const snapshot = vehicle.describe();
-    const { id, purpose, capabilities } = snapshot;
-    assert.strictEqual(id, 'vehicle-01');
-    assert.strictEqual(purpose, 'Transportar pasajeros');
-    assert.strictEqual(capabilities?.length, 2);
-    assert.strictEqual(capabilities?.[0]?.id, 'move');
-    vehicle.denervate();
-}
-
-async function testReconfigure_UpdatesUcaAndCapabilities(): Promise<void> {
-    const vehicle = new VehicleUca('vehicle-02', 'Transportar');
-    vehicle.innervate();
-    vehicle.reconfigure({ id: 'vehicle-02', description: 'Transporte aéreo', reactTo: ['fly'] });
-    assert.strictEqual(vehicle.describe().description, 'Transporte aéreo');
-    assert.deepStrictEqual(vehicle.describe().reactTo, ['fly']);
-    const updated = vehicle.reconfigureCapability('move', { id: 'move', description: 'Vuelo rápido' });
-    assert.strictEqual(updated, true);
-    assert.strictEqual(vehicle.describe().capabilities?.[0]?.description, 'Vuelo rápido');
-    vehicle.denervate();
-}
-
 async function runAllTests(): Promise<void> {
     await testDeclaration_CookyMapping();
     await testDeclaration_EmptyUca();
@@ -584,10 +512,6 @@ async function runAllTests(): Promise<void> {
     await testLifecycle_InnervateConnects();
     await testLifecycle_ReinnervateNoOrphans();
     await testLifecycle_DenervateDisconnects();
-    await testLifecycle_IdReplacementDenervatesPrevious();
-    await testRegistry_SingleSourceOfTruth();
-    await testTargets_DefaultUsesUcaTarget();
-    await testSeparation_DomainResourceFromNervousTarget();
     await testFractality_NestedUcaHierarchy();
     await testInterUcaIsolation();
     await testLifecycle_ExistenceAndConnectivityDoNotReact();
@@ -595,9 +519,7 @@ async function runAllTests(): Promise<void> {
     await testLifecycle_MultipleInnervatedSelectiveReaction();
     await testHtmlAcceptance_ReactionMaterializesDomResource();
     await testCore_BuildAttributesDistinguishesCapabilities();
-    await testIntrospection_DescribeProducesSnapshot();
-    await testReconfigure_UpdatesUcaAndCapabilities();
-    console.log('✔ All 20 Core UCA lifecycle, Cooky, attribute mapping, introspection and reconfigure tests passed successfully.');
+    console.log('✔ All 14 Core UCA lifecycle, Cooky and attribute mapping tests passed successfully.');
 }
 
 runAllTests().catch((error: unknown) => {

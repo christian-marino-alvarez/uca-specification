@@ -95,6 +95,18 @@ Todo código producido en este repositorio debe respetar rigurosamente los sigui
    * Toda UCA debe implementar `protected override react(signal: Signal): void` e inervarse con los estímulos de ciclo de vida de la capability (`element.render`, `element.update`, `element.remove`).
    * Ante estos eventos técnicos, la UCA transduce el ciclo de vida y emite un pulso nervioso hacia el exterior con su enumerado de dominio `SignalType`: `CREATED`, `UPDATED`, `REMOVED`.
    * **El payload transmitido en el pulso DEBE ser siempre un objeto con sus propiedades de dominio** (`Body` de la UCA), garantizando que las UCAs y diseñadores externos reciban contratos ontológicos puros y no atributos de plataforma técnica.
+16. **Programación Minimalista y Cero Validaciones Defensivas Redundantes**:
+   * En TypeScript estricto (`strict: true`), los contratos de tipos (`types.ts`) y esquemas ya garantizan la integridad de las estructuras.
+   * Queda terminantemente prohibido escribir código defensivo hiperbólico o comprobaciones redundantes de tipo (ej. `typeof x === 'object' && x !== null && 'prop' in x`).
+   * Utilizar siempre operadores idiomáticos directos: coalescencia nula (`??`), spreading condicional (`...(cond && { prop })`) y valores por defecto en desestructuración.
+17. **Topología Plana y Prohibición de Profundidad Excesiva de Métodos (Profundidad Máxima = 1)**:
+   * El flujo interno de una clase debe ser plano: un método del ciclo de vida (`react`, `innervate`, `capabilities`) puede delegar en un handler de dominio (`handleX`), y este debe resolver el flujo y emitir el pulso directamente.
+   * A lo sumo, un handler puede apoyarse en **1 función auxiliar terminal hoja** (ej. extracción de metadatos o formateo puro).
+   * Queda terminantemente prohibido que una función auxiliar llame a otro método auxiliar (`handleX -> helperA -> helperB -> helperC` está **PROHIBIDO**).
+   * Queda prohibido crear métodos privados "trampolín" o micro-helpers de 1-2 líneas que solo se usan en un único sitio; deben resolverse de forma inline directa.
+18. **Construcción Declarativa Directa (Prohibición de Bucles Imperativos para Mapeos)**:
+   * Queda prohibido fragmentar la clase en métodos privados con bucles imperativos (`for..in`, `for..of`, `Object.entries`) para combinar o filtrar propiedades.
+   * Usar siempre patrones declarativos de TypeScript (spreading condicional, operadores lógicos y mapeos directos).
 
 ---
 

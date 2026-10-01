@@ -1,6 +1,6 @@
 import * as assert from 'node:assert';
-import { Capability } from '../../../../core/capability.js';
-import type { Signal } from '../../../../core/types.js';
+import { Capability } from '@uca/core/capability';
+import type { Signal } from '@uca/core/types';
 import { GreaterThan, SignalType, __ID__ } from '../index.js';
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
@@ -52,7 +52,7 @@ function testGreaterThan_EvaluatesObjectPayload(): void {
 
 function testGreaterThan_UsesFallbackDispositionAimBody(): void {
     const bus = new EventTarget();
-    const disposition = Capability.createDisposition('Compare with fallback', { operands: [20, 10] as const });
+    const disposition: Disposition<Body> = { aim: { description: 'Compare with fallback', body: { operands: [20, 10] as const } }, reactTo: [SignalType.EVALUATE] };
     const gt = new GreaterThan('gt-fallback').innervate(bus, disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {

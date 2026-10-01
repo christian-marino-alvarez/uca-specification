@@ -1,6 +1,6 @@
 import * as assert from 'node:assert';
-import { Capability } from '../../../../core/capability.js';
-import type { Signal } from '../../../../core/types.js';
+import { Capability } from '@uca/core/capability';
+import type { Signal } from '@uca/core/types';
 import { Loop, SignalType, type IterationContext, __ID__ } from '../index.js';
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
@@ -12,6 +12,7 @@ function testLoop_IdentityAndDefaults(): void {
     const loop = new Loop();
     assert.strictEqual(loop.id, __ID__);
     assert.ok(loop instanceof Capability);
+    loop.innervate();
     assert.ok(loop.disposition.inputs !== undefined);
     assert.strictEqual(loop.disposition.inputs.length, 3);
     assert.strictEqual(loop.disposition.inputs[0]?.type, 'LoopOptions');
@@ -87,7 +88,7 @@ function testLoop_IteratesWithCountPayload(): void {
 
 function testLoop_UsesFallbackDispositionAimBody(): void {
     const bus = new EventTarget();
-    const disposition = Capability.createDisposition('Loop fallback items', { items: ['alpha', 'beta'] });
+    const disposition: Disposition<Body> = { aim: { description: 'Loop fallback items', body: { items: ['alpha', 'beta'] } }, reactTo: [SignalType.START] };
     const loop = new Loop('loop-fallback').innervate(bus, disposition);
     const iterations: IterationContext<string>[] = [];
 

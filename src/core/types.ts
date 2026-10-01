@@ -43,7 +43,7 @@ export interface DispositionOptions {
  * y los puertos formales de entrada (inputs) y salida (outputs).
  */
 export interface Disposition<TBody = unknown> {
-    reactTo: string[];
+    reactTo?: string[];
     aim: Aim<TBody>;
     readonly inputs?: readonly Port[];
     readonly outputs?: readonly Port[];
@@ -103,30 +103,4 @@ export type CookyEntry<TCapability extends ICapability = ICapability> = Declarat
  * Cooky: Array ordenado de tuplas declarativas [Clase de Capability, Disposition].
  */
 export type Cooky = readonly Declaration[];
-
-/**
- * DispositionSnapshot: Proyección serializable del árbol de disposiciones.
- * Representa la identidad, propósito, contratos formales y sub-capabilities
- * de una UCA o Capability en un instante dado, sin funciones ni estado runtime.
- */
-export interface DispositionSnapshot {
-    readonly id: string;
-    readonly purpose?: string;
-    readonly description: string;
-    readonly reactTo: readonly string[];
-    readonly inputs?: readonly Port[];
-    readonly outputs?: readonly Port[];
-    readonly capabilities?: readonly DispositionSnapshot[];
-}
-
-/**
- * DispositionMutation: Mutación declarativa aplicable a una UCA o Capability.
- * Permite reconfigurar su descripción, señales reactivas y propiedades en tiempo de ejecución.
- */
-export interface DispositionMutation {
-    readonly id: string;
-    readonly description?: string;
-    readonly reactTo?: readonly string[];
-    readonly properties?: Record<string, unknown>;
-}
 

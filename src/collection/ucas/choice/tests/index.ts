@@ -1,10 +1,9 @@
 import { DomHarness } from '../../../../../tests/shared/dom-harness.js';
 import * as assert from 'node:assert';
-import { Uca } from '../../../../core/uca.js';
-import { Capability } from '../../../../core/capability.js';
-import type { Signal } from '../../../../core/types.js';
+import { Uca } from '@uca/core/uca';
+import type { Disposition, Signal } from '@uca/core/types';
 import { Choice } from '../index.js';
-import { SignalType } from '../types.js';
+import { SignalType, type Body } from '../types.js';
 
 function emitSignal(choice: Choice, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
@@ -21,13 +20,18 @@ function testChoice_Existence(): void {
 
 function testChoice_RenderMaterializesCustomElementWithOptions(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Category selection', {
-        options: ['tech', 'design', 'business'],
-        selected: ['tech', 'design'],
-        multiple: true,
-        title: 'Select categories',
-        disabled: false,
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Category selection',
+            body: {
+                options: ['tech', 'design', 'business'],
+                selected: ['tech', 'design'],
+                multiple: true,
+                title: 'Select categories',
+                disabled: false,
+            },
+        },
+    };
     const choice = new Choice().innervate(undefined, disposition);
     emitSignal(choice, 'element.rendered', { container });
     const element = container.querySelector('ext-choice');
@@ -65,13 +69,18 @@ function testChoice_RemoveDestroysFromDom(): void {
 
 function testChoice_PulsesDomainSignalsPassingProperties(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Domain choice test', {
-        options: ['red', 'green', 'blue'],
-        selected: ['red'],
-        multiple: true,
-        title: 'Color picker',
-        disabled: false,
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Domain choice test',
+            body: {
+                options: ['red', 'green', 'blue'],
+                selected: ['red'],
+                multiple: true,
+                title: 'Color picker',
+                disabled: false,
+            },
+        },
+    };
     const choice = new Choice().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     choice.target?.addEventListener(SignalType.CREATED, (event: Event) => {
@@ -101,11 +110,16 @@ function testChoice_PulsesDomainSignalsPassingProperties(): void {
 
 function testChoice_ReactsToDomainRequestSignals(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Size selector', {
-        options: ['S', 'M', 'L'],
-        selected: ['M'],
-        multiple: false,
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Size selector',
+            body: {
+                options: ['S', 'M', 'L'],
+                selected: ['M'],
+                multiple: false,
+            },
+        },
+    };
     const choice = new Choice().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     choice.target?.addEventListener(SignalType.CREATED, (event: Event) => {

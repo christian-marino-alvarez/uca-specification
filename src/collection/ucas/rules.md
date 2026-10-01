@@ -21,16 +21,20 @@ Una **UCA** (Unidad Cognitiva Autónoma) es la unidad primaria de comportamiento
      import { Uca } from '../../core/uca.js';
      export class Div extends Uca { ... }
      ```
-2. **Propósito Obligatorio e Inmutable (`purpose`)**:
-   * Toda UCA debe declarar su propósito existencial en una propiedad estática inmutable: `public static readonly PURPOSE: string = '...';`.
-   * En el constructor, invoca a `super(id, <Clase>.PURPOSE)` garantizando mantenibilidad, visibilidad externa y reutilización sin strings mágicos duplicados.
+2. **Propósito Obligatorio (`purpose`)**:
+   * Toda UCA debe declarar su propósito existencial en una propiedad estática: `public static override purpose: string = '...';`.
+   * El getter `this.purpose` de la instancia resuelve dinámicamente el propósito de la clase (`(this.constructor as typeof Uca).purpose`).
+   * En el constructor identitario se delega limpiamente: `super(id)`.
 3. **Declaración Fractal de Capacidades mediante `Cooky`**:
    * La UCA debe declarar sus capacidades intrínsecas sobrescribiendo el método:
      ```typescript
      protected override capabilities(): Cooky {
          const capabilityId = `${this.id}:sub-capability`;
          const body = { id: capabilityId, ... };
-         const disposition = Capability.createDisposition('Descripción del aim', body, ['pattern.event']);
+         const disposition: Disposition<Body> = {
+             aim: { description: 'Descripción del aim', body },
+             reactTo: ['pattern.event'],
+         };
          const cooky: Cooky = [[CapabilityClass, disposition]];
          return cooky;
      }
@@ -47,10 +51,10 @@ Una **UCA** (Unidad Cognitiva Autónoma) es la unidad primaria de comportamiento
    * Queda terminantemente prohibido recibir objetos de opciones (`options`) o propiedades de configuración en el constructor.
    * La firma del constructor debe ser exclusivamente:
      ```typescript
-     public static readonly PURPOSE: string = '<propósito teleológico inmutable>';
+     public static override purpose: string = '<propósito teleológico>';
 
      public constructor(id: string = '<default-id>') {
-         super(id, <Clase>.PURPOSE);
+         super(id);
      }
      ```
 6. **Invariante de Ausencia de Estado Local (Las UCAs No Guardan Propiedades)**:
@@ -114,13 +118,23 @@ Una **UCA** (Unidad Cognitiva Autónoma) es la unidad primaria de comportamiento
    * **Prohibición de Colisión o Mezcla en `react()`**: En el `switch-case` de `react(signal)`, las señales de dominio se gestionan en sus ramas dedicadas y las señales técnicas de capacidad se delegan a un método handler especializado (ej. `handleCapabilitySignal(property)`).
 10. **Nomenclatura Semántica de Señales en `innervate()` (`defaultSignals`)**:
     * Las listas de señales a las que una UCA se predispone a reaccionar por defecto deben nombrarse conceptualmente como señales (`defaultSignals`), no como patrones abstractos (`defaultPatterns`). Son señales nerviosas explícitas (`Signal`), no patrones de coincidencia difusos.
-11. **Propiedad Estática de Propósito (`public static readonly PURPOSE`)**:
-    * Para maximizar mantenibilidad, legibilidad e introspección, el propósito de la UCA debe residir en una propiedad estática: `public static readonly PURPOSE: string = '...';`, ubicada en la primera posición de la clase por encima del constructor.
-    * En el constructor identitario se referencia directamente: `super(id, <Clase>.PURPOSE);`.
+11. **Propiedad Estática de Propósito (`public static override purpose`)**:
+    * Para maximizar mantenibilidad, legibilidad e introspección, el propósito de la UCA debe residir en una propiedad estática: `public static override purpose: string = '...';`, ubicada en la primera posición de la clase por encima del constructor.
+    * La clase base `Uca` expone un getter `public get purpose(): string` que resuelve dinámicamente el propósito de la clase, y el constructor identitario delega limpiamente con `super(id)`.
 12. **Estandarización de Identificador por Defecto (`__ID__`)**:
     * El identificador por defecto de la entidad dentro de su archivo `constants.ts` debe nombrarse rigurosamente como `__ID__` (ej. `export const __ID__ = 'box';`), eliminando prefijos redundantes como `DEFAULT_ID`.
-13. **Declaración Explícita de Puertos de Entrada y Salida (`inputs` y `outputs`) en Disposiciones**:
+13. **Declaración Explícita de Puertos con Enumerado `DataType` (`inputs` y `outputs`) en Disposiciones**:
     * Toda UCA declara en su `Disposition` formalmente los estímulos de entrada (`inputs`) que orquesta y las señales de dominio de salida (`outputs`) que emite hacia el bus nervioso, garantizando la descubribilidad e interconectabilidad fractal entre organismos UCA.
+    * Los tipos de datos de los puertos (`type`) deben agruparse en un enumerado formal `DataType` en el archivo `types.ts` del dominio correspondiente (sin usar cadenas mágicas ni firmas inline `{ ... }`).
+14. **Programación Minimalista y Cero Validaciones Defensivas Redundantes**:
+    * En TypeScript estricto, no saturar el código con comprobaciones de tipo de bajo nivel (`typeof x === 'object' && x !== null`). Confiar en los contratos de `types.ts`, coalescencia nula (`??`) y valores fallback en desestructuración.
+15. **Topología Plana y Prohibición de Profundidad Excesiva de Métodos (Profundidad Máxima = 1)**:
+    * El flujo interno de una UCA debe ser plano: `react(signal)` delega en un manejador (`handleX`), y este resuelve y pulsa directamente. A lo sumo puede apoyarse en 1 función auxiliar terminal hoja.
+    * Queda terminantemente prohibido encadenar métodos auxiliares privados (`handleX -> helperA -> helperB -> helperC` está **PROHIBIDO**).
+    * Prohibido crear métodos privados "trampolín" o micro-helpers de 1-2 líneas que solo se usan en un único sitio.
+16. **Construcción Declarativa Directa (Sin Bucles para Mapeos)**:
+    * Prohibido fragmentar la UCA en métodos privados con bucles imperativos (`for..in`, `for..of`, `Object.entries`) para combinar o filtrar propiedades.
+    * Usar siempre patrones declarativos directos (spreading condicional `...(cond && { prop })`, operadores lógicos y mapeos directos).
 
 ---
 

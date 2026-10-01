@@ -82,16 +82,27 @@ Una **Capability** representa una habilidad funcional o mecánica pura, terminal
     * El identificador por defecto de la capability en su archivo `constants.ts` debe nombrarse rigurosamente como `__ID__` (ej. `export const __ID__ = 'web-component';`, `export const __ID__ = 'equal';`), prescindiendo de prefijos redundantes como `DEFAULT_ID`.
 13. **Propiedad Estática de Objetivo Operativo (`public static readonly AIM`)**:
     * Para maximizar mantenibilidad, legibilidad e introspección ontológica, el objetivo operativo descriptivo de la Capability debe residir en una propiedad estática: `public static readonly AIM: string = '...';`, ubicada en la primera posición de la clase por encima del constructor.
-    * Se utiliza en la creación de su disposición o aim por defecto: `Capability.createDisposition<Body>(<Clase>.AIM, ...);`.
-14. **Declaración Explícita de Puertos de Entrada y Salida (`inputs` y `outputs`)**:
+    * Se utiliza en la creación de su disposición o aim por defecto: `{ aim: { description: <Clase>.AIM } }`.
+14. **Declaración Explícita de Puertos con Enumerado `DataType` (`inputs` y `outputs`)**:
     * Para garantizar la descubribilidad, introspección y orquestación declarativa, toda `Disposition` **DEBE** declarar formalmente qué señales de entrada acepta (`inputs`) y qué señales de salida emite (`outputs`).
-    * Se declaran en `createDefaultDisposition()` mediante `DispositionOptions`:
+    * Los tipos de datos de los puertos (`type`) deben agruparse en un enumerado formal `DataType` en el archivo `types.ts` del dominio correspondiente (sin usar cadenas mágicas ni firmas inline `{ ... }`):
       ```typescript
-      Capability.createDisposition<Body>(<Clase>.AIM, {}, [...DEFAULT_SIGNALS], {
-          inputs: [{ signal: SignalType.EVALUATE, description: 'Operands [a, b]' }],
-          outputs: [{ signal: SignalType.EVALUATED, description: 'Outcome { result, rest }' }],
-      });
+      public static override disposition: Disposition<Body> = {
+          aim: { description: <Clase>.AIM },
+          reactTo: [...__DEFAULT_SIGNALS__],
+          inputs: [{ signal: SignalType.EVALUATE, type: DataType.OPERANDS, description: 'Operands [a, b]' }],
+          outputs: [{ signal: SignalType.EVALUATED, type: DataType.BOOLEAN, description: 'Evaluation result' }],
+      };
       ```
+15. **Programación Minimalista y Cero Validaciones Defensivas Redundantes**:
+    * En TypeScript estricto, no saturar los métodos con comprobaciones defensivas de tipo superfluas. Confiar en los contratos de `types.ts`, desestructuración con valores por defecto y coalescencia nula (`??`).
+16. **Topología Plana y Prohibición de Profundidad Excesiva de Métodos (Profundidad Máxima = 1)**:
+    * El flujo interno de una Capability debe ser plano: `react(signal)` delega en un manejador específico (`handleX`), y este resuelve y emite el pulso directamente.
+    * A lo sumo puede apoyarse en 1 función auxiliar terminal hoja. Queda terminantemente prohibido encadenar llamadas entre métodos auxiliares privados (`handleX -> helperA -> helperB -> helperC` está **PROHIBIDO**).
+    * Prohibido crear métodos privados "trampolín" de 1-2 líneas de un solo uso; deben resolverse de forma inline directa.
+17. **Construcción Declarativa Directa (Sin Bucles para Mapeos)**:
+    * Prohibido fragmentar la Capability en métodos privados con bucles imperativos (`for..in`, `for..of`, `Object.entries`) para combinar o filtrar propiedades.
+    * Usar siempre patrones declarativos directos (spreading condicional `...(cond && { prop })`, operadores lógicos y mapeos directos).
 
 ---
 

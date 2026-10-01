@@ -1,4 +1,4 @@
-import type { Disposition } from '../../../core/types.js';
+import type { Disposition } from '@uca/core/types';
 
 export enum SignalType {
     EVENT = 'component.event',
@@ -18,6 +18,14 @@ export enum LifecycleEventType {
     ATTRIBUTE_CHANGED = 'lifecycle.attributeChanged',
     CONTENT_CHANGED = 'lifecycle.contentChanged',
     TAG_CHANGED = 'lifecycle.tagChanged',
+}
+
+export enum DataType {
+    HTML_ELEMENT = 'HTMLElement',
+    RECORD = 'Record<string, unknown>',
+    VOID = 'void',
+    EVENT_CONTEXT = 'EventContext',
+    LIFECYCLE_CONTEXT = 'LifecycleContext',
 }
 
 export interface Body {

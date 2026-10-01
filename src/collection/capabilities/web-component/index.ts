@@ -1,8 +1,9 @@
-import { Capability } from '../../../core/capability.js';
-import type { Disposition, Signal } from '../../../core/types.js';
+import { Capability } from '@uca/core/capability';
+import type { Disposition, Signal } from '@uca/core/types';
 import {
     type Body,
     type EventContext,
+    DataType,
     SignalType,
     LifecycleEventType,
 } from './types.js';
@@ -22,43 +23,38 @@ import {
 export class WebComponent extends Capability<Body> {
     public static readonly AIM: string = 'Manage Web Component';
 
-    private static createDefaultDisposition(): Disposition<Body> {
-        const reactTo = [
+    public static override disposition: Disposition<Body> = {
+        aim: { description: WebComponent.AIM, body: {} },
+        reactTo: [
             SignalType.RENDERED,
             SignalType.UPDATED,
             SignalType.REMOVED,
-        ];
-        const disposition = Capability.createDisposition<Body>(WebComponent.AIM, {}, reactTo, {
-            inputs: [
-                { signal: SignalType.RENDERED, type: 'HTMLElement', description: 'Mount and render Web Component' },
-                { signal: SignalType.UPDATED, type: 'Record<string, unknown>', description: 'Update component attributes and properties' },
-                { signal: SignalType.REMOVED, type: 'void', description: 'Unmount and destroy Web Component' },
-            ],
-            outputs: [
-                { signal: SignalType.EVENT, type: '{ event: string, detail: unknown }', description: 'DOM and custom component events' },
-                { signal: SignalType.CONNECTED, type: 'LifecycleContext', description: 'Web Component connected to DOM lifecycle' },
-                { signal: SignalType.DISCONNECTED, type: 'LifecycleContext', description: 'Web Component disconnected from DOM lifecycle' },
-                { signal: SignalType.ATTRIBUTE_CHANGED, type: 'LifecycleContext', description: 'Observed attribute changed lifecycle' },
-            ],
-        });
-        return disposition;
-    }
-
+        ],
+        inputs: [
+            { signal: SignalType.RENDERED, type: DataType.HTML_ELEMENT, description: 'Mount and render Web Component' },
+            { signal: SignalType.UPDATED, type: DataType.RECORD, description: 'Update component attributes and properties' },
+            { signal: SignalType.REMOVED, type: DataType.VOID, description: 'Unmount and destroy Web Component' },
+        ],
+        outputs: [
+            { signal: SignalType.EVENT, type: DataType.EVENT_CONTEXT, description: 'DOM and custom component events' },
+            { signal: SignalType.CONNECTED, type: DataType.LIFECYCLE_CONTEXT, description: 'Web Component connected to DOM lifecycle' },
+            { signal: SignalType.DISCONNECTED, type: DataType.LIFECYCLE_CONTEXT, description: 'Web Component disconnected from DOM lifecycle' },
+            { signal: SignalType.ATTRIBUTE_CHANGED, type: DataType.LIFECYCLE_CONTEXT, description: 'Observed attribute changed lifecycle' },
+        ],
+    };
 
     private readonly elements: Map<string, HTMLElement>;
     private readonly elementControllers: WeakMap<HTMLElement, AbortController>;
 
     public constructor(id: string = __ID__) {
-        super(id, WebComponent.createDefaultDisposition());
+        super(id);
         this.elements = new Map();
         this.elementControllers = new WeakMap();
     }
 
+
     public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
-        const { reactTo = [] } = this.disposition;
-        const hasPatterns = reactTo.length > 0;
-        const activeDisposition = disposition ?? (hasPatterns ? this.disposition : WebComponent.createDefaultDisposition());
-        super.innervate(target, activeDisposition);
+        super.innervate(target, disposition);
         this.defineComponentTag();
         return this;
     }

@@ -1,6 +1,6 @@
 import * as assert from 'node:assert';
-import { Uca } from '../../../../core/uca.js';
-import type { Signal } from '../../../../core/types.js';
+import { Uca } from '@uca/core/uca';
+import type { Signal } from '@uca/core/types';
 import { Logger } from '../index.js';
 import { SignalType, type LogEntry } from '../types.js';
 import { __ID__ } from '../constants.js';
@@ -14,7 +14,7 @@ function emitSignal(bus: EventTarget, property: string, value: unknown): void {
 function testLogger_IdentityAndDefaults(): void {
     const logger = new Logger();
     assert.strictEqual(logger.id, __ID__);
-    assert.strictEqual(logger.purpose, Logger.PURPOSE);
+    assert.strictEqual(logger.purpose, Logger.purpose);
     assert.ok(logger instanceof Uca);
     logger.innervate();
     assert.strictEqual(logger.disposition.inputs?.length, 1);
@@ -25,13 +25,15 @@ function testLogger_IdentityAndDefaults(): void {
 function testLogger_LogsBusSignals(): void {
     const bus = new EventTarget();
     const loggedEntries: LogEntry[] = [];
-    const logger = new Logger('test-logger').innervate(bus, Logger.createDisposition(
-        Logger.PURPOSE,
-        {
-            onLog: (entry) => loggedEntries.push(entry),
+    const logger = new Logger('test-logger').innervate(bus, {
+        aim: {
+            description: Logger.purpose,
+            body: {
+                onLog: (entry) => loggedEntries.push(entry),
+            },
         },
-        ['*'],
-    ));
+        reactTo: ['*'],
+    });
 
     emitSignal(bus, 'custom.signal', { data: 123 });
     assert.strictEqual(loggedEntries.length, 1);

@@ -1,10 +1,9 @@
 import { DomHarness } from '../../../../../tests/shared/dom-harness.js';
 import * as assert from 'node:assert';
-import { Uca } from '../../../../core/uca.js';
-import { Capability } from '../../../../core/capability.js';
-import type { Signal } from '../../../../core/types.js';
+import { Uca } from '@uca/core/uca';
+import type { Disposition, Signal } from '@uca/core/types';
 import { Toggle } from '../index.js';
-import { SignalType } from '../types.js';
+import { SignalType, type Body } from '../types.js';
 
 function emitSignal(toggle: Toggle, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
@@ -21,12 +20,17 @@ function testToggle_Existence(): void {
 
 function testToggle_RenderMaterializesCustomElementWithOptions(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Newsletter subscription toggle', {
-        checked: true,
-        label: 'Subscribe to newsletter',
-        title: 'Subscription state',
-        disabled: false,
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Newsletter subscription toggle',
+            body: {
+                checked: true,
+                label: 'Subscribe to newsletter',
+                title: 'Subscription state',
+                disabled: false,
+            },
+        },
+    };
     const toggle = new Toggle().innervate(undefined, disposition);
     emitSignal(toggle, 'element.rendered', { container });
     const element = container.querySelector('ext-toggle');
@@ -64,12 +68,17 @@ function testToggle_RemoveDestroysFromDom(): void {
 
 function testToggle_PulsesDomainSignalsPassingProperties(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Domain toggle test', {
-        checked: false,
-        label: 'Dark mode',
-        title: 'Toggle theme',
-        disabled: false,
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Domain toggle test',
+            body: {
+                checked: false,
+                label: 'Dark mode',
+                title: 'Toggle theme',
+                disabled: false,
+            },
+        },
+    };
     const toggle = new Toggle().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     toggle.target?.addEventListener(SignalType.CREATED, (event: Event) => {
@@ -99,10 +108,15 @@ function testToggle_PulsesDomainSignalsPassingProperties(): void {
 
 function testToggle_ReactsToDomainRequestSignals(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Terms agreement', {
-        label: 'Accept terms',
-        checked: true,
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Terms agreement',
+            body: {
+                label: 'Accept terms',
+                checked: true,
+            },
+        },
+    };
     const toggle = new Toggle().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     toggle.target?.addEventListener(SignalType.CREATED, (event: Event) => {
@@ -121,10 +135,15 @@ function testToggle_ReactsToDomainRequestSignals(): void {
 }
 
 function testToggle_ReactsToComponentEvent(): void {
-    const disposition = Capability.createDisposition('Toggle event reaction', {
-        label: 'Enable notifications',
-        checked: false,
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Toggle event reaction',
+            body: {
+                label: 'Enable notifications',
+                checked: false,
+            },
+        },
+    };
     const toggle = new Toggle('toggle-event-test').innervate(undefined, disposition);
     let capturedChange: unknown = undefined;
     toggle.target?.addEventListener(SignalType.CHANGED, (event: Event) => {

@@ -8,6 +8,12 @@ export enum SignalType {
     ERROR = 'app.error',
 }
 
+export enum DataType {
+    VOID = 'void',
+    STRING = 'string',
+    BOOLEAN = 'boolean',
+}
+
 export interface Body {
     readonly title?: string;
     readonly version?: string;

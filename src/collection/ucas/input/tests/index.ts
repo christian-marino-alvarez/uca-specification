@@ -1,10 +1,9 @@
 import { DomHarness } from '../../../../../tests/shared/dom-harness.js';
 import * as assert from 'node:assert';
-import { Uca } from '../../../../core/uca.js';
-import { Capability } from '../../../../core/capability.js';
-import type { Signal } from '../../../../core/types.js';
+import { Uca } from '@uca/core/uca';
+import type { Disposition, Signal } from '@uca/core/types';
 import { Input } from '../index.js';
-import { SignalType } from '../types.js';
+import { SignalType, type Body } from '../types.js';
 
 function emitSignal(input: Input, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
@@ -30,7 +29,9 @@ function testInput_RenderMaterializesCustomElementWithOptions(): void {
         color: '#333333',
         backgroundColor: '#ffffff',
     };
-    const disposition = Capability.createDisposition('Search text input', body);
+    const disposition: Disposition<Body> = {
+        aim: { description: 'Search text input', body },
+    };
     const input = new Input().innervate(undefined, disposition);
     emitSignal(input, 'element.rendered', { container });
     const element = container.querySelector('ext-input');
@@ -72,12 +73,17 @@ function testInput_RemoveDestroysFromDom(): void {
 
 function testInput_PulsesDomainSignalsPassingProperties(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Input with domain properties', {
-        value: 'Search text',
-        placeholder: 'Find...',
-        disabled: true,
-        fontSize: 14,
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Input with domain properties',
+            body: {
+                value: 'Search text',
+                placeholder: 'Find...',
+                disabled: true,
+                fontSize: 14,
+            },
+        },
+    };
     const input = new Input().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     input.target?.addEventListener('input.created', (event: Event) => {
@@ -102,9 +108,14 @@ function testInput_PulsesDomainSignalsPassingProperties(): void {
 
 function testInput_ReactsToDomainRequestSignals(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Input with domain properties', {
-        value: 'Submitted query',
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Input with domain properties',
+            body: {
+                value: 'Submitted query',
+            },
+        },
+    };
     const input = new Input().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     input.target?.addEventListener('input.created', (event: Event) => {
@@ -123,10 +134,15 @@ function testInput_ReactsToDomainRequestSignals(): void {
 }
 
 function testInput_ReactsToComponentEvent(): void {
-    const disposition = Capability.createDisposition('Input event reaction', {
-        value: 'initial',
-        placeholder: 'Type here',
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Input event reaction',
+            body: {
+                value: 'initial',
+                placeholder: 'Type here',
+            },
+        },
+    };
     const input = new Input('input-event-test').innervate(undefined, disposition);
     let capturedChange: unknown = undefined;
     input.target?.addEventListener(SignalType.CHANGED, (event: Event) => {

@@ -15,11 +15,13 @@ class DummyProbeCapability extends Capability {
 }
 
 function testCapability_CreationAndDisposition(): void {
-    const disposition = Capability.createDisposition('Sample Aim', { tag: 'test' }, ['test.signal'], {
+    const disposition: Disposition = {
+        aim: { description: 'Sample Aim', body: { tag: 'test' } },
+        reactTo: ['test.signal'],
         inputs: [{ signal: 'test.input', type: 'string' }],
         outputs: [{ signal: 'test.output', type: 'number', description: 'Emits processed test data' }],
-    });
-    const capability = new DummyProbeCapability('cap-1', disposition);
+    };
+    const capability = new DummyProbeCapability('cap-1').innervate(undefined, disposition);
     assert.strictEqual(capability.id, 'cap-1');
     assert.strictEqual(capability.disposition.aim.description, 'Sample Aim');
     assert.deepStrictEqual(capability.disposition.aim.body, { tag: 'test' });
@@ -31,9 +33,8 @@ function testCapability_CreationAndDisposition(): void {
 
 function testCapability_InnervateAndReaction(): void {
     const bus = new EventTarget();
-    const disposition = Capability.createDisposition('Reaction Aim', undefined, ['test.action']);
-    const capability = new DummyProbeCapability('cap-reaction', disposition);
-    capability.innervate(bus);
+    const disposition: Disposition = { aim: { description: 'Reaction Aim' }, reactTo: ['test.action'] };
+    const capability = new DummyProbeCapability('cap-reaction').innervate(bus, disposition);
     assert.strictEqual(capability.target, bus);
 
     const signal: Signal = { source: 'external', property: 'test.action', value: { ok: true }, timestamp: Date.now() };
@@ -67,9 +68,8 @@ function testCapability_PulseEmitsSignalIntoBus(): void {
 
 function testCapability_DenervateDisconnectsAndClearsTarget(): void {
     const bus = new EventTarget();
-    const disposition = Capability.createDisposition('Disconnect Aim', undefined, ['action']);
-    const capability = new DummyProbeCapability('cap-disc', disposition);
-    capability.innervate(bus);
+    const disposition: Disposition = { aim: { description: 'Disconnect Aim' }, reactTo: ['action'] };
+    const capability = new DummyProbeCapability('cap-disc').innervate(bus, disposition);
     capability.denervate();
 
     assert.strictEqual(capability.target, undefined);

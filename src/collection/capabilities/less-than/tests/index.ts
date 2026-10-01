@@ -1,6 +1,6 @@
 import * as assert from 'node:assert';
-import { Capability } from '../../../../core/capability.js';
-import type { Signal } from '../../../../core/types.js';
+import { Capability } from '@uca/core/capability';
+import type { Signal } from '@uca/core/types';
 import { LessThan, SignalType, __ID__ } from '../index.js';
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
@@ -52,7 +52,7 @@ function testLessThan_EvaluatesObjectPayload(): void {
 
 function testLessThan_UsesFallbackDispositionAimBody(): void {
     const bus = new EventTarget();
-    const disposition = Capability.createDisposition('Compare with fallback', { operands: [5, 15] as const });
+    const disposition: Disposition<Body> = { aim: { description: 'Compare with fallback', body: { operands: [5, 15] as const } }, reactTo: [SignalType.EVALUATE] };
     const lt = new LessThan('lt-fallback').innervate(bus, disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {

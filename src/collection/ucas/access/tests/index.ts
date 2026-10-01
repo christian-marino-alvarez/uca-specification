@@ -1,10 +1,9 @@
 import { DomHarness } from '../../../../../tests/shared/dom-harness.js';
 import * as assert from 'node:assert';
-import { Uca } from '../../../../core/uca.js';
-import { Capability } from '../../../../core/capability.js';
-import type { Signal } from '../../../../core/types.js';
+import { Uca } from '@uca/core/uca';
+import type { Disposition, Signal } from '@uca/core/types';
 import { Access } from '../index.js';
-import { SignalType } from '../types.js';
+import { SignalType, type Body } from '../types.js';
 
 function emitSignal(access: Access, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
@@ -21,11 +20,16 @@ function testAccess_Existence(): void {
 
 function testAccess_RenderMaterializesCustomElementWithOptions(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Resource reference access', {
-        source: 'https://example.com/docs',
-        label: 'Read Documentation',
-        title: 'Documentation resource',
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Resource reference access',
+            body: {
+                source: 'https://example.com/docs',
+                label: 'Read Documentation',
+                title: 'Documentation resource',
+            },
+        },
+    };
     const access = new Access().innervate(undefined, disposition);
     emitSignal(access, 'element.rendered', { container });
     const element = container.querySelector('ext-access');
@@ -64,11 +68,16 @@ function testAccess_RemoveDestroysFromDom(): void {
 
 function testAccess_PulsesDomainSignalsPassingProperties(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Domain access test', {
-        source: 'https://github.com',
-        label: 'GitHub',
-        title: 'Source repository',
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Domain access test',
+            body: {
+                source: 'https://github.com',
+                label: 'GitHub',
+                title: 'Source repository',
+            },
+        },
+    };
     const access = new Access().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     access.target?.addEventListener(SignalType.CREATED, (event: Event) => {
@@ -93,11 +102,16 @@ function testAccess_PulsesDomainSignalsPassingProperties(): void {
 
 function testAccess_ReactsToDomainRequestSignals(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Navigation resource access', {
-        source: 'https://example.com/guide',
-        label: 'User Guide',
-        title: 'Documentation guide',
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Navigation resource access',
+            body: {
+                source: 'https://example.com/guide',
+                label: 'User Guide',
+                title: 'Documentation guide',
+            },
+        },
+    };
     const access = new Access().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     access.target?.addEventListener(SignalType.CREATED, (event: Event) => {

@@ -1,10 +1,9 @@
 import { DomHarness } from '../../../../../tests/shared/dom-harness.js';
 import * as assert from 'node:assert';
-import { Uca } from '../../../../core/uca.js';
-import { Capability } from '../../../../core/capability.js';
-import type { Signal } from '../../../../core/types.js';
+import { Uca } from '@uca/core/uca';
+import type { Disposition, Signal } from '@uca/core/types';
 import { Collector } from '../index.js';
-import { SignalType } from '../types.js';
+import { SignalType, type Body } from '../types.js';
 import { DEFAULT_TRIGGER_SIGNAL } from '../constants.js';
 
 function emitSignal(collector: Collector, property: string, value: unknown): void {
@@ -22,11 +21,16 @@ function testCollector_Existence(): void {
 
 function testCollector_RenderMaterializesCustomElementWithOptions(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Registration data collection', {
-        name: 'user-registration',
-        title: 'User Registration Form',
-        disabled: false,
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Registration data collection',
+            body: {
+                name: 'user-registration',
+                title: 'User Registration Form',
+                disabled: false,
+            },
+        },
+    };
     const collector = new Collector().innervate(undefined, disposition);
     emitSignal(collector, 'element.rendered', { container });
     const element = container.querySelector('ext-collector');
@@ -63,11 +67,16 @@ function testCollector_RemoveDestroysFromDom(): void {
 
 function testCollector_PulsesDomainSignalsPassingProperties(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Domain collector test', {
-        name: 'login-data',
-        title: 'Login Collector',
-        disabled: false,
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Domain collector test',
+            body: {
+                name: 'login-data',
+                title: 'Login Collector',
+                disabled: false,
+            },
+        },
+    };
     const collector = new Collector().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     collector.target?.addEventListener(SignalType.CREATED, (event: Event) => {
@@ -102,10 +111,15 @@ function testCollector_PulsesDomainSignalsPassingProperties(): void {
 
 function testCollector_ReactsToDomainRequestSignals(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Contact collection', {
-        name: 'contact-collector',
-        title: 'Contact Collector',
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Contact collection',
+            body: {
+                name: 'contact-collector',
+                title: 'Contact Collector',
+            },
+        },
+    };
     const collector = new Collector().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     collector.target?.addEventListener(SignalType.CREATED, (event: Event) => {
@@ -126,7 +140,12 @@ function testCollector_ReactsToDomainRequestSignals(): void {
 
 function testCollector_ReactsToActionTriggeredSignal(): void {
     const bus = new EventTarget();
-    const disposition = Capability.createDisposition('Checkout collection', { name: 'checkout' });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Checkout collection',
+            body: { name: 'checkout' },
+        },
+    };
     const collector = new Collector().innervate(bus, disposition);
     let submittedData: unknown = undefined;
     bus.addEventListener(SignalType.SUBMITTED, (event: Event) => {

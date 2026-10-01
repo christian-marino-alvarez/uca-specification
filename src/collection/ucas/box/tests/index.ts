@@ -1,10 +1,10 @@
 import { DomHarness } from '../../../../../tests/shared/dom-harness.js';
 import * as assert from 'node:assert';
-import { Uca } from '../../../../core/uca.js';
-import { Capability } from '../../../../core/capability.js';
-import type { Signal } from '../../../../core/types.js';
-import type { LifecycleContext } from '../../../capabilities/web-component/index.js';
+import { Uca } from '@uca/core/uca';
+import type { Disposition, Signal } from '@uca/core/types';
+import type { LifecycleContext } from '@uca/capability-web-component';
 import { Box } from '../index.js';
+import type { Body } from '../types.js';
 
 function testBox_Existence(): void {
     const box = new Box();
@@ -102,12 +102,17 @@ function testBox_GeneratesMultipleBoxesByUniqueId(): void {
 
 function testBox_RenderMaterializesContainerWithOptions(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Box container', {
-        text: 'Box inner content',
-        role: 'region',
-        className: 'card-container',
-        hidden: true,
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Box container',
+            body: {
+                text: 'Box inner content',
+                role: 'region',
+                className: 'card-container',
+                hidden: true,
+            },
+        },
+    };
     const box = new Box().innervate(undefined, disposition);
     emitSignal(box, 'element.rendered', { container });
     const element = container.querySelector('ext-box');
@@ -122,11 +127,16 @@ function testBox_RenderMaterializesContainerWithOptions(): void {
 
 function testBox_PulsesDomainSignalsPassingProperties(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Box with domain properties', {
-        role: 'main',
-        className: 'layout-box',
-        hidden: false,
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Box with domain properties',
+            body: {
+                role: 'main',
+                className: 'layout-box',
+                hidden: false,
+            },
+        },
+    };
     const box = new Box().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     box.target?.addEventListener('box.created', (event: Event) => {
@@ -151,11 +161,16 @@ function testBox_PulsesDomainSignalsPassingProperties(): void {
 
 function testBox_ReactsToDomainRequestSignals(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Box container', {
-        role: 'region',
-        className: 'card-view',
-        hidden: true,
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Box container',
+            body: {
+                role: 'region',
+                className: 'card-view',
+                hidden: true,
+            },
+        },
+    };
     const box = new Box().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     box.target?.addEventListener('box.created', (event: Event) => {

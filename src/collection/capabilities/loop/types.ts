@@ -10,6 +10,13 @@ export enum SignalType {
     COMPLETED = 'loop.completed',
 }
 
+export enum DataType {
+    LOOP_OPTIONS = 'LoopOptions',
+    VOID = 'void',
+    ITERATION_CONTEXT = 'IterationContext',
+    COMPLETION_CONTEXT = 'CompletionContext',
+}
+
 /**
  * IterationContext: Payload emitido en cada ciclo del bucle.
  */
@@ -19,6 +26,10 @@ export interface IterationContext<T = unknown> {
     total: number;
     isFirst: boolean;
     isLast: boolean;
+}
+
+export interface CompletionContext {
+    readonly total: number;
 }
 
 /**

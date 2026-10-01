@@ -1,19 +1,16 @@
-import { Uca } from '../../../core/uca.js';
-import { Capability } from '../../../core/capability.js';
-import type { Cooky, Disposition, Signal } from '../../../core/types.js';
-import { WebComponent, SignalType as CapabilitySignalType, __ID__ as WEB_COMPONENT_ID } from '../../capabilities/web-component/index.js';
+import { Uca } from '@uca/core/uca';
+import { Capability } from '@uca/core/capability';
+import type { Cooky, Disposition, Signal } from '@uca/core/types';
+import { WebComponent, SignalType as CapabilitySignalType, __ID__ as WEB_COMPONENT_ID } from '@uca/capability-web-component';
 import type { Body } from './types.js';
 import { SignalType } from './types.js';
 
 export class Toggle extends Uca<Body> {
-    public static readonly PURPOSE: string = 'Represent a binary state selection switchable by interaction';
+    public static override purpose: string = 'Represent a binary state selection switchable by interaction';
 
-    public constructor(id: string = 'toggle') {
-        super(id, Toggle.PURPOSE);
-    }
-
-    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
-        const defaultSignals = [
+    public static override disposition: Disposition<Body> = {
+        aim: { description: Toggle.purpose, body: {} },
+        reactTo: [
             SignalType.CREATE,
             SignalType.UPDATE,
             SignalType.REMOVE,
@@ -22,11 +19,13 @@ export class Toggle extends Uca<Body> {
             CapabilitySignalType.UPDATED,
             CapabilitySignalType.REMOVED,
             CapabilitySignalType.EVENT,
-        ];
-        const activeDisposition = disposition ?? Capability.createDisposition(this.purpose, {}, defaultSignals);
-        const configured = activeDisposition.reactTo.length ? activeDisposition : { ...activeDisposition, reactTo: defaultSignals };
-        return super.innervate(target, configured);
+        ],
+    };
+
+    public constructor(id: string = 'toggle') {
+        super(id);
     }
+
 
     protected override react(signal: Signal): void {
         const { property, value } = signal;
@@ -111,10 +110,11 @@ export class Toggle extends Uca<Body> {
 
     protected override capabilities(): Cooky {
         const attributes = this.buildAttributes(WEB_COMPONENT_ID);
-        const { label } = this.disposition.aim.body ?? {};
+        const { aim } = this.disposition;
+        const { label } = aim.body ?? {};
         const body = { id: this.id, text: label, attributes };
         const purpose = 'Render binary toggle element in target presentation tree';
-        const disposition = Capability.createDisposition(purpose, body, this.getReactToSignals());
+        const disposition: Disposition = { aim: { description: purpose, body }, reactTo: [...this.getReactToSignals()] };
         const cooky: Cooky = [[WebComponent, disposition]];
         return cooky;
     }

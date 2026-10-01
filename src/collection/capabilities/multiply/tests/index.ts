@@ -1,6 +1,6 @@
 import * as assert from 'node:assert';
-import { Capability } from '../../../../core/capability.js';
-import type { Signal } from '../../../../core/types.js';
+import { Capability } from '@uca/core/capability';
+import type { Signal } from '@uca/core/types';
 import { Multiply, SignalType, __ID__ } from '../index.js';
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
@@ -35,7 +35,7 @@ function testMultiply_CalculatesProduct(): void {
 
 function testMultiply_UsesFallbackDispositionAimBody(): void {
     const bus = new EventTarget();
-    const disposition = Capability.createDisposition('Multiply fallback', { operands: [8, 9] as const });
+    const disposition: Disposition<Body> = { aim: { description: 'Multiply fallback', body: { operands: [8, 9] as const } }, reactTo: [SignalType.EVALUATE] };
     const multiply = new Multiply('multiply-fallback').innervate(bus, disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {

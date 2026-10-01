@@ -1,10 +1,9 @@
 import { DomHarness } from '../../../../../tests/shared/dom-harness.js';
 import * as assert from 'node:assert';
-import { Uca } from '../../../../core/uca.js';
-import { Capability } from '../../../../core/capability.js';
-import type { Signal } from '../../../../core/types.js';
+import { Uca } from '@uca/core/uca';
+import type { Disposition, Signal } from '@uca/core/types';
 import { Action } from '../index.js';
-import { SignalType } from '../types.js';
+import { SignalType, type Body } from '../types.js';
 
 function emitSignal(action: Action, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
@@ -21,11 +20,16 @@ function testAction_Existence(): void {
 
 function testAction_RenderMaterializesCustomElementWithOptions(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Action triggering', {
-        label: 'Submit Order',
-        title: 'Complete and submit checkout',
-        disabled: true,
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Action triggering',
+            body: {
+                label: 'Submit Order',
+                title: 'Complete and submit checkout',
+                disabled: true,
+            },
+        },
+    };
     const action = new Action().innervate(undefined, disposition);
     emitSignal(action, 'element.rendered', { container });
     const element = container.querySelector('ext-action');
@@ -62,11 +66,16 @@ function testAction_RemoveDestroysFromDom(): void {
 
 function testAction_PulsesDomainSignalsPassingProperties(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Domain action test', {
-        label: 'Open Modal',
-        title: 'Open preview modal',
-        disabled: false,
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Domain action test',
+            body: {
+                label: 'Open Modal',
+                title: 'Open preview modal',
+                disabled: false,
+            },
+        },
+    };
     const action = new Action().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     action.target?.addEventListener(SignalType.CREATED, (event: Event) => {
@@ -96,10 +105,15 @@ function testAction_PulsesDomainSignalsPassingProperties(): void {
 
 function testAction_ReactsToDomainRequestSignals(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Save draft action', {
-        label: 'Save Draft',
-        title: 'Save current state',
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Save draft action',
+            body: {
+                label: 'Save Draft',
+                title: 'Save current state',
+            },
+        },
+    };
     const action = new Action().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     action.target?.addEventListener(SignalType.CREATED, (event: Event) => {
@@ -118,9 +132,14 @@ function testAction_ReactsToDomainRequestSignals(): void {
 }
 
 function testAction_ReactsToComponentEventClick(): void {
-    const disposition = Capability.createDisposition('Action click test', {
-        label: 'Click Me',
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Action click test',
+            body: {
+                label: 'Click Me',
+            },
+        },
+    };
     const action = new Action('action-click-test').innervate(undefined, disposition);
     let capturedPayload: unknown = undefined;
     action.target?.addEventListener(SignalType.TRIGGERED, (event: Event) => {

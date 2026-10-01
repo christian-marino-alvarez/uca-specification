@@ -1,19 +1,16 @@
-import { Uca } from '../../../core/uca.js';
-import { Capability } from '../../../core/capability.js';
-import type { Cooky, Disposition, Signal } from '../../../core/types.js';
-import { WebComponent, SignalType as CapabilitySignalType, __ID__ as WEB_COMPONENT_ID } from '../../capabilities/web-component/index.js';
+import { Uca } from '@uca/core/uca';
+import { Capability } from '@uca/core/capability';
+import type { Cooky, Disposition, Signal } from '@uca/core/types';
+import { WebComponent, SignalType as CapabilitySignalType, __ID__ as WEB_COMPONENT_ID } from '@uca/capability-web-component';
 import type { Body } from './types.js';
 import { SignalType } from './types.js';
 
 export class Input extends Uca<Body> {
-    public static readonly PURPOSE: string = 'Capture entered textual data, its typography, appearance and make it available to the system';
+    public static override purpose: string = 'Capture entered textual data, its typography, appearance and make it available to the system';
 
-    public constructor(id: string = 'input') {
-        super(id, Input.PURPOSE);
-    }
-
-    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
-        const defaultSignals = [
+    public static override disposition: Disposition<Body> = {
+        aim: { description: Input.purpose, body: {} },
+        reactTo: [
             SignalType.CREATE,
             SignalType.UPDATE,
             SignalType.REMOVE,
@@ -22,11 +19,13 @@ export class Input extends Uca<Body> {
             CapabilitySignalType.UPDATED,
             CapabilitySignalType.REMOVED,
             CapabilitySignalType.EVENT,
-        ];
-        const activeDisposition = disposition ?? Capability.createDisposition(this.purpose, {}, defaultSignals);
-        const configured = activeDisposition.reactTo.length ? activeDisposition : { ...activeDisposition, reactTo: defaultSignals };
-        return super.innervate(target, configured);
+        ],
+    };
+
+    public constructor(id: string = 'input') {
+        super(id);
     }
+
 
     protected override react(signal: Signal): void {
         const { property, value } = signal;
@@ -115,7 +114,7 @@ export class Input extends Uca<Body> {
         const attributes = this.buildAttributes(WEB_COMPONENT_ID);
         const body = { id: this.id, attributes };
         const purpose = 'Render interactive input in target presentation tree';
-        const disposition = Capability.createDisposition(purpose, body, this.getReactToSignals());
+        const disposition: Disposition = { aim: { description: purpose, body }, reactTo: [...this.getReactToSignals()] };
         const cooky: Cooky = [[WebComponent, disposition]];
         return cooky;
     }

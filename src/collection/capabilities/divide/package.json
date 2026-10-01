@@ -34,5 +34,8 @@
   },
   "dependencies": {
     "@uca/core": "^0.1.0"
+  },
+  "scripts": {
+    "test": "tsx tests/index.ts"
   }
 }

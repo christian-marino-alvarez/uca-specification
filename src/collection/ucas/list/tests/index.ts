@@ -1,9 +1,9 @@
 import { DomHarness } from '../../../../../tests/shared/dom-harness.js';
 import * as assert from 'node:assert';
-import { Uca } from '../../../../core/uca.js';
-import { Capability } from '../../../../core/capability.js';
-import type { Signal } from '../../../../core/types.js';
+import { Uca } from '@uca/core/uca';
+import type { Disposition, Signal } from '@uca/core/types';
 import { List } from '../index.js';
+import type { Body } from '../types.js';
 
 function emitSignal(list: List, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
@@ -29,7 +29,9 @@ function testList_RenderMaterializesCustomElementWithOptions(): void {
         color: '#222222',
         backgroundColor: '#f5f5f5',
     };
-    const disposition = Capability.createDisposition('Numbered list of items', body);
+    const disposition: Disposition<Body> = {
+        aim: { description: 'Numbered list of items', body },
+    };
     const list = new List().innervate(undefined, disposition);
     emitSignal(list, 'element.rendered', { container });
     const element = container.querySelector('ext-list');
@@ -70,15 +72,20 @@ function testList_RemoveDestroysFromDom(): void {
 
 function testList_PulsesDomainSignalsPassingProperties(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('List with domain properties', {
-        items: ['First', 'Second'],
-        ordered: true,
-        fontSize: 14,
-        spacing: 8,
-        alignment: 'left' as const,
-        color: '#111111',
-        backgroundColor: '#eeeeee',
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'List with domain properties',
+            body: {
+                items: ['First', 'Second'],
+                ordered: true,
+                fontSize: 14,
+                spacing: 8,
+                alignment: 'left' as const,
+                color: '#111111',
+                backgroundColor: '#eeeeee',
+            },
+        },
+    };
     const list = new List().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     list.target?.addEventListener('list.created', (event: Event) => {
@@ -103,9 +110,14 @@ function testList_PulsesDomainSignalsPassingProperties(): void {
 
 function testList_ReactsToDomainRequestSignals(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('List with domain properties', {
-        items: ['Item A', 'Item B'],
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'List with domain properties',
+            body: {
+                items: ['Item A', 'Item B'],
+            },
+        },
+    };
     const list = new List().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     list.target?.addEventListener('list.created', (event: Event) => {

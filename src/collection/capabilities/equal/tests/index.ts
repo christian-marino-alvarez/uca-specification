@@ -1,7 +1,7 @@
 import * as assert from 'node:assert';
-import { Capability } from '../../../../core/capability.js';
-import type { Signal } from '../../../../core/types.js';
-import { Equal, SignalType, __ID__ } from '../index.js';
+import { Capability } from '@uca/core/capability';
+import type { Signal } from '@uca/core/types';
+import { Equal, DataType, SignalType, __ID__ } from '../index.js';
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
@@ -12,8 +12,9 @@ function testEqual_IdentityAndDefaults(): void {
     const equal = new Equal();
     assert.strictEqual(equal.id, __ID__);
     assert.ok(equal instanceof Capability);
-    assert.deepStrictEqual(equal.disposition.inputs, [{ signal: SignalType.EVALUATE, type: 'Operands', description: 'Operands [first, second]' }]);
-    assert.deepStrictEqual(equal.disposition.outputs, [{ signal: SignalType.EVALUATED, type: 'boolean', description: 'Boolean result of equality evaluation' }]);
+    equal.innervate();
+    assert.deepStrictEqual(equal.disposition.inputs, [{ signal: SignalType.EVALUATE, type: DataType.OPERANDS, description: 'Operands [first, second]' }]);
+    assert.deepStrictEqual(equal.disposition.outputs, [{ signal: SignalType.EVALUATED, type: DataType.BOOLEAN, description: 'Boolean result of equality evaluation' }]);
     equal.denervate();
 }
 
@@ -48,7 +49,7 @@ function testEqual_EvaluatesPayloadObjectOperands(): void {
 
 function testEqual_FallbackToDispositionOperands(): void {
     const bus = new EventTarget();
-    const disposition = Capability.createDisposition('Equality check', { operands: [42, 42] as const });
+    const disposition: Disposition<Body> = { aim: { description: 'Equality check', body: { operands: [42, 42] as const } }, reactTo: [SignalType.EVALUATE] };
     const equal = new Equal().innervate(bus, disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {

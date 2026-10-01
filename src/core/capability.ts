@@ -1,56 +1,76 @@
 import type {
+    Aim,
     Disposition,
-    DispositionOptions,
     ICapability,
-    Port,
-    PortDeclaration,
     Signal,
 } from './types.js';
 
 export abstract class Capability<TBody = unknown> implements ICapability<TBody> {
+    public static disposition: Disposition<unknown> = {
+        aim: { description: 'Default' },
+        reactTo: [],
+    };
+
+    private static mergeAim<T>(current?: Aim<T>, incoming?: Aim<T>): Aim<T> {
+        const description = incoming?.description ?? current?.description ?? '';
+        const currentBody = current?.body ?? {};
+        const incomingBody = incoming?.body ?? {};
+        const hasBody = current?.body !== undefined || incoming?.body !== undefined;
+        const body = hasBody ? { ...currentBody, ...incomingBody } as T : undefined;
+        return body !== undefined ? { description, body } : { description };
+    }
+
+    private static mergeReactTo(current?: readonly string[], incoming?: readonly string[]): string[] {
+        if (!incoming?.length) {
+            return current?.length ? [...current] : [];
+        }
+        if (!current?.length) {
+            return [...incoming];
+        }
+        return [...new Set([...current, ...incoming])];
+    }
+
+    public static buildDisposition<T>(current: Disposition<T>, incoming?: Partial<Disposition<T>>): Disposition<T> {
+        const { aim: incomingAim, reactTo: incomingReactTo, inputs, outputs } = incoming ?? {};
+        const aim = Capability.mergeAim(current?.aim, incomingAim);
+        const reactTo = Capability.mergeReactTo(current?.reactTo, incomingReactTo);
+        const activeInputs = inputs ?? current?.inputs;
+        const activeOutputs = outputs ?? current?.outputs;
+        return { aim, reactTo, inputs: activeInputs, outputs: activeOutputs };
+    }
+
+    public static extractPayload<T = unknown>(value: unknown): T | undefined {
+        if (!value || typeof value !== 'object') {
+            return value as T | undefined;
+        }
+        const hasBody = 'body' in value;
+        const extracted = hasBody ? (value as { body: T }).body : (value as T);
+        return extracted;
+    }
+
     public readonly id: string;
-    public disposition: Disposition<TBody>;
     public target?: EventTarget;
+    private _disposition: Disposition<TBody>;
     private boundPatterns: string[];
     private readonly eventListener: (event: Event) => void;
 
-    private static normalizePorts(ports?: readonly PortDeclaration[]): Port[] | undefined {
-        if (!ports) {
-            return undefined;
-        }
-        return [...ports];
-    }
-
-
-    public static createDisposition<T>(
-        description: string,
-        body?: T,
-        reactTo: readonly string[] = [],
-        options?: DispositionOptions,
-    ): Disposition<T> {
-        const aim = body !== undefined ? { description, body } : { description };
-        const inputs = Capability.normalizePorts(options?.inputs);
-        const outputs = Capability.normalizePorts(options?.outputs);
-        const initialReactTo = reactTo.length ? [...reactTo] : (inputs?.map((port) => port.signal) ?? []);
-        const disposition: Disposition<T> = { reactTo: initialReactTo, aim, inputs, outputs };
-        return disposition;
-    }
-
-    constructor(id: string, disposition?: Disposition<TBody>) {
+    public constructor(id: string) {
         this.id = id;
-        this.disposition = disposition ?? Capability.createDisposition('Default');
+        this._disposition = (this.constructor as typeof Capability).disposition as Disposition<TBody>;
         this.boundPatterns = [];
         this.eventListener = (event: Event) => this.handleEvent(event);
     }
 
-    public innervate(target?: EventTarget, disposition?: Disposition<TBody>): this {
+    public innervate(
+        target?: EventTarget,
+        disposition: Disposition<TBody> = (this.constructor as typeof Capability).disposition as Disposition<TBody>,
+    ): this {
         this.disconnectReceptors();
         if (target) {
             this.target = target;
         }
-        if (disposition) {
-            this.disposition = disposition;
-        }
+        const incoming = disposition ?? (this.constructor as typeof Capability).disposition as Disposition<TBody>;
+        this._disposition = Capability.buildDisposition(this._disposition, incoming);
         this.connectReceptors();
         return this;
     }
@@ -61,6 +81,14 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
     }
 
     protected abstract react(signal: Signal): void | Promise<void>;
+
+    public get disposition(): Disposition<TBody> {
+        return this._disposition;
+    }
+
+    public set disposition(value: Disposition<TBody>) {
+        this._disposition = value;
+    }
 
     protected pulse(property: string, value: unknown): Signal | undefined {
         const { target, id } = this;
@@ -73,29 +101,12 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
         return signal;
     }
 
-    public static extractPayload<T = unknown>(value: unknown): T | undefined {
-        if (!value || typeof value !== 'object') {
-            return value as T | undefined;
-        }
-        const hasBody = 'body' in value;
-        const extracted = hasBody ? (value as { body: T }).body : (value as T);
-        return extracted;
-    }
-
     protected extractPayload<T = TBody>(value: unknown): T | undefined {
         const payload = Capability.extractPayload<T>(value);
         return payload;
     }
 
-    protected createDisposition(
-        description: string,
-        body?: TBody,
-        reactTo: readonly string[] = [],
-        options?: DispositionOptions,
-    ): Disposition<TBody> {
-        const disposition = Capability.createDisposition(description, body, reactTo, options);
-        return disposition;
-    }
+
 
     private connectReceptors(): void {
         const { reactTo = [] } = this.disposition;

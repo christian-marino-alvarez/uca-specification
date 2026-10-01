@@ -1,34 +1,32 @@
 import { DomHarness } from '../../../../../tests/shared/dom-harness.js';
 import * as assert from 'node:assert';
-import { Capability } from '../../../../core/capability.js';
-import type { Signal } from '../../../../core/types.js';
+import { Capability } from '@uca/core/capability';
+import type { Signal } from '@uca/core/types';
 import type { Body, LifecycleContext, EventContext } from '../index.js';
 import {
+    DataType,
     SignalType,
     WebComponent,
     WebComponents,
-    copyElementState,
-    synchronizeElementAttributes,
-    synchronizeElementText,
-    mountElementToContainer,
 } from '../index.js';
 
 function testWebComponent_IdentityAndPorts(): void {
     const component = new WebComponent();
     assert.strictEqual(component.id, 'web-component');
+    component.innervate();
     assert.ok(component.disposition.inputs !== undefined);
     assert.strictEqual(component.disposition.inputs.length, 3);
-    assert.strictEqual(component.disposition.inputs[0]?.type, 'HTMLElement');
+    assert.strictEqual(component.disposition.inputs[0]?.type, DataType.HTML_ELEMENT);
     assert.ok(component.disposition.outputs !== undefined);
     assert.strictEqual(component.disposition.outputs.length, 4);
-    assert.strictEqual(component.disposition.outputs[0]?.type, '{ event: string, detail: unknown }');
+    assert.strictEqual(component.disposition.outputs[0]?.type, DataType.EVENT_CONTEXT);
     component.denervate();
 }
 
 function createComponentWithDisposition(id: string, bus: EventTarget, body: Body): WebComponents {
     const component = new WebComponents(id);
 
-    const disposition = Capability.createDisposition<Body>('Test', body, ['element.rendered', 'element.updated']);
+    const disposition: Disposition<Body> = { aim: { description: 'Test', body }, reactTo: ['element.rendered', 'element.updated'] };
     component.innervate(bus, disposition);
     return component;
 }
@@ -42,7 +40,7 @@ function assertInertQueries(container: HTMLElement, bus: EventTarget): void {
 
 function testWebComponent_InertUntilReaction(): void {
     const [container, bus, component] = [DomHarness.createContainer(), new EventTarget(), new WebComponents('inert-test')];
-    const disposition = Capability.createDisposition<Body>('Inert', { container, tag: 'ext-test-inert' }, ['element.rendered']);
+    const disposition: Disposition<Body> = { aim: { description: 'Inert', body: { container, tag: 'ext-test-inert' } }, reactTo: ['element.rendered'] };
     component.innervate(bus, disposition);
     assertInertQueries(container, bus);
     const matching: Signal = { source: 'test', property: 'element.rendered', value: { text: 'Materialized' }, timestamp: 0 };
@@ -67,7 +65,7 @@ function testWebComponent_CustomElementRegistrationAndIdentity(): void {
 function testWebComponent_RegistrationIdempotency(): void {
     const [container, bus] = [DomHarness.createContainer(), new EventTarget()];
     const [comp1, comp2] = [new WebComponents('c1'), new WebComponents('c2')];
-    const disposition = Capability.createDisposition<Body>('Idem', { container, tag: 'ext-test-idempotent' }, ['element.rendered']);
+    const disposition: Disposition<Body> = { aim: { description: 'Idem', body: { container, tag: 'ext-test-idempotent' } }, reactTo: ['element.rendered'] };
     comp1.innervate(bus, disposition);
     comp2.innervate(bus, disposition);
     const signal: Signal = { source: 'test', property: 'element.rendered', value: null, timestamp: 0 };
@@ -272,7 +270,7 @@ function testWebComponent_DispositionResolvedAtInnervation(): void {
     const container = DomHarness.createContainer();
     const [component, bus] = [new WebComponent('ext-dynamic'), new EventTarget()];
     const patterns = ['element.rendered'];
-    const disposition = Capability.createDisposition<Body>('Custom', { tag: 'ext-test-innervated', container }, patterns);
+    const disposition: Disposition<Body> = { aim: { description: 'Custom', body: { tag: 'ext-test-innervated', container } }, reactTo: patterns };
     component.innervate(bus, disposition);
     emitRender(bus, 'Innervated');
     const element = container.querySelector('ext-test-innervated');
@@ -283,7 +281,8 @@ function testWebComponent_DispositionResolvedAtInnervation(): void {
 
 function testWebComponent_RemoveComponentAbortsListenersAndRemovesFromDom(): void {
     const [container, bus, tag] = [DomHarness.createContainer(), new EventTarget(), 'ext-test-remove'];
-    const component = new WebComponents('remove-test').innervate(bus, Capability.createDisposition('Remove', { container, tag }, ['element.rendered', 'element.updated', 'element.removed']));
+    const removeDisposition: Disposition<Body> = { aim: { description: 'Remove', body: { container, tag } }, reactTo: ['element.rendered', 'element.updated', 'element.removed'] };
+    const component = new WebComponents('remove-test').innervate(bus, removeDisposition);
     bus.dispatchEvent(new CustomEvent('element.rendered', { detail: { source: 'test', property: 'element.rendered', value: null, timestamp: 0 } }));
     bus.dispatchEvent(new CustomEvent('element.removed', { detail: { source: 'test', property: 'element.removed', value: { id: 'remove-test' }, timestamp: 0 } }));
     assert.strictEqual(container.querySelector(tag), null);

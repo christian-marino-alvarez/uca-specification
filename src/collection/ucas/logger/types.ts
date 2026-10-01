@@ -1,8 +1,13 @@
-import type { Signal } from '../../../core/types.js';
+import type { Signal } from '@uca/core/types';
 
 export enum SignalType {
     LOG = 'logger.log',
     CLEAR = 'logger.clear',
+}
+
+export enum DataType {
+    SIGNAL = 'Signal',
+    LOG_ENTRY = 'LogEntry',
 }
 
 export type LogFilter = (signal: Signal) => boolean;

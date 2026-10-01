@@ -47,19 +47,23 @@ El dominio `src/core` contiene **única y exclusivamente las primitivas ontológ
    * Todo tipo debe declararse explícitamente en `src/core/types.ts`. Prohibido el uso de `any`.
 6. **Manejo de Errores Reactivo**:
    * Cualquier fallo en la ejecución de `react()` debe emitir una señal de error mediante `this.pulse('error', error)`.
+7. **Prohibición Estricta de Modificaciones Sin Aprobación Previa**:
+   * Queda terminantemente prohibido aplicar cambios, ediciones o refactorizaciones en el código sin mostrarlos antes de forma clara y detallada.
+   * El agente **NUNCA** debe modificar ficheros sin presentar previamente la propuesta exacta de cambios para que sea revisada y aceptada por el usuario.
 
 ---
 
 ## 4. Guía para Crear o Modificar Primitivas en Core
 
 Cuando un agente necesite intervenir en `src/core`:
-1. **Verificar `types.ts`**: Si se introduce un nuevo concepto ontológico, modelar primero su interfaz inmutable en `src/core/types.ts`.
-2. **Implementar en archivo dedicado**: Cada primitiva residirá en su archivo homónimo (ej. `uca.ts`, `capability.ts`).
-3. **Actualizar `index.ts`**: Re-exportar las definiciones públicas usando extensiones `.js` relativas:
+1. **Propuesta y Aprobación Previa (Obligatorio)**: Mostrar al usuario la propuesta exacta de cambios a realizar y esperar su aceptación antes de tocar ningún fichero.
+2. **Verificar `types.ts`**: Si se introduce un nuevo concepto ontológico, modelar primero su interfaz inmutable en `src/core/types.ts`.
+3. **Implementar en archivo dedicado**: Cada primitiva residirá en su archivo homónimo (ej. `uca.ts`, `capability.ts`).
+4. **Actualizar `index.ts`**: Re-exportar las definiciones públicas usando extensiones `.js` relativas:
    ```typescript
    export * from './types.js';
    export * from './capability.js';
    export * from './uca.js';
    ```
-4. **Verificación en Tests**: Todo cambio debe estar acompañado de su prueba correspondiente en `src/core/tests/uca.test.ts`.
+5. **Verificación en Tests**: Todo cambio debe estar acompañado de su prueba correspondiente en `src/core/tests/uca.test.ts`.
    * Ejecutar: `npm run test:core`.

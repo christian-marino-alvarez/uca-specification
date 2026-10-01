@@ -1,20 +1,17 @@
-import { Uca } from '../../../core/uca.js';
-import { Capability } from '../../../core/capability.js';
-import type { Cooky, Disposition, Signal } from '../../../core/types.js';
-import { WebComponent, SignalType as CapabilitySignalType, __ID__ as WEB_COMPONENT_ID } from '../../capabilities/web-component/index.js';
+import { Uca } from '@uca/core/uca';
+import { Capability } from '@uca/core/capability';
+import type { Cooky, Disposition, Signal } from '@uca/core/types';
+import { WebComponent, SignalType as CapabilitySignalType, __ID__ as WEB_COMPONENT_ID } from '@uca/capability-web-component';
 import { DEFAULT_TRIGGER_SIGNAL } from './constants.js';
 import type { Body } from './types.js';
 import { SignalType } from './types.js';
 
 export class Collector extends Uca<Body> {
-    public static readonly PURPOSE: string = 'Aggregate and encapsulate interactive input data collection';
+    public static override purpose: string = 'Aggregate and encapsulate interactive input data collection';
 
-    public constructor(id: string = 'collector') {
-        super(id, Collector.PURPOSE);
-    }
-
-    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
-        const defaultSignals = [
+    public static override disposition: Disposition<Body> = {
+        aim: { description: Collector.purpose, body: {} },
+        reactTo: [
             SignalType.CREATE,
             SignalType.UPDATE,
             SignalType.REMOVE,
@@ -24,11 +21,13 @@ export class Collector extends Uca<Body> {
             CapabilitySignalType.RENDERED,
             CapabilitySignalType.UPDATED,
             CapabilitySignalType.REMOVED,
-        ];
-        const activeDisposition = disposition ?? Capability.createDisposition(this.purpose, {}, defaultSignals);
-        const configured = activeDisposition.reactTo.length ? activeDisposition : { ...activeDisposition, reactTo: defaultSignals };
-        return super.innervate(target, configured);
+        ],
+    };
+
+    public constructor(id: string = 'collector') {
+        super(id);
     }
+
 
     protected override react(signal: Signal): void {
         const { property, value } = signal;
@@ -119,7 +118,7 @@ export class Collector extends Uca<Body> {
         const attributes = this.buildAttributes(WEB_COMPONENT_ID);
         const body = { id: this.id, attributes };
         const purpose = 'Render data collector container element in target presentation tree';
-        const disposition = Capability.createDisposition(purpose, body, this.getReactToSignals());
+        const disposition: Disposition = { aim: { description: purpose, body }, reactTo: [...this.getReactToSignals()] };
         const cooky: Cooky = [[WebComponent, disposition]];
         return cooky;
     }

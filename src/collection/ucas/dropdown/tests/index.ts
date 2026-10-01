@@ -1,9 +1,9 @@
 import { DomHarness } from '../../../../../tests/shared/dom-harness.js';
 import * as assert from 'node:assert';
-import { Uca } from '../../../../core/uca.js';
-import { Capability } from '../../../../core/capability.js';
-import type { Signal } from '../../../../core/types.js';
+import { Uca } from '@uca/core/uca';
+import type { Disposition, Signal } from '@uca/core/types';
 import { Dropdown } from '../index.js';
+import type { Body } from '../types.js';
 
 function emitSignal(dropdown: Dropdown, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
@@ -31,7 +31,9 @@ function testDropdown_RenderMaterializesCustomElementWithOptions(): void {
         color: '#111111',
         backgroundColor: '#ffffff',
     };
-    const disposition = Capability.createDisposition('Country dropdown element', body);
+    const disposition: Disposition<Body> = {
+        aim: { description: 'Country dropdown element', body },
+    };
     const dropdown = new Dropdown().innervate(undefined, disposition);
     emitSignal(dropdown, 'element.rendered', { container });
     const element = container.querySelector('ext-dropdown');
@@ -74,12 +76,17 @@ function testDropdown_RemoveDestroysFromDom(): void {
 
 function testDropdown_PulsesDomainSignalsPassingProperties(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Dropdown with domain properties', {
-        value: 'option-1',
-        items: ['option-1', 'option-2'],
-        placeholder: 'Select...',
-        required: true,
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Dropdown with domain properties',
+            body: {
+                value: 'option-1',
+                items: ['option-1', 'option-2'],
+                placeholder: 'Select...',
+                required: true,
+            },
+        },
+    };
     const dropdown = new Dropdown().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     dropdown.target?.addEventListener('dropdown.created', (event: Event) => {
@@ -104,9 +111,14 @@ function testDropdown_PulsesDomainSignalsPassingProperties(): void {
 
 function testDropdown_ReactsToDomainRequestSignals(): void {
     const container = DomHarness.createContainer();
-    const disposition = Capability.createDisposition('Dropdown with domain properties', {
-        value: 'active-option',
-    });
+    const disposition: Disposition<Body> = {
+        aim: {
+            description: 'Dropdown with domain properties',
+            body: {
+                value: 'active-option',
+            },
+        },
+    };
     const dropdown = new Dropdown().innervate(undefined, disposition);
     const captured: { property: string; value: unknown }[] = [];
     dropdown.target?.addEventListener('dropdown.created', (event: Event) => {
