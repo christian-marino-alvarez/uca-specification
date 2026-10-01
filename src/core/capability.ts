@@ -129,8 +129,7 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
     }
 
     private handleEvent(event: Event): void {
-        const customEvent = event as CustomEvent<Signal>;
-        const { detail: signal } = customEvent;
+        const signal = this.validateSignal(event);
         if (!signal) {
             return;
         }
@@ -148,10 +147,23 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
         }
     }
 
+    private validateSignal(event: Event): Signal | undefined {
+        const customEvent = event as CustomEvent<Signal>;
+        const { detail: signal } = customEvent;
+        if (!signal) {
+            return undefined;
+        }
+        const { targetId } = (signal.value ?? {}) as { targetId?: string };
+        if (targetId !== undefined && targetId !== this.id) {
+            return undefined;
+        }
+        return signal;
+    }
+
     private handleDispositionUpdate(signal: Signal): void {
         const payload = signal.value as DispositionUpdatePayload<TBody> | undefined;
-        const { targetId, disposition } = payload ?? {};
-        if (targetId !== this.id || !disposition) {
+        const { disposition } = payload ?? {};
+        if (!disposition) {
             return;
         }
         this.innervate(undefined, disposition as Disposition<TBody>);
