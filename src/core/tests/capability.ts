@@ -1,6 +1,6 @@
 import * as assert from 'node:assert';
 import { Capability } from '../capability.js';
-import type { Disposition, Signal } from '../types.js';
+import { DispositionSignal, type Disposition, type Signal } from '../types.js';
 
 class DummyProbeCapability extends Capability {
     public reactedSignal?: Signal;
@@ -106,21 +106,21 @@ function testCapability_DispositionUpdate(): void {
     });
 
     let updatedPayload: unknown;
-    bus.addEventListener('disposition.updated', (event: Event) => {
+    bus.addEventListener(DispositionSignal.UPDATED, (event: Event) => {
         const customEvent = event as CustomEvent<Signal>;
         updatedPayload = customEvent.detail.value;
     });
 
     const updateSignal: Signal = {
         source: 'orchestrator',
-        property: 'disposition.update',
+        property: DispositionSignal.UPDATE,
         value: {
             targetId: 'cap-target',
             disposition: { reactTo: ['new.signal'], aim: { description: 'Updated Target', body: { v: 2 } } },
         },
         timestamp: Date.now(),
     };
-    bus.dispatchEvent(new CustomEvent('disposition.update', { detail: updateSignal }));
+    bus.dispatchEvent(new CustomEvent(DispositionSignal.UPDATE, { detail: updateSignal }));
 
     assert.ok(updatedPayload);
     assert.strictEqual(targetCap.disposition.aim.description, 'Updated Target');
@@ -143,18 +143,18 @@ function testCapability_DispositionQuery(): void {
     });
 
     const announcements: unknown[] = [];
-    bus.addEventListener('disposition.announce', (event: Event) => {
+    bus.addEventListener(DispositionSignal.ANNOUNCE, (event: Event) => {
         const customEvent = event as CustomEvent<Signal>;
         announcements.push(customEvent.detail.value);
     });
 
     const querySignal: Signal = {
         source: 'inspector',
-        property: 'disposition.query',
+        property: DispositionSignal.QUERY,
         value: {},
         timestamp: Date.now(),
     };
-    bus.dispatchEvent(new CustomEvent('disposition.query', { detail: querySignal }));
+    bus.dispatchEvent(new CustomEvent(DispositionSignal.QUERY, { detail: querySignal }));
 
     assert.strictEqual(announcements.length, 1);
     const first = announcements[0] as { id: string; disposition: Disposition };

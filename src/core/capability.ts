@@ -1,10 +1,11 @@
-import type {
-    Aim,
-    Disposition,
-    DispositionAnnouncePayload,
-    DispositionUpdatePayload,
-    ICapability,
-    Signal,
+import {
+    DispositionSignal,
+    type Aim,
+    type Disposition,
+    type DispositionAnnouncePayload,
+    type DispositionUpdatePayload,
+    type ICapability,
+    type Signal,
 } from './types.js';
 
 export abstract class Capability<TBody = unknown> implements ICapability<TBody> {
@@ -108,7 +109,7 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
         return payload;
     }
 
-    private static readonly CONTROL_SIGNALS = ['disposition.update', 'disposition.query'] as const;
+    private static readonly CONTROL_SIGNALS = [DispositionSignal.UPDATE, DispositionSignal.QUERY] as const;
 
     private connectReceptors(): void {
         const { reactTo = [] } = this.disposition;
@@ -139,11 +140,11 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
 
     private handleControlSignal(signal: Signal): boolean {
         const { property } = signal;
-        if (property === 'disposition.update') {
+        if (property === DispositionSignal.UPDATE) {
             this.handleDispositionUpdate(signal);
             return true;
         }
-        if (property === 'disposition.query') {
+        if (property === DispositionSignal.QUERY) {
             this.handleDispositionQuery();
             return true;
         }
@@ -158,12 +159,12 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
         }
         this.innervate(undefined, disposition as Disposition<TBody>);
         const updatedPayload: DispositionAnnouncePayload<TBody> = { id: this.id, disposition: this.disposition };
-        this.pulse('disposition.updated', updatedPayload);
+        this.pulse(DispositionSignal.UPDATED, updatedPayload);
     }
 
     private handleDispositionQuery(): void {
         const announcePayload: DispositionAnnouncePayload<TBody> = { id: this.id, disposition: this.disposition };
-        this.pulse('disposition.announce', announcePayload);
+        this.pulse(DispositionSignal.ANNOUNCE, announcePayload);
     }
 
     private async executeReaction(signal: Signal): Promise<void> {
