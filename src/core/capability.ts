@@ -57,7 +57,6 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
     private _disposition: Disposition<TBody>;
     private boundPatterns: string[];
     private readonly eventListener: (event: Event) => void;
-    private storageCapability?: ICapability;
 
     public constructor(id: string) {
         this.id = id;
@@ -77,14 +76,11 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
         const incoming = disposition ?? (this.constructor as typeof Capability).disposition as Disposition<TBody>;
         this._disposition = Capability.buildDisposition(this._disposition, incoming);
         this.connectReceptors();
-        this.innervateStorage();
         return this;
     }
 
     public denervate(): void {
         this.disconnectReceptors();
-        this.storageCapability?.denervate();
-        this.storageCapability = undefined;
         this.target = undefined;
     }
 
@@ -160,22 +156,6 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
             return undefined;
         }
         return signal;
-    }
-
-    protected shouldInnervateStorage(): boolean {
-        return !this.id.endsWith(':storage');
-    }
-
-    private async innervateStorage(): Promise<void> {
-        const { target } = this;
-        if (!target || !this.shouldInnervateStorage()) {
-            return;
-        }
-        if (!this.storageCapability) {
-            const { LocalStorage } = await import('@uca/capability-local-storage');
-            this.storageCapability = new LocalStorage(`${this.id}:storage`);
-        }
-        this.storageCapability.innervate(target);
     }
 
     private handleDispositionUpdate(signal: Signal): void {
