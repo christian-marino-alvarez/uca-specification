@@ -1,6 +1,6 @@
 import * as assert from 'node:assert';
 import { Capability } from '../capability.js';
-import type { Signal } from '../types.js';
+import type { Disposition, Signal } from '../types.js';
 
 class DummyProbeCapability extends Capability {
     public reactedSignal?: Signal;

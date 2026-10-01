@@ -1,7 +1,7 @@
 import { DomHarness } from '../../../../../tests/shared/dom-harness.js';
 import * as assert from 'node:assert';
 import { Capability } from '@uca/core/capability';
-import type { Signal } from '@uca/core/types';
+import type { Disposition, Signal } from '@uca/core/types';
 import type { Body, LifecycleContext, EventContext } from '../index.js';
 import {
     DataType,

@@ -1,8 +1,8 @@
 import * as assert from 'node:assert';
 import { Capability } from '@uca/core/capability';
-import type { Signal } from '@uca/core/types';
+import type { Disposition, Signal } from '@uca/core/types';
 import { Jev } from '../index.js';
-import { SignalType, type InferResult } from '../types.js';
+import { SignalType, type Body, type InferResult } from '../types.js';
 import { __ID__ } from '../constants.js';
 import type { TypeSafeClient } from '@typesafe-ai/sdk';
 
