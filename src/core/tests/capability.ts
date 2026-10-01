@@ -94,12 +94,83 @@ function testCapability_ExtractPayload(): void {
     assert.strictEqual(nullValue, null);
 }
 
+function testCapability_DispositionUpdate(): void {
+    const bus = new EventTarget();
+    const targetCap = new DummyProbeCapability('cap-target').innervate(bus, {
+        aim: { description: 'Target' },
+        reactTo: ['initial.signal'],
+    });
+    const otherCap = new DummyProbeCapability('cap-other').innervate(bus, {
+        aim: { description: 'Other' },
+        reactTo: ['other.signal'],
+    });
+
+    let updatedPayload: unknown;
+    bus.addEventListener('disposition.updated', (event: Event) => {
+        const customEvent = event as CustomEvent<Signal>;
+        updatedPayload = customEvent.detail.value;
+    });
+
+    const updateSignal: Signal = {
+        source: 'orchestrator',
+        property: 'disposition.update',
+        value: {
+            targetId: 'cap-target',
+            disposition: { reactTo: ['new.signal'], aim: { description: 'Updated Target', body: { v: 2 } } },
+        },
+        timestamp: Date.now(),
+    };
+    bus.dispatchEvent(new CustomEvent('disposition.update', { detail: updateSignal }));
+
+    assert.ok(updatedPayload);
+    assert.strictEqual(targetCap.disposition.aim.description, 'Updated Target');
+    assert.deepStrictEqual(targetCap.disposition.aim.body, { v: 2 });
+    assert.ok(targetCap.disposition.reactTo?.includes('new.signal'));
+
+    const testSignal: Signal = { source: 't', property: 'new.signal', value: 'hello', timestamp: Date.now() };
+    bus.dispatchEvent(new CustomEvent('new.signal', { detail: testSignal }));
+    assert.strictEqual(targetCap.reactedSignal?.property, 'new.signal');
+
+    targetCap.denervate();
+    otherCap.denervate();
+}
+
+function testCapability_DispositionQuery(): void {
+    const bus = new EventTarget();
+    const probe = new DummyProbeCapability('cap-query').innervate(bus, {
+        aim: { description: 'Query Probe' },
+        reactTo: ['probe.signal'],
+    });
+
+    const announcements: unknown[] = [];
+    bus.addEventListener('disposition.announce', (event: Event) => {
+        const customEvent = event as CustomEvent<Signal>;
+        announcements.push(customEvent.detail.value);
+    });
+
+    const querySignal: Signal = {
+        source: 'inspector',
+        property: 'disposition.query',
+        value: {},
+        timestamp: Date.now(),
+    };
+    bus.dispatchEvent(new CustomEvent('disposition.query', { detail: querySignal }));
+
+    assert.strictEqual(announcements.length, 1);
+    const first = announcements[0] as { id: string; disposition: Disposition };
+    assert.strictEqual(first.id, 'cap-query');
+    assert.strictEqual(first.disposition.aim.description, 'Query Probe');
+    probe.denervate();
+}
+
 function runAllCapabilityTests(): void {
     testCapability_CreationAndDisposition();
     testCapability_InnervateAndReaction();
     testCapability_PulseEmitsSignalIntoBus();
     testCapability_DenervateDisconnectsAndClearsTarget();
     testCapability_ExtractPayload();
+    testCapability_DispositionUpdate();
+    testCapability_DispositionQuery();
     console.log('✔ All Capability core tests passed successfully.');
 }
 

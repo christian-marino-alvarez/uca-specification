@@ -50,6 +50,22 @@ export interface Disposition<TBody = unknown> {
 }
 
 /**
+ * DispositionUpdatePayload: Contrato para actualización reactiva de la disposición.
+ */
+export interface DispositionUpdatePayload<TBody = unknown> {
+    readonly targetId: string;
+    readonly disposition: Partial<Disposition<TBody>>;
+}
+
+/**
+ * DispositionAnnouncePayload: Contrato para anuncio reactivo de la disposición en el sistema nervioso.
+ */
+export interface DispositionAnnouncePayload<TBody = unknown> {
+    readonly id: string;
+    readonly disposition: Disposition<TBody>;
+}
+
+/**
  * ICapability: Interfaz unificada de capacidad dentro de una UCA.
  */
 export interface ICapability<TBody = unknown> {

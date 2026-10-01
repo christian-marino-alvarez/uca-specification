@@ -1,6 +1,8 @@
 import type {
     Aim,
     Disposition,
+    DispositionAnnouncePayload,
+    DispositionUpdatePayload,
     ICapability,
     Signal,
 } from './types.js';
@@ -106,11 +108,11 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
         return payload;
     }
 
-
+    private static readonly CONTROL_SIGNALS = ['disposition.update', 'disposition.query'] as const;
 
     private connectReceptors(): void {
         const { reactTo = [] } = this.disposition;
-        this.boundPatterns = [...reactTo];
+        this.boundPatterns = [...new Set([...reactTo, ...Capability.CONTROL_SIGNALS])];
         for (const pattern of this.boundPatterns) {
             this.target?.addEventListener(pattern, this.eventListener);
         }
@@ -128,9 +130,40 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
     private handleEvent(event: Event): void {
         const customEvent = event as CustomEvent<Signal>;
         const { detail: signal } = customEvent;
-        if (signal) {
+        if (!signal) { return; }
+        const handled = this.handleControlSignal(signal);
+        if (!handled) {
             void this.executeReaction(signal);
         }
+    }
+
+    private handleControlSignal(signal: Signal): boolean {
+        const { property } = signal;
+        if (property === 'disposition.update') {
+            this.handleDispositionUpdate(signal);
+            return true;
+        }
+        if (property === 'disposition.query') {
+            this.handleDispositionQuery();
+            return true;
+        }
+        return false;
+    }
+
+    private handleDispositionUpdate(signal: Signal): void {
+        const payload = signal.value as DispositionUpdatePayload<TBody> | undefined;
+        const { targetId, disposition } = payload ?? {};
+        if (targetId !== this.id || !disposition) {
+            return;
+        }
+        this.innervate(undefined, disposition as Disposition<TBody>);
+        const updatedPayload: DispositionAnnouncePayload<TBody> = { id: this.id, disposition: this.disposition };
+        this.pulse('disposition.updated', updatedPayload);
+    }
+
+    private handleDispositionQuery(): void {
+        const announcePayload: DispositionAnnouncePayload<TBody> = { id: this.id, disposition: this.disposition };
+        this.pulse('disposition.announce', announcePayload);
     }
 
     private async executeReaction(signal: Signal): Promise<void> {
