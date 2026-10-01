@@ -39,9 +39,8 @@ export class App extends Uca<Body> {
     }
 
     protected override capabilities(): Cooky {
-        const purpose = 'Cognitive view graph composer capability for application';
         const disposition: Disposition = {
-            aim: { description: purpose, body: { schema: VIEW_DISPOSITION_SCHEMA } },
+            aim: { description: ViewComposer.purpose, body: { schema: VIEW_DISPOSITION_SCHEMA } },
             reactTo: [...ViewComposer.disposition.reactTo ?? []],
         };
         const cooky: Cooky = [[ViewComposer, disposition]];

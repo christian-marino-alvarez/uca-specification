@@ -44,9 +44,8 @@ export class Llm extends Uca<Body> {
     protected override capabilities(): Cooky {
         const { aim } = this.disposition;
         const { connection } = (aim.body ?? {}) as Body;
-        const purpose = 'Execute probabilistic reasoning and inference via Jev AI engine';
         const disposition: Disposition<JevBody> = {
-            aim: { description: purpose, body: { connection } },
+            aim: { description: Jev.AIM, body: { connection } },
             reactTo: [JevSignalType.CONNECT, JevSignalType.INFER],
         };
         const cooky: Cooky = [[Jev, disposition]];

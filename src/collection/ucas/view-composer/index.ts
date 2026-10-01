@@ -43,9 +43,8 @@ export class ViewComposer extends Uca<Body> {
     protected override capabilities(): Cooky {
         const { aim } = this.disposition;
         const { model, connection } = aim.body ?? {};
-        const purpose = 'Cognitive reasoning engine for view graph composition';
         const disposition: Disposition<LlmBody> = {
-            aim: { description: purpose, body: { model, connection } },
+            aim: { description: Llm.purpose, body: { model, connection } },
             reactTo: [LlmSignalType.INFER, LlmSignalType.CONNECT],
         };
         const cooky: Cooky = [[Llm, disposition]];
