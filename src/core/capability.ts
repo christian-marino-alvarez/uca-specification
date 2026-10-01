@@ -131,24 +131,21 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
     private handleEvent(event: Event): void {
         const customEvent = event as CustomEvent<Signal>;
         const { detail: signal } = customEvent;
-        if (!signal) { return; }
-        const handled = this.handleControlSignal(signal);
-        if (!handled) {
-            void this.executeReaction(signal);
+        if (!signal) {
+            return;
         }
-    }
-
-    private handleControlSignal(signal: Signal): boolean {
         const { property } = signal;
-        if (property === DispositionSignal.UPDATE) {
-            this.handleDispositionUpdate(signal);
-            return true;
+        switch (property) {
+            case DispositionSignal.UPDATE:
+                this.handleDispositionUpdate(signal);
+                break;
+            case DispositionSignal.QUERY:
+                this.handleDispositionQuery();
+                break;
+            default:
+                void this.executeReaction(signal);
+                break;
         }
-        if (property === DispositionSignal.QUERY) {
-            this.handleDispositionQuery();
-            return true;
-        }
-        return false;
     }
 
     private handleDispositionUpdate(signal: Signal): void {
