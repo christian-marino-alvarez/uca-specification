@@ -4,6 +4,8 @@ import {
     Capability,
     type CapabilityConstructor,
     type Cooky,
+    DispositionSignal,
+    StorageSignal,
     Uca,
     type Disposition,
     type ICapability,
@@ -504,6 +506,53 @@ async function testCore_BuildAttributesDistinguishesCapabilities(): Promise<void
     uca.denervate();
 }
 
+class SimpleProbeUca extends Uca {
+    public static override purpose = 'Simple probe';
+    constructor(id = 'probe-uca') {
+        super(id);
+    }
+}
+
+async function testCore_UcaDispositionUpdateAndStorage(): Promise<void> {
+    const bus = new EventTarget();
+    const probe = new SimpleProbeUca('uca-target').innervate(bus, {
+        aim: { description: 'Initial probe' },
+        reactTo: ['init.signal'],
+    });
+
+    let updatedPayload: unknown;
+    let storagePayload: unknown;
+
+    bus.addEventListener(DispositionSignal.UPDATED, (event: Event) => {
+        const customEvent = event as CustomEvent<Signal>;
+        updatedPayload = customEvent.detail.value;
+    });
+
+    bus.addEventListener(StorageSignal.SET, (event: Event) => {
+        const customEvent = event as CustomEvent<Signal>;
+        storagePayload = customEvent.detail.value;
+    });
+
+    const updateSignal: Signal = {
+        source: 'composer',
+        property: DispositionSignal.UPDATE,
+        value: {
+            targetId: 'uca-target',
+            disposition: { reactTo: ['updated.signal'], aim: { description: 'Updated probe' } },
+        },
+        timestamp: Date.now(),
+    };
+    bus.dispatchEvent(new CustomEvent(DispositionSignal.UPDATE, { detail: updateSignal }));
+
+    assert.ok(updatedPayload);
+    assert.ok(storagePayload);
+    assert.strictEqual((storagePayload as { key: string }).key, 'uca-target');
+    assert.strictEqual(probe.disposition.aim.description, 'Updated probe');
+    assert.ok(probe.disposition.reactTo?.includes('updated.signal'));
+
+    probe.denervate();
+}
+
 async function runAllTests(): Promise<void> {
     await testDeclaration_CookyMapping();
     await testDeclaration_EmptyUca();
@@ -519,7 +568,8 @@ async function runAllTests(): Promise<void> {
     await testLifecycle_MultipleInnervatedSelectiveReaction();
     await testHtmlAcceptance_ReactionMaterializesDomResource();
     await testCore_BuildAttributesDistinguishesCapabilities();
-    console.log('✔ All 14 Core UCA lifecycle, Cooky and attribute mapping tests passed successfully.');
+    await testCore_UcaDispositionUpdateAndStorage();
+    console.log('✔ All 15 Core UCA lifecycle, Cooky, attribute mapping and storage tests passed successfully.');
 }
 
 runAllTests().catch((error: unknown) => {

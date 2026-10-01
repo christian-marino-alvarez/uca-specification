@@ -1,12 +1,8 @@
-import {
-    DispositionSignal,
-    StorageSignal,
-    type Aim,
-    type Disposition,
-    type DispositionUpdatedPayload,
-    type DispositionUpdatePayload,
-    type ICapability,
-    type Signal,
+import type {
+    Aim,
+    Disposition,
+    ICapability,
+    Signal,
 } from './types.js';
 
 export abstract class Capability<TBody = unknown> implements ICapability<TBody> {
@@ -110,11 +106,9 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
         return payload;
     }
 
-    private static readonly CONTROL_SIGNALS = [DispositionSignal.UPDATE] as const;
-
     private connectReceptors(): void {
         const { reactTo = [] } = this.disposition;
-        this.boundPatterns = [...new Set([...reactTo, ...Capability.CONTROL_SIGNALS])];
+        this.boundPatterns = [...reactTo];
         for (const pattern of this.boundPatterns) {
             this.target?.addEventListener(pattern, this.eventListener);
         }
@@ -130,47 +124,14 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
     }
 
     private handleEvent(event: Event): void {
-        const signal = this.validateSignal(event);
-        if (!signal) {
-            return;
-        }
-        const { property } = signal;
-        switch (property) {
-            case DispositionSignal.UPDATE:
-                this.handleDispositionUpdate(signal);
-                break;
-            default:
-                void this.executeReaction(signal);
-                break;
-        }
-    }
-
-    private validateSignal(event: Event): Signal | undefined {
         const customEvent = event as CustomEvent<Signal>;
         const { detail: signal } = customEvent;
-        if (!signal) {
-            return undefined;
+        if (signal) {
+            void this.executeReaction(signal);
         }
-        const { targetId } = (signal.value ?? {}) as { targetId?: string };
-        if (targetId !== undefined && targetId !== this.id) {
-            return undefined;
-        }
-        return signal;
     }
 
-    private handleDispositionUpdate(signal: Signal): void {
-        const payload = signal.value as DispositionUpdatePayload<TBody> | undefined;
-        const { disposition } = payload ?? {};
-        if (!disposition) {
-            return;
-        }
-        this.innervate(undefined, disposition as Disposition<TBody>);
-        this.pulse(StorageSignal.SET, { key: this.id, value: this.disposition });
-        const updatedPayload: DispositionUpdatedPayload<TBody> = { id: this.id, disposition: this.disposition };
-        this.pulse(DispositionSignal.UPDATED, updatedPayload);
-    }
-
-    private async executeReaction(signal: Signal): Promise<void> {
+    protected async executeReaction(signal: Signal): Promise<void> {
         try {
             await this.react(signal);
         } catch (error) {

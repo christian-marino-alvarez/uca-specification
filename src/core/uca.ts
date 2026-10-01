@@ -1,4 +1,14 @@
-import type { CapabilityConstructor, Cooky, Disposition, ICapability, Signal } from './types.js';
+import {
+    DispositionSignal,
+    StorageSignal,
+    type CapabilityConstructor,
+    type Cooky,
+    type Disposition,
+    type DispositionUpdatedPayload,
+    type DispositionUpdatePayload,
+    type ICapability,
+    type Signal,
+} from './types.js';
 import { Capability } from './capability.js';
 
 /**
@@ -26,7 +36,11 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
 
     public override innervate(target?: EventTarget, disposition?: Disposition<TBody>): this {
         const activeTarget = target || this.target || new EventTarget();
-        super.innervate(activeTarget, disposition);
+        const incoming = disposition ?? this.disposition;
+        const { reactTo = [] } = incoming;
+        const controlSignals = [DispositionSignal.UPDATE];
+        const signals = [...new Set([...reactTo, ...controlSignals])];
+        super.innervate(activeTarget, { ...incoming, reactTo: signals });
         this.innervateCapabilities(activeTarget);
         return this;
     }
@@ -36,6 +50,15 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         for (const capability of this.registry.values()) {
             capability.denervate();
         }
+    }
+
+    protected override async executeReaction(signal: Signal): Promise<void> {
+        const { property } = signal;
+        if (property === DispositionSignal.UPDATE) {
+            this.handleDispositionUpdate(signal);
+            return;
+        }
+        await super.executeReaction(signal);
     }
 
     protected override react(_signal: Signal): void | Promise<void> {
@@ -71,6 +94,18 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
     protected hasCapability(id: string): boolean {
         const exists = this.registry.has(id);
         return exists;
+    }
+
+    private handleDispositionUpdate(signal: Signal): void {
+        const payload = signal.value as DispositionUpdatePayload<TBody> | undefined;
+        const { targetId, disposition } = payload ?? {};
+        if (targetId !== this.id || !disposition) {
+            return;
+        }
+        this.innervate(undefined, disposition as Disposition<TBody>);
+        this.pulse(StorageSignal.SET, { key: this.id, value: this.disposition });
+        const updatedPayload: DispositionUpdatedPayload<TBody> = { id: this.id, disposition: this.disposition };
+        this.pulse(DispositionSignal.UPDATED, updatedPayload);
     }
 
     private createCapability(CapabilityClass: CapabilityConstructor, disposition: Disposition): ICapability {

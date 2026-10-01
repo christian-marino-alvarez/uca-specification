@@ -1,6 +1,6 @@
 import * as assert from 'node:assert';
 import { Capability } from '../capability.js';
-import { DispositionSignal, StorageSignal, type Disposition, type Signal } from '../types.js';
+import type { Disposition, Signal } from '../types.js';
 
 class DummyProbeCapability extends Capability {
     public reactedSignal?: Signal;
@@ -29,7 +29,6 @@ function testCapability_CreationAndDisposition(): void {
     assert.deepStrictEqual(capability.disposition.inputs, [{ signal: 'test.input', type: 'string' }]);
     assert.deepStrictEqual(capability.disposition.outputs, [{ signal: 'test.output', type: 'number', description: 'Emits processed test data' }]);
 }
-
 
 function testCapability_InnervateAndReaction(): void {
     const bus = new EventTarget();
@@ -94,61 +93,12 @@ function testCapability_ExtractPayload(): void {
     assert.strictEqual(nullValue, null);
 }
 
-function testCapability_DispositionUpdate(): void {
-    const bus = new EventTarget();
-    const targetCap = new DummyProbeCapability('cap-target').innervate(bus, {
-        aim: { description: 'Target' },
-        reactTo: ['initial.signal'],
-    });
-    const otherCap = new DummyProbeCapability('cap-other').innervate(bus, {
-        aim: { description: 'Other' },
-        reactTo: ['other.signal'],
-    });
-
-    let updatedPayload: unknown;
-    let storageSetPayload: unknown;
-    bus.addEventListener(DispositionSignal.UPDATED, (event: Event) => {
-        const customEvent = event as CustomEvent<Signal>;
-        updatedPayload = customEvent.detail.value;
-    });
-    bus.addEventListener(StorageSignal.SET, (event: Event) => {
-        const customEvent = event as CustomEvent<Signal>;
-        storageSetPayload = customEvent.detail.value;
-    });
-
-    const updateSignal: Signal = {
-        source: 'orchestrator',
-        property: DispositionSignal.UPDATE,
-        value: {
-            targetId: 'cap-target',
-            disposition: { reactTo: ['new.signal'], aim: { description: 'Updated Target', body: { v: 2 } } },
-        },
-        timestamp: Date.now(),
-    };
-    bus.dispatchEvent(new CustomEvent(DispositionSignal.UPDATE, { detail: updateSignal }));
-
-    assert.ok(updatedPayload);
-    assert.ok(storageSetPayload);
-    assert.strictEqual((storageSetPayload as { key: string }).key, 'cap-target');
-    assert.strictEqual(targetCap.disposition.aim.description, 'Updated Target');
-    assert.deepStrictEqual(targetCap.disposition.aim.body, { v: 2 });
-    assert.ok(targetCap.disposition.reactTo?.includes('new.signal'));
-
-    const testSignal: Signal = { source: 't', property: 'new.signal', value: 'hello', timestamp: Date.now() };
-    bus.dispatchEvent(new CustomEvent('new.signal', { detail: testSignal }));
-    assert.strictEqual(targetCap.reactedSignal?.property, 'new.signal');
-
-    targetCap.denervate();
-    otherCap.denervate();
-}
-
 function runAllCapabilityTests(): void {
     testCapability_CreationAndDisposition();
     testCapability_InnervateAndReaction();
     testCapability_PulseEmitsSignalIntoBus();
     testCapability_DenervateDisconnectsAndClearsTarget();
     testCapability_ExtractPayload();
-    testCapability_DispositionUpdate();
     console.log('✔ All Capability core tests passed successfully.');
 }
 
