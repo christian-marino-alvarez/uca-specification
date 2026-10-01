@@ -3,7 +3,7 @@ import { Capability } from '@uca/core/capability';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
 import { Jev, SignalType as JevSignalType, type Body as JevBody } from '@uca/capability-jev';
 import { __ID__, DEFAULT_SIGNALS } from './constants.js';
-import { type Body, type GeneratePayload, type GenerationResult, DataType, SignalType } from './types.js';
+import { type Body, type InferPayload, type InferResult, DataType, SignalType } from './types.js';
 
 export class Llm extends Uca<Body> {
     public static override purpose: string = 'Orchestrate cognitive reasoning and language model inferences over system state';
@@ -12,11 +12,11 @@ export class Llm extends Uca<Body> {
         aim: { description: Llm.purpose, body: {} },
         reactTo: [...DEFAULT_SIGNALS],
         inputs: [
-            { signal: SignalType.GENERATE, type: DataType.GENERATE_PAYLOAD, description: 'Request reasoning inference or text generation' },
+            { signal: SignalType.INFER, type: DataType.INFER_PAYLOAD, description: 'Request reasoning inference or text generation' },
             { signal: SignalType.CONNECT, type: DataType.CONNECTION_CONFIG, description: 'Connect AI provider' },
         ],
         outputs: [
-            { signal: SignalType.GENERATED, type: DataType.GENERATION_RESULT, description: 'Emits structured inference answers and results' },
+            { signal: SignalType.INFERRED, type: DataType.INFER_RESULT, description: 'Emits structured inference answers and results' },
             { signal: SignalType.CONNECTED, type: DataType.STRING, description: 'Emits confirmation of AI provider connection' },
             { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'Emits cognitive inference or provider error' },
         ],
@@ -29,8 +29,8 @@ export class Llm extends Uca<Body> {
     protected override react(signal: Signal): void {
         const { property, value } = signal;
         switch (property) {
-            case SignalType.GENERATE:
-                this.handleGenerate(value);
+            case SignalType.INFER:
+                this.handleInfer(value);
                 break;
             case SignalType.CONNECT:
                 this.handleConnect(value);
@@ -53,10 +53,10 @@ export class Llm extends Uca<Body> {
         return cooky;
     }
 
-    private handleGenerate(value: unknown): void {
+    private handleInfer(value: unknown): void {
         const { aim } = this.disposition;
         const { model: fallbackModel, limit: fallbackLimit } = aim.body ?? {};
-        const payload = (value ?? {}) as GeneratePayload;
+        const payload = (value ?? {}) as InferPayload;
         const { request, model, limit, context, expectations, format = 'string' } = payload;
         const targetModel = model ?? fallbackModel;
         const effectiveLimit = limit ?? fallbackLimit;
@@ -65,7 +65,7 @@ export class Llm extends Uca<Body> {
         this.pulse(JevSignalType.INFER, { state, questions, model: targetModel, limit: effectiveLimit });
     }
 
-    private extractMeta(payload: GeneratePayload): Record<string, unknown> {
+    private extractMeta(payload: InferPayload): Record<string, unknown> {
         const { role, imagination, depth } = payload;
         return { ...(role && { role }), ...(imagination !== undefined && { imagination }), ...(depth !== undefined && { depth }) };
     }
@@ -93,8 +93,8 @@ export class Llm extends Uca<Body> {
     private handleInferred(value: unknown): void {
         const { answers = {}, state, model } = (value ?? {}) as { answers?: Record<string, unknown>; state?: unknown; model?: string };
         const { response } = answers as { response?: string };
-        const result: GenerationResult = { response, data: answers, context: state, model };
-        this.pulse(SignalType.GENERATED, result);
+        const result: InferResult = { response, data: answers, context: state, model };
+        this.pulse(SignalType.INFERRED, result);
     }
 }
 

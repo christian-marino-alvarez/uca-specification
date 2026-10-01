@@ -17,13 +17,13 @@ function testLlm_IdentityAndDefaults(): void {
     llm.innervate();
     const { inputs, outputs } = llm.disposition;
     assert.strictEqual(inputs?.length, 2);
-    assert.strictEqual(inputs?.[0]?.type, DataType.GENERATE_PAYLOAD);
+    assert.strictEqual(inputs?.[0]?.type, DataType.INFER_PAYLOAD);
     assert.strictEqual(outputs?.length, 3);
-    assert.strictEqual(outputs?.[0]?.type, DataType.GENERATION_RESULT);
+    assert.strictEqual(outputs?.[0]?.type, DataType.INFER_RESULT);
     llm.denervate();
 }
 
-function testLlm_TransducesGenerateToJevInfer(): void {
+function testLlm_TransducesInferToJevInfer(): void {
     const bus = new EventTarget();
     const llm = new Llm('llm-test').innervate(bus);
     let jevInferPayload: unknown = undefined;
@@ -33,7 +33,7 @@ function testLlm_TransducesGenerateToJevInfer(): void {
         jevInferPayload = detail.value;
     });
 
-    emitSignal(bus, SignalType.GENERATE, {
+    emitSignal(bus, SignalType.INFER, {
         request: 'What is the speed of light?',
         model: 'gemini-1.5-pro',
     });
@@ -46,12 +46,12 @@ function testLlm_TransducesGenerateToJevInfer(): void {
     llm.denervate();
 }
 
-function testLlm_TransducesJevInferredToLlmGenerated(): void {
+function testLlm_TransducesJevInferredToLlmInferred(): void {
     const bus = new EventTarget();
     const llm = new Llm('llm-test').innervate(bus);
     let generatedResult: unknown = undefined;
 
-    bus.addEventListener(SignalType.GENERATED, (event: Event) => {
+    bus.addEventListener(SignalType.INFERRED, (event: Event) => {
         const { detail } = event as CustomEvent<Signal>;
         generatedResult = detail.value;
     });
@@ -108,7 +108,7 @@ function testLlm_TransducesJevError(): void {
     llm.denervate();
 }
 
-function testLlm_AgnosticGeneratePayload(): void {
+function testLlm_AgnosticInferPayload(): void {
     const bus = new EventTarget();
     const llm = new Llm('llm-agnostic').innervate(bus);
     let capturedInfer: unknown = undefined;
@@ -118,12 +118,12 @@ function testLlm_AgnosticGeneratePayload(): void {
         const { detail } = event as CustomEvent<Signal>;
         capturedInfer = detail.value;
     });
-    bus.addEventListener(SignalType.GENERATED, (event: Event) => {
+    bus.addEventListener(SignalType.INFERRED, (event: Event) => {
         const { detail } = event as CustomEvent<Signal>;
         capturedGenerated = detail.value;
     });
 
-    emitSignal(bus, SignalType.GENERATE, {
+    emitSignal(bus, SignalType.INFER, {
         request: 'Diseña una vista de catálogo',
         model: 'claude-3-7-sonnet',
         imagination: 8,
@@ -168,7 +168,7 @@ function testLlm_FallbackModelAndLimit(): void {
     });
 
     // Caso 1: model y limit son null o undefined -> usa fallback del disposition
-    emitSignal(bus, SignalType.GENERATE, {
+    emitSignal(bus, SignalType.INFER, {
         request: 'Fallback test',
         model: null,
         limit: undefined,
@@ -179,7 +179,7 @@ function testLlm_FallbackModelAndLimit(): void {
     assert.strictEqual(l1, 4096);
 
     // Caso 2: model y limit especificados -> prevalecen sobre el fallback
-    emitSignal(bus, SignalType.GENERATE, {
+    emitSignal(bus, SignalType.INFER, {
         request: 'Override test',
         model: 'custom-model',
         limit: 1024,
@@ -194,11 +194,11 @@ function testLlm_FallbackModelAndLimit(): void {
 
 function runAllLlmTests(): void {
     testLlm_IdentityAndDefaults();
-    testLlm_TransducesGenerateToJevInfer();
-    testLlm_TransducesJevInferredToLlmGenerated();
+    testLlm_TransducesInferToJevInfer();
+    testLlm_TransducesJevInferredToLlmInferred();
     testLlm_TransducesConnectAndConnected();
     testLlm_TransducesJevError();
-    testLlm_AgnosticGeneratePayload();
+    testLlm_AgnosticInferPayload();
     testLlm_FallbackModelAndLimit();
     console.log('✔ All LLM UCA cognitive reasoning tests passed successfully.');
 }

@@ -1,7 +1,7 @@
 import { Uca } from '@uca/core/uca';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
-import { Llm, SignalType as LlmSignalType, type Body as LlmBody, type GenerationResult } from '@uca/llm';
-import { __ID__, DEFAULT_SIGNALS } from './constants.js';
+import { Llm, SignalType as LlmSignalType, type Body as LlmBody, type InferResult } from '@uca/llm';
+import { __ID__, DEFAULT_SIGNALS, DEFAULT_VIEW_SCHEMA } from './constants.js';
 import {
     type Body,
     type BuildPayload,
@@ -15,7 +15,7 @@ export class ViewBuilder extends Uca<Body> {
     public static override purpose: string = 'Orchestrate cognitive generation of web capability views using LLM';
 
     public static override disposition: Disposition<Body> = {
-        aim: { description: ViewBuilder.purpose, body: {} },
+        aim: { description: ViewBuilder.purpose, body: { schema: { ...DEFAULT_VIEW_SCHEMA } } },
         reactTo: [...DEFAULT_SIGNALS],
         inputs: [
             { signal: SignalType.BUILD, type: DataType.BUILD_PAYLOAD, description: 'Request cognitive web view generation' },
@@ -35,7 +35,7 @@ export class ViewBuilder extends Uca<Body> {
     public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
         const base = disposition ?? ViewBuilder.disposition;
         const { reactTo = [] } = base;
-        const internalSignals = [LlmSignalType.GENERATED, LlmSignalType.ERROR];
+        const internalSignals = [LlmSignalType.INFERRED, LlmSignalType.ERROR];
         const signals = [...new Set([...reactTo, ...internalSignals])];
         return super.innervate(target, { ...base, reactTo: signals });
     }
@@ -46,7 +46,7 @@ export class ViewBuilder extends Uca<Body> {
         const purpose = 'Cognitive reasoning engine for web capability view generation';
         const disposition: Disposition<LlmBody> = {
             aim: { description: purpose, body: { model, connection } },
-            reactTo: [LlmSignalType.GENERATE, LlmSignalType.CONNECT],
+            reactTo: [LlmSignalType.INFER, LlmSignalType.CONNECT],
         };
         const cooky: Cooky = [[Llm, disposition]];
         return cooky;
@@ -58,8 +58,8 @@ export class ViewBuilder extends Uca<Body> {
             case SignalType.BUILD:
                 this.handleBuild(value);
                 break;
-            case LlmSignalType.GENERATED:
-                this.handleLlmGenerated(value);
+            case LlmSignalType.INFERRED:
+                this.handleLlmInferred(value);
                 break;
             case LlmSignalType.ERROR:
                 this.pulse(SignalType.ERROR, value);
@@ -69,24 +69,19 @@ export class ViewBuilder extends Uca<Body> {
 
     private handleBuild(value: unknown): void {
         const payload = (value ?? {}) as BuildPayload;
-        const { description, context, model } = payload;
+        const { description, context, model, schema: payloadSchema } = payload;
         if (!description) {
             return;
         }
+        const { aim } = this.disposition;
+        const { schema: fallbackSchema } = aim.body ?? {};
+        const expectations = payloadSchema ?? fallbackSchema ?? DEFAULT_VIEW_SCHEMA;
         const request = `Generate web capability view elements and reactive graph for: ${description}`;
-        const expectations = this.buildExpectations();
-        this.pulse(LlmSignalType.GENERATE, { request, context, model, expectations });
+        this.pulse(LlmSignalType.INFER, { request, context, model, expectations });
     }
 
-    private buildExpectations(): Record<string, unknown> {
-        return {
-            visual: { type: 'object', description: 'Visual hierarchy of web capabilities (box, input, action, etc)' },
-            graph: { type: 'object', description: 'Topological reactive connections and signals between elements' },
-        };
-    }
-
-    private handleLlmGenerated(value: unknown): void {
-        const result = (value ?? {}) as GenerationResult;
+    private handleLlmInferred(value: unknown): void {
+        const result = (value ?? {}) as InferResult;
         const { data, response } = result;
         const payload = data ?? response;
         const { aim } = this.disposition;

@@ -1,22 +1,22 @@
 import type { ConnectionConfig } from '@uca/capability-jev';
 
 export enum SignalType {
-    GENERATE = 'llm.generate',
-    GENERATED = 'llm.generated',
+    INFER = 'llm.infer',
+    INFERRED = 'llm.inferred',
     CONNECT = 'llm.connect',
     CONNECTED = 'llm.connected',
     ERROR = 'llm.error',
 }
 
 export enum DataType {
-    GENERATE_PAYLOAD = 'GeneratePayload',
-    GENERATION_RESULT = 'GenerationResult',
+    INFER_PAYLOAD = 'InferPayload',
+    INFER_RESULT = 'InferResult',
     CONNECTION_CONFIG = 'ConnectionConfig',
     STRING = 'string',
     UNKNOWN = 'unknown',
 }
 
-export interface GeneratePayload {
+export interface InferPayload {
     readonly request: string;
     readonly model?: string;
     readonly imagination?: number;
@@ -28,12 +28,15 @@ export interface GeneratePayload {
     readonly expectations?: Record<string, unknown>;
 }
 
-export interface GenerationResult {
+export interface InferResult {
     readonly response?: string;
     readonly data?: unknown;
     readonly context?: unknown;
     readonly model?: string;
 }
+
+export type GeneratePayload = InferPayload;
+export type GenerationResult = InferResult;
 
 export interface Body {
     readonly model?: string;

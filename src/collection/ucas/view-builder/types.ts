@@ -61,10 +61,12 @@ export interface BuildPayload {
     readonly description: string;
     readonly context?: Record<string, unknown>;
     readonly model?: string;
+    readonly schema?: Record<string, unknown>;
 }
 
 export interface Body {
     readonly model?: string;
     readonly connection?: Record<string, unknown>;
+    readonly schema?: Record<string, unknown>;
     readonly parser?: (raw: unknown) => { visual: ViewVisualResult; graph: ViewGraphResult };
 }

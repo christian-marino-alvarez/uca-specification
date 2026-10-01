@@ -22,12 +22,12 @@ function testViewBuilder_IdentityAndDefaults(): void {
     builder.denervate();
 }
 
-function testViewBuilder_BuildPulsesLlmGenerateSignal(): void {
+function testViewBuilder_BuildPulsesLlmInferSignal(): void {
     const bus = new EventTarget();
     const builder = new ViewBuilder('test-builder').innervate(bus);
     let capturedRequest: unknown;
 
-    bus.addEventListener(LlmSignalType.GENERATE, (event: Event) => {
+    bus.addEventListener(LlmSignalType.INFER, (event: Event) => {
         capturedRequest = (event as CustomEvent<Signal>).detail.value;
     });
 
@@ -42,7 +42,7 @@ function testViewBuilder_BuildPulsesLlmGenerateSignal(): void {
     builder.denervate();
 }
 
-function testViewBuilder_LlmGeneratedPulsesVisualAndGraph(): void {
+function testViewBuilder_LlmInferredPulsesVisualAndGraph(): void {
     const bus = new EventTarget();
     const builder = new ViewBuilder('test-builder').innervate(bus);
     let capturedVisual: ViewVisualResult | undefined;
@@ -71,7 +71,7 @@ function testViewBuilder_LlmGeneratedPulsesVisualAndGraph(): void {
         },
     };
 
-    emitSignal(bus, LlmSignalType.GENERATED, { data: mockAnswer, model: 'test-model' });
+    emitSignal(bus, LlmSignalType.INFERRED, { data: mockAnswer, model: 'test-model' });
 
     assert.ok(capturedVisual !== undefined);
     assert.strictEqual(capturedVisual.title, 'Custom Search View');
@@ -103,8 +103,8 @@ function testViewBuilder_LlmErrorPulsesError(): void {
 
 function runAllViewBuilderTests(): void {
     testViewBuilder_IdentityAndDefaults();
-    testViewBuilder_BuildPulsesLlmGenerateSignal();
-    testViewBuilder_LlmGeneratedPulsesVisualAndGraph();
+    testViewBuilder_BuildPulsesLlmInferSignal();
+    testViewBuilder_LlmInferredPulsesVisualAndGraph();
     testViewBuilder_LlmErrorPulsesError();
     console.log('✔ All ViewBuilder UCA minimal architecture tests passed successfully.');
 }

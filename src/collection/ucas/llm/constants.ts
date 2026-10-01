@@ -1,7 +1,7 @@
 export const __ID__ = 'llm';
 
 export const DEFAULT_SIGNALS: readonly string[] = [
-    'llm.generate',
+    'llm.infer',
     'llm.connect',
     'jev.connected',
     'jev.inferred',

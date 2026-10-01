@@ -19,3 +19,8 @@ export const SUPPORTED_ELEMENT_TYPES = [
     'toggle',
     'choice',
 ] as const;
+
+export const DEFAULT_VIEW_SCHEMA = {
+    visual: { type: 'object', description: 'Visual hierarchy of web capabilities (box, input, action, etc)' },
+    graph: { type: 'object', description: 'Topological reactive connections and signals between elements' },
+} as const;
