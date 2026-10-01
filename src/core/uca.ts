@@ -10,6 +10,7 @@ import {
     type Signal,
 } from './types.js';
 import { Capability } from './capability.js';
+import { LocalStorage } from '@uca/capability-local-storage';
 
 /**
  * Uca: Abstracción ontológica fundamental del sistema.
@@ -63,6 +64,11 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
 
     protected override react(_signal: Signal): void | Promise<void> {
         return;
+    }
+
+    protected defaultCapabilities(): Cooky {
+        const defaults: Cooky = [[LocalStorage, LocalStorage.disposition]];
+        return defaults;
     }
 
     protected capabilities(): Cooky {
@@ -125,7 +131,8 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
     }
 
     private innervateCapabilities(activeTarget: EventTarget): void {
-        for (const [CapabilityClass, capabilityDisposition] of this.capabilities()) {
+        const declarations = [...this.defaultCapabilities(), ...this.capabilities()];
+        for (const [CapabilityClass, capabilityDisposition] of declarations) {
             const targetId = this.getTargetId(CapabilityClass, capabilityDisposition);
             const capability = (targetId ? this.registry.get(targetId) : undefined) ?? this.createCapability(CapabilityClass, capabilityDisposition);
             capability.innervate(activeTarget, capabilityDisposition);

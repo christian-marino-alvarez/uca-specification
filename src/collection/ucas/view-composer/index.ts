@@ -69,7 +69,11 @@ export class ViewComposer extends Uca<Body> {
 
     private handleCompose(value: unknown): void {
         const payload = (value ?? {}) as ComposePayload;
-        const { request, context, model, schema: payloadSchema } = payload;
+        const { ucas, request, context, model, schema: payloadSchema } = payload;
+        if (ucas) {
+            this.applyComposedUcas(ucas);
+            return;
+        }
         if (!request) { return; }
         const { aim } = this.disposition;
         const { schema: fallbackSchema } = aim.body ?? {};
@@ -82,6 +86,10 @@ export class ViewComposer extends Uca<Body> {
         const { data, response } = result;
         const rawPayload = (data ?? response ?? {}) as Record<string, unknown>;
         const ucas = (rawPayload.ucas ?? rawPayload) as Record<string, Disposition>;
+        this.applyComposedUcas(ucas);
+    }
+
+    private applyComposedUcas(ucas: Record<string, Disposition>): void {
         this.propagateDispositions(ucas);
         const graph = this.buildGraph(ucas);
         const composed: ComposedResult = { ucas, graph };

@@ -37,10 +37,11 @@ export interface ComposedResult {
 }
 
 export interface ComposePayload {
-    readonly request: string;
+    readonly request?: string;
     readonly context?: Record<string, unknown>;
     readonly model?: string;
     readonly schema?: Record<string, unknown>;
+    readonly ucas?: Record<string, Disposition>;
 }
 
 export interface Body {

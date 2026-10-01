@@ -1,14 +1,16 @@
 import { Uca } from '@uca/core/uca';
-import { Capability } from '@uca/core/capability';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
-import { __ID__, DEFAULT_SIGNALS } from './constants.js';
+import { ViewComposer, SignalType as ViewComposerSignalType } from '@uca/view-composer';
+import { __ID__, DEFAULT_SIGNALS, INITIAL_VIEW_DISPOSITION, VIEW_DISPOSITION_SCHEMA } from './constants.js';
 import { type Body, DataType, SignalType } from './types.js';
 
 export class App extends Uca<Body> {
     public static override purpose: string = 'Coordinate application lifecycle and scaffolding orchestration';
+    public static readonly VIEW_SCHEMA = VIEW_DISPOSITION_SCHEMA;
+    public static readonly INITIAL_VIEW = INITIAL_VIEW_DISPOSITION;
 
     public static override disposition: Disposition<Body> = {
-        aim: { description: App.purpose, body: {} },
+        aim: { description: App.purpose, body: { initialView: INITIAL_VIEW_DISPOSITION } },
         reactTo: [...DEFAULT_SIGNALS],
         inputs: [
             { signal: SignalType.INIT, type: DataType.VOID, description: 'Initialize application scaffolding' },
@@ -19,12 +21,31 @@ export class App extends Uca<Body> {
             { signal: SignalType.READY, type: DataType.STRING, description: 'Application initialized and ready' },
             { signal: SignalType.STARTED, type: DataType.BOOLEAN, description: 'Application started' },
             { signal: SignalType.STOPPED, type: DataType.BOOLEAN, description: 'Application stopped' },
+            { signal: SignalType.VIEW_COMPOSED, type: DataType.COMPOSED_RESULT, description: 'View graph composed' },
             { signal: SignalType.ERROR, type: DataType.STRING, description: 'Application error occurred' },
         ],
     };
 
     public constructor(id: string = __ID__) {
         super(id);
+    }
+
+    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
+        const base = disposition ?? App.disposition;
+        const { reactTo = [] } = base;
+        const internalSignals = [ViewComposerSignalType.COMPOSED];
+        const signals = [...new Set([...reactTo, ...internalSignals])];
+        return super.innervate(target, { ...base, reactTo: signals });
+    }
+
+    protected override capabilities(): Cooky {
+        const purpose = 'Cognitive view graph composer capability for application';
+        const disposition: Disposition = {
+            aim: { description: purpose, body: { schema: VIEW_DISPOSITION_SCHEMA } },
+            reactTo: [...ViewComposer.disposition.reactTo ?? []],
+        };
+        const cooky: Cooky = [[ViewComposer, disposition]];
+        return cooky;
     }
 
     protected override react(signal: Signal): void {
@@ -39,17 +60,23 @@ export class App extends Uca<Body> {
             case SignalType.STOP:
                 this.handleStop();
                 break;
-            default:
+            case ViewComposerSignalType.COMPOSED:
+                this.pulse(SignalType.VIEW_COMPOSED, value);
                 break;
         }
     }
 
-    protected override capabilities(): Cooky {
-        return [];
+    public createInitialView(): Record<string, Disposition> {
+        const { aim } = this.disposition;
+        const { initialView } = aim.body ?? {};
+        return initialView ?? INITIAL_VIEW_DISPOSITION;
     }
 
     private handleInit(value: unknown): void {
-        const { title = 'ready' } = (value ?? {}) as Body;
+        const payload = (value ?? {}) as Body;
+        const { title = 'ready', initialView } = payload;
+        const view = initialView ?? this.createInitialView();
+        this.pulse(ViewComposerSignalType.COMPOSE, { ucas: view, schema: VIEW_DISPOSITION_SCHEMA });
         this.pulse(SignalType.READY, title);
     }
 

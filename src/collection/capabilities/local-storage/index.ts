@@ -61,8 +61,9 @@ export class LocalStorage extends Capability<Body> {
             this.pulseError('set', 'Storage not available or missing key', key);
             return;
         }
-        storage.setItem(this.resolveKey(key), String(itemValue));
-        this.pulse(SignalType.SAVED, { key, value: String(itemValue) });
+        const serialized = typeof itemValue === 'object' && itemValue !== null ? JSON.stringify(itemValue) : String(itemValue);
+        storage.setItem(this.resolveKey(key), serialized);
+        this.pulse(SignalType.SAVED, { key, value: serialized });
     }
 
     private handleGet(value: unknown): void {

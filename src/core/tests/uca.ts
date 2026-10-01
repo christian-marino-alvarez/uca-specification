@@ -1,5 +1,5 @@
+import '../../../tests/shared/dom-harness.js';
 import * as assert from 'node:assert';
-import { JSDOM } from 'jsdom';
 import {
     Capability,
     type CapabilityConstructor,
@@ -12,19 +12,6 @@ import {
     type Signal,
 } from '../index.js';
 
-const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
-const { document } = dom.window;
-
-class MockCapability extends Capability {
-    constructor(id: string, disposition?: Disposition) {
-        super(id);
-        if (disposition) {
-            this.disposition = disposition;
-        }
-    }
-
-    protected override react(): void {}
-}
 
 class MoveCapability extends Capability {
     constructor(id = 'move') {
@@ -311,11 +298,12 @@ async function testInterUcaIsolation(): Promise<void> {
     v2.denervate();
 }
 
-// 11. Declaración: UCA vacía funciona correctamente
+// 11. Declaración: UCA vacía contiene capability default (local-storage)
 async function testDeclaration_EmptyUca(): Promise<void> {
     const uca = new EmptyUca().innervate();
     const registry = (uca as unknown as { registry: Map<string, ICapability> }).registry;
-    assert.strictEqual(registry.size, 0);
+    assert.strictEqual(registry.size, 1);
+    assert.strictEqual(registry.has('local-storage'), true);
     assert.ok(uca.target instanceof EventTarget);
     uca.denervate();
     assert.strictEqual(uca.target, undefined);
@@ -339,7 +327,7 @@ async function testDeclaration_RepeatedCapabilityClasses(): Promise<void> {
     await waitForDelay();
     assertRepeatedReactions(registry);
     uca.denervate();
-    assert.strictEqual(registry.size, 3);
+    assert.strictEqual(registry.size, 4);
     assert.strictEqual(registry.get('btn-start')?.target, undefined);
 }
 
@@ -348,7 +336,7 @@ async function testDeclaration_OrderPreserved(): Promise<void> {
     const uca = new MultiButtonUca().innervate();
     const registry = (uca as unknown as { registry: Map<string, ICapability> }).registry;
     const keys = Array.from(registry.keys());
-    assert.deepStrictEqual(keys, ['btn-start', 'btn-submit', 'btn-cancel']);
+    assert.deepStrictEqual(keys, ['local-storage', 'btn-start', 'btn-submit', 'btn-cancel']);
     uca.denervate();
 }
 
@@ -549,6 +537,10 @@ async function testCore_UcaDispositionUpdateAndStorage(): Promise<void> {
     assert.strictEqual((storagePayload as { key: string }).key, 'uca-target');
     assert.strictEqual(probe.disposition.aim.description, 'Updated probe');
     assert.ok(probe.disposition.reactTo?.includes('updated.signal'));
+
+    const storedValue = globalThis.localStorage.getItem('uca-target');
+    assert.ok(storedValue);
+    assert.ok(storedValue.includes('Updated probe'));
 
     probe.denervate();
 }

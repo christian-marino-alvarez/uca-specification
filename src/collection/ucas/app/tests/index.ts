@@ -25,18 +25,20 @@ function testApp_Disposition(): void {
     const { disposition } = app;
     const { inputs, outputs } = disposition;
     assert.strictEqual(inputs?.length, 3);
-    assert.strictEqual(outputs?.length, 4);
+    assert.strictEqual(outputs?.length, 5);
     app.denervate();
 }
 
-function setupLifecycleListeners(bus: EventTarget): { getResults: () => { ready: boolean; started: boolean; stopped: boolean } } {
+function setupLifecycleListeners(bus: EventTarget): { getResults: () => { ready: boolean; started: boolean; stopped: boolean; viewComposed: boolean } } {
     let ready = false;
     let started = false;
     let stopped = false;
+    let viewComposed = false;
     bus.addEventListener(SignalType.READY, () => { ready = true; });
     bus.addEventListener(SignalType.STARTED, () => { started = true; });
     bus.addEventListener(SignalType.STOPPED, () => { stopped = true; });
-    return { getResults: () => ({ ready, started, stopped }) };
+    bus.addEventListener(SignalType.VIEW_COMPOSED, () => { viewComposed = true; });
+    return { getResults: () => ({ ready, started, stopped, viewComposed }) };
 }
 
 function testApp_LifecycleSignals(): void {
@@ -48,18 +50,32 @@ function testApp_LifecycleSignals(): void {
     emitSignal(bus, SignalType.START, {});
     emitSignal(bus, SignalType.STOP, {});
 
-    const { ready, started, stopped } = getResults();
+    const { ready, started, stopped, viewComposed } = getResults();
     assert.strictEqual(ready, true);
     assert.strictEqual(started, true);
     assert.strictEqual(stopped, true);
+    assert.strictEqual(viewComposed, true);
     app.denervate();
+}
+
+function testApp_InitialViewSchemaAndDispositions(): void {
+    const app = new App();
+    const schema = App.VIEW_SCHEMA;
+    assert.ok(schema.properties.ucas);
+    const initialView = app.createInitialView();
+    assert.ok(initialView['center-container']);
+    assert.ok(initialView['query-input']);
+    assert.ok(initialView['query-button']);
+    assert.strictEqual(initialView['query-input'].aim.body?.placeholder, 'que quieres conocer de la Uca');
+    assert.strictEqual(initialView['query-button'].aim.body?.label, 'Consultar');
 }
 
 function runAllAppTests(): void {
     testApp_Identity();
     testApp_Disposition();
     testApp_LifecycleSignals();
-    console.log('✔ All App UCA scaffolding tests passed successfully.');
+    testApp_InitialViewSchemaAndDispositions();
+    console.log('✔ All App UCA scaffolding and view composition tests passed successfully.');
 }
 
 runAllAppTests();

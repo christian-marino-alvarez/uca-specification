@@ -1,3 +1,5 @@
+import type { Disposition } from '@uca/core/types';
+
 export enum SignalType {
     INIT = 'app.init',
     START = 'app.start',
@@ -6,16 +8,20 @@ export enum SignalType {
     STARTED = 'app.started',
     STOPPED = 'app.stopped',
     ERROR = 'app.error',
+    VIEW_COMPOSED = 'app.view.composed',
 }
 
 export enum DataType {
     VOID = 'void',
     STRING = 'string',
     BOOLEAN = 'boolean',
+    VIEW_DISPOSITION = 'ViewDisposition',
+    COMPOSED_RESULT = 'ComposedResult',
 }
 
 export interface Body {
     readonly title?: string;
     readonly version?: string;
     readonly active?: boolean;
+    readonly initialView?: Record<string, Disposition>;
 }

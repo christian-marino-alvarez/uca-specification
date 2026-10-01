@@ -87,7 +87,9 @@ export class Jev extends Capability<Body> {
 
     private createClient(config?: ConnectionConfig): TypeSafeClient {
         const { apiKey, baseURL } = config ?? {};
-        return new TypeSafeClient({ apiKey, baseURL });
+        const envKey = typeof process !== 'undefined' ? process.env?.JEV_API_KEY ?? process.env?.TYPESAFE_API_KEY : undefined;
+        const resolvedApiKey = apiKey ?? envKey;
+        return new TypeSafeClient({ apiKey: resolvedApiKey, baseURL });
     }
 }
 
