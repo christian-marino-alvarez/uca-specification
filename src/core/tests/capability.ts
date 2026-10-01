@@ -1,6 +1,6 @@
 import * as assert from 'node:assert';
 import { Capability } from '../capability.js';
-import { DispositionSignal, type Disposition, type Signal } from '../types.js';
+import { DispositionSignal, StorageSignal, type Disposition, type Signal } from '../types.js';
 
 class DummyProbeCapability extends Capability {
     public reactedSignal?: Signal;
@@ -106,9 +106,14 @@ function testCapability_DispositionUpdate(): void {
     });
 
     let updatedPayload: unknown;
+    let storageSetPayload: unknown;
     bus.addEventListener(DispositionSignal.UPDATED, (event: Event) => {
         const customEvent = event as CustomEvent<Signal>;
         updatedPayload = customEvent.detail.value;
+    });
+    bus.addEventListener(StorageSignal.SET, (event: Event) => {
+        const customEvent = event as CustomEvent<Signal>;
+        storageSetPayload = customEvent.detail.value;
     });
 
     const updateSignal: Signal = {
@@ -123,6 +128,8 @@ function testCapability_DispositionUpdate(): void {
     bus.dispatchEvent(new CustomEvent(DispositionSignal.UPDATE, { detail: updateSignal }));
 
     assert.ok(updatedPayload);
+    assert.ok(storageSetPayload);
+    assert.strictEqual((storageSetPayload as { key: string }).key, 'cap-target');
     assert.strictEqual(targetCap.disposition.aim.description, 'Updated Target');
     assert.deepStrictEqual(targetCap.disposition.aim.body, { v: 2 });
     assert.ok(targetCap.disposition.reactTo?.includes('new.signal'));

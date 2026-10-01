@@ -60,6 +60,18 @@ export enum DispositionSignal {
 export type DispositionSignalType = DispositionSignal;
 
 /**
+ * StorageSignal: Señales nerviosas ontológicas para operaciones de almacenamiento.
+ */
+export enum StorageSignal {
+    SET = 'local-storage.set',
+    GET = 'local-storage.get',
+    REMOVE = 'local-storage.remove',
+    CLEAR = 'local-storage.clear',
+}
+
+export type StorageSignalType = StorageSignal;
+
+/**
  * DispositionUpdatePayload: Contrato para actualización reactiva de la disposición.
  */
 export interface DispositionUpdatePayload<TBody = unknown> {

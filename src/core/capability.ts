@@ -1,5 +1,6 @@
 import {
     DispositionSignal,
+    StorageSignal,
     type Aim,
     type Disposition,
     type DispositionUpdatedPayload,
@@ -184,7 +185,7 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
             return;
         }
         this.innervate(undefined, disposition as Disposition<TBody>);
-        this.pulse('local-storage.set', { key: this.id, value: this.disposition });
+        this.pulse(StorageSignal.SET, { key: this.id, value: this.disposition });
         const updatedPayload: DispositionUpdatedPayload<TBody> = { id: this.id, disposition: this.disposition };
         this.pulse(DispositionSignal.UPDATED, updatedPayload);
     }
