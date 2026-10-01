@@ -1,7 +1,7 @@
 import { JSDOM } from 'jsdom';
 
 export function setupDomEnvironment(): void {
-    const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>');
+    const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', { url: 'http://localhost' });
     const { window } = dom;
     const {
         document,
@@ -14,6 +14,7 @@ export function setupDomEnvironment(): void {
         AbortController,
         AbortSignal,
         MouseEvent,
+        localStorage,
     } = window;
 
     globalThis.window = window as unknown as Window & typeof globalThis;
@@ -27,6 +28,7 @@ export function setupDomEnvironment(): void {
     globalThis.customElements = customElements;
     globalThis.AbortController = AbortController;
     globalThis.AbortSignal = AbortSignal;
+    globalThis.localStorage = localStorage;
 }
 
 setupDomEnvironment();
