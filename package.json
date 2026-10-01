@@ -25,7 +25,11 @@
   "scripts": {
     "build": "tsc",
     "test": "npm test --workspaces --if-present",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "demo": "tsx src/demo/cli.ts",
+    "demo:bundle": "esbuild src/demo/entry.ts --bundle --format=esm --outfile=src/demo/app.bundle.js",
+    "demo:serve": "python3 -m http.server 8080 --directory src/demo",
+    "demo:web": "npm run demo:bundle && python3 -m http.server 8080 --directory src/demo"
   },
   "repository": {
     "type": "git",

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>UCA Application — Input & Button</title>
+  <title>UCA Application — Input & Button Demo</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
@@ -18,8 +18,8 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 3rem 1.5rem;
-      gap: 2rem;
+      padding: 2.5rem 1.5rem;
+      gap: 1.8rem;
     }
 
     header {
@@ -43,6 +43,81 @@
       font-size: 0.95rem;
     }
 
+    /* ── Jev Key Config Bar ── */
+    .key-bar {
+      width: 100%;
+      max-width: 680px;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 0.8rem 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      font-size: 0.9rem;
+    }
+
+    .key-bar label {
+      color: #cbd5e1;
+      font-weight: 500;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .key-bar input {
+      flex: 1;
+      background: #090e17;
+      border: 1px solid #334155;
+      color: #f8fafc;
+      padding: 0.5rem 0.8rem;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-family: 'Fira Code', monospace;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .key-bar input:focus {
+      border-color: #6366f1;
+    }
+
+    .key-bar button {
+      background: #334155;
+      color: #f8fafc;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .key-bar button:hover {
+      background: #475569;
+    }
+
+    .key-badge {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      font-weight: 600;
+    }
+
+    .key-badge.set {
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .key-badge.unset {
+      background: rgba(234, 179, 8, 0.15);
+      color: #facc15;
+      border: 1px solid rgba(234, 179, 8, 0.3);
+    }
+
     /* ── App container holding pure UCA WebComponents ── */
     #app-container {
       width: 100%;
@@ -50,52 +125,31 @@
       background: #0f172a;
       border: 1px solid #1e293b;
       border-radius: 16px;
-      padding: 2rem;
+      padding: 2.5rem 2rem;
       display: flex;
       flex-direction: column;
+      align-items: center;
+      justify-content: center;
       gap: 1.5rem;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-      min-height: 180px;
+      min-height: 200px;
       transition: all 0.4s ease;
     }
 
-    .app-toolbar {
+    .center-layout {
       width: 100%;
       display: flex;
       align-items: center;
-      gap: 1rem;
-      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-
-    .app-toolbar.centered {
-      padding: 1.5rem 0;
       justify-content: center;
-    }
-
-    .app-toolbar.top {
-      padding-bottom: 1.25rem;
-      border-bottom: 1px solid #1e293b;
-    }
-
-    .app-content {
-      width: 100%;
-      display: flex;
-      flex-direction: column;
       gap: 1rem;
-      animation: fadeIn 0.35s ease;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
     }
 
     /* ── Custom elements rendered by UCA Capabilities ── */
     ext-input {
       display: block;
       flex: 1;
-      min-height: 48px;
-      line-height: 48px;
+      min-height: 50px;
+      line-height: 50px;
       padding: 0 1.25rem;
       border-radius: 12px;
       border: 1px solid #334155;
@@ -103,8 +157,6 @@
       color: #f8fafc;
       font-size: 15px;
       outline: none;
-      white-space: nowrap;
-      overflow: hidden;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
 
@@ -113,17 +165,26 @@
       box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
     }
 
-    ext-input:empty::before {
-      content: attr(placeholder);
+    ext-input input {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: inherit;
+      font-size: inherit;
+      font-family: inherit;
+      outline: none;
+      line-height: 50px;
+    }
+
+    ext-input input::placeholder {
       color: #64748b;
-      pointer-events: none;
     }
 
     ext-action {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      height: 48px;
+      height: 50px;
       padding: 0 1.8rem;
       background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
       border: none;
@@ -151,50 +212,38 @@
 
     ext-box {
       display: block;
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 12px;
-      padding: 1.25rem;
-      color: #f1f5f9;
-      font-size: 15px;
-      line-height: 1.5;
+      width: 100%;
     }
 
-    ext-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      background: #131d31;
+    /* ── Cognitive result card ── */
+    #result-card {
+      width: 100%;
+      max-width: 680px;
+      background: #111c33;
       border: 1px solid #1e293b;
       border-radius: 12px;
-      padding: 1rem 1.25rem;
-      color: #cbd5e1;
-    }
-
-    ext-choice {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.6rem 1.2rem;
-      background: #1e293b;
-      border-radius: 10px;
-      color: #e2e8f0;
-      font-size: 14px;
-    }
-
-    ext-toggle {
-      display: inline-flex;
-      align-items: center;
+      padding: 1.25rem 1.5rem;
+      display: none;
+      flex-direction: column;
       gap: 0.6rem;
-      cursor: pointer;
-      color: #94a3b8;
+      animation: fadeIn 0.3s ease;
     }
 
-    ext-picture {
-      display: block;
-      border-radius: 12px;
-      overflow: hidden;
-      max-width: 100%;
+    #result-card.active {
+      display: flex;
+    }
+
+    #result-card h4 {
+      color: #38bdf8;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    #result-card p {
+      color: #e2e8f0;
+      font-size: 0.95rem;
+      line-height: 1.6;
     }
 
     /* ── Feedback status ── */
@@ -210,7 +259,7 @@
     /* ── UCA Nervous Bus log panel ── */
     #log-panel {
       width: 100%;
-      max-width: 620px;
+      max-width: 680px;
       background: #090e17;
       border: 1px solid #1e293b;
       border-radius: 12px;
@@ -236,9 +285,14 @@
       gap: 0.6rem;
     }
 
-    .log-source { color: #818cf8; min-width: 90px; }
-    .log-signal { color: #38bdf8; min-width: 150px; font-weight: 500; }
+    .log-source { color: #818cf8; min-width: 110px; }
+    .log-signal { color: #38bdf8; min-width: 160px; font-weight: 500; }
     .log-value  { color: #64748b; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
@@ -248,8 +302,29 @@
     <p>Unidad Cognitiva Autónoma (UCA) fractal y reactiva</p>
   </header>
 
-  <!-- App UCA renders here -->
-  <div id="app-container"></div>
+  <!-- Jev API Key Configuration Bar -->
+  <div class="key-bar">
+    <label for="key-input">🔑 Jev Key:</label>
+    <input id="key-input" type="password" placeholder="Pega tu clave Jev / TypeSafe..." />
+    <button id="save-key-btn">Guardar</button>
+    <span id="key-badge" class="key-badge unset">Sin clave</span>
+  </div>
+
+  <!-- App UCA Container: Centered Layout with Input & Button -->
+  <div id="app-container">
+    <ext-box id="center-container" class="center-layout">
+      <ext-input id="query-input">
+        <input id="query-field" type="text" placeholder="que quieres conocer de la Uca" autocomplete="off" />
+      </ext-input>
+      <ext-action id="query-button" role="button">Consultar</ext-action>
+    </ext-box>
+  </div>
+
+  <!-- Cognitive Result Output -->
+  <div id="result-card">
+    <h4>Respuesta Cognitiva (ViewComposer / Jev)</h4>
+    <p id="result-text"></p>
+  </div>
 
   <div id="status-display">⚡ Sistema nervioso activo — Esperando interacción</div>
 
@@ -259,13 +334,48 @@
   </div>
 
   <script type="module">
-    import { App, SignalType } from './app.bundle.js';
+    import { App, Box, Input, Action, ViewComposer, SignalType } from './app.bundle.js';
 
     const bus = new EventTarget();
     const appContainer = document.getElementById('app-container');
     const statusDisplay = document.getElementById('status-display');
     const logPanel = document.getElementById('log-panel');
+    const keyInput = document.getElementById('key-input');
+    const saveKeyBtn = document.getElementById('save-key-btn');
+    const keyBadge = document.getElementById('key-badge');
+    const queryField = document.getElementById('query-field');
+    const queryButton = document.getElementById('query-button');
+    const resultCard = document.getElementById('result-card');
+    const resultText = document.getElementById('result-text');
 
+    // ── Key Management ──
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialKey = urlParams.get('jevKey') || localStorage.getItem('JEV_API_KEY') || '';
+
+    function updateKeyBadge(key) {
+      if (key) {
+        keyBadge.textContent = 'Configurada ✔';
+        keyBadge.className = 'key-badge set';
+        keyInput.value = key;
+      } else {
+        keyBadge.textContent = 'Sin clave';
+        keyBadge.className = 'key-badge unset';
+      }
+    }
+
+    updateKeyBadge(initialKey);
+
+    saveKeyBtn.addEventListener('click', () => {
+      const key = keyInput.value.trim();
+      localStorage.setItem('JEV_API_KEY', key);
+      updateKeyBadge(key);
+      bus.dispatchEvent(new CustomEvent(SignalType.JEV_CONNECT, {
+        detail: { source: 'browser-ui', property: SignalType.JEV_CONNECT, value: { apiKey: key }, timestamp: Date.now() }
+      }));
+      statusDisplay.textContent = '🔑 Jev Key actualizada y conectada';
+    });
+
+    // ── Bus Telemetry Logger ──
     function logSignal(signal) {
       const entry = document.createElement('div');
       entry.className = 'log-entry';
@@ -278,38 +388,64 @@
       logPanel.scrollTop = logPanel.scrollHeight;
     }
 
-    // Monitor all signals on the bus (filter out internal '*' wildcard dispatch clone)
     const originalDispatch = bus.dispatchEvent.bind(bus);
     bus.dispatchEvent = function(event) {
       if (event?.type !== '*' && event?.detail) { logSignal(event.detail); }
       return originalDispatch(event);
     };
 
-    // Instantiate and innervate the pure App UCA
-    const app = new App('web-app');
+    // ── Innervate UCAs on Nervous Bus ──
+    const app = new App('main-app');
+    const container = new Box('center-container');
+    const inputUca = new Input('query-input');
+    const buttonUca = new Action('query-button');
+
+    container.innervate(bus);
+    inputUca.innervate(bus);
+    buttonUca.innervate(bus);
     app.innervate(bus);
 
-    // Listen for App domain events
-    bus.addEventListener(SignalType.READY, () => {
-      statusDisplay.textContent = '✅ App lista e inicializada';
-      // Iniciar ejecución de la app
-      bus.dispatchEvent(new CustomEvent(SignalType.START, {
-        detail: { source: 'browser', property: SignalType.START, value: {}, timestamp: Date.now() }
+    // ── Interaction Handlers ──
+    function submitQuery() {
+      const query = queryField.value.trim();
+      if (!query) { return; }
+      statusDisplay.textContent = `🧠 Procesando consulta: "${query}"...`;
+      bus.dispatchEvent(new CustomEvent(SignalType.ACTION_TRIGGER, {
+        detail: { source: 'user-click', property: SignalType.ACTION_TRIGGER, value: { query }, timestamp: Date.now() }
       }));
+      bus.dispatchEvent(new CustomEvent(SignalType.VIEW_COMPOSE, {
+        detail: { source: 'user-inquiry', property: SignalType.VIEW_COMPOSE, value: { request: query }, timestamp: Date.now() }
+      }));
+    }
+
+    queryButton.addEventListener('click', submitQuery);
+    queryField.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { submitQuery(); }
     });
 
-    bus.addEventListener(SignalType.STARTED, () => {
-      statusDisplay.textContent = '🚀 App en ejecución activa';
+    // ── Bus Event Listeners ──
+    bus.addEventListener(SignalType.READY, () => {
+      statusDisplay.textContent = '✅ App lista e inicializada con Input y Botón centrados';
     });
 
-    bus.addEventListener(SignalType.STOPPED, () => {
-      statusDisplay.textContent = '⏹ App detenida';
+    bus.addEventListener(SignalType.VIEW_COMPOSED, (event) => {
+      const detail = event?.detail?.value;
+      if (detail) {
+        resultCard.classList.add('active');
+        resultText.textContent = `Vista orquestada con ${detail.graph?.nodes?.length ?? 3} nodos UCA: ${JSON.stringify(detail.graph?.nodes ?? [])}`;
+      }
     });
 
-    // Inicializar App
+    // ── Initialize App ──
     bus.dispatchEvent(new CustomEvent(SignalType.INIT, {
       detail: { source: 'browser', property: SignalType.INIT, value: {}, timestamp: Date.now() }
     }));
+
+    if (initialKey) {
+      bus.dispatchEvent(new CustomEvent(SignalType.JEV_CONNECT, {
+        detail: { source: 'browser-init', property: SignalType.JEV_CONNECT, value: { apiKey: initialKey }, timestamp: Date.now() }
+      }));
+    }
   </script>
 </body>
 </html>
