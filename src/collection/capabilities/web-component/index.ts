@@ -66,29 +66,29 @@ export class WebComponent extends Capability<Body> {
     protected override react(signal: Signal): void {
         const { property, value } = signal;
         const payload = this.extractPayload(value);
-        if (!this.matchesTargetId(payload?.id)) { return; }
-        const targetId = payload?.id ?? this.id;
+        if (!this.matchesId(payload?.id)) { return; }
+        const componentId = payload?.id ?? this.id;
         switch (property) {
             case SignalType.REMOVED:
-                this.removeComponent(targetId);
+                this.removeComponent(componentId);
                 break;
             case SignalType.RENDERED:
-                this.createComponent(targetId, payload);
+                this.createComponent(componentId, payload);
                 break;
             case SignalType.UPDATED:
-                this.updateComponent(targetId, payload);
+                this.updateComponent(componentId, payload);
                 break;
             default:
                 break;
         }
     }
 
-    protected override matchesTargetId(targetId?: string): boolean {
-        if (!targetId) { return true; }
+    protected override matchesId(id?: string): boolean {
+        if (!id) { return true; }
         const { aim } = this.disposition;
         const { id: configuredId } = aim.body ?? {};
         if (!configuredId) { return true; }
-        const matches = targetId === configuredId || targetId.startsWith(`${configuredId}-`);
+        const matches = id === configuredId || id.startsWith(`${configuredId}-`);
         return matches;
     }
 
@@ -183,6 +183,9 @@ export class WebComponent extends Capability<Body> {
     }
 
     private instance(id: string, tag: string): HTMLElement {
+        if (!this.isCustomElementDefined(tag)) {
+            this.defineCustomElement(tag);
+        }
         const element = document.createElement(tag);
         const resolvedId = id.includes(':') ? id.split(':')[1] : id;
         element.id = resolvedId;

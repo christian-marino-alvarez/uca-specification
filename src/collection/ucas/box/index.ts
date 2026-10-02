@@ -66,11 +66,6 @@ export class Box extends Uca<Body> {
         this.pulse(CapabilitySignalType.UPDATED, { id: targetId, container: payload.container, text, attributes });
     }
 
-    private matchesId(targetId: string): boolean {
-        const targetBase = targetId.includes(':') ? targetId.split(':')[1] : targetId;
-        const currentBase = this.id.includes(':') ? this.id.split(':')[1] : this.id;
-        return targetId === this.id || targetBase === currentBase;
-    }
 
     private handleRemove(value: unknown): void {
         const payload = (value ?? {}) as { id?: string };

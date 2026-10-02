@@ -525,7 +525,7 @@ async function testCore_UcaDispositionUpdateAndStorage(): Promise<void> {
         source: 'composer',
         property: DispositionSignal.UPDATE,
         value: {
-            targetId: 'uca-target',
+            id: 'uca-target',
             disposition: { reactTo: ['updated.signal'], aim: { description: 'Updated probe' } },
         },
         timestamp: Date.now(),

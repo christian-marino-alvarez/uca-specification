@@ -75,7 +75,7 @@ export type StorageSignalType = StorageSignal;
  * DispositionUpdatePayload: Contrato para actualización reactiva de la disposición.
  */
 export interface DispositionUpdatePayload<TBody = unknown> {
-    readonly targetId: string;
+    readonly id: string;
     readonly disposition: Partial<Disposition<TBody>>;
 }
 

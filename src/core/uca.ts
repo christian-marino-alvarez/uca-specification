@@ -67,8 +67,9 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
     }
 
     protected defaultCapabilities(): Cooky {
-        const defaults: Cooky = [[LocalStorage, LocalStorage.disposition]];
-        return defaults;
+        const body = { id: 'local-storage', ownerId: this.id };
+        const disposition: Disposition = { aim: { description: LocalStorage.AIM, body }, reactTo: [...LocalStorage.disposition.reactTo ?? []] };
+        return [[LocalStorage, disposition]];
     }
 
     protected capabilities(): Cooky {
@@ -102,12 +103,19 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         return exists;
     }
 
+    protected override matchesId(id?: string): boolean {
+        const targetBase = id?.includes(':') ? id.split(':')[1] : id;
+        const currentBase = this.id.includes(':') ? this.id.split(':')[1] : this.id;
+        const matches = !id || id === this.id || targetBase === currentBase;
+        return matches;
+    }
+
     protected onDispositionUpdated(): void {}
 
     private handleDispositionUpdate(signal: Signal): void {
         const payload = signal.value as DispositionUpdatePayload<TBody> | undefined;
-        const { targetId, disposition } = payload ?? {};
-        if (targetId !== this.id || !disposition) {
+        const { id, disposition } = payload ?? {};
+        if (id !== this.id || !disposition) {
             return;
         }
         this.innervate(undefined, disposition as Disposition<TBody>);
@@ -126,7 +134,7 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         return instance;
     }
 
-    private getTargetId(CapabilityClass: CapabilityConstructor, disposition: Disposition): string | undefined {
+    private getCapabilityId(CapabilityClass: CapabilityConstructor, disposition: Disposition): string | undefined {
         const { aim } = disposition;
         const { id: bodyId } = (aim.body as { id?: string } | undefined) ?? {};
         const staticId = (CapabilityClass as unknown as { __ID__?: string }).__ID__;
@@ -136,8 +144,8 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
     private innervateCapabilities(activeTarget: EventTarget): void {
         const declarations = [...this.defaultCapabilities(), ...this.capabilities()];
         for (const [CapabilityClass, capabilityDisposition] of declarations) {
-            const targetId = this.getTargetId(CapabilityClass, capabilityDisposition);
-            const capability = (targetId ? this.registry.get(targetId) : undefined) ?? this.createCapability(CapabilityClass, capabilityDisposition);
+            const capabilityId = this.getCapabilityId(CapabilityClass, capabilityDisposition);
+            const capability = (capabilityId ? this.registry.get(capabilityId) : undefined) ?? this.createCapability(CapabilityClass, capabilityDisposition);
             capability.innervate(activeTarget, capabilityDisposition);
         }
     }

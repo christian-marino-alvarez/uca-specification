@@ -123,8 +123,8 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
         this.boundPatterns = [];
     }
 
-    protected matchesTargetId(targetId?: string): boolean {
-        return this.id === targetId;
+    protected matchesId(id?: string): boolean {
+        return this.id === id;
     }
 
     private handleEvent(event: Event): void {
@@ -132,8 +132,8 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
         const { detail: signal } = customEvent;
         if (!signal) { return; }
         const payload = Capability.extractPayload<Record<string, unknown>>(signal.value);
-        const { targetId } = (payload ?? {}) as { targetId?: unknown };
-        if (typeof targetId === 'string' && !this.matchesTargetId(targetId)) {
+        const { id } = (payload ?? {}) as { id?: unknown };
+        if (typeof id === 'string' && !this.matchesId(id)) {
             return;
         }
         void this.executeReaction(signal);

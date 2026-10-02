@@ -43,8 +43,8 @@ function testGraph_ResolveDispatchesDispositionsAndBuildsGraph(): void {
     emitSignal(bus, SignalType.RESOLVE, { ucas: mockUcas });
 
     assert.strictEqual(updates.length, 2);
-    assert.strictEqual(updates[0]?.targetId, 'uca-1');
-    assert.strictEqual(updates[1]?.targetId, 'uca-2');
+    assert.strictEqual(updates[0]?.id, 'uca-1');
+    assert.strictEqual(updates[1]?.id, 'uca-2');
 
     assert.ok(capturedResolved);
     assert.strictEqual(capturedResolved?.graph.nodes.length, 2);

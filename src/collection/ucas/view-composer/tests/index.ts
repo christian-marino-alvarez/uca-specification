@@ -46,11 +46,11 @@ function testViewComposer_ComposePulsesLlmPrompt(): void {
 function testViewComposer_LlmResponse_PropagatesDispositionsAndBuildsGraph(): void {
     const bus = new EventTarget();
     const composer = new ViewComposer('test-composer').innervate(bus);
-    const updates: Array<{ targetId: string; disposition: Disposition }> = [];
+    const updates: Array<{ id: string; disposition: Disposition }> = [];
     let capturedComposed: ComposedResult | undefined;
 
     bus.addEventListener(DispositionSignal.UPDATE, (event: Event) => {
-        updates.push((event as CustomEvent<Signal<{ targetId: string; disposition: Disposition }>>).detail.value);
+        updates.push((event as CustomEvent<Signal<{ id: string; disposition: Disposition }>>).detail.value);
     });
 
     bus.addEventListener(SignalType.COMPOSED, (event: Event) => {
@@ -74,8 +74,8 @@ function testViewComposer_LlmResponse_PropagatesDispositionsAndBuildsGraph(): vo
     emitSignal(bus, LlmWebSignalType.RESPONSE, mockResult);
 
     assert.strictEqual(updates.length, 2);
-    assert.strictEqual(updates[0]?.targetId, 'search-input');
-    assert.strictEqual(updates[1]?.targetId, 'result-list');
+    assert.strictEqual(updates[0]?.id, 'search-input');
+    assert.strictEqual(updates[1]?.id, 'result-list');
 
     assert.ok(capturedComposed);
     const { graph } = capturedComposed!;

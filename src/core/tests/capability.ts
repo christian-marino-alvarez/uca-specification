@@ -97,7 +97,7 @@ function testCapability_DirectedSignal_ExecutesOnlyForTarget(): void {
     const bus = new EventTarget();
     const probe1 = new DummyProbeCapability('cap-1').innervate(bus, { aim: { description: '1' }, reactTo: ['test.update'] });
     const probe2 = new DummyProbeCapability('cap-2').innervate(bus, { aim: { description: '2' }, reactTo: ['test.update'] });
-    const signal: Signal = { source: 'source', property: 'test.update', value: { targetId: 'cap-1' } };
+    const signal: Signal = { source: 'source', property: 'test.update', value: { id: 'cap-1' } };
     bus.dispatchEvent(new CustomEvent('test.update', { detail: signal }));
     assert.strictEqual(probe1.reactedSignal?.property, 'test.update');
     assert.strictEqual(probe2.reactedSignal, undefined);

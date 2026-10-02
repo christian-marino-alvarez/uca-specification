@@ -107,12 +107,6 @@ export class Action extends Uca<Body> {
         }
     }
 
-    private matchesId(targetId: string): boolean {
-        const targetBase = targetId.includes(':') ? targetId.split(':')[1] : targetId;
-        const currentBase = this.id.includes(':') ? this.id.split(':')[1] : this.id;
-        return targetId === this.id || targetBase === currentBase;
-    }
-
     private getDomainProperties(): Body {
         const { aim } = this.disposition;
         const properties = (aim.body ?? {}) as Body;

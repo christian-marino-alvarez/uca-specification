@@ -59,8 +59,13 @@ export class Graph extends Capability<Body> {
     private extractRawData(payload: ResolvePayload): Record<string, unknown> {
         const { data, response, ucas } = payload;
         if (ucas) { return { ucas }; }
-        if (data && typeof data === 'object') { return data as Record<string, unknown>; }
-        if (!response) { return {}; }
+        if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+            return data as Record<string, unknown>;
+        }
+        return response ? this.parseRawResponse(response) : {};
+    }
+
+    private parseRawResponse(response: string): Record<string, unknown> {
         try {
             const clean = response.replace(/^```json\s*|^```\s*|```$/gm, '').trim();
             return JSON.parse(clean) as Record<string, unknown>;
@@ -161,8 +166,8 @@ export class Graph extends Capability<Body> {
     }
 
     private dispatchDispositions(ucas: Record<string, Disposition>): void {
-        for (const [ucaId, disposition] of Object.entries(ucas)) {
-            const updatePayload: DispositionUpdatePayload = { targetId: ucaId, disposition };
+        for (const [id, disposition] of Object.entries(ucas)) {
+            const updatePayload: DispositionUpdatePayload = { id, disposition };
             this.pulse(DispositionSignal.UPDATE, updatePayload);
         }
     }
