@@ -93,12 +93,38 @@ function testCapability_ExtractPayload(): void {
     assert.strictEqual(nullValue, null);
 }
 
+function testCapability_DirectedSignal_ExecutesOnlyForTarget(): void {
+    const bus = new EventTarget();
+    const probe1 = new DummyProbeCapability('cap-1').innervate(bus, { aim: { description: '1' }, reactTo: ['test.update'] });
+    const probe2 = new DummyProbeCapability('cap-2').innervate(bus, { aim: { description: '2' }, reactTo: ['test.update'] });
+    const signal: Signal = { source: 'source', property: 'test.update', value: { targetId: 'cap-1' } };
+    bus.dispatchEvent(new CustomEvent('test.update', { detail: signal }));
+    assert.strictEqual(probe1.reactedSignal?.property, 'test.update');
+    assert.strictEqual(probe2.reactedSignal, undefined);
+    probe1.denervate();
+    probe2.denervate();
+}
+
+function testCapability_BroadcastSignal_ExecutesForAll(): void {
+    const bus = new EventTarget();
+    const probe1 = new DummyProbeCapability('cap-1').innervate(bus, { aim: { description: '1' }, reactTo: ['test.event'] });
+    const probe2 = new DummyProbeCapability('cap-2').innervate(bus, { aim: { description: '2' }, reactTo: ['test.event'] });
+    const signal: Signal = { source: 'source', property: 'test.event', value: { message: 'hello' } };
+    bus.dispatchEvent(new CustomEvent('test.event', { detail: signal }));
+    assert.strictEqual(probe1.reactedSignal?.property, 'test.event');
+    assert.strictEqual(probe2.reactedSignal?.property, 'test.event');
+    probe1.denervate();
+    probe2.denervate();
+}
+
 function runAllCapabilityTests(): void {
     testCapability_CreationAndDisposition();
     testCapability_InnervateAndReaction();
     testCapability_PulseEmitsSignalIntoBus();
     testCapability_DenervateDisconnectsAndClearsTarget();
     testCapability_ExtractPayload();
+    testCapability_DirectedSignal_ExecutesOnlyForTarget();
+    testCapability_BroadcastSignal_ExecutesForAll();
     console.log('✔ All Capability core tests passed successfully.');
 }
 

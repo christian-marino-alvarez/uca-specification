@@ -123,12 +123,20 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
         this.boundPatterns = [];
     }
 
+    protected matchesTargetId(targetId?: string): boolean {
+        return this.id === targetId;
+    }
+
     private handleEvent(event: Event): void {
         const customEvent = event as CustomEvent<Signal>;
         const { detail: signal } = customEvent;
-        if (signal) {
-            void this.executeReaction(signal);
+        if (!signal) { return; }
+        const payload = Capability.extractPayload<Record<string, unknown>>(signal.value);
+        const { targetId } = (payload ?? {}) as { targetId?: unknown };
+        if (typeof targetId === 'string' && !this.matchesTargetId(targetId)) {
+            return;
         }
+        void this.executeReaction(signal);
     }
 
     protected async executeReaction(signal: Signal): Promise<void> {

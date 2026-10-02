@@ -83,7 +83,7 @@ export class WebComponent extends Capability<Body> {
         }
     }
 
-    private matchesTargetId(targetId?: string): boolean {
+    protected override matchesTargetId(targetId?: string): boolean {
         if (!targetId) { return true; }
         const { aim } = this.disposition;
         const { id: configuredId } = aim.body ?? {};
