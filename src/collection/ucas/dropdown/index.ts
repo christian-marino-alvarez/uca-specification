@@ -127,3 +127,5 @@ export class Dropdown extends Uca<Body> {
         return mapping;
     }
 }
+
+export * from './types.js';

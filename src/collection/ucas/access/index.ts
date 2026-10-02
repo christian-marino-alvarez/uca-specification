@@ -120,3 +120,5 @@ export class Access extends Uca<Body> {
         return mapping;
     }
 }
+
+export * from './types.js';

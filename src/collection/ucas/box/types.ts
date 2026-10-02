@@ -8,6 +8,7 @@ export enum SignalType {
 }
 
 export interface Body {
+    readonly id?: string;
     readonly text?: string;
     readonly role?: string;
     readonly hidden?: boolean;

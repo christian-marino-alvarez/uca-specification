@@ -1,8 +1,11 @@
-import type { ConnectionConfig } from '@uca/capability-jev';
+import type { ConnectionConfig } from '@uca/capability-gemini';
 
 export enum SignalType {
     INFER = 'llm.infer',
+    STREAM = 'llm.stream',
     INFERRED = 'llm.inferred',
+    CHUNK = 'llm.chunk',
+    STREAM_END = 'llm.stream-end',
     CONNECT = 'llm.connect',
     CONNECTED = 'llm.connected',
     ERROR = 'llm.error',
@@ -11,6 +14,8 @@ export enum SignalType {
 export enum DataType {
     INFER_PAYLOAD = 'InferPayload',
     INFER_RESULT = 'InferResult',
+    CHUNK_RESULT = 'ChunkResult',
+    STREAM_END_RESULT = 'StreamEndResult',
     CONNECTION_CONFIG = 'ConnectionConfig',
     STRING = 'string',
     UNKNOWN = 'unknown',
@@ -32,6 +37,18 @@ export interface InferResult {
     readonly response?: string;
     readonly data?: unknown;
     readonly context?: unknown;
+    readonly model?: string;
+    readonly usage?: unknown;
+}
+
+export interface ChunkResult {
+    readonly text: string;
+    readonly prompt?: string;
+    readonly model?: string;
+}
+
+export interface StreamEndResult {
+    readonly prompt?: string;
     readonly model?: string;
 }
 

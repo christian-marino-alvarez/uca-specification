@@ -1,7 +1,7 @@
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import { TypeSafeClient, noul } from '@typesafe-ai/sdk';
-import { __ID__, __DEFAULT_SIGNALS__ } from './constants.js';
+import { __ID__, __DEFAULT_SIGNALS__, DEFAULT_MODEL } from './constants.js';
 import {
     type Body,
     type ConnectionConfig,
@@ -68,7 +68,7 @@ export class Jev extends Capability<Body> {
     }
 
     private async executeInference(client: TypeSafeClient, payload: InferPayload): Promise<InferResult> {
-        const { state, questions, model, limit, maxTokens } = payload;
+        const { state, questions, model = DEFAULT_MODEL, limit, maxTokens } = payload;
         const { aim } = this.disposition;
         const bodyLimit = aim.body?.limit ?? aim.body?.maxTokens;
         const effectiveLimit = limit ?? maxTokens ?? bodyLimit;
@@ -98,8 +98,11 @@ export class Jev extends Capability<Body> {
     private createClient(config?: ConnectionConfig): TypeSafeClient {
         const { apiKey, baseURL } = config ?? {};
         const envKey = typeof process !== 'undefined' ? process.env?.JEV_API_KEY ?? process.env?.TYPESAFE_API_KEY : undefined;
-        const resolvedApiKey = apiKey ?? envKey;
-        return new TypeSafeClient({ apiKey: resolvedApiKey, baseURL, dangerouslyAllowBrowser: true });
+        const localKey = typeof localStorage !== 'undefined' ? localStorage.getItem('JEV_API_KEY') ?? undefined : undefined;
+        const resolvedApiKey = apiKey ?? envKey ?? localKey;
+        const browserOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
+        const resolvedBase = baseURL ?? browserOrigin;
+        return new TypeSafeClient({ apiKey: resolvedApiKey, baseURL: resolvedBase, dangerouslyAllowBrowser: true });
     }
 }
 

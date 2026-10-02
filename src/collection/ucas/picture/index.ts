@@ -125,3 +125,5 @@ export class Picture extends Uca<Body> {
         return mapping;
     }
 }
+
+export * from './types.js';

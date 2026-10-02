@@ -32,10 +32,25 @@ export class Logger extends Uca<Body> {
         const { aim } = this.disposition;
         const { prefix = '[UCA BUS]', filter, onLog } = aim.body ?? {};
         if (filter && !filter(signal)) { return; }
+        this.printFormattedLog(prefix, source, property, value);
         const entry: LogEntry = { timestamp, source, property, value };
-        console.log(`${prefix} [${source}] -> ${property}`, value);
         if (onLog) { onLog(entry); }
         this.pulse(SignalType.LOG, entry);
+    }
+
+    private printFormattedLog(prefix: string, source: string, property: string, value: unknown): void {
+        const isBrowser = typeof window !== 'undefined';
+        if (isBrowser) {
+            console.log(
+                `%c${prefix} %c[${source}]%c -> ${property}`,
+                'color: #a855f7; font-weight: bold;',
+                'color: #38bdf8; font-weight: 600;',
+                'color: #4ade80; font-weight: bold;',
+                value !== undefined ? value : ''
+            );
+            return;
+        }
+        console.log(`${prefix} [${source}] -> ${property}`, value);
     }
 }
 

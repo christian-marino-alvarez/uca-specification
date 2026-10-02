@@ -1,22 +1,24 @@
 import { Uca } from '@uca/core/uca';
-import { Capability } from '@uca/core/capability';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
-import { Jev, SignalType as JevSignalType, type Body as JevBody } from '@uca/capability-jev';
-import { __ID__, DEFAULT_SIGNALS } from './constants.js';
+import { Gemini, SignalType as GeminiSignalType, type Body as GeminiBody, type GenerateResult } from '@uca/capability-gemini';
+import { __ID__, DEFAULT_INSTRUCTION, DEFAULT_SIGNALS } from './constants.js';
 import { type Body, type InferPayload, type InferResult, DataType, SignalType } from './types.js';
 
 export class Llm extends Uca<Body> {
-    public static override purpose: string = 'Orchestrate cognitive reasoning and language model inferences over system state';
+    public static override purpose: string = 'Enable open connections with AI models';
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Llm.purpose, body: {} },
         reactTo: [...DEFAULT_SIGNALS],
         inputs: [
             { signal: SignalType.INFER, type: DataType.INFER_PAYLOAD, description: 'Request reasoning inference or text generation' },
+            { signal: SignalType.STREAM, type: DataType.INFER_PAYLOAD, description: 'Request streaming reasoning tokens' },
             { signal: SignalType.CONNECT, type: DataType.CONNECTION_CONFIG, description: 'Connect AI provider' },
         ],
         outputs: [
             { signal: SignalType.INFERRED, type: DataType.INFER_RESULT, description: 'Emits structured inference answers and results' },
+            { signal: SignalType.CHUNK, type: DataType.CHUNK_RESULT, description: 'Emits streamed token chunk' },
+            { signal: SignalType.STREAM_END, type: DataType.STREAM_END_RESULT, description: 'Emits stream completed notification' },
             { signal: SignalType.CONNECTED, type: DataType.STRING, description: 'Emits confirmation of AI provider connection' },
             { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'Emits cognitive inference or provider error' },
         ],
@@ -26,11 +28,39 @@ export class Llm extends Uca<Body> {
         super(id);
     }
 
+    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
+        const base = disposition ?? Llm.disposition;
+        const { reactTo = [] } = base;
+        const internalSignals = [
+            GeminiSignalType.GENERATED,
+            GeminiSignalType.CHUNK,
+            GeminiSignalType.STREAM_END,
+            GeminiSignalType.CONNECTED,
+            GeminiSignalType.ERROR,
+        ];
+        const signals = [...new Set([...reactTo, ...internalSignals])];
+        return super.innervate(target, { ...base, reactTo: signals });
+    }
+
+    protected override capabilities(): Cooky {
+        const { aim } = this.disposition;
+        const { connection, model } = (aim.body ?? {}) as Body;
+        const disposition: Disposition<GeminiBody> = {
+            aim: { description: Gemini.AIM, body: { connection, model } },
+            reactTo: [...Gemini.disposition.reactTo ?? []],
+        };
+        const cooky: Cooky = [[Gemini, disposition]];
+        return cooky;
+    }
+
     protected override react(signal: Signal): void {
         const { property, value } = signal;
         switch (property) {
             case SignalType.INFER:
                 this.handleInfer(value);
+                break;
+            case SignalType.STREAM:
+                this.handleStream(value);
                 break;
             case SignalType.CONNECT:
                 this.handleConnect(value);
@@ -41,47 +71,51 @@ export class Llm extends Uca<Body> {
         }
     }
 
-    protected override capabilities(): Cooky {
-        const { aim } = this.disposition;
-        const { connection } = (aim.body ?? {}) as Body;
-        const disposition: Disposition<JevBody> = {
-            aim: { description: Jev.AIM, body: { connection } },
-            reactTo: [JevSignalType.CONNECT, JevSignalType.INFER],
-        };
-        const cooky: Cooky = [[Jev, disposition]];
-        return cooky;
-    }
-
     private handleInfer(value: unknown): void {
-        const { aim } = this.disposition;
-        const { model: fallbackModel, limit: fallbackLimit } = aim.body ?? {};
         const payload = (value ?? {}) as InferPayload;
-        const { request, model, limit, context, expectations, format = 'string' } = payload;
-        const targetModel = model ?? fallbackModel;
-        const effectiveLimit = limit ?? fallbackLimit;
-        const state = { request, ...(context ? { context } : {}), ...this.extractMeta(payload) };
-        const questions = expectations ?? { response: { type: format } };
-        this.pulse(JevSignalType.INFER, { state, questions, model: targetModel, limit: effectiveLimit });
+        const { request, context, role } = payload;
+        const prompt = context ? `${request}\nContext: ${JSON.stringify(context)}` : request;
+        const systemInstruction = role ?? DEFAULT_INSTRUCTION;
+        const generatePayload = this.buildGeneratePayload(payload, prompt, systemInstruction);
+        this.pulse(GeminiSignalType.GENERATE, generatePayload);
     }
 
-    private extractMeta(payload: InferPayload): Record<string, unknown> {
-        const { role, imagination, depth } = payload;
-        return { ...(role && { role }), ...(imagination !== undefined && { imagination }), ...(depth !== undefined && { depth }) };
+    private buildGeneratePayload(payload: InferPayload, prompt: string, systemInstruction: string): Record<string, unknown> {
+        const { aim } = this.disposition;
+        const { model: fallbackModel } = aim.body ?? {};
+        const { model, expectations, imagination, limit } = payload;
+        const targetModel = model ?? fallbackModel;
+        return { prompt, schema: expectations, systemInstruction, model: targetModel, temperature: imagination, maxOutputTokens: limit };
     }
 
     private handleConnect(value: unknown): void {
-        this.pulse(JevSignalType.CONNECT, value);
+        this.pulse(GeminiSignalType.CONNECT, value);
+    }
+
+    private handleStream(value: unknown): void {
+        const { aim } = this.disposition;
+        const { model: fallbackModel } = aim.body ?? {};
+        const payload = (value ?? {}) as InferPayload;
+        const { request, model } = payload;
+        const targetModel = model ?? fallbackModel;
+        this.pulse(GeminiSignalType.STREAM, { prompt: request, model: targetModel });
     }
 
     private handleCapabilitySignal(property: string, value: unknown): void {
         switch (property) {
-            case JevSignalType.INFERRED:
-                this.handleInferred(value);
+            case GeminiSignalType.GENERATED:
+                this.handleGenerated(value);
                 break;
-            case JevSignalType.CONNECTED:
+            case GeminiSignalType.CHUNK:
+                this.pulse(SignalType.CHUNK, value);
+                break;
+            case GeminiSignalType.STREAM_END:
+                this.pulse(SignalType.STREAM_END, value);
+                break;
+            case GeminiSignalType.CONNECTED:
                 this.pulse(SignalType.CONNECTED, 'connected');
                 break;
-            case JevSignalType.ERROR:
+            case GeminiSignalType.ERROR:
                 this.pulse(SignalType.ERROR, value);
                 break;
             default:
@@ -89,10 +123,9 @@ export class Llm extends Uca<Body> {
         }
     }
 
-    private handleInferred(value: unknown): void {
-        const { answers = {}, state, model } = (value ?? {}) as { answers?: Record<string, unknown>; state?: unknown; model?: string };
-        const { response } = answers as { response?: string };
-        const result: InferResult = { response, data: answers, context: state, model };
+    private handleGenerated(value: unknown): void {
+        const { text, data, model, usage } = (value ?? {}) as GenerateResult;
+        const result: InferResult = { response: text, data, model, usage };
         this.pulse(SignalType.INFERRED, result);
     }
 }

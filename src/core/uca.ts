@@ -102,6 +102,8 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         return exists;
     }
 
+    protected onDispositionUpdated(): void {}
+
     private handleDispositionUpdate(signal: Signal): void {
         const payload = signal.value as DispositionUpdatePayload<TBody> | undefined;
         const { targetId, disposition } = payload ?? {};
@@ -112,6 +114,7 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         this.pulse(StorageSignal.SET, { key: this.id, value: this.disposition });
         const updatedPayload: DispositionUpdatedPayload<TBody> = { id: this.id, disposition: this.disposition };
         this.pulse(DispositionSignal.UPDATED, updatedPayload);
+        this.onDispositionUpdated();
     }
 
     private createCapability(CapabilityClass: CapabilityConstructor, disposition: Disposition): ICapability {

@@ -39,6 +39,8 @@ export interface StorageError {
 }
 
 export interface Body {
+    readonly id?: string;
+    readonly ownerId?: string;
     readonly prefix?: string;
     readonly storage?: Storage;
 }

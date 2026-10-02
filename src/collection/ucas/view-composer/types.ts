@@ -34,6 +34,7 @@ export interface ViewGraph {
 export interface ComposedResult {
     readonly ucas: Record<string, Disposition>;
     readonly graph: ViewGraph;
+    readonly result?: unknown;
 }
 
 export interface ComposePayload {
@@ -42,10 +43,13 @@ export interface ComposePayload {
     readonly model?: string;
     readonly schema?: Record<string, unknown>;
     readonly ucas?: Record<string, Disposition>;
+    readonly documentation?: string;
 }
 
 export interface Body {
     readonly model?: string;
-    readonly connection?: Record<string, unknown>;
+    readonly endpoint?: string;
+    readonly sseEndpoint?: string;
     readonly schema?: Record<string, unknown>;
+    readonly documentation?: string;
 }

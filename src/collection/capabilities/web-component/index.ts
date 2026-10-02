@@ -147,7 +147,8 @@ export class WebComponent extends Capability<Body> {
         const { id: bodyId } = aim.body ?? {};
         const sourceId = bodyId ?? this.id;
         const [prefix] = sourceId.split(':');
-        const [baseName] = prefix.trim().toLowerCase().split('-');
+        const lower = prefix.trim().toLowerCase();
+        const baseName = lower.startsWith('view-composer') ? 'viewcomposer' : lower.split('-')[0];
         const result = baseName ? `ext-${baseName}` : __DEFAULT_TAG__;
         return result;
     }
@@ -183,7 +184,8 @@ export class WebComponent extends Capability<Body> {
 
     private instance(id: string, tag: string): HTMLElement {
         const element = document.createElement(tag);
-        element.id = id;
+        const resolvedId = id.includes(':') ? id.split(':')[1] : id;
+        element.id = resolvedId;
         this.bindLifecycleListeners(element, id);
         this.setElement(id, element);
         return element;
@@ -274,7 +276,8 @@ export class WebComponent extends Capability<Body> {
     private mountElement(element: HTMLElement, container?: HTMLElement): void {
         const { aim } = this.disposition;
         const { container: fallbackContainer } = aim.body ?? {};
-        const activeContainer = container ?? fallbackContainer;
+        const defaultContainer = typeof document !== 'undefined' ? document.body : undefined;
+        const activeContainer = container ?? fallbackContainer ?? defaultContainer;
         mountElementToContainer(element, activeContainer);
     }
 

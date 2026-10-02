@@ -1,28 +1,26 @@
-import type { Disposition } from '@uca/core/types';
-
 export enum SignalType {
-    INIT = 'app.init',
-    START = 'app.start',
-    STOP = 'app.stop',
-    READY = 'app.ready',
-    STARTED = 'app.started',
-    STOPPED = 'app.stopped',
-    ERROR = 'app.error',
-    VIEW_COMPOSED = 'app.view.composed',
+    CREATE = 'app.create',
+    UPDATE = 'app.update',
+    REMOVE = 'app.remove',
+    EXPLAIN = 'app.explain',
+    CREATED = 'app.created',
+    UPDATED = 'app.updated',
+    REMOVED = 'app.removed',
 }
 
 export enum DataType {
     VOID = 'void',
+    RECORD = 'Record',
     STRING = 'string',
-    BOOLEAN = 'boolean',
-    VIEW_DISPOSITION = 'ViewDisposition',
-    COMPOSED_RESULT = 'ComposedResult',
 }
 
 export interface Body {
     readonly title?: string;
-    readonly version?: string;
-    readonly active?: boolean;
-    readonly request?: string;
-    readonly initialView?: Record<string, Disposition>;
+    readonly question?: string;
+    readonly buttonLabel?: string;
+    readonly documentation?: string;
+    readonly model?: string;
+    readonly endpoint?: string;
+    readonly sseEndpoint?: string;
+    readonly composedResult?: unknown;
 }

@@ -26,6 +26,16 @@ export class Toggle extends Uca<Body> {
         super(id);
     }
 
+    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
+        super.innervate(target, disposition);
+        const { aim } = this.disposition;
+        const { label, checked } = (aim.body ?? {}) as Body;
+        if (label !== undefined || checked !== undefined) {
+            this.onDispositionUpdated();
+        }
+        return this;
+    }
+
 
     protected override react(signal: Signal): void {
         const { property, value } = signal;
@@ -107,6 +117,12 @@ export class Toggle extends Uca<Body> {
         const properties = (aim.body ?? {}) as Body;
         return properties;
     }
+    protected override onDispositionUpdated(): void {
+        const attributes = this.buildAttributes(WEB_COMPONENT_ID);
+        const { aim } = this.disposition;
+        const { label } = (aim.body ?? {}) as Body;
+        this.pulse(CapabilitySignalType.RENDERED, { id: this.id, text: label, attributes });
+    }
 
     protected override capabilities(): Cooky {
         const attributes = this.buildAttributes(WEB_COMPONENT_ID);
@@ -138,12 +154,16 @@ export class Toggle extends Uca<Body> {
 
     private getWebComponentAttributes(): Record<string, unknown> {
         const { aim } = this.disposition;
-        const { checked, title, disabled } = aim.body ?? {};
+        const { checked, title, disabled, hidden, className } = (aim.body ?? {}) as Body;
         const mapping: Record<string, unknown> = {
             'checked': checked ? '' : undefined,
             'title': title,
             'disabled': disabled ? '' : undefined,
+            'hidden': hidden ? '' : undefined,
+            'class': className,
         };
         return mapping;
     }
 }
+
+export * from './types.js';

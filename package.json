@@ -24,12 +24,13 @@
   ],
   "scripts": {
     "build": "tsc",
+    "build:app": "tsx cli/build.ts",
+    "dev": "npm run kill:server && npm run build:app && npm run serve",
+    "kill:server": "lsof -ti :3000 | xargs kill -9 2>/dev/null || true",
+    "serve": "tsx dist/server.js",
+    "start": "npm run kill:server && npm run build:app && npm run serve",
     "test": "npm test --workspaces --if-present",
-    "typecheck": "tsc --noEmit",
-    "demo": "tsx src/demo/cli.ts",
-    "demo:bundle": "esbuild src/demo/entry.ts --bundle --format=esm --outfile=src/demo/app.bundle.js",
-    "demo:serve": "python3 -m http.server 8080 --directory src/demo",
-    "demo:web": "npm run demo:bundle && python3 -m http.server 8080 --directory src/demo"
+    "typecheck": "tsc --noEmit"
   },
   "repository": {
     "type": "git",
@@ -48,13 +49,16 @@
   "devDependencies": {
     "@types/jsdom": "^21.1.7",
     "@types/node": "^22.12.0",
+    "esbuild": "^0.28.2",
     "jsdom": "^28.1.0",
     "tsx": "^4.19.3",
     "typescript": "^5.7.3"
   },
   "dependencies": {
     "@google/genai": "^2.24.0",
+    "@hono/node-server": "^2.1.3",
     "@typesafe-ai/sdk": "^0.6.0",
+    "hono": "^4.13.12",
     "zod": "^4.6.5"
   }
 }

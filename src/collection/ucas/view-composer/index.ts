@@ -1,14 +1,16 @@
 import { Uca } from '@uca/core/uca';
-import { DispositionSignal, type Cooky, type Disposition, type DispositionUpdatePayload, type Signal } from '@uca/core/types';
-import { Llm, SignalType as LlmSignalType, type Body as LlmBody, type InferResult } from '@uca/llm';
-import { __ID__, DEFAULT_SIGNALS, DEFAULT_VIEW_SCHEMA, PURPOSE } from './constants.js';
+import type { Cooky, Disposition, Signal } from '@uca/core/types';
+import { LlmWeb, SignalType as LlmWebSignalType } from '@uca/llm-web';
+import { Graph, SignalType as GraphSignalType, type ResolvedResult, type ViewGraph } from '@uca/capability-graph';
+import { Box, SignalType as BoxSignalType } from '@uca/box';
+import { List } from '@uca/list';
+import { Action, SignalType as ActionSignalType } from '@uca/action';
+import { Toggle } from '@uca/toggle';
+import { AVAILABLE_UCAS_CATALOG, __ID__, DEFAULT_SIGNALS, DEFAULT_VIEW_SCHEMA, PURPOSE } from './constants.js';
 import {
     type Body,
     type ComposePayload,
     type ComposedResult,
-    type GraphEdge,
-    type GraphNode,
-    type ViewGraph,
     DataType,
     SignalType,
 } from './types.js';
@@ -35,20 +37,24 @@ export class ViewComposer extends Uca<Body> {
     public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
         const base = disposition ?? ViewComposer.disposition;
         const { reactTo = [] } = base;
-        const internalSignals = [LlmSignalType.INFERRED, LlmSignalType.ERROR];
+        const internalSignals = [
+            LlmWebSignalType.RESPONSE,
+            LlmWebSignalType.ERROR,
+            GraphSignalType.RESOLVED,
+            ActionSignalType.TRIGGER,
+            ActionSignalType.TRIGGERED,
+        ];
         const signals = [...new Set([...reactTo, ...internalSignals])];
         return super.innervate(target, { ...base, reactTo: signals });
     }
 
     protected override capabilities(): Cooky {
         const { aim } = this.disposition;
-        const { model, connection } = aim.body ?? {};
-        const disposition: Disposition<LlmBody> = {
-            aim: { description: Llm.purpose, body: { model, connection } },
-            reactTo: [LlmSignalType.INFER, LlmSignalType.CONNECT],
-        };
-        const cooky: Cooky = [[Llm, disposition]];
-        return cooky;
+        const { model, endpoint, sseEndpoint } = (aim.body ?? {}) as Body;
+        const llmDisp: Disposition = { aim: { description: LlmWeb.purpose, body: { model, endpoint, sseEndpoint } }, reactTo: [...LlmWeb.disposition.reactTo ?? []] };
+        const graphDisp: Disposition = { aim: { description: Graph.AIM, body: {} }, reactTo: [...Graph.disposition.reactTo ?? []] };
+        const visualDeclarations = this.getComposedVisualCapabilities();
+        return [[LlmWeb, llmDisp], [Graph, graphDisp], ...visualDeclarations];
     }
 
     protected override react(signal: Signal): void {
@@ -57,90 +63,80 @@ export class ViewComposer extends Uca<Body> {
             case SignalType.COMPOSE:
                 this.handleCompose(value);
                 break;
-            case LlmSignalType.INFERRED:
-                this.handleLlmInferred(value);
+            case LlmWebSignalType.RESPONSE:
+                this.handleLlmResponse(value);
                 break;
-            case LlmSignalType.ERROR:
+            case GraphSignalType.RESOLVED:
+                this.handleGraphResolved(value);
+                break;
+            case ActionSignalType.TRIGGER:
+            case ActionSignalType.TRIGGERED:
+                this.handleActionTrigger(value);
+                break;
+            case LlmWebSignalType.ERROR:
                 this.pulse(SignalType.ERROR, value);
                 break;
+            default:
+                break;
         }
+    }
+
+    private getComposedVisualCapabilities(): Cooky {
+        const boxDisp: Disposition = { aim: { description: 'Explanation card', body: { id: 'box:explanation-card', className: 'explanation-card' } }, reactTo: [...Box.disposition.reactTo ?? []] };
+        const listDisp: Disposition = { aim: { description: 'Ontological pillars list', body: { id: 'list:ontological-pillars', className: 'pillars-list' } }, reactTo: [...List.disposition.reactTo ?? []] };
+        const actionDisp: Disposition = { aim: { description: 'Pulse simulation trigger', body: { id: 'action:simulate-pulse', className: 'simulate-action' } }, reactTo: [...Action.disposition.reactTo ?? []] };
+        const toggleDisp: Disposition = { aim: { description: 'Reactive stream toggle', body: { id: 'toggle:reactive-mode', className: 'reactive-toggle' } }, reactTo: [...Toggle.disposition.reactTo ?? []] };
+        return [[Box, boxDisp], [List, listDisp], [Action, actionDisp], [Toggle, toggleDisp]];
     }
 
     private handleCompose(value: unknown): void {
         const payload = (value ?? {}) as ComposePayload;
-        const { ucas, request, context, model, schema: payloadSchema } = payload;
+        const { ucas, request, model, documentation } = payload;
         if (ucas) {
-            this.applyComposedUcas(ucas);
+            this.pulse(GraphSignalType.RESOLVE, { ucas });
             return;
         }
         if (!request) { return; }
         const { aim } = this.disposition;
-        const { schema: fallbackSchema } = aim.body ?? {};
-        const expectations = payloadSchema ?? fallbackSchema ?? DEFAULT_VIEW_SCHEMA;
-        this.pulse(LlmSignalType.INFER, { request, context, model, expectations });
+        const activeDocs = documentation ?? aim.body?.documentation;
+        const prompt = this.buildPrompt(request, activeDocs);
+        this.pulse(LlmWebSignalType.PROMPT, { prompt, model });
     }
 
-    private handleLlmInferred(value: unknown): void {
-        const result = (value ?? {}) as InferResult;
-        const { data, response } = result;
-        const rawPayload = (data ?? response ?? {}) as Record<string, unknown>;
-        const ucas = (rawPayload.ucas ?? rawPayload) as Record<string, Disposition>;
-        this.applyComposedUcas(ucas);
+    private buildPrompt(request: string, documentation?: string): string {
+        if (!documentation) { return request; }
+        const schemaHint = 'Compose a visual interactive explanation using "box:explanation-card" (with "text" explaining formula u = (p, d, C, O)), "list:ontological-pillars" (with "items" array for Purpose, Disposition, Capabilities, Outcomes), "action:simulate-pulse" (hidden: false), and "toggle:reactive-mode" (checked: true, hidden: false). Return JSON object with "ucas": [ { "id": "...", "aim": { "description": "...", "body": {...} }, "reactTo": [...] } ] and "answer": "<concise summary>".';
+        return `${documentation}\n\n${AVAILABLE_UCAS_CATALOG}\n\nTask: ${request}\n${schemaHint}`;
     }
 
-    private applyComposedUcas(ucas: Record<string, Disposition>): void {
-        this.propagateDispositions(ucas);
-        const graph = this.buildGraph(ucas);
-        const composed: ComposedResult = { ucas, graph };
+    private handleLlmResponse(value: unknown): void {
+        this.pulse(GraphSignalType.RESOLVE, value);
+    }
+
+    private handleGraphResolved(value: unknown): void {
+        const resolved = (value ?? {}) as ResolvedResult;
+        const { ucas, graph, answer } = resolved;
+        this.updateViewDisposition(ucas, graph, answer);
+        const composed: ComposedResult = { ucas, graph, result: { answer } };
         this.pulse(SignalType.COMPOSED, composed);
     }
 
-    private propagateDispositions(ucas: Record<string, Disposition>): void {
-        for (const [ucaId, disposition] of Object.entries(ucas)) {
-            const updatePayload: DispositionUpdatePayload = { targetId: ucaId, disposition };
-            this.pulse(DispositionSignal.UPDATE, updatePayload);
-        }
+    private handleActionTrigger(value: unknown): void {
+        const { id } = (value ?? {}) as { id?: string };
+        if (id && !id.includes('simulate-pulse')) { return; }
+        const pulseInfo = { timestamp: Date.now(), signal: 'uca.pulse', message: '⚡ [UCA Bus] ¡Estímulo nervioso propagado en tiempo real!' };
+        this.pulse('uca.pulse', pulseInfo);
+        this.pulse(BoxSignalType.UPDATE, { id: 'box:center-container', text: '⚡ ¡Pulso nervioso recibido y procesado por la red UCA!' });
     }
 
-    private buildGraph(ucas: Record<string, Disposition>): ViewGraph {
-        const nodes = this.buildNodes(ucas);
-        const edges = this.buildEdges(ucas);
-        return { nodes, edges };
-    }
-
-    private buildNodes(ucas: Record<string, Disposition>): GraphNode[] {
-        return Object.entries(ucas).map(([id, disposition]) => {
-            const { aim, inputs = [], outputs = [] } = disposition;
-            const { description = '' } = aim ?? {};
-            return { id, aimDescription: description, inputsCount: inputs.length, outputsCount: outputs.length };
-        });
-    }
-
-    private buildEdges(ucas: Record<string, Disposition>): GraphEdge[] {
-        const edges: GraphEdge[] = [];
-        for (const [consumerId, consumerDisp] of Object.entries(ucas)) {
-            const { reactTo = [] } = consumerDisp;
-            this.matchEdgesForConsumer(consumerId, reactTo, ucas, edges);
-        }
-        return edges;
-    }
-
-    private matchEdgesForConsumer(
-        toNode: string,
-        reactTo: readonly string[],
-        ucas: Record<string, Disposition>,
-        edges: GraphEdge[],
-    ): void {
-        for (const [producerId, producerDisp] of Object.entries(ucas)) {
-            const { outputs = [] } = producerDisp;
-            for (const output of outputs) {
-                if (reactTo.includes(output.signal) && producerId !== toNode) {
-                    edges.push({ fromNode: producerId, toNode, signal: output.signal, type: output.type });
-                }
-            }
-        }
+    private updateViewDisposition(ucas: Record<string, Disposition>, graph: ViewGraph, answer?: string): void {
+        const { aim } = this.disposition;
+        const body = (aim.body ?? {}) as Body;
+        const updatedBody = { ...body, ucas, graph, answer };
+        this.disposition = { ...this.disposition, aim: { ...aim, body: updatedBody } };
     }
 }
 
 export * from './constants.js';
 export * from './types.js';
+export { ViewComposer as ViewBuilder };

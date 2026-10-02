@@ -20,6 +20,15 @@ export class Box extends Uca<Body> {
         super(id);
     }
 
+    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
+        super.innervate(target, disposition);
+        const { aim } = this.disposition;
+        if (aim.body?.text) {
+            this.onDispositionUpdated();
+        }
+        return this;
+    }
+
 
     protected override react(signal: Signal): void {
         const { property, value } = signal;
@@ -40,15 +49,27 @@ export class Box extends Uca<Body> {
     }
 
     private handleCreate(value: unknown): void {
-        const payload = (value ?? {}) as { container?: HTMLElement } & Body;
+        const payload = (value ?? {}) as { id?: string; container?: HTMLElement } & Body;
+        if (payload.id && !this.matchesId(payload.id)) { return; }
+        const targetId = payload.id ?? this.id;
         const attributes = this.buildAttributes(WEB_COMPONENT_ID);
-        this.pulse(CapabilitySignalType.RENDERED, { id: this.id, container: payload.container, attributes });
+        const text = payload.text ?? this.disposition.aim.body?.text;
+        this.pulse(CapabilitySignalType.RENDERED, { id: targetId, container: payload.container, text, attributes });
     }
 
     private handleUpdate(value: unknown): void {
-        const payload = (value ?? {}) as { container?: HTMLElement } & Body;
+        const payload = (value ?? {}) as { id?: string; container?: HTMLElement } & Body;
+        if (payload.id && !this.matchesId(payload.id)) { return; }
+        const targetId = payload.id ?? this.id;
         const attributes = this.buildAttributes(WEB_COMPONENT_ID);
-        this.pulse(CapabilitySignalType.UPDATED, { id: this.id, container: payload.container, attributes });
+        const text = payload.text ?? this.disposition.aim.body?.text;
+        this.pulse(CapabilitySignalType.UPDATED, { id: targetId, container: payload.container, text, attributes });
+    }
+
+    private matchesId(targetId: string): boolean {
+        const targetBase = targetId.includes(':') ? targetId.split(':')[1] : targetId;
+        const currentBase = this.id.includes(':') ? this.id.split(':')[1] : this.id;
+        return targetId === this.id || targetBase === currentBase;
     }
 
     private handleRemove(value: unknown): void {
@@ -80,9 +101,18 @@ export class Box extends Uca<Body> {
         return properties;
     }
 
+    protected override onDispositionUpdated(): void {
+        const attributes = this.buildAttributes(WEB_COMPONENT_ID);
+        const { aim } = this.disposition;
+        const { text } = aim.body ?? {};
+        this.pulse(CapabilitySignalType.RENDERED, { id: this.id, text, attributes });
+    }
+
     protected override capabilities(): Cooky {
         const attributes = this.buildAttributes(WEB_COMPONENT_ID);
-        const body = { id: this.id, attributes };
+        const { aim } = this.disposition;
+        const { text } = aim.body ?? {};
+        const body = { id: this.id, text, attributes };
         const purpose = 'Render structural box container in target presentation tree';
         const disposition: Disposition = { aim: { description: purpose, body }, reactTo: [...this.getReactToSignals()] };
         const cooky: Cooky = [[WebComponent, disposition]];
@@ -118,3 +148,5 @@ export class Box extends Uca<Body> {
         return mapping;
     }
 }
+
+export * from './types.js';

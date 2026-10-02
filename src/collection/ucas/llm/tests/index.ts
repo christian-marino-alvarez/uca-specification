@@ -1,7 +1,7 @@
 import * as assert from 'node:assert';
 import { Uca } from '@uca/core/uca';
 import type { Signal } from '@uca/core/types';
-import { SignalType as JevSignalType } from '@uca/capability-jev';
+import { SignalType as GeminiSignalType } from '@uca/capability-gemini';
 import { Llm, SignalType, DataType, __ID__ } from '../index.js';
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
@@ -16,37 +16,36 @@ function testLlm_IdentityAndDefaults(): void {
     assert.ok(llm instanceof Uca);
     llm.innervate();
     const { inputs, outputs } = llm.disposition;
-    assert.strictEqual(inputs?.length, 2);
+    assert.strictEqual(inputs?.length, 3);
     assert.strictEqual(inputs?.[0]?.type, DataType.INFER_PAYLOAD);
-    assert.strictEqual(outputs?.length, 3);
+    assert.strictEqual(outputs?.length, 5);
     assert.strictEqual(outputs?.[0]?.type, DataType.INFER_RESULT);
     llm.denervate();
 }
 
-function testLlm_TransducesInferToJevInfer(): void {
+function testLlm_TransducesInferToGeminiGenerate(): void {
     const bus = new EventTarget();
     const llm = new Llm('llm-test').innervate(bus);
-    let jevInferPayload: unknown = undefined;
+    let geminiPayload: unknown = undefined;
 
-    bus.addEventListener(JevSignalType.INFER, (event: Event) => {
+    bus.addEventListener(GeminiSignalType.GENERATE, (event: Event) => {
         const { detail } = event as CustomEvent<Signal>;
-        jevInferPayload = detail.value;
+        geminiPayload = detail.value;
     });
 
     emitSignal(bus, SignalType.INFER, {
         request: 'What is the speed of light?',
-        model: 'gemini-1.5-pro',
+        model: 'gemini-2.5-flash',
     });
 
-    assert.notStrictEqual(jevInferPayload, undefined);
-    const { state, questions, model } = jevInferPayload as { state: unknown; questions: unknown; model?: string };
-    assert.deepStrictEqual(state, { request: 'What is the speed of light?' });
-    assert.strictEqual(model, 'gemini-1.5-pro');
-    assert.deepStrictEqual(questions, { response: { type: 'string' } });
+    assert.notStrictEqual(geminiPayload, undefined);
+    const { prompt, model } = geminiPayload as { prompt: string; model?: string };
+    assert.strictEqual(prompt, 'What is the speed of light?');
+    assert.strictEqual(model, 'gemini-2.5-flash');
     llm.denervate();
 }
 
-function testLlm_TransducesJevInferredToLlmInferred(): void {
+function testLlm_TransducesGeminiGeneratedToLlmInferred(): void {
     const bus = new EventTarget();
     const llm = new Llm('llm-test').innervate(bus);
     let generatedResult: unknown = undefined;
@@ -56,16 +55,17 @@ function testLlm_TransducesJevInferredToLlmInferred(): void {
         generatedResult = detail.value;
     });
 
-    emitSignal(bus, JevSignalType.INFERRED, {
-        state: { request: 'hello' },
-        answers: { response: 'Hello world!' },
-        model: 'test-model',
+    emitSignal(bus, GeminiSignalType.GENERATED, {
+        prompt: 'hello',
+        text: 'Hello world!',
+        data: { message: 'Hello world!' },
+        model: 'gemini-2.5-flash',
     });
 
     assert.notStrictEqual(generatedResult, undefined);
     const { response, data } = generatedResult as { response?: string; data?: Record<string, unknown> };
     assert.strictEqual(response, 'Hello world!');
-    assert.deepStrictEqual(data, { response: 'Hello world!' });
+    assert.deepStrictEqual(data, { message: 'Hello world!' });
     llm.denervate();
 }
 
@@ -75,7 +75,7 @@ function testLlm_TransducesConnectAndConnected(): void {
     let connectConfig: unknown = undefined;
     let connectedStatus: unknown = undefined;
 
-    bus.addEventListener(JevSignalType.CONNECT, (event: Event) => {
+    bus.addEventListener(GeminiSignalType.CONNECT, (event: Event) => {
         const { detail } = event as CustomEvent<Signal>;
         connectConfig = detail.value;
     });
@@ -84,15 +84,15 @@ function testLlm_TransducesConnectAndConnected(): void {
         connectedStatus = detail.value;
     });
 
-    emitSignal(bus, SignalType.CONNECT, { apiKey: 'secret-key', defaultModel: 'gemini-pro' });
-    assert.deepStrictEqual(connectConfig, { apiKey: 'secret-key', defaultModel: 'gemini-pro' });
+    emitSignal(bus, SignalType.CONNECT, { apiKey: 'secret-key', defaultModel: 'gemini-2.5-flash' });
+    assert.deepStrictEqual(connectConfig, { apiKey: 'secret-key', defaultModel: 'gemini-2.5-flash' });
 
-    emitSignal(bus, JevSignalType.CONNECTED, { status: 'ready' });
+    emitSignal(bus, GeminiSignalType.CONNECTED, { status: 'ready' });
     assert.strictEqual(connectedStatus, 'connected');
     llm.denervate();
 }
 
-function testLlm_TransducesJevError(): void {
+function testLlm_TransducesGeminiError(): void {
     const bus = new EventTarget();
     const llm = new Llm('llm-test').innervate(bus);
     let errorReceived: unknown = undefined;
@@ -102,7 +102,7 @@ function testLlm_TransducesJevError(): void {
         errorReceived = detail.value;
     });
 
-    emitSignal(bus, JevSignalType.ERROR, new Error('Rate limit exceeded'));
+    emitSignal(bus, GeminiSignalType.ERROR, new Error('Rate limit exceeded'));
     assert.ok(errorReceived instanceof Error);
     assert.strictEqual((errorReceived as Error).message, 'Rate limit exceeded');
     llm.denervate();
@@ -111,12 +111,12 @@ function testLlm_TransducesJevError(): void {
 function testLlm_AgnosticInferPayload(): void {
     const bus = new EventTarget();
     const llm = new Llm('llm-agnostic').innervate(bus);
-    let capturedInfer: unknown = undefined;
+    let capturedGenerate: unknown = undefined;
     let capturedGenerated: unknown = undefined;
 
-    bus.addEventListener(JevSignalType.INFER, (event: Event) => {
+    bus.addEventListener(GeminiSignalType.GENERATE, (event: Event) => {
         const { detail } = event as CustomEvent<Signal>;
-        capturedInfer = detail.value;
+        capturedGenerate = detail.value;
     });
     bus.addEventListener(SignalType.INFERRED, (event: Event) => {
         const { detail } = event as CustomEvent<Signal>;
@@ -125,83 +125,72 @@ function testLlm_AgnosticInferPayload(): void {
 
     emitSignal(bus, SignalType.INFER, {
         request: 'Diseña una vista de catálogo',
-        model: 'claude-3-7-sonnet',
-        imagination: 8,
+        model: 'gemini-2.5-flash',
         role: 'arquitecto de software',
-        format: 'json',
-        depth: 6,
+        expectations: { type: 'object' },
     });
 
-    assert.notStrictEqual(capturedInfer, undefined);
-    const { state, questions, model } = capturedInfer as { state: any; questions: any; model?: string };
-    assert.strictEqual(model, 'claude-3-7-sonnet');
-    assert.strictEqual(state.request, 'Diseña una vista de catálogo');
-    assert.strictEqual(state.imagination, 8);
-    assert.strictEqual(state.role, 'arquitecto de software');
-    assert.strictEqual(state.depth, 6);
-    assert.strictEqual(questions.response.type, 'json');
+    assert.notStrictEqual(capturedGenerate, undefined);
+    const { prompt, model, systemInstruction, schema } = capturedGenerate as { prompt: string; model?: string; systemInstruction?: string; schema?: unknown };
+    assert.strictEqual(model, 'gemini-2.5-flash');
+    assert.strictEqual(prompt, 'Diseña una vista de catálogo');
+    assert.strictEqual(systemInstruction, 'arquitecto de software');
+    assert.deepStrictEqual(schema, { type: 'object' });
 
-    emitSignal(bus, JevSignalType.INFERRED, {
-        state,
-        answers: { response: '{"view": "catalog"}' },
-        model: 'claude-3-7-sonnet',
+    emitSignal(bus, GeminiSignalType.GENERATED, {
+        prompt,
+        text: '{"view": "catalog"}',
+        data: { view: 'catalog' },
+        model: 'gemini-2.5-flash',
     });
 
     assert.notStrictEqual(capturedGenerated, undefined);
     const { response, data } = capturedGenerated as { response?: string; data?: Record<string, unknown> };
     assert.strictEqual(response, '{"view": "catalog"}');
-    assert.deepStrictEqual(data, { response: '{"view": "catalog"}' });
+    assert.deepStrictEqual(data, { view: 'catalog' });
     llm.denervate();
 }
 
-function testLlm_FallbackModelAndLimit(): void {
+function testLlm_FallbackModel(): void {
     const bus = new EventTarget();
     const llm = new Llm('llm-fallback');
     llm.innervate(bus);
     const { aim } = llm.disposition;
-    aim.body = { model: 'default-fallback-model', limit: 4096 };
+    aim.body = { model: 'gemini-fallback-model' };
 
-    let capturedInfer: unknown = undefined;
-    bus.addEventListener(JevSignalType.INFER, (event: Event) => {
+    let capturedGenerate: unknown = undefined;
+    bus.addEventListener(GeminiSignalType.GENERATE, (event: Event) => {
         const { detail } = event as CustomEvent<Signal>;
-        capturedInfer = detail.value;
+        capturedGenerate = detail.value;
     });
 
-    // Caso 1: model y limit son null o undefined -> usa fallback del disposition
     emitSignal(bus, SignalType.INFER, {
         request: 'Fallback test',
-        model: null,
-        limit: undefined,
     });
 
-    const { model: m1, limit: l1 } = capturedInfer as { model?: string; limit?: number };
-    assert.strictEqual(m1, 'default-fallback-model');
-    assert.strictEqual(l1, 4096);
+    const { model: m1 } = capturedGenerate as { model?: string };
+    assert.strictEqual(m1, 'gemini-fallback-model');
 
-    // Caso 2: model y limit especificados -> prevalecen sobre el fallback
     emitSignal(bus, SignalType.INFER, {
         request: 'Override test',
-        model: 'custom-model',
-        limit: 1024,
+        model: 'gemini-custom',
     });
 
-    const { model: m2, limit: l2 } = capturedInfer as { model?: string; limit?: number };
-    assert.strictEqual(m2, 'custom-model');
-    assert.strictEqual(l2, 1024);
+    const { model: m2 } = capturedGenerate as { model?: string };
+    assert.strictEqual(m2, 'gemini-custom');
 
     llm.denervate();
 }
 
 function runAllLlmTests(): void {
     testLlm_IdentityAndDefaults();
-    testLlm_TransducesInferToJevInfer();
-    testLlm_TransducesJevInferredToLlmInferred();
+    testLlm_TransducesInferToGeminiGenerate();
+    testLlm_TransducesGeminiGeneratedToLlmInferred();
     testLlm_TransducesConnectAndConnected();
-    testLlm_TransducesJevError();
+    testLlm_TransducesGeminiError();
     testLlm_AgnosticInferPayload();
-    testLlm_FallbackModelAndLimit();
+    testLlm_FallbackModel();
     console.log('✔ All LLM UCA cognitive reasoning tests passed successfully.');
 }
 
 runAllLlmTests();
-

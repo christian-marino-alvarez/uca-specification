@@ -11,6 +11,7 @@ import {
 } from './types.js';
 
 export class LocalStorage extends Capability<Body> {
+    public static readonly __ID__: string = __ID__;
     public static readonly AIM: string = AIM;
 
     public static override disposition: Disposition<Body> = {
@@ -56,6 +57,9 @@ export class LocalStorage extends Capability<Body> {
     private handleSet(value: unknown): void {
         const payload = (value ?? {}) as ItemPayload;
         const { key, value: itemValue } = payload;
+        const { aim } = this.disposition;
+        const { ownerId } = (aim.body ?? {}) as Body;
+        if (ownerId && key !== ownerId) { return; }
         const storage = this.resolveStorage();
         if (!storage || !key) {
             this.pulseError('set', 'Storage not available or missing key', key);

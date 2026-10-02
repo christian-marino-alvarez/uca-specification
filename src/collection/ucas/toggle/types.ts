@@ -14,4 +14,6 @@ export interface Body {
     readonly label?: string;
     readonly title?: string;
     readonly disabled?: boolean;
+    readonly hidden?: boolean;
+    readonly className?: string;
 }

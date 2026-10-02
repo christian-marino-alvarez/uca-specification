@@ -68,9 +68,15 @@ export function synchronizeElementAttributes(
     element: HTMLElement,
     attributes?: Readonly<Record<string, string>>,
 ): void {
-    if (attributes) {
-        for (const [name, value] of Object.entries(attributes)) {
+    if (!attributes) { return; }
+    if (!('hidden' in attributes) && element.hasAttribute('hidden')) {
+        element.removeAttribute('hidden');
+    }
+    for (const [name, value] of Object.entries(attributes)) {
+        if (value !== undefined && value !== null) {
             element.setAttribute(name, value);
+        } else {
+            element.removeAttribute(name);
         }
     }
 }

@@ -17,4 +17,7 @@ export interface Body {
     readonly alignment?: TextAlignment;
     readonly color?: string;
     readonly backgroundColor?: string;
+    readonly text?: string;
+    readonly hidden?: boolean;
+    readonly className?: string;
 }

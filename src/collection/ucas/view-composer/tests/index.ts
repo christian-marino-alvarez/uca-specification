@@ -1,6 +1,6 @@
 import * as assert from 'node:assert';
 import { DispositionSignal, type Disposition, type Signal } from '@uca/core/types';
-import { SignalType as LlmSignalType, type InferPayload, type InferResult } from '@uca/llm';
+import { SignalType as LlmWebSignalType, type PromptPayload, type ResponsePayload } from '@uca/llm-web';
 import {
     ViewComposer,
     DataType,
@@ -28,23 +28,22 @@ function testViewComposer_IdentityAndDefaults(): void {
     composer.denervate();
 }
 
-function testViewComposer_ComposePulsesLlmInfer(): void {
+function testViewComposer_ComposePulsesLlmPrompt(): void {
     const bus = new EventTarget();
     const composer = new ViewComposer('test-composer').innervate(bus);
-    let capturedInferPayload: InferPayload | undefined;
+    let capturedPromptPayload: PromptPayload | undefined;
 
-    bus.addEventListener(LlmSignalType.INFER, (event: Event) => {
-        capturedInferPayload = (event as CustomEvent<Signal<InferPayload>>).detail.value;
+    bus.addEventListener(LlmWebSignalType.PROMPT, (event: Event) => {
+        capturedPromptPayload = (event as CustomEvent<Signal<PromptPayload>>).detail.value;
     });
 
     emitSignal(bus, SignalType.COMPOSE, { request: 'Generate dashboard with header and list' });
-    assert.ok(capturedInferPayload);
-    assert.strictEqual(capturedInferPayload?.request, 'Generate dashboard with header and list');
-    assert.ok(capturedInferPayload?.expectations);
+    assert.ok(capturedPromptPayload);
+    assert.strictEqual(capturedPromptPayload?.prompt, 'Generate dashboard with header and list');
     composer.denervate();
 }
 
-function testViewComposer_LlmInferred_PropagatesDispositionsAndBuildsGraph(): void {
+function testViewComposer_LlmResponse_PropagatesDispositionsAndBuildsGraph(): void {
     const bus = new EventTarget();
     const composer = new ViewComposer('test-composer').innervate(bus);
     const updates: Array<{ targetId: string; disposition: Disposition }> = [];
@@ -71,8 +70,8 @@ function testViewComposer_LlmInferred_PropagatesDispositionsAndBuildsGraph(): vo
         },
     };
 
-    const mockResult: InferResult = { response: 'ok', data: { ucas: mockUcas } };
-    emitSignal(bus, LlmSignalType.INFERRED, mockResult);
+    const mockResult: ResponsePayload = { response: 'ok', data: { ucas: mockUcas } };
+    emitSignal(bus, LlmWebSignalType.RESPONSE, mockResult);
 
     assert.strictEqual(updates.length, 2);
     assert.strictEqual(updates[0]?.targetId, 'search-input');
@@ -98,15 +97,15 @@ function testViewComposer_LlmErrorPulsesError(): void {
         capturedError = (event as CustomEvent<Signal>).detail.value;
     });
 
-    emitSignal(bus, LlmSignalType.ERROR, { message: 'Provider timeout' });
+    emitSignal(bus, LlmWebSignalType.ERROR, { message: 'Provider timeout' });
     assert.deepStrictEqual(capturedError, { message: 'Provider timeout' });
     composer.denervate();
 }
 
 function runAllViewComposerTests(): void {
     testViewComposer_IdentityAndDefaults();
-    testViewComposer_ComposePulsesLlmInfer();
-    testViewComposer_LlmInferred_PropagatesDispositionsAndBuildsGraph();
+    testViewComposer_ComposePulsesLlmPrompt();
+    testViewComposer_LlmResponse_PropagatesDispositionsAndBuildsGraph();
     testViewComposer_LlmErrorPulsesError();
     console.log('✔ All ViewComposer UCA minimal architecture tests passed successfully.');
 }

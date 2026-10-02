@@ -20,6 +20,15 @@ export class Action extends Uca<Body> {
         super(id);
     }
 
+    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
+        super.innervate(target, disposition);
+        const { aim } = this.disposition;
+        if (aim.body?.label) {
+            this.onDispositionUpdated();
+        }
+        return this;
+    }
+
 
     protected override react(signal: Signal): void {
         const { property, value } = signal;
@@ -91,16 +100,30 @@ export class Action extends Uca<Body> {
     }
 
     private handleUserEvent(value: unknown): void {
-        const { event, detail } = (value ?? {}) as { event?: string; detail?: unknown };
+        const { id, event, detail } = (value ?? {}) as { id?: string; event?: string; detail?: unknown };
+        if (!id || !this.matchesId(id)) { return; }
         if (event === 'click') {
             this.handleTrigger(detail);
         }
+    }
+
+    private matchesId(targetId: string): boolean {
+        const targetBase = targetId.includes(':') ? targetId.split(':')[1] : targetId;
+        const currentBase = this.id.includes(':') ? this.id.split(':')[1] : this.id;
+        return targetId === this.id || targetBase === currentBase;
     }
 
     private getDomainProperties(): Body {
         const { aim } = this.disposition;
         const properties = (aim.body ?? {}) as Body;
         return properties;
+    }
+
+    protected override onDispositionUpdated(): void {
+        const attributes = this.buildAttributes(WEB_COMPONENT_ID);
+        const { aim } = this.disposition;
+        const { label } = aim.body ?? {};
+        this.pulse(CapabilitySignalType.RENDERED, { id: this.id, text: label, attributes });
     }
 
     protected override capabilities(): Cooky {
@@ -119,6 +142,7 @@ export class Action extends Uca<Body> {
             CapabilitySignalType.RENDERED,
             CapabilitySignalType.UPDATED,
             CapabilitySignalType.REMOVED,
+            CapabilitySignalType.EVENT,
         ];
         return reactTo;
     }
@@ -133,11 +157,15 @@ export class Action extends Uca<Body> {
 
     private getWebComponentAttributes(): Record<string, unknown> {
         const { aim } = this.disposition;
-        const { title, disabled } = aim.body ?? {};
+        const { title, disabled, hidden, className } = aim.body ?? {};
         const mapping: Record<string, unknown> = {
             'title': title,
             'disabled': disabled ? '' : undefined,
+            'hidden': hidden ? '' : undefined,
+            'class': className,
         };
         return mapping;
     }
 }
+
+export * from './types.js';
