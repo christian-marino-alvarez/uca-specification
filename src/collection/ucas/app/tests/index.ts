@@ -1,7 +1,8 @@
 import * as assert from 'node:assert';
 import { Uca } from '@uca/core/uca';
-import type { Signal } from '@uca/core/types';
-import { SignalType as ViewComposerSignalType, type ComposePayload } from '@uca/view-composer';
+import { DispositionSignal, type Signal } from '@uca/core/types';
+import { SignalType as LlmWebSignalType, type StreamPayload } from '@uca/llm-web';
+import { SignalType as GraphSignalType, type UcaItem } from '@uca/capability-graph';
 import { App, SignalType, DataType, __ID__, PURPOSE } from '../index.js';
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
@@ -56,30 +57,74 @@ function testApp_PulsesDomainSignals(): void {
     app.denervate();
 }
 
-function testApp_InnervateTriggersViewComposer(): void {
+function testApp_InnervateTriggersLlmStream(): void {
     const bus = new EventTarget();
-    let capturedCompose: ComposePayload | undefined;
+    let capturedStream: StreamPayload | undefined;
 
-    bus.addEventListener(ViewComposerSignalType.COMPOSE, (event: Event) => {
-        const signal = (event as CustomEvent<Signal>).detail;
-        capturedCompose = signal?.value as ComposePayload;
+    bus.addEventListener(LlmWebSignalType.STREAM, (event: Event) => {
+        const signal = (event as CustomEvent<Signal<StreamPayload>>).detail;
+        capturedStream = signal?.value;
     });
 
     const app = new App('app-orchestrator').innervate(bus);
 
-    assert.ok(capturedCompose !== undefined);
-    assert.ok(capturedCompose?.request?.includes('UCA'));
-    assert.ok(capturedCompose?.documentation?.includes('Universal Cognitive Architecture'));
+    assert.ok(capturedStream !== undefined);
+    assert.ok(capturedStream?.prompt?.includes('Universal Cognitive Architecture'));
+    assert.ok(capturedStream?.prompt?.includes('VIEW IMAGINATION GUIDELINES'));
 
     app.denervate();
 }
 
-function runAllAppTests(): void {
+async function testApp_ConsumesUcaStreamAndInnervates(): Promise<void> {
+    const bus = new EventTarget();
+    const app = new App('app-stream-consumer').innervate(bus);
+    const capturedUpdates: string[] = [];
+    const capturedDetected: string[] = [];
+
+    bus.addEventListener(DispositionSignal.UPDATE, (event: Event) => {
+        const payload = (event as CustomEvent<Signal<{ id: string }>>).detail.value;
+        capturedUpdates.push(payload.id);
+    });
+
+    bus.addEventListener(GraphSignalType.UCA_DETECTED, (event: Event) => {
+        const payload = (event as CustomEvent<Signal<{ id: string }>>).detail.value;
+        capturedDetected.push(payload.id);
+    });
+
+    const stream = new ReadableStream<UcaItem>({
+        start(controller) {
+            controller.enqueue({
+                id: 'box:hero-card',
+                disposition: { aim: { description: 'Hero Card', body: { text: 'Welcome' } } },
+            });
+            controller.enqueue({
+                id: 'action:start-btn',
+                disposition: { aim: { description: 'Start Button', body: { label: 'Go' } } },
+            });
+            controller.close();
+        },
+    });
+
+    emitSignal(bus, GraphSignalType.UCA_STREAM, { stream, streamId: 'session-123' });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    assert.strictEqual(capturedUpdates.length, 2);
+    assert.ok(capturedUpdates.includes('box:hero-card'));
+    assert.ok(capturedUpdates.includes('action:start-btn'));
+    assert.strictEqual(capturedDetected.length, 2);
+    assert.ok(capturedDetected.includes('box:hero-card'));
+    assert.ok(capturedDetected.includes('action:start-btn'));
+
+    app.denervate();
+}
+
+async function runAllAppTests(): Promise<void> {
     testApp_IdentityAndDefaults();
     testApp_InnervationAndCooky();
     testApp_PulsesDomainSignals();
-    testApp_InnervateTriggersViewComposer();
-    console.log('✔ All App UCA scaffolding and ViewComposer orchestration tests passed successfully.');
+    testApp_InnervateTriggersLlmStream();
+    await testApp_ConsumesUcaStreamAndInnervates();
+    console.log('✔ All App UCA lifecycle and autonomous stream orchestration tests passed successfully.');
 }
 
 runAllAppTests();

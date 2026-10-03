@@ -22,5 +22,6 @@ export interface Body {
     readonly model?: string;
     readonly endpoint?: string;
     readonly sseEndpoint?: string;
+    readonly factory?: unknown;
     readonly composedResult?: unknown;
 }

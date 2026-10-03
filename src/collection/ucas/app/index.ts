@@ -1,10 +1,43 @@
 import { Uca } from '@uca/core/uca';
-import type { Cooky, Disposition, Signal } from '@uca/core/types';
-import { ViewComposer, SignalType as ViewComposerSignalType, type Body as ViewComposerBody, type ComposedResult } from '@uca/view-composer';
+import {
+    DispositionSignal,
+    type CapabilityConstructor,
+    type Cooky,
+    type Disposition,
+    type ICapability,
+    type Signal,
+} from '@uca/core/types';
+import { PromptApi, SignalType as PromptApiSignalType } from '@uca/capability-prompt-api';
+import { LlmWeb, SignalType as LlmWebSignalType } from '@uca/llm-web';
+import {
+    Graph,
+    SignalType as GraphSignalType,
+    type UcaItem,
+    type UcaStreamPayload,
+} from '@uca/capability-graph';
 import { StyleComposer, type Body as StyleComposerBody } from '@uca/style-composer';
+import { Box } from '@uca/box';
+import { Picture } from '@uca/picture';
+import { Toggle } from '@uca/toggle';
+import { Action } from '@uca/action';
+import { List } from '@uca/list';
+import { Input } from '@uca/input';
+import { Dropdown } from '@uca/dropdown';
+import { Choice } from '@uca/choice';
 import { __ID__, DEFAULT_SIGNALS, PURPOSE } from './constants.js';
-import { UCA_ARCHITECTURE_DOCUMENTATION } from './docs.js';
+import { buildAppPrompt } from './prompt.js';
 import { type Body, DataType, SignalType } from './types.js';
+
+const UCA_CATALOG: Record<string, CapabilityConstructor> = {
+    box: Box as unknown as CapabilityConstructor,
+    picture: Picture as unknown as CapabilityConstructor,
+    toggle: Toggle as unknown as CapabilityConstructor,
+    action: Action as unknown as CapabilityConstructor,
+    list: List as unknown as CapabilityConstructor,
+    input: Input as unknown as CapabilityConstructor,
+    dropdown: Dropdown as unknown as CapabilityConstructor,
+    choice: Choice as unknown as CapabilityConstructor,
+};
 
 export class App extends Uca<Body> {
     public static override purpose: string = PURPOSE;
@@ -24,6 +57,9 @@ export class App extends Uca<Body> {
         ],
     };
 
+    private readonly instances: Map<string, ICapability> = new Map();
+    private hasInitialized: boolean = false;
+
     public constructor(id: string = __ID__) {
         super(id);
     }
@@ -31,28 +67,29 @@ export class App extends Uca<Body> {
     public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
         const base = disposition ?? App.disposition;
         const { reactTo = [] } = base;
-        const internalSignals = [ViewComposerSignalType.COMPOSED, ViewComposerSignalType.ERROR];
+        const internalSignals = [GraphSignalType.UCA_STREAM, LlmWebSignalType.ERROR];
         const signals = [...new Set([...reactTo, ...internalSignals])];
         super.innervate(target, { ...base, reactTo: signals });
         this.pulse(SignalType.CREATE, this.getDomainProperties());
         return this;
     }
 
+    public override denervate(): void {
+        super.denervate();
+        for (const instance of this.instances.values()) {
+            instance.denervate();
+        }
+        this.instances.clear();
+    }
+
     protected override capabilities(): Cooky {
         const { aim } = this.disposition;
-        const { documentation = UCA_ARCHITECTURE_DOCUMENTATION, model, endpoint, sseEndpoint } = (aim.body ?? {}) as Body;
-        const viewComposerDisposition: Disposition<ViewComposerBody> = {
-            aim: { description: ViewComposer.purpose, body: { documentation, model, endpoint, sseEndpoint } },
-            reactTo: [...ViewComposer.disposition.reactTo ?? []],
-        };
-        const styleComposerDisposition: Disposition<StyleComposerBody> = {
-            aim: { description: StyleComposer.purpose, body: {} },
-            reactTo: [...StyleComposer.disposition.reactTo ?? []],
-        };
-        return [
-            [ViewComposer, viewComposerDisposition],
-            [StyleComposer, styleComposerDisposition],
-        ];
+        const { model, endpoint, sseEndpoint, factory } = (aim.body ?? {}) as Body;
+        const promptDisp: Disposition = { aim: { description: PromptApi.AIM, body: { factory } }, reactTo: [...PromptApi.disposition.reactTo ?? []] };
+        const llmDisp: Disposition = { aim: { description: LlmWeb.purpose, body: { model, endpoint, sseEndpoint } }, reactTo: [...LlmWeb.disposition.reactTo ?? []] };
+        const graphDisp: Disposition = { aim: { description: Graph.AIM, body: {} }, reactTo: [...Graph.disposition.reactTo ?? []] };
+        const styleDisp: Disposition<StyleComposerBody> = { aim: { description: StyleComposer.purpose, body: {} }, reactTo: [...StyleComposer.disposition.reactTo ?? []] };
+        return [[PromptApi, promptDisp], [LlmWeb, llmDisp], [Graph, graphDisp], [StyleComposer, styleDisp]];
     }
 
     protected override react(signal: Signal): void {
@@ -67,45 +104,71 @@ export class App extends Uca<Body> {
             case SignalType.REMOVE:
                 this.pulse(SignalType.REMOVED, this.getDomainProperties());
                 break;
-            case ViewComposerSignalType.COMPOSED:
-                this.handleComposedView(value);
+            case GraphSignalType.UCA_STREAM:
+                this.handleUcaStream(value);
                 break;
             default:
                 break;
         }
     }
 
-    private hasInitialized: boolean = false;
-
     private handleCreate(): void {
         if (this.hasInitialized) { return; }
         this.hasInitialized = true;
         const { aim } = this.disposition;
         const { description = PURPOSE } = aim;
-        const { documentation = UCA_ARCHITECTURE_DOCUMENTATION } = (aim.body ?? {}) as Body;
-        this.pulse(ViewComposerSignalType.COMPOSE, { request: description, documentation, stream: true });
+        const { documentation, model } = (aim.body ?? {}) as Body;
+        const prompt = buildAppPrompt(description, documentation);
+        if (this.isPromptApiAvailable()) {
+            this.pulse(PromptApiSignalType.STREAM, { prompt });
+        } else {
+            this.pulse(LlmWebSignalType.STREAM, { prompt, model });
+        }
         this.pulse(SignalType.CREATED, this.getDomainProperties());
     }
 
-    private handleComposedView(value: unknown): void {
-        const result = (value ?? {}) as ComposedResult;
-        this.updateAppDisposition(result);
-        this.pulse(SignalType.UPDATED, { composed: true, result });
+    private isPromptApiAvailable(): boolean {
+        const { aim } = this.disposition;
+        const { factory } = (aim.body ?? {}) as Body;
+        const globalAi = (globalThis as unknown as { ai?: { languageModel?: unknown } }).ai;
+        return Boolean(factory ?? globalAi?.languageModel);
     }
 
-    private updateAppDisposition(result: ComposedResult): void {
-        const { aim } = this.disposition;
-        const body = (aim.body ?? {}) as Body;
-        this.disposition = { ...this.disposition, aim: { ...aim, body: { ...body, composedResult: result } } };
+    private handleUcaStream(value: unknown): void {
+        const payload = (value ?? {}) as UcaStreamPayload;
+        const { stream, streamId } = payload;
+        if (!stream) { return; }
+        const consumer = new WritableStream<UcaItem>({
+            write: (item: UcaItem) => this.consumeStreamUca(item, streamId),
+        });
+        stream.pipeTo(consumer).catch(() => {});
+    }
+
+    private consumeStreamUca(uca: UcaItem, streamId?: string): void {
+        const { id, disposition } = uca;
+        if (!id || !disposition) { return; }
+        this.innervateUca(id, disposition);
+        this.pulse(DispositionSignal.UPDATE, { id, disposition });
+        this.pulse(GraphSignalType.UCA_DETECTED, { id, disposition, streamId });
+    }
+
+    private innervateUca(id: string, disposition: Disposition): void {
+        const existing = this.instances.get(id);
+        if (existing) { return void existing.innervate(this.target, disposition); }
+        const [prefix] = id.split(':');
+        const Factory = UCA_CATALOG[prefix ?? id] as (new (id: string) => ICapability) | undefined;
+        if (!Factory) { return; }
+        const instance = new Factory(id).innervate(this.target, disposition);
+        this.instances.set(id, instance);
     }
 
     private getDomainProperties(): Body {
         const { aim } = this.disposition;
-        const properties = (aim.body ?? {}) as Body;
-        return properties;
+        return (aim.body ?? {}) as Body;
     }
 }
 
 export * from './constants.js';
 export * from './types.js';
 export * from './docs.js';
+export * from './prompt.js';

@@ -148,7 +148,7 @@ export class WebComponent extends Capability<Body> {
         const sourceId = bodyId ?? this.id;
         const [prefix] = sourceId.split(':');
         const lower = prefix.trim().toLowerCase();
-        const baseName = lower.startsWith('view-composer') ? 'viewcomposer' : lower.split('-')[0];
+        const baseName = lower.split('-')[0];
         const result = baseName ? `ext-${baseName}` : __DEFAULT_TAG__;
         return result;
     }

@@ -3,7 +3,6 @@ import type { Cooky, Disposition, Signal } from '@uca/core/types';
 import { Css, SignalType as CssSignalType, type CssRule } from '@uca/capability-css';
 import { PromptApi, SignalType as PromptApiSignalType, type PromptResult } from '@uca/capability-prompt-api';
 import { SignalType as GraphSignalType } from '@uca/capability-graph';
-import { SignalType as ViewComposerSignalType } from '@uca/view-composer';
 import { __ID__, DEFAULT_SIGNALS, PURPOSE } from './constants.js';
 import {
     buildThemePrompt,
@@ -65,10 +64,8 @@ export class StyleComposer extends Uca<Body> {
         const { property, value } = signal;
         switch (property) {
             case SignalType.COMPOSE_THEME:
-            case ViewComposerSignalType.COMPOSED:
                 this.handleComposeTheme(value);
                 break;
-            case ViewComposerSignalType.UCA_DETECTED:
             case GraphSignalType.UCA_DETECTED:
             case SignalType.STYLE_UCA:
                 this.handleStyleUca(value);
@@ -88,7 +85,6 @@ export class StyleComposer extends Uca<Body> {
         return [
             PromptApiSignalType.RESPONDED,
             PromptApiSignalType.ERROR,
-            ViewComposerSignalType.UCA_DETECTED,
             GraphSignalType.UCA_DETECTED,
             CssSignalType.CREATED,
             CssSignalType.UPDATED,
