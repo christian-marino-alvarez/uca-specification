@@ -277,11 +277,19 @@ export class WebComponent extends Capability<Body> {
     }
 
     private mountElement(element: HTMLElement, container?: HTMLElement): void {
-        const { aim } = this.disposition;
+        const { aim, parentTo } = this.disposition;
         const { container: fallbackContainer } = aim.body ?? {};
+        const parentContainer = this.resolveParentContainer(parentTo);
         const defaultContainer = typeof document !== 'undefined' ? document.body : undefined;
-        const activeContainer = container ?? fallbackContainer ?? defaultContainer;
+        const activeContainer = container ?? fallbackContainer ?? parentContainer ?? defaultContainer;
         mountElementToContainer(element, activeContainer);
+    }
+
+    private resolveParentContainer(parentTo?: Disposition['parentTo']): HTMLElement | undefined {
+        if (!parentTo?.uca || typeof document === 'undefined') { return undefined; }
+        const { uca } = parentTo;
+        const resolvedId = uca.includes(':') ? uca.split(':')[1] : uca;
+        return document.getElementById(resolvedId ?? uca) ?? document.getElementById(uca) ?? undefined;
     }
 
     private unbindElementListeners(element: HTMLElement): void {

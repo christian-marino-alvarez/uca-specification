@@ -1,7 +1,9 @@
 import { Uca } from '@uca/core/uca';
 import {
     DispositionSignal,
+    type CapabilityConstructor,
     type Cooky,
+    type CookyEntry,
     type Disposition,
     type DispositionProvidePayload,
     type ICapability,
@@ -11,12 +13,18 @@ import { LlmWeb, SignalType as LlmWebSignalType } from '@uca/llm-web';
 import { PromptApi, SignalType as PromptApiSignalType } from '@uca/capability-prompt-api';
 import {
     Graph,
-    buildGraph,
     SignalType as GraphSignalType,
     type UcaItem,
     type UcaStreamPayload,
-    type ViewGraph,
 } from '@uca/capability-graph';
+import { Box } from '@uca/box';
+import { Picture } from '@uca/picture';
+import { Toggle } from '@uca/toggle';
+import { Action } from '@uca/action';
+import { List } from '@uca/list';
+import { Input } from '@uca/input';
+import { Dropdown } from '@uca/dropdown';
+import { Choice } from '@uca/choice';
 import { __ID__, DEFAULT_SIGNALS, PURPOSE } from './constants.js';
 import {
     type Body,
@@ -83,7 +91,9 @@ export class ViewComposer extends Uca<Body> {
         const promptDisp: Disposition = { aim: { description: PromptApi.AIM, body: { factory } }, reactTo: [...PromptApi.disposition.reactTo ?? []] };
         const llmDisp: Disposition = { aim: { description: LlmWeb.purpose, body: { model, endpoint, sseEndpoint } }, reactTo: [...LlmWeb.disposition.reactTo ?? []] };
         const graphDisp: Disposition = { aim: { description: Graph.AIM, body: {} }, reactTo: [...Graph.disposition.reactTo ?? []] };
-        return [[PromptApi, promptDisp], [LlmWeb, llmDisp], [Graph, graphDisp]];
+        const ucas = [Box, Picture, Toggle, Action, List, Input, Dropdown, Choice];
+        const webCooky = ucas.map((U) => [U as unknown as CapabilityConstructor, { aim: { description: U.purpose, body: {} }, reactTo: [...U.disposition.reactTo ?? []] } as Disposition] as CookyEntry);
+        return [[PromptApi, promptDisp], [LlmWeb, llmDisp], [Graph, graphDisp], ...webCooky];
     }
 
     protected override react(signal: Signal): void {
@@ -191,10 +201,31 @@ export class ViewComposer extends Uca<Body> {
     }
 
     private handleStreamCompleted(sessionUcas: Record<string, Disposition>): void {
-        const graph = buildGraph(sessionUcas);
-        this.updateViewDisposition(sessionUcas, graph);
-        const composed: ComposedResult = { ucas: sessionUcas, graph };
+        this.mountHierarchicalElements(sessionUcas);
+        this.updateViewDisposition(sessionUcas);
+        const composed: ComposedResult = { ucas: sessionUcas };
         this.pulse(SignalType.COMPOSED, composed);
+    }
+
+    private mountHierarchicalElements(ucas: Record<string, Disposition>): void {
+        if (typeof document === 'undefined') { return; }
+        for (const [childId, disposition] of Object.entries(ucas)) {
+            const { parentTo } = disposition;
+            if (parentTo?.uca) { this.attachChildToParent(childId, parentTo.uca); }
+        }
+    }
+
+    private attachChildToParent(childId: string, parentId: string): void {
+        const childEl = this.findDomElement(childId);
+        const parentEl = this.findDomElement(parentId);
+        if (childEl && parentEl && !parentEl.contains(childEl)) {
+            parentEl.appendChild(childEl);
+        }
+    }
+
+    private findDomElement(id: string): HTMLElement | null {
+        const resolvedId = id.includes(':') ? id.split(':')[1] : id;
+        return document.getElementById(resolvedId ?? id) ?? document.getElementById(id);
     }
 
     private instantiateDynamicUca(id: string, disposition: Disposition): void {
@@ -268,12 +299,13 @@ export class ViewComposer extends Uca<Body> {
         const line1 = 'VIEW IMAGINATION GUIDELINES:\n- Imagine and compose an engaging, didactic view hierarchy for developers from scratch. Do not use any hardcoded structure.';
         const line2 = '- Assign unique descriptive IDs (e.g. "box:hero", "picture:architecture", "list:advantages", "list:strengths", "box:what-is-not-uca", "action:explore").';
         const line3 = '- Connect interactive triggers with real reactTo subscriptions (e.g. reactTo: ["action:explore.triggered"]).';
-        return `${line1}\n${line2}\n${line3}`;
+        const line4 = '- Use "parentTo": { "uca": "<parentUcaId>", "relation": "..." } for structural visual nesting inside parent containers. Root containers omit parentTo.';
+        return `${line1}\n${line2}\n${line3}\n${line4}`;
     }
 
     private getOutputSchemaContract(): string {
-        const schema = 'OUTPUT JSON SCHEMA (Strict response format):\n{\n  "data": {\n    "ucas": [\n      {\n        "id": "<prefix>:<uniqueName>",\n        "disposition": {\n          "aim": { "description": string, "body": { ...only valid keys from UCA schema... } },\n          "reactTo": ["<producerUcaId>.<emittedOutcome>"]\n        }\n      }\n    ],\n    "answer": "<concise explanation>"\n  },\n  "error": null,\n  "metadata": {}\n}';
-        const rules = 'CRITICAL RULES FOR REACTTO:\n1. reactTo specifies external signals from OTHER UCAs that trigger this UCA (e.g. ["action:simulate-pulse.triggered"]).\n2. If a UCA has no external dependencies, its reactTo MUST be [] (empty array).\n3. FORBIDDEN: NEVER put a UCA\'s own name or internal operations in its own reactTo (e.g. a Box never listens to its own signals, an Action never listens to itself).';
+        const schema = 'OUTPUT JSON SCHEMA (Strict response format):\n{\n  "data": {\n    "ucas": [\n      {\n        "id": "<prefix>:<uniqueName>",\n        "disposition": {\n          "aim": { "description": string, "body": { ...only valid keys from UCA schema... } },\n          "reactTo": ["<producerUcaId>.<emittedOutcome>"],\n          "parentTo": { "uca": "<parentUcaId>", "relation": "<description of relation>" }\n        }\n      }\n    ],\n    "answer": "<concise explanation>"\n  },\n  "error": null,\n  "metadata": {}\n}';
+        const rules = 'CRITICAL RULES:\n1. reactTo: external signals from OTHER UCAs (e.g. ["action:explore.triggered"]). Empty array [] if no trigger.\n2. parentTo: structural visual hierarchy { "uca": "<parentUcaId>", "relation": "child" }. Omit on root containers.\n3. FORBIDDEN: NEVER put a UCA\'s own name in its reactTo.';
         return `${schema}\n\n${rules}`;
     }
 
@@ -287,10 +319,10 @@ export class ViewComposer extends Uca<Body> {
 
 
 
-    private updateViewDisposition(ucas: Record<string, Disposition>, graph: ViewGraph, answer?: string): void {
+    private updateViewDisposition(ucas: Record<string, Disposition>, answer?: string): void {
         const { aim } = this.disposition;
         const body = (aim.body ?? {}) as Body;
-        const updatedBody = { ...body, ucas, graph, answer };
+        const updatedBody = { ...body, ucas, answer };
         this.disposition = { ...this.disposition, aim: { ...aim, body: updatedBody } };
     }
 }

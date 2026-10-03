@@ -34,28 +34,9 @@ export interface UcaSchemaDefinition<TBody = unknown> {
     readonly ucaConstructor?: CapabilityConstructor;
 }
 
-export interface GraphNode {
-    readonly id: string;
-    readonly aimDescription: string;
-    readonly inputsCount: number;
-    readonly outputsCount: number;
-}
-
-export interface GraphEdge {
-    readonly fromNode: string;
-    readonly toNode: string;
-    readonly signal: string;
-    readonly type: string;
-}
-
-export interface ViewGraph {
-    readonly nodes: readonly GraphNode[];
-    readonly edges: readonly GraphEdge[];
-}
-
 export interface ComposedResult {
     readonly ucas: Record<string, Disposition>;
-    readonly graph: ViewGraph;
+    readonly answer?: string;
     readonly result?: unknown;
 }
 
@@ -79,6 +60,5 @@ export interface Body {
     readonly documentation?: string;
     readonly definitions?: readonly UcaSchemaDefinition[];
     readonly ucas?: Record<string, Disposition>;
-    readonly graph?: ViewGraph;
     readonly answer?: string;
 }

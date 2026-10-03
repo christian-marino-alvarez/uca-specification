@@ -95,7 +95,8 @@ export class LlmWeb extends Uca<Body> {
     }
 
     private async sendPromptRequest(endpoint: string, prompt: string, model?: string): Promise<ResponsePayload> {
-        const response = await fetch(endpoint, {
+        const url = this.resolveUrl(endpoint);
+        const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ prompt, model }),
@@ -107,12 +108,20 @@ export class LlmWeb extends Uca<Body> {
     private async handleStream(value: unknown): Promise<void> {
         const payload = (value ?? {}) as StreamPayload;
         const { prompt, streamId } = payload;
-        const activeStreamId = streamId ?? crypto.randomUUID();
+        const activeStreamId = streamId ?? this.generateSessionId();
         if (this.isPromptApiAvailable(payload)) {
             await this.executePromptApiStream(prompt, activeStreamId, payload);
             return;
         }
         await this.dispatchSseStream(payload, activeStreamId);
+    }
+
+    private generateSessionId(): string {
+        const webCrypto = globalThis.crypto;
+        if (typeof webCrypto?.randomUUID === 'function') {
+            return webCrypto.randomUUID();
+        }
+        return `stream-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     }
 
     private async dispatchSseStream(payload: StreamPayload, streamId: string): Promise<void> {
@@ -194,12 +203,20 @@ export class LlmWeb extends Uca<Body> {
         streamId: string,
         model?: string,
     ): Promise<void> {
-        const url = `${sseEndpoint}?prompt=${encodeURIComponent(prompt)}`;
+        const fullEndpoint = this.resolveUrl(sseEndpoint);
+        const url = `${fullEndpoint}?prompt=${encodeURIComponent(prompt)}`;
         const response = await fetch(url, { headers: { Accept: 'text/event-stream' } });
         const { body } = response;
         if (!body) { return; }
         const decodedStream = body.pipeThrough(this.createSseTransform());
         this.pulse(SignalType.STREAM_DECODED, { streamId, stream: decodedStream, model });
+    }
+
+    private resolveUrl(endpoint: string): string {
+        if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) { return endpoint; }
+        const origin = typeof window !== 'undefined' ? window.location?.origin : 'http://localhost:3000';
+        const prefix = endpoint.startsWith('/') ? '' : '/';
+        return `${origin ?? 'http://localhost:3000'}${prefix}${endpoint}`;
     }
 
     private createSseTransform(): TransformStream<Uint8Array, string> {

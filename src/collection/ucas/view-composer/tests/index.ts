@@ -1,4 +1,5 @@
 import * as assert from 'node:assert';
+import { setMaxListeners } from 'node:events';
 import { z } from 'zod';
 import { Uca } from '@uca/core/uca';
 import { DispositionSignal, type Disposition, type Signal } from '@uca/core/types';
@@ -13,6 +14,12 @@ import {
     __ID__,
     PURPOSE,
 } from '../index.js';
+
+function createTestBus(): EventTarget {
+    const bus = new EventTarget();
+    try { setMaxListeners(100, bus); } catch {}
+    return bus;
+}
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
@@ -36,7 +43,7 @@ function testViewComposer_IdentityAndDefaults(): void {
 }
 
 function testViewComposer_ComposePulsesLlmStream(): void {
-    const bus = new EventTarget();
+    const bus = createTestBus();
     const composer = new ViewComposer('test-composer').innervate(bus);
     class BoxUca extends Uca {
         public static override purpose = 'Visual container';
@@ -60,7 +67,7 @@ function testViewComposer_ComposePulsesLlmStream(): void {
 }
 
 function testViewComposer_DynamicUcaRegistration(): void {
-    const bus = new EventTarget();
+    const bus = createTestBus();
     const composer = new ViewComposer('test-composer').innervate(bus);
     const sliderSchema = z.object({ title: z.string(), min: z.number().optional() });
     composer.registerUca({ name: 'Slider', prefix: 'slider', description: 'Range slider', bodySchema: sliderSchema, emittedSignals: ['change'] });
@@ -76,7 +83,7 @@ function testViewComposer_DynamicUcaRegistration(): void {
 }
 
 function testViewComposer_DynamicRegistrationViaSignal(): void {
-    const bus = new EventTarget();
+    const bus = createTestBus();
     const composer = new ViewComposer('test-composer').innervate(bus);
     const gaugeSchema = z.object({ value: z.number() });
     emitSignal(bus, SignalType.REGISTER, { name: 'Gauge', prefix: 'gauge', description: 'Radial meter', bodySchema: gaugeSchema, emittedSignals: ['read'] });
@@ -90,8 +97,8 @@ function testViewComposer_DynamicRegistrationViaSignal(): void {
     composer.denervate();
 }
 
-async function testViewComposer_DirectUcas_PropagatesDispositionsAndBuildsGraph(): Promise<void> {
-    const bus = new EventTarget();
+async function testViewComposer_DirectUcas_PropagatesDispositionsAndComposesView(): Promise<void> {
+    const bus = createTestBus();
     const composer = new ViewComposer('test-composer').innervate(bus);
     const updates: Array<{ id: string; disposition: Disposition }> = [];
     let capturedComposed: ComposedResult | undefined;
@@ -125,18 +132,15 @@ async function testViewComposer_DirectUcas_PropagatesDispositionsAndBuildsGraph(
     assert.strictEqual(updates[1]?.id, 'result-list');
 
     assert.ok(capturedComposed);
-    const { graph } = capturedComposed!;
-    assert.strictEqual(graph.nodes.length, 2);
-    assert.strictEqual(graph.edges.length, 1);
-    assert.strictEqual(graph.edges[0]?.fromNode, 'search-input');
-    assert.strictEqual(graph.edges[0]?.toNode, 'result-list');
-    assert.strictEqual(graph.edges[0]?.signal, 'search-input.query');
+    const { ucas } = capturedComposed!;
+    assert.ok(ucas['search-input']);
+    assert.ok(ucas['result-list']);
 
     composer.denervate();
 }
 
 function testViewComposer_LlmErrorPulsesError(): void {
-    const bus = new EventTarget();
+    const bus = createTestBus();
     const composer = new ViewComposer('test-composer').innervate(bus);
     let capturedError: unknown;
 
@@ -150,7 +154,7 @@ function testViewComposer_LlmErrorPulsesError(): void {
 }
 
 async function testViewComposer_ConsumesUcaStreamAndEmitsNervousPulses(): Promise<void> {
-    const bus = new EventTarget();
+    const bus = createTestBus();
     const composer = new ViewComposer('test-composer').innervate(bus);
     const capturedUcas: string[] = [];
     const nervousUpdates: string[] = [];
@@ -192,7 +196,7 @@ async function testViewComposer_ConsumesUcaStreamAndEmitsNervousPulses(): Promis
 }
 
 function testViewComposer_PulsesDispositionGetAndCompilesCatalogFromProvidedUcas(): void {
-    const bus = new EventTarget();
+    const bus = createTestBus();
     const composer = new ViewComposer('test-composer').innervate(bus);
 
     class CardUca extends Uca {
@@ -220,13 +224,47 @@ function testViewComposer_PulsesDispositionGetAndCompilesCatalogFromProvidedUcas
     composer.denervate();
 }
 
+async function testViewComposer_HierarchicalParentTo_ComposesHierarchyAndMounts(): Promise<void> {
+    const bus = createTestBus();
+    const composer = new ViewComposer('test-composer').innervate(bus);
+    let capturedComposed: ComposedResult | undefined;
+
+    bus.addEventListener(SignalType.COMPOSED, (event: Event) => {
+        capturedComposed = (event as CustomEvent<Signal<ComposedResult>>).detail.value;
+    });
+
+    const mockUcas: Record<string, Disposition> = {
+        'box:hero': {
+            aim: { description: 'Hero section' },
+            reactTo: [],
+        },
+        'picture:logo': {
+            aim: { description: 'Brand logo' },
+            reactTo: [],
+            parentTo: { uca: 'box:hero', relation: 'brand visual' },
+        },
+    };
+
+    emitSignal(bus, SignalType.COMPOSE, { ucas: mockUcas });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    assert.ok(capturedComposed);
+    const { ucas } = capturedComposed!;
+    assert.strictEqual(Object.keys(ucas).length, 2);
+    assert.strictEqual(ucas['picture:logo']?.parentTo?.uca, 'box:hero');
+    assert.strictEqual(ucas['picture:logo']?.parentTo?.relation, 'brand visual');
+
+    composer.denervate();
+}
+
 async function runAllViewComposerTests(): Promise<void> {
     testViewComposer_IdentityAndDefaults();
     testViewComposer_ComposePulsesLlmStream();
     testViewComposer_DynamicUcaRegistration();
     testViewComposer_DynamicRegistrationViaSignal();
     testViewComposer_PulsesDispositionGetAndCompilesCatalogFromProvidedUcas();
-    await testViewComposer_DirectUcas_PropagatesDispositionsAndBuildsGraph();
+    await testViewComposer_DirectUcas_PropagatesDispositionsAndComposesView();
+    await testViewComposer_HierarchicalParentTo_ComposesHierarchyAndMounts();
     testViewComposer_LlmErrorPulsesError();
     await testViewComposer_ConsumesUcaStreamAndEmitsNervousPulses();
     console.log('✔ All ViewComposer UCA minimal architecture tests passed successfully.');

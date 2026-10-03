@@ -26,24 +26,6 @@ export interface UcaStreamPayload {
     readonly stream: ReadableStream<UcaItem>;
 }
 
-export interface GraphNode {
-    readonly id: string;
-    readonly aimDescription: string;
-    readonly inputsCount: number;
-    readonly outputsCount: number;
-}
-
-export interface GraphEdge {
-    readonly fromNode: string;
-    readonly toNode: string;
-    readonly signal: string;
-    readonly type: string;
-}
-
-export interface ViewGraph {
-    readonly nodes: readonly GraphNode[];
-    readonly edges: readonly GraphEdge[];
-}
 
 
 export interface UcaDetectedPayload {

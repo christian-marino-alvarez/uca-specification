@@ -16,9 +16,15 @@ export const reactToSignalSchema = z.string().regex(
     'reactTo must follow format [prefix:]<id>.<outcome> (e.g. "action:simulate-pulse.triggered")'
 );
 
+export const parentToSchema = z.object({
+    uca: z.string(),
+    relation: z.string(),
+});
+
 export const dispositionSchema = z.object({
     aim: aimSchema,
     reactTo: z.array(reactToSignalSchema).optional().default([]),
+    parentTo: parentToSchema.optional(),
     inputs: z.array(signalDeclarationSchema).optional(),
     outputs: z.array(signalDeclarationSchema).optional(),
 });

@@ -3,10 +3,7 @@ import type { Disposition, Signal } from '@uca/core/types';
 import { __ID__, AIM, DEFAULT_SIGNALS } from './constants.js';
 import {
     type Body,
-    type GraphEdge,
-    type GraphNode,
     type StreamDecodedPayload,
-    type ViewGraph,
     DataType,
     SignalType,
 } from './types.js';
@@ -72,45 +69,6 @@ export class Graph extends Capability<Body> {
         if (!stream) { return; }
         const ucaStream = stream.pipeThrough(this.createUcaTransform());
         this.pulse(SignalType.UCA_STREAM, { streamId, stream: ucaStream });
-    }
-}
-
-export function buildGraph(ucas: Record<string, Disposition>): ViewGraph {
-    const nodes = buildNodes(ucas);
-    const edges = buildEdges(ucas);
-    return { nodes, edges };
-}
-
-function buildNodes(ucas: Record<string, Disposition>): GraphNode[] {
-    return Object.entries(ucas).map(([id, disposition]) => {
-        const { aim, inputs = [], outputs = [] } = disposition;
-        const { description = '' } = aim ?? {};
-        return { id, aimDescription: description, inputsCount: inputs.length, outputsCount: outputs.length };
-    });
-}
-
-function buildEdges(ucas: Record<string, Disposition>): GraphEdge[] {
-    const edges: GraphEdge[] = [];
-    for (const [consumerId, consumerDisp] of Object.entries(ucas)) {
-        const { reactTo = [] } = consumerDisp;
-        matchEdgesForConsumer(consumerId, reactTo, ucas, edges);
-    }
-    return edges;
-}
-
-function matchEdgesForConsumer(
-    toNode: string,
-    reactTo: readonly string[],
-    ucas: Record<string, Disposition>,
-    edges: GraphEdge[],
-): void {
-    for (const [producerId, producerDisp] of Object.entries(ucas)) {
-        const { outputs = [] } = producerDisp;
-        for (const output of outputs) {
-            if (reactTo.includes(output.signal) && producerId !== toNode) {
-                edges.push({ fromNode: producerId, toNode, signal: output.signal, type: output.type });
-            }
-        }
     }
 }
 
