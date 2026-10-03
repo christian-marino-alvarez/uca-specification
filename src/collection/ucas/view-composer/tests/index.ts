@@ -102,6 +102,10 @@ async function testViewComposer_ConsumesGraphUcaStreamAndInnervatesWebUca(): Pro
                 id: 'action:submit-btn',
                 disposition: { aim: { description: 'Submit Button', body: { label: 'Go' } }, reactTo: [] },
             });
+            controller.enqueue({
+                id: 'box:hero-card',
+                disposition: { aim: { description: 'Hero Card Updated', body: { text: 'Welcome Again' } }, reactTo: [] },
+            });
             controller.close();
         },
     });
@@ -109,9 +113,10 @@ async function testViewComposer_ConsumesGraphUcaStreamAndInnervatesWebUca(): Pro
     emitSignal(bus, GraphSignalType.UCA_STREAM, { stream });
     await new Promise((resolve) => setTimeout(resolve, 50));
 
-    assert.strictEqual(capturedUpdates.length, 2);
+    assert.strictEqual(capturedUpdates.length, 3);
     assert.strictEqual(capturedUpdates[0], 'box:hero-card');
     assert.strictEqual(capturedUpdates[1], 'action:submit-btn');
+    assert.strictEqual(capturedUpdates[2], 'box:hero-card');
 
     composer.denervate();
 }
