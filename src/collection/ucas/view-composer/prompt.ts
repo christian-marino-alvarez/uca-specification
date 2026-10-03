@@ -1,12 +1,40 @@
 import type { CapabilityConstructor } from '@uca/core/types';
 import type { Uca } from '@uca/core/uca';
+import { getOutputJsonSchema } from '@uca/capability-graph';
+
+const UCA_BODY_SPECS: Record<string, string> = {
+    box: 'aim.body: { text?: string, role?: string, className?: string } (roles: "header"|"main"|"card"|"footer")',
+    picture: 'aim.body: { source: string, alt?: string, dimensions?: { width?: number|string, height?: number|string } }',
+    action: 'aim.body: { label: string, title?: string, disabled?: boolean, className?: string } -> Emits "<id>.triggered"',
+    toggle: 'aim.body: { label?: string, checked?: boolean, title?: string, disabled?: boolean } -> Emits "<id>.changed"',
+    list: 'aim.body: { items: string[], ordered?: boolean, text?: string, spacing?: string|number }',
+    input: 'aim.body: { placeholder?: string, value?: string, disabled?: boolean } -> Emits "<id>.changed"',
+    dropdown: 'aim.body: { items: string[], value?: string, placeholder?: string } -> Emits "<id>.change"',
+    choice: 'aim.body: { options: (string | { value: string, label: string })[], selected?: string[], multiple?: boolean } -> Emits "<id>.selected"',
+    access: 'aim.body: { source: string, label: string, title?: string } (navigation link)',
+    collector: 'aim.body: { name?: string, title?: string } (form container) -> Emits "<id>.submitted", "<id>.resetted"',
+};
+
+const VIEW_GUIDELINES: readonly string[] = [
+    'VIEW COMPOSITION & HIERARCHY GUIDELINES:',
+    '1. PARENTTO STRUCTURAL NESTING:',
+    '   - Build a coherent visual DOM tree using "parentTo": { "uca": "<parentUcaId>", "relation": "<role>" }.',
+    '   - Root containers (e.g. "box:root", "box:hero", "collector:form") OMIT parentTo.',
+    '   - Nested children MUST specify parentTo pointing to their parent container ID.',
+    '   - The relation describes the visual role (e.g. "header", "content", "media", "action", "child").',
+    '2. IMAGINATIVE MULTI-UCA COMPOSITION:',
+    '   - Freely use all 10 available Web UCAs: Box, Picture, Action, Toggle, List, Input, Dropdown, Choice, Access, Collector.',
+    '   - Design rich components: hero banners with Picture, cards with Box, form groups with Collector, interactive buttons with Action, switches with Toggle, nav links with Access, and features with List.',
+    '3. REACTIVE EVENT WIRING:',
+    '   - Wire interactions using reactTo: ["<producerUcaId>.<outcome>"] (e.g. ["action:search.triggered", "toggle:theme.changed"]).',
+    '   - NEVER subscribe a UCA to its own signals.',
+];
 
 export function formatUcaSpecification(prefix: string, UcaClass: CapabilityConstructor): string {
     const TargetClass = UcaClass as unknown as typeof Uca;
-    const { purpose, disposition } = TargetClass;
-    const outputs = disposition?.outputs?.map((out) => `"${prefix}:<id>.${out.signal}"`) ?? [];
-    const outputsStr = outputs.length > 0 ? outputs.join(', ') : 'none';
-    return `- ${TargetClass.name} (prefix "${prefix}:<id>"): ${purpose}\n  Emits outcomes: ${outputsStr}`;
+    const { purpose } = TargetClass;
+    const bodySpec = UCA_BODY_SPECS[prefix] ?? 'aim.body: Record<string, unknown>';
+    return `- ${TargetClass.name} (prefix "${prefix}:<id>"):\n  Purpose: ${purpose}\n  Spec: ${bodySpec}`;
 }
 
 export function buildCatalogSpecification(catalog: Record<string, CapabilityConstructor>): string {
@@ -17,41 +45,10 @@ export function buildCatalogSpecification(catalog: Record<string, CapabilityCons
 }
 
 export function getViewGuidelines(): string {
-    const lines = [
-        'VIEW IMAGINATION GUIDELINES:',
-        '- Imagine and compose an engaging, didactic view hierarchy from scratch.',
-        '- Assign unique descriptive IDs (e.g. "box:hero", "picture:logo", "action:start").',
-        '- Connect interactive triggers with real reactTo subscriptions (e.g. reactTo: ["action:start.triggered"]).',
-        '- Use "parentTo": { "uca": "<parentUcaId>", "relation": "..." } for visual nesting inside parent containers.',
-    ];
-    return lines.join('\n');
+    return VIEW_GUIDELINES.join('\n');
 }
 
-export function getOutputJsonSchema(): string {
-    return `OUTPUT JSON SCHEMA (Strict response format):
-{
-  "data": {
-    "ucas": [
-      {
-        "id": "<prefix>:<uniqueName>",
-        "disposition": {
-          "aim": { "description": string, "body": { ...valid keys for UCA... } },
-          "reactTo": ["<producerUcaId>.<emittedOutcome>"],
-          "parentTo": { "uca": "<parentUcaId>", "relation": "<description>" }
-        }
-      }
-    ],
-    "answer": "<concise explanation>"
-  },
-  "error": null,
-  "metadata": {}
-}
-
-CRITICAL RULES:
-1. reactTo: external signals from OTHER UCAs (e.g. ["action:explore.triggered"]). Empty array [] if no trigger.
-2. parentTo: structural visual hierarchy { "uca": "<parentUcaId>", "relation": "child" }. Omit on root containers.
-3. FORBIDDEN: NEVER put a UCA's own name in its reactTo.`;
-}
+export { getOutputJsonSchema };
 
 export function buildCompositionPrompt(
     request: string,
@@ -62,5 +59,5 @@ export function buildCompositionPrompt(
     const guidelines = getViewGuidelines();
     const schema = getOutputJsonSchema();
     const context = documentation ? `${documentation}\n\n` : '';
-    return `${context}${catalogSpec}\n\n${guidelines}\n\nTask: ${request}\n\n${schema}`;
+    return `${context}${catalogSpec}\n\n${guidelines}\n\nTask: ${request}\n\nOUTPUT JSON SCHEMA (defined with Zod):\n${schema}`;
 }

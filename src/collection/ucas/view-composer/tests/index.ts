@@ -81,7 +81,8 @@ function testViewComposer_CreatePulsesLlmWebStream(): void {
     assert.ok(capturedStream !== undefined);
     assert.ok(capturedStream?.prompt?.includes('Compose modern hero card'));
     assert.ok(capturedStream?.prompt?.includes('Available UCAs Catalog (Fractal Cooky)'));
-    assert.ok(capturedStream?.prompt?.includes('Box (prefix "box:<id>")'));
+    assert.ok(capturedStream?.prompt?.includes('parentTo'));
+    assert.ok(capturedStream?.prompt?.includes('Collector'));
 
     composer.denervate();
 }
@@ -102,7 +103,11 @@ async function testViewComposer_ConsumesGraphUcaStreamAndInnervatesWebUca(): Pro
             });
             controller.enqueue({
                 id: 'action:submit-btn',
-                disposition: { aim: { description: 'Submit Button', body: { label: 'Go' } }, reactTo: [] },
+                disposition: {
+                    aim: { description: 'Submit Button', body: { label: 'Go' } },
+                    reactTo: [],
+                    parentTo: { uca: 'box:hero-card', relation: 'action' },
+                },
             });
             controller.close();
         },

@@ -84,13 +84,12 @@ export class Access extends Uca<Body> {
 
     protected override capabilities(): Cooky {
         const attributes = this.buildAttributes(WEB_COMPONENT_ID);
-        const { aim } = this.disposition;
+        const { aim, parentTo } = this.disposition;
         const { label } = aim.body ?? {};
         const body = { id: this.id, text: label, attributes };
         const purpose = 'Render reference connection element in target presentation tree';
-        const disposition: Disposition = { aim: { description: purpose, body }, reactTo: [...this.getReactToSignals()] };
-        const cooky: Cooky = [[WebComponent, disposition]];
-        return cooky;
+        const disposition: Disposition = { aim: { description: purpose, body }, reactTo: [...this.getReactToSignals()], parentTo };
+        return [[WebComponent, disposition]];
     }
 
     private getReactToSignals(): readonly string[] {

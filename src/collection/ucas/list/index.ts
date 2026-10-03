@@ -78,10 +78,11 @@ export class List extends Uca<Body> {
 
     protected override capabilities(): Cooky {
         const attributes = this.buildAttributes(WEB_COMPONENT_ID);
+        const { parentTo } = this.disposition;
         const text = this.getFormattedText();
         const body = { id: this.id, text, attributes };
         const purpose = 'Render sequential textual list in target presentation tree';
-        const disposition: Disposition = { aim: { description: purpose, body }, reactTo: [...this.getReactToSignals()] };
+        const disposition: Disposition = { aim: { description: purpose, body }, reactTo: [...this.getReactToSignals()], parentTo };
         return [[WebComponent, disposition]];
     }
 
