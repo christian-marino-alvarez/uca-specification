@@ -55,7 +55,8 @@
     "@uca/llm-web": "^0.1.0",
     "@uca/picture": "^0.1.0",
     "@uca/style-composer": "^0.1.0",
-    "@uca/toggle": "^0.1.0"
+    "@uca/toggle": "^0.1.0",
+    "@uca/view-composer": "^0.1.0"
   },
   "scripts": {
     "test": "tsx tests/index.ts"

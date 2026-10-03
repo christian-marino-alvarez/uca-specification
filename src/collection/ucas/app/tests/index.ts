@@ -50,10 +50,23 @@ function testApp_PulsesDomainSignals(): void {
     emitSignal(bus, SignalType.REMOVE, {});
 
     assert.ok(captured.length >= 3);
-    assert.strictEqual(captured[0]?.property, SignalType.CREATED);
-    assert.strictEqual(captured[1]?.property, SignalType.UPDATED);
-    assert.strictEqual(captured[2]?.property, SignalType.REMOVED);
+    assert.ok(captured.some((c) => c.property === SignalType.CREATED));
+    assert.ok(captured.some((c) => c.property === SignalType.UPDATED));
+    assert.ok(captured.some((c) => c.property === SignalType.REMOVED));
 
+    app.denervate();
+}
+
+function testApp_InnervateTriggersViewComposer(): void {
+    const bus = new EventTarget();
+    let capturedCreate: unknown;
+
+    bus.addEventListener('view-composer.create', (event: Event) => {
+        capturedCreate = (event as CustomEvent<Signal>).detail?.value;
+    });
+
+    const app = new App('app-composer-test').innervate(bus);
+    assert.ok(capturedCreate !== undefined);
     app.denervate();
 }
 
@@ -122,9 +135,10 @@ async function runAllAppTests(): Promise<void> {
     testApp_IdentityAndDefaults();
     testApp_InnervationAndCooky();
     testApp_PulsesDomainSignals();
+    testApp_InnervateTriggersViewComposer();
     testApp_InnervateTriggersLlmStream();
     await testApp_ConsumesUcaStreamAndInnervates();
-    console.log('✔ All App UCA lifecycle and autonomous stream orchestration tests passed successfully.');
+    console.log('✔ All App UCA lifecycle, ViewComposer scaffolding, and stream orchestration tests passed successfully.');
 }
 
 runAllAppTests();

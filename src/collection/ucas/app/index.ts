@@ -16,6 +16,7 @@ import {
     type UcaStreamPayload,
 } from '@uca/capability-graph';
 import { StyleComposer, type Body as StyleComposerBody } from '@uca/style-composer';
+import { ViewComposer, SignalType as ViewComposerSignalType, type Body as ViewComposerBody } from '@uca/view-composer';
 import { Box } from '@uca/box';
 import { Picture } from '@uca/picture';
 import { Toggle } from '@uca/toggle';
@@ -67,7 +68,7 @@ export class App extends Uca<Body> {
     public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
         const base = disposition ?? App.disposition;
         const { reactTo = [] } = base;
-        const internalSignals = [GraphSignalType.UCA_STREAM, LlmWebSignalType.ERROR];
+        const internalSignals = [ViewComposerSignalType.CREATED, GraphSignalType.UCA_STREAM, LlmWebSignalType.ERROR];
         const signals = [...new Set([...reactTo, ...internalSignals])];
         super.innervate(target, { ...base, reactTo: signals });
         this.pulse(SignalType.CREATE, this.getDomainProperties());
@@ -89,7 +90,14 @@ export class App extends Uca<Body> {
         const llmDisp: Disposition = { aim: { description: LlmWeb.purpose, body: { model, endpoint, sseEndpoint } }, reactTo: [...LlmWeb.disposition.reactTo ?? []] };
         const graphDisp: Disposition = { aim: { description: Graph.AIM, body: {} }, reactTo: [...Graph.disposition.reactTo ?? []] };
         const styleDisp: Disposition<StyleComposerBody> = { aim: { description: StyleComposer.purpose, body: {} }, reactTo: [...StyleComposer.disposition.reactTo ?? []] };
-        return [[PromptApi, promptDisp], [LlmWeb, llmDisp], [Graph, graphDisp], [StyleComposer, styleDisp]];
+        const viewDisp: Disposition<ViewComposerBody> = { aim: { description: ViewComposer.purpose, body: {} }, reactTo: [...ViewComposer.disposition.reactTo ?? []] };
+        return [
+            [ViewComposer, viewDisp],
+            [PromptApi, promptDisp],
+            [LlmWeb, llmDisp],
+            [Graph, graphDisp],
+            [StyleComposer, styleDisp],
+        ];
     }
 
     protected override react(signal: Signal): void {
@@ -99,10 +107,13 @@ export class App extends Uca<Body> {
                 this.handleCreate();
                 break;
             case SignalType.UPDATE:
-                this.pulse(SignalType.UPDATED, this.getDomainProperties());
+                this.handleUpdate(value);
                 break;
             case SignalType.REMOVE:
-                this.pulse(SignalType.REMOVED, this.getDomainProperties());
+                this.handleRemove(value);
+                break;
+            case ViewComposerSignalType.CREATED:
+                this.handleViewCreated(value);
                 break;
             case GraphSignalType.UCA_STREAM:
                 this.handleUcaStream(value);
@@ -119,12 +130,31 @@ export class App extends Uca<Body> {
         const { description = PURPOSE } = aim;
         const { documentation, model } = (aim.body ?? {}) as Body;
         const prompt = buildAppPrompt(description, documentation);
-        if (this.isPromptApiAvailable()) {
-            this.pulse(PromptApiSignalType.STREAM, { prompt });
-        } else {
-            this.pulse(LlmWebSignalType.STREAM, { prompt, model });
-        }
+        this.pulse(ViewComposerSignalType.CREATE, { title: description });
+        this.dispatchStream(prompt, model);
         this.pulse(SignalType.CREATED, this.getDomainProperties());
+    }
+
+    private handleUpdate(value: unknown): void {
+        this.pulse(ViewComposerSignalType.UPDATE, value);
+        this.pulse(SignalType.UPDATED, this.getDomainProperties());
+    }
+
+    private handleRemove(value: unknown): void {
+        this.pulse(ViewComposerSignalType.REMOVE, value);
+        this.pulse(SignalType.REMOVED, this.getDomainProperties());
+    }
+
+    private handleViewCreated(value: unknown): void {
+        const payload = (value ?? {}) as ViewComposerBody;
+        this.pulse(SignalType.UPDATED, { view: payload });
+    }
+
+    private dispatchStream(prompt: string, model?: string): void {
+        if (this.isPromptApiAvailable()) {
+            return void this.pulse(PromptApiSignalType.STREAM, { prompt });
+        }
+        this.pulse(LlmWebSignalType.STREAM, { prompt, model });
     }
 
     private isPromptApiAvailable(): boolean {
@@ -141,7 +171,7 @@ export class App extends Uca<Body> {
         const consumer = new WritableStream<UcaItem>({
             write: (item: UcaItem) => this.consumeStreamUca(item, streamId),
         });
-        stream.pipeTo(consumer).catch(() => {});
+        stream.pipeTo(consumer).catch(() => { });
     }
 
     private consumeStreamUca(uca: UcaItem, streamId?: string): void {
