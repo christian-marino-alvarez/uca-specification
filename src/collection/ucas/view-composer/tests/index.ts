@@ -79,7 +79,9 @@ function testViewComposer_CreatePulsesLlmWebStream(): void {
     emitSignal(bus, SignalType.CREATE, { prompt: 'Compose modern hero card' });
 
     assert.ok(capturedStream !== undefined);
-    assert.strictEqual(capturedStream?.prompt, 'Compose modern hero card');
+    assert.ok(capturedStream?.prompt?.includes('Compose modern hero card'));
+    assert.ok(capturedStream?.prompt?.includes('Available UCAs Catalog (Fractal Cooky)'));
+    assert.ok(capturedStream?.prompt?.includes('Box (prefix "box:<id>")'));
 
     composer.denervate();
 }

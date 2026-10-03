@@ -23,6 +23,7 @@ import { Choice } from '@uca/choice';
 import { Access } from '@uca/access';
 import { Collector } from '@uca/collector';
 import { __ID__, DEFAULT_SIGNALS, PURPOSE } from './constants.js';
+import { buildCompositionPrompt } from './prompt.js';
 import { type Body, DataType, SignalType } from './types.js';
 
 const UCA_CATALOG: Record<string, CapabilityConstructor> = {
@@ -102,10 +103,10 @@ export class ViewComposer extends Uca<Body> {
 
     private handleCreate(value: unknown): void {
         const payload = (value ?? {}) as Body;
-        const { prompt, model } = payload;
-        if (prompt) {
-            this.pulse(LlmWebSignalType.STREAM, { prompt, model });
-        }
+        const { prompt, model, documentation } = payload;
+        const request = prompt ?? payload.title ?? this.disposition.aim.description;
+        const fullPrompt = buildCompositionPrompt(request, UCA_CATALOG, documentation);
+        this.pulse(LlmWebSignalType.STREAM, { prompt: fullPrompt, model });
         this.pulse(SignalType.CREATED, { ...this.getDomainProperties(), ...payload });
     }
 
@@ -145,3 +146,4 @@ export class ViewComposer extends Uca<Body> {
 
 export * from './constants.js';
 export * from './types.js';
+export * from './prompt.js';

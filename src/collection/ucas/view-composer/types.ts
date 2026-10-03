@@ -19,6 +19,7 @@ export interface Body {
     readonly description?: string;
     readonly prompt?: string;
     readonly model?: string;
+    readonly documentation?: string;
     readonly endpoint?: string;
     readonly sseEndpoint?: string;
     readonly detectedUca?: { id: string; disposition: unknown };
