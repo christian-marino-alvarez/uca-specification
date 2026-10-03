@@ -57,9 +57,9 @@ export class Gemini extends Capability<Body> {
         if (!payload) { return; }
         const { prompt, model = DEFAULT_MODEL, schema } = payload;
         try {
-            const client = this.resolveClient();
-            await this.executeStream(client, prompt, model, schema);
+            await this.executeStream(this.resolveClient(), prompt, model, schema);
         } catch (error) {
+            console.error('❌ [GEMINI] Fallback activado:', error);
             this.handleStreamFallback(prompt, model);
         }
     }
