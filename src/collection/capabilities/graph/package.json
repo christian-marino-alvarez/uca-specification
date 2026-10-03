@@ -31,15 +31,15 @@
       "import": "./constants.js",
       "default": "./constants.ts"
     },
-    "./schema": {
-      "types": "./schema.d.ts",
-      "import": "./schema.js",
-      "default": "./schema.ts"
+    "./schemas": {
+      "types": "./schemas/index.d.ts",
+      "import": "./schemas/index.js",
+      "default": "./schemas/index.ts"
     },
-    "./schema.js": {
-      "types": "./schema.d.ts",
-      "import": "./schema.js",
-      "default": "./schema.ts"
+    "./schemas/*": {
+      "types": "./schemas/*.d.ts",
+      "import": "./schemas/*.js",
+      "default": "./schemas/*.ts"
     }
   },
   "dependencies": {

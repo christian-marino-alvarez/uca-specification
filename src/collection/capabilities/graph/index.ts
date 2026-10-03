@@ -7,7 +7,7 @@ import {
     DataType,
     SignalType,
 } from './types.js';
-import type { UcaItem } from './schema.js';
+import type { UcaItem } from './schemas/index.js';
 import { scanUcaCandidates } from './parser.js';
 
 export class Graph extends Capability<Body> {
@@ -74,5 +74,5 @@ export class Graph extends Capability<Body> {
 
 export * from './constants.js';
 export * from './types.js';
-export * from './schema.js';
+export * from './schemas/index.js';
 export * from './parser.js';

@@ -1,4 +1,4 @@
-import { ucaItemSchema, type UcaItem } from './schema.js';
+import { ucaItemSchema, type UcaItem } from './schemas/index.js';
 
 export interface InvalidCandidate {
     readonly raw: string;

@@ -1,5 +1,5 @@
 import type { Disposition } from '@uca/core/types';
-import type { UcaItem } from './schema.js';
+import type { UcaItem } from './schemas/index.js';
 
 export enum SignalType {
     STREAM_DECODED = 'llm-web.stream_decoded',
@@ -38,4 +38,4 @@ export interface Body {
     readonly strict?: boolean;
 }
 
-export type { ResponseSchema, ResponseData, UcaItem } from './schema.js';
+export type { ResponseSchema, UcaItem } from './schemas/index.js';

@@ -1,5 +1,5 @@
 import { SignalType } from './types.js';
-import { getCommunicationJsonSchema } from './schema.js';
+import { getCommunicationJsonSchema } from './schemas/index.js';
 
 export const __ID__ = 'graph';
 export const AIM = 'Validate LLM graph response and dispatch dispositions to UCAs';
