@@ -33,7 +33,9 @@
     }
   },
   "dependencies": {
-    "@uca/core": "^0.1.0"
+    "@uca/capability-graph": "^0.1.0",
+    "@uca/core": "^0.1.0",
+    "@uca/llm-web": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.12.0",

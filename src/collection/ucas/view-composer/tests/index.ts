@@ -1,6 +1,8 @@
 import * as assert from 'node:assert';
 import { Uca } from '@uca/core/uca';
-import type { Signal } from '@uca/core/types';
+import { DispositionSignal, type Signal } from '@uca/core/types';
+import { SignalType as LlmWebSignalType, type StreamPayload } from '@uca/llm-web';
+import { SignalType as GraphSignalType, type UcaItem } from '@uca/capability-graph';
 import { ViewComposer, SignalType, DataType, __ID__, PURPOSE } from '../index.js';
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
@@ -14,9 +16,9 @@ function testViewComposer_IdentityAndDefaults(): void {
     assert.strictEqual(composer.id, __ID__);
     assert.strictEqual(composer.purpose, PURPOSE);
     const { inputs, outputs, aim } = composer.disposition;
-    assert.strictEqual(inputs?.length, 3);
+    assert.strictEqual(inputs?.length, 4);
     assert.strictEqual(inputs?.[0]?.type, DataType.VOID);
-    assert.strictEqual(outputs?.length, 3);
+    assert.strictEqual(outputs?.length, 4);
     assert.strictEqual(outputs?.[0]?.type, DataType.RECORD);
     assert.strictEqual(aim.description, PURPOSE);
 }
@@ -55,11 +57,59 @@ function testViewComposer_PulsesDomainSignals(): void {
     composer.denervate();
 }
 
-function runAllViewComposerTests(): void {
+function testViewComposer_CreatePulsesLlmWebStream(): void {
+    const bus = new EventTarget();
+    let capturedStream: StreamPayload | undefined;
+
+    bus.addEventListener(LlmWebSignalType.STREAM, (event: Event) => {
+        capturedStream = (event as CustomEvent<Signal<StreamPayload>>).detail?.value;
+    });
+
+    const composer = new ViewComposer('composer-llm-test').innervate(bus);
+    emitSignal(bus, SignalType.CREATE, { prompt: 'Compose modern hero card' });
+
+    assert.ok(capturedStream !== undefined);
+    assert.strictEqual(capturedStream?.prompt, 'Compose modern hero card');
+
+    composer.denervate();
+}
+
+async function testViewComposer_ConsumesGraphUcaStream(): Promise<void> {
+    const bus = new EventTarget();
+    const composer = new ViewComposer('composer-stream-test').innervate(bus);
+    const capturedUpdates: string[] = [];
+
+    bus.addEventListener(DispositionSignal.UPDATE, (event: Event) => {
+        const payload = (event as CustomEvent<Signal<{ id: string }>>).detail.value;
+        capturedUpdates.push(payload.id);
+    });
+
+    const stream = new ReadableStream<UcaItem>({
+        start(controller) {
+            controller.enqueue({
+                id: 'box:hero-card',
+                disposition: { aim: { description: 'Hero Card', body: { text: 'Welcome' } }, reactTo: [] },
+            });
+            controller.close();
+        },
+    });
+
+    emitSignal(bus, GraphSignalType.UCA_STREAM, { stream });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    assert.strictEqual(capturedUpdates.length, 1);
+    assert.strictEqual(capturedUpdates[0], 'box:hero-card');
+
+    composer.denervate();
+}
+
+async function runAllViewComposerTests(): Promise<void> {
     testViewComposer_IdentityAndDefaults();
     testViewComposer_InnervationAndCooky();
     testViewComposer_PulsesDomainSignals();
-    console.log('✔ All ViewComposer UCA minimal scaffolding tests passed successfully.');
+    testViewComposer_CreatePulsesLlmWebStream();
+    await testViewComposer_ConsumesGraphUcaStream();
+    console.log('✔ All ViewComposer UCA tests with LlmWeb and Graph capabilities passed successfully.');
 }
 
 runAllViewComposerTests();
