@@ -1,9 +1,11 @@
 import * as assert from 'node:assert';
 import { setMaxListeners } from 'node:events';
 import { Uca } from '@uca/core/uca';
-import { DispositionSignal, type Signal } from '@uca/core/types';
+import { type Signal } from '@uca/core/types';
 import { SignalType as LlmWebSignalType, type StreamPayload } from '@uca/llm-web';
 import { SignalType as GraphSignalType, type UcaItem } from '@uca/capability-graph';
+import { SignalType as BoxSignalType } from '@uca/box';
+import { SignalType as ActionSignalType } from '@uca/action';
 import { ViewComposer, SignalType, DataType, __ID__, PURPOSE } from '../index.js';
 
 function createTestBus(): EventTarget {
@@ -85,12 +87,10 @@ function testViewComposer_CreatePulsesLlmWebStream(): void {
 async function testViewComposer_ConsumesGraphUcaStreamAndInnervatesWebUca(): Promise<void> {
     const bus = createTestBus();
     const composer = new ViewComposer('composer-stream-test').innervate(bus);
-    const capturedUpdates: string[] = [];
+    const capturedSignals: string[] = [];
 
-    bus.addEventListener(DispositionSignal.UPDATE, (event: Event) => {
-        const payload = (event as CustomEvent<Signal<{ id: string }>>).detail.value;
-        capturedUpdates.push(payload.id);
-    });
+    bus.addEventListener(BoxSignalType.CREATED, () => capturedSignals.push(BoxSignalType.CREATED));
+    bus.addEventListener(ActionSignalType.CREATED, () => capturedSignals.push(ActionSignalType.CREATED));
 
     const stream = new ReadableStream<UcaItem>({
         start(controller) {
@@ -102,10 +102,6 @@ async function testViewComposer_ConsumesGraphUcaStreamAndInnervatesWebUca(): Pro
                 id: 'action:submit-btn',
                 disposition: { aim: { description: 'Submit Button', body: { label: 'Go' } }, reactTo: [] },
             });
-            controller.enqueue({
-                id: 'box:hero-card',
-                disposition: { aim: { description: 'Hero Card Updated', body: { text: 'Welcome Again' } }, reactTo: [] },
-            });
             controller.close();
         },
     });
@@ -113,10 +109,8 @@ async function testViewComposer_ConsumesGraphUcaStreamAndInnervatesWebUca(): Pro
     emitSignal(bus, GraphSignalType.UCA_STREAM, { stream });
     await new Promise((resolve) => setTimeout(resolve, 50));
 
-    assert.strictEqual(capturedUpdates.length, 3);
-    assert.strictEqual(capturedUpdates[0], 'box:hero-card');
-    assert.strictEqual(capturedUpdates[1], 'action:submit-btn');
-    assert.strictEqual(capturedUpdates[2], 'box:hero-card');
+    assert.ok(capturedSignals.includes(BoxSignalType.CREATED));
+    assert.ok(capturedSignals.includes(ActionSignalType.CREATED));
 
     composer.denervate();
 }

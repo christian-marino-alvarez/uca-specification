@@ -1,10 +1,8 @@
 import { Uca } from '@uca/core/uca';
 import {
-    DispositionSignal,
     type CapabilityConstructor,
     type Cooky,
     type Disposition,
-    type ICapability,
     type Signal,
 } from '@uca/core/types';
 import { LlmWeb, SignalType as LlmWebSignalType } from '@uca/llm-web';
@@ -69,18 +67,8 @@ export class ViewComposer extends Uca<Body> {
         ],
     };
 
-    private readonly instances: Map<string, ICapability> = new Map();
-
     public constructor(id: string = __ID__) {
         super(id);
-    }
-
-    public override denervate(): void {
-        super.denervate();
-        for (const instance of this.instances.values()) {
-            instance.denervate();
-        }
-        this.instances.clear();
     }
 
     protected override capabilities(): Cooky {
@@ -144,18 +132,9 @@ export class ViewComposer extends Uca<Body> {
     private handleUcaItem(item: UcaItem): void {
         const { id, disposition } = item;
         if (!id || !disposition) { return; }
-        this.innervateDynamicUca(id, disposition);
-        this.pulse(DispositionSignal.UPDATE, { id, disposition });
-        this.pulse(SignalType.UPDATED, { detectedUca: { id, disposition } });
-    }
-
-    private innervateDynamicUca(id: string, disposition: Disposition): void {
-        const existing = this.instances.get(id);
-        if (existing) { return void existing.innervate(this.target, disposition); }
         const [prefix] = id.split(':');
-        const Factory = UCA_CATALOG[prefix ?? id] as (new (id: string) => ICapability) | undefined;
-        const instance = Factory && new Factory(id).innervate(this.target, disposition);
-        instance && this.instances.set(id, instance);
+        const existing = this.capability(id) ?? this.capability(prefix ?? id);
+        existing?.innervate(this.target, disposition);
     }
 
     private getDomainProperties(): Body {
