@@ -204,8 +204,8 @@ export class LlmWeb extends Uca<Body> {
         model?: string,
     ): Promise<void> {
         const fullEndpoint = this.resolveUrl(sseEndpoint);
-        const url = `${fullEndpoint}?prompt=${encodeURIComponent(prompt)}`;
-        const response = await fetch(url, { headers: { Accept: 'text/event-stream' } });
+        const headers = { 'Content-Type': 'application/json', Accept: 'text/event-stream' };
+        const response = await fetch(fullEndpoint, { method: 'POST', headers, body: JSON.stringify({ prompt, model }) });
         const { body } = response;
         if (!body) { return; }
         const decodedStream = body.pipeThrough(this.createSseTransform());
