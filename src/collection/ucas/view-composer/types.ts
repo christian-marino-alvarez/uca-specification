@@ -7,22 +7,31 @@ export enum SignalType {
     COMPOSED = 'view-composer.composed',
     REGISTER = 'view-composer.register',
     ERROR = 'view-composer.error',
+    UCA_DETECTED = 'view-composer.uca_detected',
 }
 
 export enum DataType {
     COMPOSE_PAYLOAD = 'ComposePayload',
     COMPOSED_RESULT = 'ComposedResult',
     UCA_SCHEMA_DEFINITION = 'UcaSchemaDefinition',
+    UCA_ITEM = 'UcaItem',
     UNKNOWN = 'unknown',
+}
+
+export interface UcaDetectedPayload {
+    readonly id: string;
+    readonly disposition: Disposition;
+    readonly streamId?: string;
 }
 
 export interface UcaSchemaDefinition<TBody = unknown> {
     readonly name: string;
     readonly prefix: string;
     readonly description: string;
-    readonly bodySchema: ZodType<TBody>;
+    readonly bodySchema?: ZodType<TBody>;
+    readonly disposition?: Disposition;
     readonly emittedSignals?: readonly string[];
-    readonly constructor?: CapabilityConstructor;
+    readonly ucaConstructor?: CapabilityConstructor;
 }
 
 export interface GraphNode {
@@ -68,4 +77,8 @@ export interface Body {
     readonly factory?: AILanguageModelFactory;
     readonly schema?: Record<string, unknown>;
     readonly documentation?: string;
+    readonly definitions?: readonly UcaSchemaDefinition[];
+    readonly ucas?: Record<string, Disposition>;
+    readonly graph?: ViewGraph;
+    readonly answer?: string;
 }

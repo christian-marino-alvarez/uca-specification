@@ -1,18 +1,23 @@
 import { Uca } from '@uca/core/uca';
-import type { Cooky, Disposition, ICapability, Signal } from '@uca/core/types';
+import {
+    DispositionSignal,
+    type Cooky,
+    type Disposition,
+    type DispositionProvidePayload,
+    type ICapability,
+    type Signal,
+} from '@uca/core/types';
 import { LlmWeb, SignalType as LlmWebSignalType } from '@uca/llm-web';
 import { PromptApi, SignalType as PromptApiSignalType } from '@uca/capability-prompt-api';
-import { Graph, SignalType as GraphSignalType, type ResolvedResult, type ViewGraph } from '@uca/capability-graph';
-import { Box } from '@uca/box';
-import { Picture } from '@uca/picture';
-import { Toggle } from '@uca/toggle';
-import { Action } from '@uca/action';
-import { List } from '@uca/list';
-import { Input } from '@uca/input';
-import { Dropdown } from '@uca/dropdown';
-import { Choice } from '@uca/choice';
+import {
+    Graph,
+    buildGraph,
+    SignalType as GraphSignalType,
+    type UcaItem,
+    type UcaStreamPayload,
+    type ViewGraph,
+} from '@uca/capability-graph';
 import { __ID__, DEFAULT_SIGNALS, PURPOSE } from './constants.js';
-import { buildDynamicCatalogSpecification, createDefaultUcaDefinitions } from './registry.js';
 import {
     type Body,
     type ComposePayload,
@@ -34,35 +39,33 @@ export class ViewComposer extends Uca<Body> {
         ],
         outputs: [
             { signal: SignalType.COMPOSED, type: DataType.COMPOSED_RESULT, description: 'Emits composed view graph and dispositions' },
+            { signal: SignalType.UCA_DETECTED, type: DataType.UCA_ITEM, description: 'Emits individual validated UCA detected from stream' },
             { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'Emits cognitive composition error' },
         ],
     };
 
-    private readonly registeredSchemas: Map<string, UcaSchemaDefinition> = new Map();
     private readonly activeUcas: Map<string, ICapability> = new Map();
-    private isComposing: boolean = false;
-    private retryCount: number = 0;
 
     public constructor(id: string = __ID__) {
         super(id);
-        this.initializeDefaultSchemas();
     }
 
     public registerUca(definition: UcaSchemaDefinition): this {
-        const { name } = definition;
-        this.registeredSchemas.set(name, definition);
+        const { aim } = this.disposition;
+        const body = (aim.body ?? {}) as Body;
+        const current = body.definitions ?? [];
+        const filtered = current.filter((item) => item.name !== definition.name);
+        const definitions = [...filtered, definition];
+        this.disposition = { ...this.disposition, aim: { ...aim, body: { ...body, definitions } } };
         return this;
     }
 
     public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
         const base = disposition ?? ViewComposer.disposition;
         const { reactTo = [] } = base;
-        const internalSignals = this.getInternalSignals();
-        const signals = [...new Set([...reactTo, ...internalSignals])];
+        const signals = [...new Set([...reactTo, ...this.getInternalSignals()])];
         const targetWithMax = target as unknown as { setMaxListeners?: (limit: number) => void };
-        if (typeof targetWithMax?.setMaxListeners === 'function') {
-            targetWithMax.setMaxListeners(50);
-        }
+        targetWithMax?.setMaxListeners?.(50);
         return super.innervate(target, { ...base, reactTo: signals });
     }
 
@@ -72,32 +75,15 @@ export class ViewComposer extends Uca<Body> {
             uca.denervate();
         }
         this.activeUcas.clear();
-        this.isComposing = false;
     }
 
     protected override capabilities(): Cooky {
-        const reasoning = this.getReasoningCapabilities();
-        const webComponents = this.getWebComponentCapabilities();
-        return [...reasoning, ...webComponents];
-    }
-
-    private getReasoningCapabilities(): Cooky {
         const { aim } = this.disposition;
         const { model, endpoint, sseEndpoint, factory } = (aim.body ?? {}) as Body;
         const promptDisp: Disposition = { aim: { description: PromptApi.AIM, body: { factory } }, reactTo: [...PromptApi.disposition.reactTo ?? []] };
         const llmDisp: Disposition = { aim: { description: LlmWeb.purpose, body: { model, endpoint, sseEndpoint } }, reactTo: [...LlmWeb.disposition.reactTo ?? []] };
         const graphDisp: Disposition = { aim: { description: Graph.AIM, body: {} }, reactTo: [...Graph.disposition.reactTo ?? []] };
         return [[PromptApi, promptDisp], [LlmWeb, llmDisp], [Graph, graphDisp]];
-    }
-
-    private getWebComponentCapabilities(): Cooky {
-        const ucaClasses = [Box, Picture, Toggle, Action, List, Input, Dropdown, Choice];
-        return ucaClasses.map((UcaClass) => this.createCookyEntry(UcaClass as unknown as typeof Uca)) as unknown as Cooky;
-    }
-
-    private createCookyEntry(UcaClass: typeof Uca): [typeof Uca, Disposition] {
-        const disposition: Disposition = { aim: { description: UcaClass.purpose, body: {} }, reactTo: [...UcaClass.disposition.reactTo ?? []] };
-        return [UcaClass, disposition];
     }
 
     protected override react(signal: Signal): void {
@@ -109,21 +95,13 @@ export class ViewComposer extends Uca<Body> {
             case SignalType.REGISTER:
                 this.handleRegister(value);
                 break;
-            case PromptApiSignalType.RESPONDED:
-            case LlmWebSignalType.RESPONSE:
-                this.handleLlmResponse(value);
+            case DispositionSignal.PROVIDE:
+                this.handleDispositionProvide(value);
                 break;
-            case GraphSignalType.UCA_DETECTED:
-                this.handleUcaDetected(value);
-                break;
-            case GraphSignalType.RESOLVED:
-                this.handleGraphResolved(value);
-                break;
-            case GraphSignalType.RETRY:
-                this.handleRetry(value);
+            case GraphSignalType.UCA_STREAM:
+                this.handleUcaStream(value);
                 break;
             case LlmWebSignalType.ERROR:
-                this.isComposing = false;
                 this.pulse(SignalType.ERROR, value);
                 break;
             default:
@@ -131,50 +109,41 @@ export class ViewComposer extends Uca<Body> {
         }
     }
 
-    private initializeDefaultSchemas(): void {
-        const defaultDefinitions = createDefaultUcaDefinitions();
-        defaultDefinitions.forEach((definition) => this.registerUca(definition));
-    }
-
     private getInternalSignals(): readonly string[] {
         return [
-            LlmWebSignalType.RESPONSE, LlmWebSignalType.CHUNK,
-            LlmWebSignalType.COMPLETED, LlmWebSignalType.ERROR,
-            PromptApiSignalType.RESPONDED, PromptApiSignalType.CHUNK,
-            PromptApiSignalType.STREAM_END,
-            GraphSignalType.RESOLVED, GraphSignalType.RETRY,
-            GraphSignalType.UCA_DETECTED,
+            LlmWebSignalType.STREAM_DECODED,
+            LlmWebSignalType.ERROR,
+            GraphSignalType.UCA_STREAM,
+            DispositionSignal.PROVIDE,
         ];
+    }
+
+    private handleDispositionProvide(value: unknown): void {
+        const payload = (value ?? {}) as DispositionProvidePayload;
+        const { ucaId, prefix, purpose, disposition, ucaConstructor } = payload;
+        if (!ucaId || !disposition || ucaId === this.id) { return; }
+        const name = ucaId.includes(':') ? ucaId.split(':')[1] : ucaId;
+        const description = purpose ?? disposition.aim?.description ?? '';
+        const definition: UcaSchemaDefinition = { name: name ?? ucaId, prefix: prefix ?? ucaId, description, disposition, ucaConstructor };
+        this.registerUca(definition);
     }
 
     private handleCompose(value: unknown): void {
         const payload = (value ?? {}) as ComposePayload;
-        const { ucas, request, definitions } = payload;
-        if (definitions) {
-            definitions.forEach((def) => this.registerUca(def));
-        }
-        if (ucas) {
-            this.pulse(GraphSignalType.RESOLVE, { ucas });
-            return;
-        }
-        if (request && !this.isComposing) {
-            this.isComposing = true;
-            this.dispatchComposeRequest(payload);
-        }
+        const { request, ucas } = payload;
+        if (ucas) { return void this.handleDirectComposition(ucas); }
+        if (request) { this.dispatchComposeRequest(payload); }
     }
 
     private dispatchComposeRequest(payload: ComposePayload): void {
-        const { request = '', model, documentation, stream } = payload;
+        this.pulse(DispositionSignal.GET, { source: this.id });
+        const { request = '', model, documentation } = payload;
         const { aim } = this.disposition;
-        const activeDocs = documentation ?? aim.body?.documentation;
-        const prompt = this.buildPrompt(request, activeDocs);
-        const hasPromptApi = this.isPromptApiAvailable();
-        if (hasPromptApi) {
-            this.pulse(PromptApiSignalType.STREAM, { prompt });
-            return;
+        const prompt = this.buildPrompt(request, documentation ?? aim.body?.documentation);
+        if (this.isPromptApiAvailable()) {
+            return void this.pulse(PromptApiSignalType.STREAM, { prompt });
         }
-        const signal = stream ? LlmWebSignalType.STREAM : LlmWebSignalType.PROMPT;
-        this.pulse(signal, { prompt, model });
+        this.pulse(LlmWebSignalType.STREAM, { prompt, model });
     }
 
     private isPromptApiAvailable(): boolean {
@@ -186,62 +155,113 @@ export class ViewComposer extends Uca<Body> {
 
     private handleRegister(value: unknown): void {
         if (Array.isArray(value)) {
-            value.forEach((item) => this.handleRegister(item));
-            return;
+            return void value.forEach((item) => this.handleRegister(item));
         }
         const definition = (value ?? {}) as UcaSchemaDefinition;
         const { name, bodySchema } = definition;
-        if (name && bodySchema) {
-            this.registerUca(definition);
-        }
+        if (name && bodySchema) { this.registerUca(definition); }
     }
 
-    private handleUcaDetected(value: unknown): void {
-        const { id, disposition } = (value ?? {}) as { id?: string; disposition?: Disposition };
+    private handleUcaStream(value: unknown): void {
+        const payload = (value ?? {}) as UcaStreamPayload;
+        const { stream, streamId } = payload;
+        if (!stream) { return; }
+        const sessionUcas: Record<string, Disposition> = {};
+        const consumer = this.createUcaConsumer(sessionUcas, streamId);
+        stream.pipeTo(consumer).catch((error: unknown) => {
+            this.pulse(SignalType.ERROR, error);
+        });
+    }
+
+    private createUcaConsumer(sessionUcas: Record<string, Disposition>, streamId?: string): WritableStream<UcaItem> {
+        return new WritableStream<UcaItem>({
+            write: (uca: UcaItem) => this.consumeStreamUca(uca, sessionUcas, streamId),
+            close: () => this.handleStreamCompleted(sessionUcas),
+        });
+    }
+
+    private consumeStreamUca(uca: UcaItem, sessionUcas: Record<string, Disposition>, streamId?: string): void {
+        const { id, disposition } = uca;
         if (!id || !disposition) { return; }
+        sessionUcas[id] = disposition;
         this.instantiateDynamicUca(id, disposition);
+        this.pulse(DispositionSignal.UPDATE, { id, disposition });
+        this.pulse(SignalType.UCA_DETECTED, { id, disposition, streamId });
+        this.pulse(GraphSignalType.UCA_DETECTED, { id, disposition, streamId });
+    }
+
+    private handleStreamCompleted(sessionUcas: Record<string, Disposition>): void {
+        const graph = buildGraph(sessionUcas);
+        this.updateViewDisposition(sessionUcas, graph);
+        const composed: ComposedResult = { ucas: sessionUcas, graph };
+        this.pulse(SignalType.COMPOSED, composed);
     }
 
     private instantiateDynamicUca(id: string, disposition: Disposition): void {
         const existing = this.activeUcas.get(id);
-        if (existing) {
-            existing.innervate(this.target, disposition);
-            return;
-        }
+        if (existing) { return void existing.innervate(this.target, disposition); }
         const prefix = id.includes(':') ? id.split(':')[0] : id;
-        const definition = this.findDefinitionByPrefix(prefix);
-        if (!definition?.constructor) { return; }
-        const Factory = definition.constructor as new (id: string) => ICapability;
-        const instance = new Factory(id);
-        instance.innervate(this.target, disposition);
-        this.activeUcas.set(id, instance);
+        const definition = this.findDefinitionByPrefix(prefix ?? id);
+        const instance = this.createDynamicInstance(id, definition);
+        if (instance) {
+            instance.innervate(this.target, disposition);
+            this.activeUcas.set(id, instance);
+        }
+    }
+
+    private createDynamicInstance(id: string, definition?: UcaSchemaDefinition): ICapability | undefined {
+        const { ucaConstructor } = definition ?? {};
+        if (!ucaConstructor) { return undefined; }
+        const Factory = ucaConstructor as new (id: string) => ICapability;
+        return new Factory(id);
+    }
+
+    private getDefinitions(): readonly UcaSchemaDefinition[] {
+        const { aim } = this.disposition;
+        const { definitions = [] } = (aim.body ?? {}) as Body;
+        return definitions;
     }
 
     private findDefinitionByPrefix(prefix: string): UcaSchemaDefinition | undefined {
-        for (const definition of this.registeredSchemas.values()) {
-            if (definition.prefix === prefix) {
-                return definition;
-            }
-        }
-        return undefined;
+        const definitions = this.getDefinitions();
+        return definitions.find((item) => item.prefix === prefix);
     }
 
-    private handleRetry(value: unknown): void {
-        if (this.retryCount >= 1) { return; }
-        this.retryCount++;
-        const { raw, reason } = (value ?? {}) as { raw?: string; reason?: string };
-        const { aim } = this.disposition;
-        const { model } = (aim.body ?? {}) as Body;
-        const retryPrompt = `Retrying UCA generation. Previous fragment: ${raw ?? ''}. Error: ${reason ?? 'Schema error'}. Return valid UCA JSON.`;
-        this.pulse(LlmWebSignalType.STREAM, { prompt: retryPrompt, model });
+    private formatDefinition(definition: UcaSchemaDefinition): string {
+        const { name, prefix, description, disposition, emittedSignals } = definition;
+        const outputs = disposition?.outputs ?? [];
+        const outputsEmitted = outputs.map((out) => `"${prefix}:<id>.${out.signal}"`);
+        const manualEmitted = emittedSignals?.map((s) => `"${prefix}:<id>.${s}"`) ?? [];
+        const allEmitted = [...outputsEmitted, ...manualEmitted];
+        const emittedStr = allEmitted.length > 0 ? allEmitted.join(', ') : 'none';
+        const bodyContent = this.formatBodyContent(definition);
+        return `- ${name} (prefix "${prefix}:<id>"): ${description}\n  Allowed aim.body: ${bodyContent}\n  Emits outcomes: ${emittedStr}`;
+    }
+
+    private formatBodyContent(definition: UcaSchemaDefinition): string {
+        const { disposition, bodySchema } = definition;
+        const schemaWithShape = bodySchema as unknown as { shape?: Record<string, unknown> };
+        if (schemaWithShape && typeof schemaWithShape.shape === 'object' && schemaWithShape.shape !== null) {
+            const keys = Object.keys(schemaWithShape.shape);
+            return `{ ${keys.map((k) => `${k}?: string`).join(', ')} }`;
+        }
+        const body = disposition?.aim?.body;
+        return body && Object.keys(body).length > 0 ? JSON.stringify(body) : '{}';
+    }
+
+    private buildCatalogSpecification(): string {
+        const definitions = this.getDefinitions();
+        if (definitions.length === 0) { return ''; }
+        const lines = definitions.map((d) => this.formatDefinition(d));
+        return `Available UCAs Catalog (Dynamic Schemas):\n${lines.join('\n')}\n\n`;
     }
 
     private buildPrompt(request: string, documentation?: string): string {
-        const catalog = buildDynamicCatalogSpecification(this.registeredSchemas.values());
+        const catalog = this.buildCatalogSpecification();
         const guidelines = this.getViewGuidelines();
         const outputContract = this.getOutputSchemaContract();
         const contextDoc = documentation ? `${documentation}\n\n` : '';
-        return `${contextDoc}${catalog}\n\n${guidelines}\n\nTask: ${request}\n${outputContract}`;
+        return `${contextDoc}${catalog}${guidelines}\n\nTask: ${request}\n${outputContract}`;
     }
 
     private getViewGuidelines(): string {
@@ -257,22 +277,15 @@ export class ViewComposer extends Uca<Body> {
         return `${schema}\n\n${rules}`;
     }
 
-    private handleLlmResponse(value: unknown): void {
-        this.pulse(GraphSignalType.RESOLVE, value);
-    }
-
-    private handleGraphResolved(value: unknown): void {
-        this.isComposing = false;
-        this.retryCount = 0;
-        const resolved = (value ?? {}) as ResolvedResult;
-        const { ucas, graph, answer } = resolved;
+    private handleDirectComposition(ucas: Record<string, Disposition>): void {
         for (const [id, disposition] of Object.entries(ucas)) {
             this.instantiateDynamicUca(id, disposition);
+            this.pulse(DispositionSignal.UPDATE, { id, disposition });
         }
-        this.updateViewDisposition(ucas, graph, answer);
-        const composed: ComposedResult = { ucas, graph, result: { answer } };
-        this.pulse(SignalType.COMPOSED, composed);
+        this.handleStreamCompleted(ucas);
     }
+
+
 
     private updateViewDisposition(ucas: Record<string, Disposition>, graph: ViewGraph, answer?: string): void {
         const { aim } = this.disposition;
@@ -284,5 +297,4 @@ export class ViewComposer extends Uca<Body> {
 
 export * from './constants.js';
 export * from './types.js';
-export * from './registry.js';
 export { ViewComposer as ViewBuilder };

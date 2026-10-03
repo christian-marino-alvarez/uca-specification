@@ -55,6 +55,8 @@ export interface Disposition<TBody = unknown> {
 export enum DispositionSignal {
     UPDATE = 'disposition.update',
     UPDATED = 'disposition.updated',
+    GET = 'disposition.get',
+    PROVIDE = 'disposition.provide',
 }
 
 export type DispositionSignalType = DispositionSignal;
@@ -85,6 +87,17 @@ export interface DispositionUpdatePayload<TBody = unknown> {
 export interface DispositionUpdatedPayload<TBody = unknown> {
     readonly id: string;
     readonly disposition: Disposition<TBody>;
+}
+
+/**
+ * DispositionProvidePayload: Contrato emitido por una UCA al responder a una petición disposition.get.
+ */
+export interface DispositionProvidePayload<TBody = unknown> {
+    readonly ucaId: string;
+    readonly prefix: string;
+    readonly purpose: string;
+    readonly disposition: Disposition<TBody>;
+    readonly ucaConstructor?: CapabilityConstructor;
 }
 
 /**

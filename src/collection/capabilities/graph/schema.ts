@@ -12,8 +12,8 @@ export const aimSchema = z.object({
 });
 
 export const reactToSignalSchema = z.string().regex(
-    /^[a-zA-Z0-9_-]+:[a-zA-Z0-9_-]+\.[a-zA-Z0-9_.-]+$/,
-    'reactTo must follow format <prefix>:<id>.<outcome> (e.g. "action:simulate-pulse.triggered")'
+    /^(?:[a-zA-Z0-9_-]+:)?[a-zA-Z0-9_-]+\.[a-zA-Z0-9_.-]+$/,
+    'reactTo must follow format [prefix:]<id>.<outcome> (e.g. "action:simulate-pulse.triggered")'
 );
 
 export const dispositionSchema = z.object({

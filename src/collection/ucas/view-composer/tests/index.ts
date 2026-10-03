@@ -1,12 +1,15 @@
 import * as assert from 'node:assert';
 import { z } from 'zod';
+import { Uca } from '@uca/core/uca';
 import { DispositionSignal, type Disposition, type Signal } from '@uca/core/types';
-import { SignalType as LlmWebSignalType, type PromptPayload, type ResponsePayload } from '@uca/llm-web';
+import { SignalType as LlmWebSignalType, type StreamPayload } from '@uca/llm-web';
+import { SignalType as GraphSignalType, type UcaItem } from '@uca/capability-graph';
 import {
     ViewComposer,
     DataType,
     SignalType,
     type ComposedResult,
+    type UcaDetectedPayload,
     __ID__,
     PURPOSE,
 } from '../index.js';
@@ -25,26 +28,34 @@ function testViewComposer_IdentityAndDefaults(): void {
     assert.strictEqual(inputs?.length, 2);
     assert.strictEqual(inputs?.[0]?.type, DataType.COMPOSE_PAYLOAD);
     assert.strictEqual(inputs?.[1]?.type, DataType.UCA_SCHEMA_DEFINITION);
-    assert.strictEqual(outputs?.length, 2);
+    assert.strictEqual(outputs?.length, 3);
     assert.strictEqual(outputs?.[0]?.type, DataType.COMPOSED_RESULT);
+    assert.strictEqual(outputs?.[1]?.type, DataType.UCA_ITEM);
+    assert.strictEqual(outputs?.[2]?.type, DataType.UNKNOWN);
     composer.denervate();
 }
 
-function testViewComposer_ComposePulsesLlmPrompt(): void {
+function testViewComposer_ComposePulsesLlmStream(): void {
     const bus = new EventTarget();
     const composer = new ViewComposer('test-composer').innervate(bus);
-    let capturedPromptPayload: PromptPayload | undefined;
+    class BoxUca extends Uca {
+        public static override purpose = 'Visual container';
+        public static override disposition = { aim: { description: 'Visual container' } };
+    }
+    const box = new BoxUca('box:header').innervate(bus);
+    let capturedStreamPayload: StreamPayload | undefined;
 
-    bus.addEventListener(LlmWebSignalType.PROMPT, (event: Event) => {
-        capturedPromptPayload = (event as CustomEvent<Signal<PromptPayload>>).detail.value;
+    bus.addEventListener(LlmWebSignalType.STREAM, (event: Event) => {
+        capturedStreamPayload = (event as CustomEvent<Signal<StreamPayload>>).detail.value;
     });
 
     emitSignal(bus, SignalType.COMPOSE, { request: 'Generate dashboard with header and list' });
-    assert.ok(capturedPromptPayload);
-    assert.ok(capturedPromptPayload?.prompt.includes('Generate dashboard with header and list'));
-    assert.ok(capturedPromptPayload?.prompt.includes('Available UCAs Catalog'));
-    assert.ok(capturedPromptPayload?.prompt.includes('OUTPUT JSON SCHEMA'));
-    assert.ok(!capturedPromptPayload?.prompt.includes('box.update'));
+    assert.ok(capturedStreamPayload);
+    assert.ok(capturedStreamPayload?.prompt.includes('Generate dashboard with header and list'));
+    assert.ok(capturedStreamPayload?.prompt.includes('Available UCAs Catalog'));
+    assert.ok(capturedStreamPayload?.prompt.includes('OUTPUT JSON SCHEMA'));
+    assert.ok(!capturedStreamPayload?.prompt.includes('box.update'));
+    box.denervate();
     composer.denervate();
 }
 
@@ -54,8 +65,8 @@ function testViewComposer_DynamicUcaRegistration(): void {
     const sliderSchema = z.object({ title: z.string(), min: z.number().optional() });
     composer.registerUca({ name: 'Slider', prefix: 'slider', description: 'Range slider', bodySchema: sliderSchema, emittedSignals: ['change'] });
     let capturedPrompt = '';
-    bus.addEventListener(LlmWebSignalType.PROMPT, (event: Event) => {
-        capturedPrompt = (event as CustomEvent<Signal<PromptPayload>>).detail.value.prompt;
+    bus.addEventListener(LlmWebSignalType.STREAM, (event: Event) => {
+        capturedPrompt = (event as CustomEvent<Signal<StreamPayload>>).detail.value.prompt;
     });
     emitSignal(bus, SignalType.COMPOSE, { request: 'Add slider control' });
     assert.ok(capturedPrompt.includes('Slider (prefix "slider:<id>"): Range slider'));
@@ -70,8 +81,8 @@ function testViewComposer_DynamicRegistrationViaSignal(): void {
     const gaugeSchema = z.object({ value: z.number() });
     emitSignal(bus, SignalType.REGISTER, { name: 'Gauge', prefix: 'gauge', description: 'Radial meter', bodySchema: gaugeSchema, emittedSignals: ['read'] });
     let capturedPrompt = '';
-    bus.addEventListener(LlmWebSignalType.PROMPT, (event: Event) => {
-        capturedPrompt = (event as CustomEvent<Signal<PromptPayload>>).detail.value.prompt;
+    bus.addEventListener(LlmWebSignalType.STREAM, (event: Event) => {
+        capturedPrompt = (event as CustomEvent<Signal<StreamPayload>>).detail.value.prompt;
     });
     emitSignal(bus, SignalType.COMPOSE, { request: 'Add radial gauge' });
     assert.ok(capturedPrompt.includes('Gauge (prefix "gauge:<id>"): Radial meter'));
@@ -79,7 +90,7 @@ function testViewComposer_DynamicRegistrationViaSignal(): void {
     composer.denervate();
 }
 
-function testViewComposer_LlmResponse_PropagatesDispositionsAndBuildsGraph(): void {
+async function testViewComposer_DirectUcas_PropagatesDispositionsAndBuildsGraph(): Promise<void> {
     const bus = new EventTarget();
     const composer = new ViewComposer('test-composer').innervate(bus);
     const updates: Array<{ id: string; disposition: Disposition }> = [];
@@ -106,8 +117,8 @@ function testViewComposer_LlmResponse_PropagatesDispositionsAndBuildsGraph(): vo
         },
     };
 
-    const mockResult: ResponsePayload = { response: 'ok', data: { ucas: mockUcas } };
-    emitSignal(bus, LlmWebSignalType.RESPONSE, mockResult);
+    emitSignal(bus, SignalType.COMPOSE, { ucas: mockUcas });
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
     assert.strictEqual(updates.length, 2);
     assert.strictEqual(updates[0]?.id, 'search-input');
@@ -138,13 +149,86 @@ function testViewComposer_LlmErrorPulsesError(): void {
     composer.denervate();
 }
 
-function runAllViewComposerTests(): void {
+async function testViewComposer_ConsumesUcaStreamAndEmitsNervousPulses(): Promise<void> {
+    const bus = new EventTarget();
+    const composer = new ViewComposer('test-composer').innervate(bus);
+    const capturedUcas: string[] = [];
+    const nervousUpdates: string[] = [];
+
+    bus.addEventListener(SignalType.UCA_DETECTED, (event: Event) => {
+        const payload = (event as CustomEvent<Signal<UcaDetectedPayload>>).detail.value;
+        capturedUcas.push(payload.id);
+    });
+
+    bus.addEventListener(DispositionSignal.UPDATE, (event: Event) => {
+        const payload = (event as CustomEvent<Signal<{ id: string }>>).detail.value;
+        nervousUpdates.push(payload.id);
+    });
+
+    const stream = new ReadableStream<UcaItem>({
+        start(controller) {
+            controller.enqueue({
+                id: 'box:stream-hero',
+                disposition: { aim: { description: 'Hero', body: { text: 'Hello' } }, reactTo: [] },
+            });
+            controller.enqueue({
+                id: 'action:stream-btn',
+                disposition: { aim: { description: 'Button', body: { label: 'Click' } }, reactTo: [] },
+            });
+            controller.close();
+        },
+    });
+
+    emitSignal(bus, GraphSignalType.UCA_STREAM, { stream, streamId: 'test-session' });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    assert.strictEqual(capturedUcas.length, 2);
+    assert.strictEqual(capturedUcas[0], 'box:stream-hero');
+    assert.strictEqual(capturedUcas[1], 'action:stream-btn');
+    assert.ok(nervousUpdates.includes('box:stream-hero'));
+    assert.ok(nervousUpdates.includes('action:stream-btn'));
+
+    composer.denervate();
+}
+
+function testViewComposer_PulsesDispositionGetAndCompilesCatalogFromProvidedUcas(): void {
+    const bus = new EventTarget();
+    const composer = new ViewComposer('test-composer').innervate(bus);
+
+    class CardUca extends Uca {
+        public static override purpose = 'Card UI component';
+        public static override disposition = {
+            aim: { description: 'Card UI component', body: { title: 'Default Title' } },
+            outputs: [{ signal: 'clicked', type: 'void' }],
+        };
+    }
+    const card = new CardUca('card:profile').innervate(bus);
+
+    let capturedStreamPayload: StreamPayload | undefined;
+    bus.addEventListener(LlmWebSignalType.STREAM, (event: Event) => {
+        capturedStreamPayload = (event as CustomEvent<Signal<StreamPayload>>).detail.value;
+    });
+
+    emitSignal(bus, SignalType.COMPOSE, { request: 'Render user card' });
+
+    assert.ok(capturedStreamPayload);
+    assert.ok(capturedStreamPayload?.prompt.includes('Available UCAs Catalog (Dynamic Schemas)'));
+    assert.ok(capturedStreamPayload?.prompt.includes('Card UI component'));
+    assert.ok(capturedStreamPayload?.prompt.includes('card:<id>.clicked'));
+
+    card.denervate();
+    composer.denervate();
+}
+
+async function runAllViewComposerTests(): Promise<void> {
     testViewComposer_IdentityAndDefaults();
-    testViewComposer_ComposePulsesLlmPrompt();
+    testViewComposer_ComposePulsesLlmStream();
     testViewComposer_DynamicUcaRegistration();
     testViewComposer_DynamicRegistrationViaSignal();
-    testViewComposer_LlmResponse_PropagatesDispositionsAndBuildsGraph();
+    testViewComposer_PulsesDispositionGetAndCompilesCatalogFromProvidedUcas();
+    await testViewComposer_DirectUcas_PropagatesDispositionsAndBuildsGraph();
     testViewComposer_LlmErrorPulsesError();
+    await testViewComposer_ConsumesUcaStreamAndEmitsNervousPulses();
     console.log('✔ All ViewComposer UCA minimal architecture tests passed successfully.');
 }
 

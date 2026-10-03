@@ -8,6 +8,7 @@ import {
     StorageSignal,
     Uca,
     type Disposition,
+    type DispositionProvidePayload,
     type ICapability,
     type Signal,
 } from '../index.js';
@@ -545,6 +546,38 @@ async function testCore_UcaDispositionUpdateAndStorage(): Promise<void> {
     probe.denervate();
 }
 
+async function testCore_UcaRespondsToDispositionGetWithProvide(): Promise<void> {
+    const bus = new EventTarget();
+    class CardUca extends Uca {
+        public static override purpose: string = 'Display informational card';
+        public static override disposition: Disposition = {
+            aim: { description: CardUca.purpose },
+        };
+    }
+    const card = new CardUca('card:user-profile').innervate(bus);
+    let capturedProvide: DispositionProvidePayload | undefined;
+
+    bus.addEventListener(DispositionSignal.PROVIDE, (event: Event) => {
+        const customEvent = event as CustomEvent<Signal<DispositionProvidePayload>>;
+        capturedProvide = customEvent.detail.value;
+    });
+
+    const getSignal: Signal = {
+        source: 'view-composer',
+        property: DispositionSignal.GET,
+        value: {},
+        timestamp: Date.now(),
+    };
+    bus.dispatchEvent(new CustomEvent(DispositionSignal.GET, { detail: getSignal }));
+
+    assert.ok(capturedProvide);
+    assert.strictEqual(capturedProvide?.ucaId, 'card:user-profile');
+    assert.strictEqual(capturedProvide?.prefix, 'card');
+    assert.strictEqual(capturedProvide?.purpose, 'Display informational card');
+    assert.strictEqual(capturedProvide?.disposition.aim.description, 'Display informational card');
+    card.denervate();
+}
+
 async function runAllTests(): Promise<void> {
     await testDeclaration_CookyMapping();
     await testDeclaration_EmptyUca();
@@ -561,7 +594,8 @@ async function runAllTests(): Promise<void> {
     await testHtmlAcceptance_ReactionMaterializesDomResource();
     await testCore_BuildAttributesDistinguishesCapabilities();
     await testCore_UcaDispositionUpdateAndStorage();
-    console.log('✔ All 15 Core UCA lifecycle, Cooky, attribute mapping and storage tests passed successfully.');
+    await testCore_UcaRespondsToDispositionGetWithProvide();
+    console.log('✔ All 16 Core UCA lifecycle, Cooky, attribute mapping and storage tests passed successfully.');
 }
 
 runAllTests().catch((error: unknown) => {

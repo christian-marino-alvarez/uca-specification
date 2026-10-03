@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { Signal } from '@uca/core/types';
-import { LlmWeb, SignalType, type ResponsePayload, type ChunkPayload } from '../index.js';
+import { LlmWeb, SignalType, type ResponsePayload, type StreamDecodedPayload } from '../index.js';
 
 async function testLlmWebUca(): Promise<void> {
     const llmWeb = new LlmWeb('test-llm-web');
@@ -8,8 +8,8 @@ async function testLlmWebUca(): Promise<void> {
     assert.equal(llmWeb.purpose, 'Orchestrate client-side LLM interactions and streaming cognitive sessions');
 
     let responseReceived = false;
-    let chunksReceived = 0;
-    let completedReceived = false;
+    let decodedStreamReceived = false;
+    const receivedTokens: string[] = [];
 
     // Mock global fetch for testing
     const originalFetch = globalThis.fetch;
@@ -42,17 +42,17 @@ async function testLlmWebUca(): Promise<void> {
         responseReceived = true;
     });
 
-    llmWeb.target?.addEventListener(SignalType.CHUNK, (event: Event) => {
-        const customEvent = event as CustomEvent<Signal>;
+    llmWeb.target?.addEventListener(SignalType.STREAM_DECODED, async (event: Event) => {
+        const customEvent = event as CustomEvent<Signal<StreamDecodedPayload>>;
         const { value } = customEvent.detail;
-        const payload = value as ChunkPayload;
-        const { text } = payload;
-        assert.ok(text.startsWith('token'));
-        chunksReceived += 1;
-    });
-
-    llmWeb.target?.addEventListener(SignalType.COMPLETED, () => {
-        completedReceived = true;
+        const { stream } = value;
+        decodedStreamReceived = true;
+        const reader = stream.getReader();
+        while (true) {
+            const { done, value: chunk } = await reader.read();
+            if (done) { break; }
+            if (chunk) { receivedTokens.push(chunk); }
+        }
     });
 
     llmWeb.innervate();
@@ -75,14 +75,14 @@ async function testLlmWebUca(): Promise<void> {
         detail: {
             source: 'test-client',
             property: SignalType.STREAM,
-            value: { prompt: 'Stream test' },
+            value: { prompt: 'Stream test', streamId: 'stream-alpha' },
             timestamp: Date.now(),
         },
     }));
 
     await new Promise((resolve) => setTimeout(resolve, 50));
-    assert.equal(chunksReceived, 2, 'Should receive 2 CHUNK signals');
-    assert.equal(completedReceived, true, 'Should receive COMPLETED signal');
+    assert.equal(decodedStreamReceived, true, 'Should receive STREAM_DECODED signal');
+    assert.deepEqual(receivedTokens, ['token1', 'token2']);
 
     // Restore original fetch
     globalThis.fetch = originalFetch;

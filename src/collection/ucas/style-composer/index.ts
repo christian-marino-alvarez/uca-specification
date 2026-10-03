@@ -68,6 +68,7 @@ export class StyleComposer extends Uca<Body> {
             case ViewComposerSignalType.COMPOSED:
                 this.handleComposeTheme(value);
                 break;
+            case ViewComposerSignalType.UCA_DETECTED:
             case GraphSignalType.UCA_DETECTED:
             case SignalType.STYLE_UCA:
                 this.handleStyleUca(value);
@@ -87,6 +88,7 @@ export class StyleComposer extends Uca<Body> {
         return [
             PromptApiSignalType.RESPONDED,
             PromptApiSignalType.ERROR,
+            ViewComposerSignalType.UCA_DETECTED,
             GraphSignalType.UCA_DETECTED,
             CssSignalType.CREATED,
             CssSignalType.UPDATED,

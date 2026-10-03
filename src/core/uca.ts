@@ -4,6 +4,7 @@ import {
     type CapabilityConstructor,
     type Cooky,
     type Disposition,
+    type DispositionProvidePayload,
     type DispositionUpdatedPayload,
     type DispositionUpdatePayload,
     type ICapability,
@@ -39,7 +40,7 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         const activeTarget = target || this.target || new EventTarget();
         const incoming = disposition ?? this.disposition;
         const { reactTo = [] } = incoming;
-        const controlSignals = [DispositionSignal.UPDATE];
+        const controlSignals = [DispositionSignal.UPDATE, DispositionSignal.GET];
         const signals = [...new Set([...reactTo, ...controlSignals])];
         super.innervate(activeTarget, { ...incoming, reactTo: signals });
         this.innervateCapabilities(activeTarget);
@@ -57,6 +58,10 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         const { property } = signal;
         if (property === DispositionSignal.UPDATE) {
             this.handleDispositionUpdate(signal);
+            return;
+        }
+        if (property === DispositionSignal.GET) {
+            this.handleDispositionGet();
             return;
         }
         await super.executeReaction(signal);
@@ -123,6 +128,18 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         const updatedPayload: DispositionUpdatedPayload<TBody> = { id: this.id, disposition: this.disposition };
         this.pulse(DispositionSignal.UPDATED, updatedPayload);
         this.onDispositionUpdated();
+    }
+
+    private handleDispositionGet(): void {
+        const prefix = this.id.includes(':') ? this.id.split(':')[0] : this.id;
+        const payload: DispositionProvidePayload<TBody> = {
+            ucaId: this.id,
+            prefix: prefix ?? this.id,
+            purpose: this.purpose,
+            disposition: this.disposition,
+            ucaConstructor: this.constructor as CapabilityConstructor,
+        };
+        this.pulse(DispositionSignal.PROVIDE, payload);
     }
 
     private createCapability(CapabilityClass: CapabilityConstructor, disposition: Disposition): ICapability {
