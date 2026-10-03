@@ -15,7 +15,6 @@ import {
     type UcaItem,
     type UcaStreamPayload,
 } from '@uca/capability-graph';
-import { StyleComposer, type Body as StyleComposerBody } from '@uca/style-composer';
 import { ViewComposer, SignalType as ViewComposerSignalType, type Body as ViewComposerBody } from '@uca/view-composer';
 import { Box } from '@uca/box';
 import { Picture } from '@uca/picture';
@@ -89,15 +88,8 @@ export class App extends Uca<Body> {
         const promptDisp: Disposition = { aim: { description: PromptApi.AIM, body: { factory } }, reactTo: [...PromptApi.disposition.reactTo ?? []] };
         const llmDisp: Disposition = { aim: { description: LlmWeb.purpose, body: { model, endpoint, sseEndpoint } }, reactTo: [...LlmWeb.disposition.reactTo ?? []] };
         const graphDisp: Disposition = { aim: { description: Graph.AIM, body: {} }, reactTo: [...Graph.disposition.reactTo ?? []] };
-        const styleDisp: Disposition<StyleComposerBody> = { aim: { description: StyleComposer.purpose, body: {} }, reactTo: [...StyleComposer.disposition.reactTo ?? []] };
         const viewDisp: Disposition<ViewComposerBody> = { aim: { description: ViewComposer.purpose, body: {} }, reactTo: [...ViewComposer.disposition.reactTo ?? []] };
-        return [
-            [ViewComposer, viewDisp],
-            [PromptApi, promptDisp],
-            [LlmWeb, llmDisp],
-            [Graph, graphDisp],
-            [StyleComposer, styleDisp],
-        ];
+        return [[ViewComposer, viewDisp], [PromptApi, promptDisp], [LlmWeb, llmDisp], [Graph, graphDisp]];
     }
 
     protected override react(signal: Signal): void {

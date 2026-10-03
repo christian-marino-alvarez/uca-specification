@@ -108,11 +108,11 @@ async function testApp_ConsumesUcaStreamAndInnervates(): Promise<void> {
         start(controller) {
             controller.enqueue({
                 id: 'box:hero-card',
-                disposition: { aim: { description: 'Hero Card', body: { text: 'Welcome' } } },
+                disposition: { aim: { description: 'Hero Card', body: { text: 'Welcome' } }, reactTo: [] },
             });
             controller.enqueue({
                 id: 'action:start-btn',
-                disposition: { aim: { description: 'Start Button', body: { label: 'Go' } } },
+                disposition: { aim: { description: 'Start Button', body: { label: 'Go' } }, reactTo: [] },
             });
             controller.close();
         },
