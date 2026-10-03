@@ -27,7 +27,7 @@ const VIEW_GUIDELINES: readonly string[] = [
     '   - The relation describes the visual role (e.g. "header", "content", "media", "action", "child").',
     '3. IMAGINATIVE MULTI-UCA COMPOSITION & MANDATORY AIM.BODY:',
     '   - Freely use all 10 available Web UCAs: Box, Picture, Action, Toggle, List, Input, Dropdown, Choice, Access, Collector.',
-    '   - Always provide domain properties in "aim.body" according to each UCA specification (e.g. text, label, items, source).',
+    '   - Always populate "aim.body" with rich content according to each UCA specification (e.g. for Box: { "text": "..." }, for Action: { "label": "..." }, for List: { "items": [...] }).',
     '   - Design rich components: hero banners with Picture, cards with Box, form groups with Collector, interactive buttons with Action, switches with Toggle, nav links with Access, and features with List.',
     '4. REACTIVE EVENT WIRING:',
     '   - Wire interactions using reactTo: ["<producerUcaId>.<outcome>"] (e.g. ["action:search.triggered", "toggle:theme.changed"]).',
