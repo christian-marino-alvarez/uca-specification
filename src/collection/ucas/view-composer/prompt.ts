@@ -17,15 +17,19 @@ const UCA_BODY_SPECS: Record<string, string> = {
 
 const VIEW_GUIDELINES: readonly string[] = [
     'VIEW COMPOSITION & HIERARCHY GUIDELINES:',
-    '1. PARENTTO STRUCTURAL NESTING:',
+    '1. STRICT UCA PREFIXES (ONLY USE THE 10 CATALOG UCAs):',
+    '   - You MUST ONLY use the following prefixes for IDs: box, picture, action, toggle, list, input, dropdown, choice, access, collector.',
+    '   - DO NOT invent new prefixes such as "text:", "button:", "div:", "form:". Text is placed inside Box (aim.body.text), Action (aim.body.label), or List (aim.body.items).',
+    '2. PARENTTO STRUCTURAL NESTING:',
     '   - Build a coherent visual DOM tree using "parentTo": { "uca": "<parentUcaId>", "relation": "<role>" }.',
     '   - Root containers (e.g. "box:root", "box:hero", "collector:form") OMIT parentTo.',
     '   - Nested children MUST specify parentTo pointing to their parent container ID.',
     '   - The relation describes the visual role (e.g. "header", "content", "media", "action", "child").',
-    '2. IMAGINATIVE MULTI-UCA COMPOSITION:',
+    '3. IMAGINATIVE MULTI-UCA COMPOSITION & MANDATORY AIM.BODY:',
     '   - Freely use all 10 available Web UCAs: Box, Picture, Action, Toggle, List, Input, Dropdown, Choice, Access, Collector.',
+    '   - Always provide domain properties in "aim.body" according to each UCA specification (e.g. text, label, items, source).',
     '   - Design rich components: hero banners with Picture, cards with Box, form groups with Collector, interactive buttons with Action, switches with Toggle, nav links with Access, and features with List.',
-    '3. REACTIVE EVENT WIRING:',
+    '4. REACTIVE EVENT WIRING:',
     '   - Wire interactions using reactTo: ["<producerUcaId>.<outcome>"] (e.g. ["action:search.triggered", "toggle:theme.changed"]).',
     '   - NEVER subscribe a UCA to its own signals.',
 ];

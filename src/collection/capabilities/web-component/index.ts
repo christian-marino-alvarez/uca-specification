@@ -55,6 +55,9 @@ export class WebComponent extends Capability<Body> {
 
     public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
         super.innervate(target, disposition);
+        if (disposition?.parentTo) {
+            this.disposition = { ...this.disposition, parentTo: disposition.parentTo };
+        }
         this.defineComponentTag();
         return this;
     }
@@ -111,7 +114,7 @@ export class WebComponent extends Capability<Body> {
     private instantiateComponent(id: string, payload?: Body): HTMLElement {
         const tag = this.getTag(payload?.tag);
         const element = this.instance(id, tag);
-        this.mountElement(element, payload?.container);
+        this.mountElement(element, payload?.container, payload?.parentTo);
         this.paintComponent(element, payload);
         return element;
     }
@@ -121,7 +124,7 @@ export class WebComponent extends Capability<Body> {
         if (!element) {
             return;
         }
-        this.mountElement(element, payload?.container);
+        this.mountElement(element, payload?.container, payload?.parentTo);
         this.paintComponent(element, payload);
     }
 
@@ -276,8 +279,9 @@ export class WebComponent extends Capability<Body> {
         element.addEventListener(type, action, { signal });
     }
 
-    private mountElement(element: HTMLElement, container?: HTMLElement): void {
-        const { aim, parentTo } = this.disposition;
+    private mountElement(element: HTMLElement, container?: HTMLElement, payloadParentTo?: Disposition['parentTo']): void {
+        const { aim, parentTo: dispositionParentTo } = this.disposition;
+        const parentTo = payloadParentTo ?? dispositionParentTo;
         const { container: fallbackContainer } = aim.body ?? {};
         const parentContainer = this.resolveParentContainer(parentTo);
         const defaultContainer = typeof document !== 'undefined' ? document.body : undefined;

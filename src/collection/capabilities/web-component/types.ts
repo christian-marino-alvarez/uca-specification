@@ -35,6 +35,7 @@ export interface Body {
     readonly attributes?: Readonly<Record<string, string>>;
     readonly text?: string;
     readonly container?: HTMLElement;
+    readonly parentTo?: Disposition['parentTo'];
 }
 
 export interface Config<TBody = Body> {

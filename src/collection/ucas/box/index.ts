@@ -22,9 +22,10 @@ export class Box extends Uca<Body> {
 
     public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
         super.innervate(target, disposition);
-        const { aim } = this.disposition;
-        const hasBodyProperties = Boolean(aim.body && Object.keys(aim.body).length > 0);
-        if (hasBodyProperties) {
+        if (disposition?.parentTo) {
+            this.disposition = { ...this.disposition, parentTo: disposition.parentTo };
+        }
+        if (disposition) {
             this.onDispositionUpdated();
         }
         return this;
@@ -117,9 +118,9 @@ export class Box extends Uca<Body> {
 
     protected override onDispositionUpdated(): void {
         const attributes = this.buildAttributes(WEB_COMPONENT_ID);
-        const { aim } = this.disposition;
+        const { aim, parentTo } = this.disposition;
         const { text } = aim.body ?? {};
-        this.pulse(CapabilitySignalType.RENDERED, { id: this.id, text, attributes });
+        this.pulse(CapabilitySignalType.RENDERED, { id: this.id, text, attributes, parentTo });
     }
 
     protected override capabilities(): Cooky {

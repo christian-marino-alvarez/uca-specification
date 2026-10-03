@@ -29,6 +29,23 @@ export class Collector extends Uca<Body> {
     }
 
 
+    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
+        super.innervate(target, disposition);
+        if (disposition?.parentTo) {
+            this.disposition = { ...this.disposition, parentTo: disposition.parentTo };
+        }
+        if (disposition) {
+            this.onDispositionUpdated();
+        }
+        return this;
+    }
+
+    protected override onDispositionUpdated(): void {
+        const attributes = this.buildAttributes(WEB_COMPONENT_ID);
+        const { parentTo } = this.disposition;
+        this.pulse(CapabilitySignalType.RENDERED, { id: this.id, attributes, parentTo });
+    }
+
     protected override react(signal: Signal): void {
         const { property, value } = signal;
         switch (property) {

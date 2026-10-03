@@ -26,9 +26,10 @@ export class Dropdown extends Uca<Body> {
 
     public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
         super.innervate(target, disposition);
-        const { aim } = this.disposition;
-        const hasBodyProperties = Boolean(aim.body && Object.keys(aim.body).length > 0);
-        if (hasBodyProperties) {
+        if (disposition?.parentTo) {
+            this.disposition = { ...this.disposition, parentTo: disposition.parentTo };
+        }
+        if (disposition) {
             this.onDispositionUpdated();
         }
         return this;
@@ -36,7 +37,8 @@ export class Dropdown extends Uca<Body> {
 
     protected override onDispositionUpdated(): void {
         const attributes = this.buildAttributes(WEB_COMPONENT_ID);
-        this.pulse(CapabilitySignalType.RENDERED, { id: this.id, attributes });
+        const { parentTo } = this.disposition;
+        this.pulse(CapabilitySignalType.RENDERED, { id: this.id, attributes, parentTo });
     }
 
 

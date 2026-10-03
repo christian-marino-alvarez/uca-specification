@@ -21,6 +21,24 @@ export class Access extends Uca<Body> {
     }
 
 
+    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
+        super.innervate(target, disposition);
+        if (disposition?.parentTo) {
+            this.disposition = { ...this.disposition, parentTo: disposition.parentTo };
+        }
+        if (disposition) {
+            this.onDispositionUpdated();
+        }
+        return this;
+    }
+
+    protected override onDispositionUpdated(): void {
+        const attributes = this.buildAttributes(WEB_COMPONENT_ID);
+        const { aim, parentTo } = this.disposition;
+        const { label = aim.description } = aim.body ?? {};
+        this.pulse(CapabilitySignalType.RENDERED, { id: this.id, text: label, attributes, parentTo });
+    }
+
     protected override react(signal: Signal): void {
         const { property, value } = signal;
         switch (property) {

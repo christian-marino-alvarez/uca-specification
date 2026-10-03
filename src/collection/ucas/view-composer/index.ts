@@ -3,6 +3,7 @@ import {
     type CapabilityConstructor,
     type Cooky,
     type Disposition,
+    type ICapability,
     type Signal,
 } from '@uca/core/types';
 import { LlmWeb, SignalType as LlmWebSignalType } from '@uca/llm-web';
@@ -77,8 +78,7 @@ export class ViewComposer extends Uca<Body> {
         const { model, endpoint, sseEndpoint } = (aim.body ?? {}) as Body;
         const llmDisp: Disposition = { aim: { description: LlmWeb.purpose, body: { model, endpoint, sseEndpoint } }, reactTo: [...LlmWeb.disposition.reactTo ?? []] };
         const graphDisp: Disposition = { aim: { description: Graph.AIM, body: {} }, reactTo: [...Graph.disposition.reactTo ?? []] };
-        const webEntries = WEB_UCAS.map(createUcaEntry);
-        return [[LlmWeb, llmDisp], [Graph, graphDisp], ...webEntries];
+        return [[LlmWeb, llmDisp], [Graph, graphDisp]];
     }
 
     protected override react(signal: Signal): void {
@@ -120,6 +120,16 @@ export class ViewComposer extends Uca<Body> {
         this.pulse(SignalType.REMOVED, { ...this.getDomainProperties(), ...payload });
     }
 
+    private readonly instances: Map<string, ICapability> = new Map();
+
+    public override denervate(): void {
+        super.denervate();
+        for (const uca of this.instances.values()) {
+            uca.denervate();
+        }
+        this.instances.clear();
+    }
+
     private handleUcaStream(value: unknown): void {
         const payload = (value ?? {}) as UcaStreamPayload;
         const { stream } = payload;
@@ -133,9 +143,19 @@ export class ViewComposer extends Uca<Body> {
     private handleUcaItem(item: UcaItem): void {
         const { id, disposition } = item;
         if (!id || !disposition) { return; }
+        const uca = this.resolveUcaInstance(id);
+        uca?.innervate(this.target, disposition);
+    }
+
+    private resolveUcaInstance(id: string): ICapability | undefined {
+        const existing = this.instances.get(id);
+        if (existing) { return existing; }
         const [prefix] = id.split(':');
-        const existing = this.capability(id) ?? this.capability(prefix ?? id);
-        existing?.innervate(this.target, disposition);
+        const resolved = prefix && UCA_CATALOG[prefix] ? prefix : 'box';
+        const Factory = UCA_CATALOG[resolved] as unknown as new (id: string) => ICapability;
+        const instance = new Factory(id);
+        this.instances.set(id, instance);
+        return instance;
     }
 
     private getDomainProperties(): Body {
