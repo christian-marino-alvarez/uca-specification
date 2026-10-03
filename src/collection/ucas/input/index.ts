@@ -26,6 +26,23 @@ export class Input extends Uca<Body> {
         super(id);
     }
 
+    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
+        super.innervate(target, disposition);
+        const { aim } = this.disposition;
+        const hasBodyProperties = Boolean(aim.body && Object.keys(aim.body).length > 0);
+        if (hasBodyProperties) {
+            this.onDispositionUpdated();
+        }
+        return this;
+    }
+
+    protected override onDispositionUpdated(): void {
+        const attributes = this.buildAttributes(WEB_COMPONENT_ID);
+        const { aim } = this.disposition;
+        const { value } = aim.body ?? {};
+        this.pulse(CapabilitySignalType.RENDERED, { id: this.id, text: value, attributes });
+    }
+
 
     protected override react(signal: Signal): void {
         const { property, value } = signal;
@@ -163,3 +180,4 @@ export class Input extends Uca<Body> {
 }
 
 export * from './types.js';
+export * from './schema.js';

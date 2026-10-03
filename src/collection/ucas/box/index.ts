@@ -23,7 +23,8 @@ export class Box extends Uca<Body> {
     public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
         super.innervate(target, disposition);
         const { aim } = this.disposition;
-        if (aim.body?.text) {
+        const hasBodyProperties = Boolean(aim.body && Object.keys(aim.body).length > 0);
+        if (hasBodyProperties) {
             this.onDispositionUpdated();
         }
         return this;
@@ -43,9 +44,27 @@ export class Box extends Uca<Body> {
                 this.handleRemove(value);
                 break;
             default:
-                this.handleCapabilitySignal(property);
+                this.handleSignal(signal);
                 break;
         }
+    }
+
+    private handleSignal(signal: Signal): void {
+        const { property } = signal;
+        const { reactTo = [] } = this.disposition;
+        if (reactTo.includes(property) && !property.startsWith('element.')) {
+            this.handleReactiveStimulus(signal);
+            return;
+        }
+        this.handleCapabilitySignal(property);
+    }
+
+    private handleReactiveStimulus(signal: Signal): void {
+        const { property, value } = signal;
+        const payload = (value ?? {}) as { text?: string };
+        const text = payload.text ?? `⚡ ¡Estímulo nervioso recibido de ${property}!`;
+        const attributes = this.buildAttributes(WEB_COMPONENT_ID);
+        this.pulse(CapabilitySignalType.UPDATED, { id: this.id, text, attributes });
     }
 
     private handleCreate(value: unknown): void {
@@ -145,3 +164,4 @@ export class Box extends Uca<Body> {
 }
 
 export * from './types.js';
+export * from './schema.js';

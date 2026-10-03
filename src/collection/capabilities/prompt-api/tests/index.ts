@@ -129,11 +129,48 @@ async function testPromptApi_ErrorWhenNotAvailable(): Promise<void> {
     promptApi.denervate();
 }
 
+async function testPromptApi_CumulativeStreamExecution(): Promise<void> {
+    const target = new EventTarget();
+    const mockSession: AILanguageModelSession = {
+        prompt: async () => '',
+        promptStreaming: () => {
+            const chunks = ['{"data":', '{"data": {"ucas":', '{"data": {"ucas": []}}'];
+            let index = 0;
+            return new ReadableStream<string>({
+                pull(controller) {
+                    if (index < chunks.length) {
+                        controller.enqueue(chunks[index++]);
+                    } else {
+                        controller.close();
+                    }
+                },
+            });
+        },
+        destroy: () => {},
+    };
+    const factory = createMockFactory({ create: async () => mockSession });
+    const promptApi = new PromptApi().innervate(target, { aim: { description: PromptApi.AIM, body: { factory } } });
+
+    const deltas: string[] = [];
+    target.addEventListener(SignalType.CHUNK, (event: Event) => {
+        const customEvent = event as CustomEvent<Signal<ChunkResult>>;
+        const { delta } = customEvent.detail.value;
+        if (delta) { deltas.push(delta); }
+    });
+
+    target.dispatchEvent(new CustomEvent(SignalType.STREAM, { detail: { source: 'test', property: SignalType.STREAM, value: { prompt: 'json' }, timestamp: Date.now() } }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    assert.deepStrictEqual(deltas, ['{"data":', ' {"ucas":', ' []}}']);
+    promptApi.denervate();
+}
+
 async function runAllTests(): Promise<void> {
     await testPromptApi_ExistenceAndInheritance();
     await testPromptApi_CheckAvailability();
     await testPromptApi_PromptExecution();
     await testPromptApi_StreamExecution();
+    await testPromptApi_CumulativeStreamExecution();
     await testPromptApi_ErrorWhenNotAvailable();
     console.log('✔ All PromptApi capability tests passed successfully.');
 }

@@ -26,8 +26,8 @@ import {
     DEFAULT_WEB_DIR,
     DEFAULT_TEMPERATURE,
     DEFAULT_MAX_OUTPUT_TOKENS,
-    DEFAULT_UCA_VIEW_SCHEMA,
 } from './constants.js';
+import { COMMUNICATION_SCHEMA } from '@uca/capability-graph';
 import {
     type Body,
     type StartedStatus,
@@ -173,12 +173,12 @@ export class Server extends Uca<Body> {
         const m = model ? String(model) : undefined;
         const temp = typeof temperature === 'number' ? temperature : DEFAULT_TEMPERATURE;
         const maxTokens = typeof maxOutputTokens === 'number' ? maxOutputTokens : DEFAULT_MAX_OUTPUT_TOKENS;
-        const sch = (schema as Record<string, unknown>) ?? DEFAULT_UCA_VIEW_SCHEMA;
+        const sch = (schema as Record<string, unknown>) ?? COMMUNICATION_SCHEMA;
         const result = await this.requestLlmInference(p, m, temp, maxTokens, sch);
         return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
 
-    private requestLlmInference(request: string, model?: string, imagination = DEFAULT_TEMPERATURE, limit = DEFAULT_MAX_OUTPUT_TOKENS, expectations = DEFAULT_UCA_VIEW_SCHEMA): Promise<InferResult> {
+    private requestLlmInference(request: string, model?: string, imagination = DEFAULT_TEMPERATURE, limit = DEFAULT_MAX_OUTPUT_TOKENS, expectations = COMMUNICATION_SCHEMA): Promise<InferResult> {
         return new Promise((resolve) => {
             const onInferred = (event: Event) => this.resolveInference(event, resolve, onInferred, onError);
             const onError = (event: Event) => this.failInference(event, resolve, onInferred, onError, request);
@@ -213,11 +213,12 @@ export class Server extends Uca<Body> {
         const boxDisp = { aim: { description: 'Contenedor de bienvenida', body: { text: '¿Quieres saber qué es Uca?' } }, reactTo: ['box.create', 'box.update'] };
         const actionDisp = { aim: { description: 'Botón de exploración', body: { label: 'Descubrir qué es UCA' } }, reactTo: ['action.create', 'action.trigger'] };
         const ucas = [
-            { 'box:center-container': boxDisp },
-            { 'action:query-button': actionDisp },
+            { id: 'box:center-container', disposition: boxDisp },
+            { id: 'action:query-button', disposition: actionDisp },
         ];
         const answer = '¿Quieres saber qué es Uca?';
-        return { response: JSON.stringify({ ucas, answer }), data: { ucas, answer, error: errorMessage } };
+        const payload = { data: { ucas, answer }, error: errorMessage };
+        return { response: JSON.stringify(payload), data: payload };
     }
 
     private buildExplanationFallback(errorMessage: string): InferResult {
@@ -229,11 +230,12 @@ export class Server extends Uca<Body> {
             '4. Outcomes: Pulsos nerviosos y eventos observables en el canal.',
         ];
         const ucas = [
-            { 'box:center-container': { aim: { description: 'Panel ontológico', body: { text: panelText } }, reactTo: ['box.create'] } },
-            { 'list:features': { aim: { description: 'Pilares conceptuales', body: { items: listItems } }, reactTo: ['list.create'] } },
-            { 'action:query-button': { aim: { description: 'Botón reintentar', body: { label: 'Volver a consultar UCA' } }, reactTo: ['action.create', 'action.trigger'] } },
+            { id: 'box:center-container', disposition: { aim: { description: 'Panel ontológico', body: { text: panelText } }, reactTo: ['box.create'] } },
+            { id: 'list:features', disposition: { aim: { description: 'Pilares conceptuales', body: { items: listItems } }, reactTo: ['list.create'] } },
+            { id: 'action:query-button', disposition: { aim: { description: 'Botón reintentar', body: { label: 'Volver a consultar UCA' } }, reactTo: ['action.create', 'action.trigger'] } },
         ];
-        return { response: JSON.stringify({ ucas, answer: panelText }), data: { ucas, answer: panelText, error: errorMessage } };
+        const payload = { data: { ucas, answer: panelText }, error: errorMessage };
+        return { response: JSON.stringify(payload), data: payload };
     }
 
     private removeInferenceListeners(onInferred: (e: Event) => void, onError: (e: Event) => void): void {
@@ -246,52 +248,68 @@ export class Server extends Uca<Body> {
         const queryPrompt = query?.prompt;
         const bodyPrompt = (body as { prompt?: string })?.prompt;
         const prompt = queryPrompt ?? bodyPrompt ?? 'UCA streaming reasoning';
+        console.log('🌐 [SERVER] Petición SSE recibida para prompt:', prompt.slice(0, 60) + '...');
         const stream = this.createSseReadableStream(prompt);
-        return new Response(stream, {
-            headers: {
-                'Content-Type': 'text/event-stream; charset=utf-8',
-                'Cache-Control': 'no-cache, no-transform',
-                'Connection': 'keep-alive',
-            },
-        });
+        return this.createSseResponse(stream);
+    }
+
+    private createSseResponse(stream: ReadableStream): Response {
+        const headers = { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' };
+        return new Response(stream, { headers });
     }
 
     private createSseReadableStream(prompt: string): ReadableStream {
         const encoder = new TextEncoder();
+        let chunkListener: ((event: Event) => void) | undefined;
+        let endListener: ((event: Event) => void) | undefined;
         return new ReadableStream({
             start: (controller) => {
-                this.bindSseNervousEvents(controller, encoder, prompt);
+                chunkListener = (event: Event) => this.writeSseChunk(event, controller, encoder);
+                endListener = (event: Event) => this.finishSseStream(controller, encoder, chunkListener, endListener);
+                this.bindSseNervousEvents(controller, encoder, prompt, chunkListener, endListener);
+            },
+            cancel: () => {
+                if (chunkListener) { this.target?.removeEventListener(LlmSignalType.CHUNK, chunkListener); }
+                if (endListener) { this.target?.removeEventListener(LlmSignalType.STREAM_END, endListener); }
             },
         });
     }
 
-    private bindSseNervousEvents(controller: ReadableStreamDefaultController, encoder: TextEncoder, prompt: string): void {
-        controller.enqueue(encoder.encode(`event: start\ndata: ${JSON.stringify({ status: 'connected', prompt })}\n\n`));
-        const chunkListener = (event: Event) => this.writeSseChunk(event, controller, encoder);
-        const endListener = () => this.finishSseStream(controller, encoder, chunkListener, endListener);
+    private bindSseNervousEvents(
+        controller: ReadableStreamDefaultController,
+        encoder: TextEncoder,
+        prompt: string,
+        chunkListener: (event: Event) => void,
+        endListener: (event: Event) => void,
+    ): void {
+        console.log('⚡ [SERVER] Conectando canal SSE con LLM...');
+        try { controller.enqueue(encoder.encode(`event: start\ndata: ${JSON.stringify({ status: 'connected', prompt })}\n\n`)); } catch {}
         this.target?.addEventListener(LlmSignalType.CHUNK, chunkListener);
         this.target?.addEventListener(LlmSignalType.STREAM_END, endListener);
-        this.pulse(LlmSignalType.STREAM, { request: prompt });
+        this.pulse(LlmSignalType.STREAM, { request: prompt, expectations: COMMUNICATION_SCHEMA });
     }
 
     private writeSseChunk(event: Event, controller: ReadableStreamDefaultController, encoder: TextEncoder): void {
         const customEvent = event as CustomEvent<Signal>;
         const { text } = (customEvent.detail.value ?? {}) as ChunkResult;
-        if (text) {
-            controller.enqueue(encoder.encode(`event: message\ndata: ${JSON.stringify({ text })}\n\n`));
-        }
+        if (!text) { return; }
+        console.log('📤 [SERVER] Enviando alpha chunk SSE al cliente:', text.slice(0, 40) + '...');
+        try { controller.enqueue(encoder.encode(`event: message\ndata: ${JSON.stringify({ text })}\n\n`)); } catch {}
     }
 
     private finishSseStream(
         controller: ReadableStreamDefaultController,
         encoder: TextEncoder,
-        chunkListener: (event: Event) => void,
-        endListener: (event: Event) => void,
+        chunkListener?: (event: Event) => void,
+        endListener?: (event: Event) => void,
     ): void {
-        this.target?.removeEventListener(LlmSignalType.CHUNK, chunkListener);
-        this.target?.removeEventListener(LlmSignalType.STREAM_END, endListener);
-        controller.enqueue(encoder.encode('event: done\ndata: {"done":true}\n\n'));
-        controller.close();
+        console.log('🏁 [SERVER] Finalizado stream SSE para cliente.');
+        if (chunkListener) { this.target?.removeEventListener(LlmSignalType.CHUNK, chunkListener); }
+        if (endListener) { this.target?.removeEventListener(LlmSignalType.STREAM_END, endListener); }
+        try {
+            controller.enqueue(encoder.encode('event: done\ndata: {"done":true}\n\n'));
+            controller.close();
+        } catch {}
     }
 
     private handleStaticRequest(context: RequestContext, staticDir?: string, webDir?: string): Response {

@@ -103,14 +103,28 @@ export class PromptApi extends Capability<Body> {
 
     private async consumeStream(stream: ReadableStream<string>, prompt: string): Promise<void> {
         const reader = stream.getReader();
-        let text = '';
+        let fullText = '';
         while (true) {
             const { done, value: chunk } = await reader.read();
             if (done) { break; }
-            text += chunk;
-            this.pulse(SignalType.CHUNK, { prompt, chunk, text });
+            fullText = this.emitStreamChunk(prompt, chunk ?? '', fullText);
         }
-        this.pulse(SignalType.STREAM_END, { prompt, text });
+        this.pulse(SignalType.STREAM_END, { prompt, text: fullText });
+    }
+
+    private emitStreamChunk(prompt: string, chunk: string, previousText: string): string {
+        const delta = this.computeStreamDelta(chunk, previousText);
+        const fullText = chunk.startsWith(previousText) ? chunk : `${previousText}${delta}`;
+        this.pulse(SignalType.CHUNK, { prompt, chunk, delta, text: delta, fullText });
+        return fullText;
+    }
+
+    private computeStreamDelta(chunk: string, previousText: string): string {
+        const isCumulative = typeof chunk === 'string' && chunk.startsWith(previousText);
+        if (isCumulative) {
+            return chunk.slice(previousText.length);
+        }
+        return chunk ?? '';
     }
 
     private handleDestroy(): void {

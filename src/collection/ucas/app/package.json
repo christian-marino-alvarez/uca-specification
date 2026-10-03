@@ -46,6 +46,7 @@
     "@uca/action": "^0.1.0",
     "@uca/box": "^0.1.0",
     "@uca/core": "^0.1.0",
+    "@uca/style-composer": "^0.1.0",
     "@uca/view-composer": "^0.1.0"
   },
   "scripts": {

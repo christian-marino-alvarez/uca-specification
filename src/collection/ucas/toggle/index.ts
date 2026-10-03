@@ -29,8 +29,8 @@ export class Toggle extends Uca<Body> {
     public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
         super.innervate(target, disposition);
         const { aim } = this.disposition;
-        const { label, checked } = (aim.body ?? {}) as Body;
-        if (label !== undefined || checked !== undefined) {
+        const hasBodyProperties = Boolean(aim.body && Object.keys(aim.body).length > 0);
+        if (hasBodyProperties) {
             this.onDispositionUpdated();
         }
         return this;
@@ -82,7 +82,11 @@ export class Toggle extends Uca<Body> {
         const payload = (value ?? {}) as { checked?: boolean };
         const properties = this.getDomainProperties();
         const nextChecked = payload.checked ?? !properties.checked;
-        this.pulse(SignalType.CHANGED, { ...properties, checked: nextChecked });
+        const result = { ...properties, checked: nextChecked };
+        this.pulse(SignalType.CHANGED, result);
+        if (`${this.id}.changed` !== SignalType.CHANGED) {
+            this.pulse(`${this.id}.changed`, result);
+        }
     }
 
     private handleCapabilitySignal(property: string, value: unknown): void {
@@ -167,3 +171,4 @@ export class Toggle extends Uca<Body> {
 }
 
 export * from './types.js';
+export * from './schema.js';

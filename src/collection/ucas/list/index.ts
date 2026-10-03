@@ -26,8 +26,8 @@ export class List extends Uca<Body> {
     public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
         super.innervate(target, disposition);
         const { aim } = this.disposition;
-        const { items = [], text } = (aim.body ?? {}) as Body;
-        if (items.length > 0 || text) {
+        const hasBodyProperties = Boolean(aim.body && Object.keys(aim.body).length > 0);
+        if (hasBodyProperties) {
             this.onDispositionUpdated();
         }
         return this;
@@ -46,9 +46,28 @@ export class List extends Uca<Body> {
                 this.handleRemove(value);
                 break;
             default:
-                this.handleCapabilitySignal(property);
+                this.handleSignal(signal);
                 break;
         }
+    }
+
+    private handleSignal(signal: Signal): void {
+        const { property } = signal;
+        const { reactTo = [] } = this.disposition;
+        if (reactTo.includes(property) && !property.startsWith('element.')) {
+            this.handleReactiveStimulus(signal);
+            return;
+        }
+        this.handleCapabilitySignal(property);
+    }
+
+    private handleReactiveStimulus(signal: Signal): void {
+        const { value } = signal;
+        const payload = (value ?? {}) as { checked?: boolean };
+        const isHidden = payload.checked === false;
+        const attributes = { ...this.buildAttributes(WEB_COMPONENT_ID), hidden: isHidden ? '' : undefined };
+        const text = this.getFormattedText();
+        this.pulse(CapabilitySignalType.UPDATED, { id: this.id, text, attributes });
     }
 
     protected override onDispositionUpdated(): void {
@@ -151,3 +170,4 @@ export class List extends Uca<Body> {
 }
 
 export * from './types.js';
+export * from './schema.js';

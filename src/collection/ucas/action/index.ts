@@ -23,7 +23,8 @@ export class Action extends Uca<Body> {
     public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
         super.innervate(target, disposition);
         const { aim } = this.disposition;
-        if (aim.body?.label) {
+        const hasBodyProperties = Boolean(aim.body && Object.keys(aim.body).length > 0);
+        if (hasBodyProperties) {
             this.onDispositionUpdated();
         }
         return this;
@@ -77,6 +78,9 @@ export class Action extends Uca<Body> {
         const properties = this.getDomainProperties();
         const payload = detail !== undefined ? { ...properties, detail } : properties;
         this.pulse(SignalType.TRIGGERED, payload);
+        if (`${this.id}.triggered` !== SignalType.TRIGGERED) {
+            this.pulse(`${this.id}.triggered`, payload);
+        }
     }
 
     private handleCapabilitySignal(property: string, value: unknown): void {
@@ -163,3 +167,4 @@ export class Action extends Uca<Body> {
 }
 
 export * from './types.js';
+export * from './schema.js';

@@ -1,4 +1,5 @@
 import * as assert from 'node:assert';
+import { z } from 'zod';
 import { DispositionSignal, type Disposition, type Signal } from '@uca/core/types';
 import { SignalType as LlmWebSignalType, type PromptPayload, type ResponsePayload } from '@uca/llm-web';
 import {
@@ -21,8 +22,9 @@ function testViewComposer_IdentityAndDefaults(): void {
     assert.strictEqual(composer.purpose, PURPOSE);
     composer.innervate();
     const { inputs, outputs } = composer.disposition;
-    assert.strictEqual(inputs?.length, 1);
+    assert.strictEqual(inputs?.length, 2);
     assert.strictEqual(inputs?.[0]?.type, DataType.COMPOSE_PAYLOAD);
+    assert.strictEqual(inputs?.[1]?.type, DataType.UCA_SCHEMA_DEFINITION);
     assert.strictEqual(outputs?.length, 2);
     assert.strictEqual(outputs?.[0]?.type, DataType.COMPOSED_RESULT);
     composer.denervate();
@@ -39,7 +41,41 @@ function testViewComposer_ComposePulsesLlmPrompt(): void {
 
     emitSignal(bus, SignalType.COMPOSE, { request: 'Generate dashboard with header and list' });
     assert.ok(capturedPromptPayload);
-    assert.strictEqual(capturedPromptPayload?.prompt, 'Generate dashboard with header and list');
+    assert.ok(capturedPromptPayload?.prompt.includes('Generate dashboard with header and list'));
+    assert.ok(capturedPromptPayload?.prompt.includes('Available UCAs Catalog'));
+    assert.ok(capturedPromptPayload?.prompt.includes('OUTPUT JSON SCHEMA'));
+    assert.ok(!capturedPromptPayload?.prompt.includes('box.update'));
+    composer.denervate();
+}
+
+function testViewComposer_DynamicUcaRegistration(): void {
+    const bus = new EventTarget();
+    const composer = new ViewComposer('test-composer').innervate(bus);
+    const sliderSchema = z.object({ title: z.string(), min: z.number().optional() });
+    composer.registerUca({ name: 'Slider', prefix: 'slider', description: 'Range slider', bodySchema: sliderSchema, emittedSignals: ['change'] });
+    let capturedPrompt = '';
+    bus.addEventListener(LlmWebSignalType.PROMPT, (event: Event) => {
+        capturedPrompt = (event as CustomEvent<Signal<PromptPayload>>).detail.value.prompt;
+    });
+    emitSignal(bus, SignalType.COMPOSE, { request: 'Add slider control' });
+    assert.ok(capturedPrompt.includes('Slider (prefix "slider:<id>"): Range slider'));
+    assert.ok(capturedPrompt.includes('title?: string'));
+    assert.ok(capturedPrompt.includes('Emits outcomes: "slider:<id>.change"'));
+    composer.denervate();
+}
+
+function testViewComposer_DynamicRegistrationViaSignal(): void {
+    const bus = new EventTarget();
+    const composer = new ViewComposer('test-composer').innervate(bus);
+    const gaugeSchema = z.object({ value: z.number() });
+    emitSignal(bus, SignalType.REGISTER, { name: 'Gauge', prefix: 'gauge', description: 'Radial meter', bodySchema: gaugeSchema, emittedSignals: ['read'] });
+    let capturedPrompt = '';
+    bus.addEventListener(LlmWebSignalType.PROMPT, (event: Event) => {
+        capturedPrompt = (event as CustomEvent<Signal<PromptPayload>>).detail.value.prompt;
+    });
+    emitSignal(bus, SignalType.COMPOSE, { request: 'Add radial gauge' });
+    assert.ok(capturedPrompt.includes('Gauge (prefix "gauge:<id>"): Radial meter'));
+    assert.ok(capturedPrompt.includes('Emits outcomes: "gauge:<id>.read"'));
     composer.denervate();
 }
 
@@ -61,12 +97,12 @@ function testViewComposer_LlmResponse_PropagatesDispositionsAndBuildsGraph(): vo
         'search-input': {
             aim: { description: 'Search bar' },
             reactTo: [],
-            outputs: [{ signal: 'search.query', type: 'string' }],
+            outputs: [{ signal: 'search-input.query', type: 'string' }],
         },
         'result-list': {
             aim: { description: 'Results list' },
-            reactTo: ['search.query'],
-            inputs: [{ signal: 'search.query', type: 'string' }],
+            reactTo: ['search-input.query'],
+            inputs: [{ signal: 'search-input.query', type: 'string' }],
         },
     };
 
@@ -83,7 +119,7 @@ function testViewComposer_LlmResponse_PropagatesDispositionsAndBuildsGraph(): vo
     assert.strictEqual(graph.edges.length, 1);
     assert.strictEqual(graph.edges[0]?.fromNode, 'search-input');
     assert.strictEqual(graph.edges[0]?.toNode, 'result-list');
-    assert.strictEqual(graph.edges[0]?.signal, 'search.query');
+    assert.strictEqual(graph.edges[0]?.signal, 'search-input.query');
 
     composer.denervate();
 }
@@ -105,6 +141,8 @@ function testViewComposer_LlmErrorPulsesError(): void {
 function runAllViewComposerTests(): void {
     testViewComposer_IdentityAndDefaults();
     testViewComposer_ComposePulsesLlmPrompt();
+    testViewComposer_DynamicUcaRegistration();
+    testViewComposer_DynamicRegistrationViaSignal();
     testViewComposer_LlmResponse_PropagatesDispositionsAndBuildsGraph();
     testViewComposer_LlmErrorPulsesError();
     console.log('✔ All ViewComposer UCA minimal architecture tests passed successfully.');

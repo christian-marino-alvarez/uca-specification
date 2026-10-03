@@ -45,7 +45,9 @@ export interface PromptResult {
 export interface ChunkResult {
     readonly prompt: string;
     readonly chunk: string;
+    readonly delta?: string;
     readonly text: string;
+    readonly fullText?: string;
 }
 
 export interface StreamEndResult {

@@ -96,9 +96,9 @@ export class Llm extends Uca<Body> {
         const { aim } = this.disposition;
         const { model: fallbackModel } = aim.body ?? {};
         const payload = (value ?? {}) as InferPayload;
-        const { request, model } = payload;
+        const { request, model, expectations } = payload;
         const targetModel = model ?? fallbackModel;
-        this.pulse(GeminiSignalType.STREAM, { prompt: request, model: targetModel });
+        this.pulse(GeminiSignalType.STREAM, { prompt: request, model: targetModel, schema: expectations });
     }
 
     private handleCapabilitySignal(property: string, value: unknown): void {

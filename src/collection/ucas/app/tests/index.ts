@@ -2,7 +2,7 @@ import * as assert from 'node:assert';
 import { Uca } from '@uca/core/uca';
 import type { Signal } from '@uca/core/types';
 import { SignalType as ViewComposerSignalType, type ComposePayload } from '@uca/view-composer';
-import { App, SignalType, DataType, __ID__, PURPOSE, DEFAULT_QUESTION, DEFAULT_BUTTON_LABEL } from '../index.js';
+import { App, SignalType, DataType, __ID__, PURPOSE } from '../index.js';
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
@@ -15,12 +15,11 @@ function testApp_IdentityAndDefaults(): void {
     assert.strictEqual(app.id, __ID__);
     assert.strictEqual(app.purpose, PURPOSE);
     const { inputs, outputs, aim } = app.disposition;
-    assert.strictEqual(inputs?.length, 4);
+    assert.strictEqual(inputs?.length, 3);
     assert.strictEqual(inputs?.[0]?.type, DataType.VOID);
     assert.strictEqual(outputs?.length, 3);
     assert.strictEqual(outputs?.[0]?.type, DataType.RECORD);
-    assert.strictEqual(aim.body?.question, DEFAULT_QUESTION);
-    assert.strictEqual(aim.body?.buttonLabel, DEFAULT_BUTTON_LABEL);
+    assert.strictEqual(aim.description, PURPOSE);
 }
 
 function testApp_InnervationAndCooky(): void {
@@ -57,7 +56,7 @@ function testApp_PulsesDomainSignals(): void {
     app.denervate();
 }
 
-function testApp_ExplainTriggersViewComposer(): void {
+function testApp_InnervateTriggersViewComposer(): void {
     const bus = new EventTarget();
     let capturedCompose: ComposePayload | undefined;
 
@@ -67,7 +66,6 @@ function testApp_ExplainTriggersViewComposer(): void {
     });
 
     const app = new App('app-orchestrator').innervate(bus);
-    emitSignal(bus, SignalType.EXPLAIN, undefined);
 
     assert.ok(capturedCompose !== undefined);
     assert.ok(capturedCompose?.request?.includes('UCA'));
@@ -80,7 +78,7 @@ function runAllAppTests(): void {
     testApp_IdentityAndDefaults();
     testApp_InnervationAndCooky();
     testApp_PulsesDomainSignals();
-    testApp_ExplainTriggersViewComposer();
+    testApp_InnervateTriggersViewComposer();
     console.log('✔ All App UCA scaffolding and ViewComposer orchestration tests passed successfully.');
 }
 

@@ -53,11 +53,26 @@ function buildImportMapEntry(workspace: string): Record<string, string> {
 
 function generateImportMap(): string {
     const workspaces = resolveWorkspaces();
-    const imports: Record<string, string> = {};
+    const imports: Record<string, string> = {
+        'zod': './vendor/zod.js',
+    };
     for (const workspace of workspaces) {
         Object.assign(imports, buildImportMapEntry(workspace));
     }
     return JSON.stringify({ imports }, null, 4);
+}
+
+async function bundleVendorLibraries(): Promise<void> {
+    const vendorDir = path.join(WEB_DIST, 'vendor');
+    fs.mkdirSync(vendorDir, { recursive: true });
+    await esbuild.build({
+        entryPoints: ['zod'],
+        outfile: path.join(vendorDir, 'zod.js'),
+        format: 'esm',
+        bundle: true,
+        platform: 'browser',
+        target: 'es2022',
+    });
 }
 
 async function transpileEntry(): Promise<void> {
@@ -106,6 +121,8 @@ async function build(): Promise<void> {
     console.log('⚡ Building UCA application and server...');
     fs.mkdirSync(WEB_DIST, { recursive: true });
     compileTypeScript();
+    await bundleVendorLibraries();
+    console.log('📦 Vendor libraries bundled');
     const importMap = generateImportMap();
     console.log('🗺️  Import map generated');
     await transpileEntry();

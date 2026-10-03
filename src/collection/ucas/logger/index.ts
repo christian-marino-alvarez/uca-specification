@@ -22,6 +22,10 @@ export class Logger extends Uca<Body> {
         super(id);
     }
 
+    protected override matchesId(_id?: string): boolean {
+        return true;
+    }
+
     protected override capabilities(): Cooky {
         return [];
     }

@@ -85,15 +85,22 @@ export class LlmWeb extends Uca<Body> {
         const { aim } = this.disposition;
         const { sseEndpoint = DEFAULT_SSE_ENDPOINT, model: bodyModel } = (aim.body ?? {}) as Body;
         const targetModel = payloadModel ?? bodyModel;
+        await this.executeStreamSession(sseEndpoint, prompt, targetModel);
+    }
+
+    private async executeStreamSession(sseEndpoint: string, prompt: string, model?: string): Promise<void> {
+        console.log('📡 [CLIENT][LlmWeb] Abriendo stream SSE:', sseEndpoint);
         try {
-            await this.readSseStream(sseEndpoint, prompt, targetModel);
+            await this.connectSseStream(sseEndpoint, prompt, model);
+            console.log('🏁 [CLIENT][LlmWeb] Stream SSE completado.');
             this.pulse(SignalType.COMPLETED, undefined);
         } catch (error) {
+            console.error('❌ [CLIENT][LlmWeb] Error en stream SSE:', error);
             this.pulse(SignalType.ERROR, error);
         }
     }
 
-    private async readSseStream(sseEndpoint: string, prompt: string, model?: string): Promise<void> {
+    private async connectSseStream(sseEndpoint: string, prompt: string, model?: string): Promise<void> {
         const url = `${sseEndpoint}?prompt=${encodeURIComponent(prompt)}`;
         const response = await fetch(url, { headers: { Accept: 'text/event-stream' } });
         const reader = response.body?.getReader();
@@ -130,6 +137,7 @@ export class LlmWeb extends Uca<Body> {
             const parsed = JSON.parse(jsonStr) as { text?: string; done?: boolean };
             const { text } = parsed;
             if (text) {
+                console.log('⚡ [CLIENT][LlmWeb] Recibido alpha chunk:', text.slice(0, 30) + '...');
                 this.pulse(SignalType.CHUNK, { text, model });
             }
         } catch {

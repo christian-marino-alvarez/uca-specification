@@ -1,9 +1,8 @@
 import { Uca } from '@uca/core/uca';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
 import { ViewComposer, SignalType as ViewComposerSignalType, type Body as ViewComposerBody, type ComposedResult } from '@uca/view-composer';
-import { Box, SignalType as BoxSignalType } from '@uca/box';
-import { Action, SignalType as ActionSignalType } from '@uca/action';
-import { __ID__, DEFAULT_BUTTON_LABEL, DEFAULT_QUESTION, DEFAULT_SIGNALS, PURPOSE } from './constants.js';
+import { StyleComposer, type Body as StyleComposerBody } from '@uca/style-composer';
+import { __ID__, DEFAULT_SIGNALS, PURPOSE } from './constants.js';
 import { UCA_ARCHITECTURE_DOCUMENTATION } from './docs.js';
 import { type Body, DataType, SignalType } from './types.js';
 
@@ -11,13 +10,12 @@ export class App extends Uca<Body> {
     public static override purpose: string = PURPOSE;
 
     public static override disposition: Disposition<Body> = {
-        aim: { description: App.purpose, body: { question: DEFAULT_QUESTION, buttonLabel: DEFAULT_BUTTON_LABEL } },
+        aim: { description: App.purpose, body: {} },
         reactTo: [...DEFAULT_SIGNALS],
         inputs: [
             { signal: SignalType.CREATE, type: DataType.VOID, description: 'Initialize application scaffolding' },
             { signal: SignalType.UPDATE, type: DataType.VOID, description: 'Update application scaffolding' },
             { signal: SignalType.REMOVE, type: DataType.VOID, description: 'Tear down application scaffolding' },
-            { signal: SignalType.EXPLAIN, type: DataType.VOID, description: 'Trigger UCA view composition via ViewComposer' },
         ],
         outputs: [
             { signal: SignalType.CREATED, type: DataType.RECORD, description: 'Application initialized' },
@@ -33,12 +31,7 @@ export class App extends Uca<Body> {
     public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
         const base = disposition ?? App.disposition;
         const { reactTo = [] } = base;
-        const internalSignals = [
-            ViewComposerSignalType.COMPOSED,
-            ViewComposerSignalType.ERROR,
-            ActionSignalType.TRIGGER,
-            ActionSignalType.TRIGGERED,
-        ];
+        const internalSignals = [ViewComposerSignalType.COMPOSED, ViewComposerSignalType.ERROR];
         const signals = [...new Set([...reactTo, ...internalSignals])];
         super.innervate(target, { ...base, reactTo: signals });
         this.pulse(SignalType.CREATE, this.getDomainProperties());
@@ -52,15 +45,14 @@ export class App extends Uca<Body> {
             aim: { description: ViewComposer.purpose, body: { documentation, model, endpoint, sseEndpoint } },
             reactTo: [...ViewComposer.disposition.reactTo ?? []],
         };
-        const boxDisposition: Disposition = {
-            aim: { description: 'Centered loading box', body: { id: 'box:center-container', text: DEFAULT_QUESTION, className: 'loading' } },
-            reactTo: [...Box.disposition.reactTo ?? []],
+        const styleComposerDisposition: Disposition<StyleComposerBody> = {
+            aim: { description: StyleComposer.purpose, body: {} },
+            reactTo: [...StyleComposer.disposition.reactTo ?? []],
         };
-        const actionDisposition: Disposition = {
-            aim: { description: 'Action button', body: { id: 'action:query-button', label: DEFAULT_BUTTON_LABEL } },
-            reactTo: [...Action.disposition.reactTo ?? []],
-        };
-        return [[ViewComposer, viewComposerDisposition], [Box, boxDisposition], [Action, actionDisposition]];
+        return [
+            [ViewComposer, viewComposerDisposition],
+            [StyleComposer, styleComposerDisposition],
+        ];
     }
 
     protected override react(signal: Signal): void {
@@ -75,11 +67,6 @@ export class App extends Uca<Body> {
             case SignalType.REMOVE:
                 this.pulse(SignalType.REMOVED, this.getDomainProperties());
                 break;
-            case ActionSignalType.TRIGGER:
-            case ActionSignalType.TRIGGERED:
-            case SignalType.EXPLAIN:
-                this.triggerExplanation();
-                break;
             case ViewComposerSignalType.COMPOSED:
                 this.handleComposedView(value);
                 break;
@@ -88,21 +75,16 @@ export class App extends Uca<Body> {
         }
     }
 
-    private handleCreate(): void {
-        const { aim } = this.disposition;
-        const { documentation = UCA_ARCHITECTURE_DOCUMENTATION } = (aim.body ?? {}) as Body;
-        const request = 'Componer la vista inicial interactiva: debe contener un texto central invitando a conocer la arquitectura UCA y un botón interactivo para explorarlo';
-        this.pulse(ViewComposerSignalType.COMPOSE, { request, documentation });
-        this.pulse(SignalType.CREATED, this.getDomainProperties());
-    }
+    private hasInitialized: boolean = false;
 
-    private triggerExplanation(): void {
+    private handleCreate(): void {
+        if (this.hasInitialized) { return; }
+        this.hasInitialized = true;
         const { aim } = this.disposition;
+        const { description = PURPOSE } = aim;
         const { documentation = UCA_ARCHITECTURE_DOCUMENTATION } = (aim.body ?? {}) as Body;
-        this.pulse(BoxSignalType.UPDATE, { id: 'box:center-container', text: '🧠 Razonando arquitectura UCA con Gemini...', className: 'loading' });
-        this.pulse(ActionSignalType.UPDATE, { id: 'action:query-button', label: 'Razonando...', disabled: true });
-        const request = 'Explicar de forma interactiva y estructurada qué es la arquitectura UCA, sus invariantes ontológicas y composición Cooky';
-        this.pulse(ViewComposerSignalType.COMPOSE, { request, documentation });
+        this.pulse(ViewComposerSignalType.COMPOSE, { request: description, documentation, stream: true });
+        this.pulse(SignalType.CREATED, this.getDomainProperties());
     }
 
     private handleComposedView(value: unknown): void {

@@ -55,17 +55,18 @@ export class Gemini extends Capability<Body> {
     private async handleStream(value: unknown): Promise<void> {
         const payload = this.extractPayload<GeneratePayload>(value);
         if (!payload) { return; }
-        const { prompt, model = DEFAULT_MODEL } = payload;
+        const { prompt, model = DEFAULT_MODEL, schema } = payload;
         try {
             const client = this.resolveClient();
-            await this.executeStream(client, prompt, model);
+            await this.executeStream(client, prompt, model, schema);
         } catch (error) {
             this.handleStreamFallback(prompt, model);
         }
     }
 
-    private async executeStream(client: GoogleGenAI, prompt: string, model: string): Promise<void> {
-        const stream = await client.models.generateContentStream({ model, contents: prompt });
+    private async executeStream(client: GoogleGenAI, prompt: string, model: string, schema?: Record<string, unknown>): Promise<void> {
+        const config = { responseMimeType: 'application/json', ...(schema && { responseSchema: schema }) };
+        const stream = await client.models.generateContentStream({ model, contents: prompt, config });
         for await (const chunk of stream) {
             const text = chunk.text ?? '';
             if (text) { this.pulse(SignalType.CHUNK, { text, prompt, model }); }
@@ -74,11 +75,43 @@ export class Gemini extends Capability<Body> {
     }
 
     private handleStreamFallback(prompt: string, model: string): void {
-        const tokens = ['UCA', ' reasoning', ' processed', ` "${prompt}".`];
+        const fallbackText = this.buildStreamFallbackJson(prompt);
+        const tokens = this.sliceIntoTokens(fallbackText);
         for (const token of tokens) {
             this.pulse(SignalType.CHUNK, { text: token, prompt, model });
         }
         this.pulse(SignalType.STREAM_END, { prompt, model });
+    }
+
+    private sliceIntoTokens(text: string): string[] {
+        const tokens: string[] = [];
+        const chunkSize = 20;
+        for (let i = 0; i < text.length; i += chunkSize) {
+            tokens.push(text.slice(i, i + chunkSize));
+        }
+        return tokens;
+    }
+
+    private buildStreamFallbackJson(prompt: string): string {
+        const isExplanation = prompt.includes('Explicar') || prompt.includes('explicar') || prompt.includes('u = (p, d, C, O)');
+        return isExplanation ? this.getExplanationFallbackJson() : this.getInitialFallbackJson();
+    }
+
+    private getInitialFallbackJson(): string {
+        const boxDisp = { aim: { description: 'Contenedor de bienvenida', body: { text: '¿Quieres saber qué es Uca?' } }, reactTo: ['action:query-button.triggered'] };
+        const actionDisp = { aim: { description: 'Botón de exploración', body: { label: 'Descubrir qué es UCA' } }, reactTo: [] };
+        const ucas = [{ id: 'box:center-container', disposition: boxDisp }, { id: 'action:query-button', disposition: actionDisp }];
+        const answer = '¿Quieres saber qué es Uca?';
+        return JSON.stringify({ data: { ucas, answer }, metadata: { tokens: 42 } });
+    }
+
+    private getExplanationFallbackJson(): string {
+        const panelText = 'UCA es una primitiva formal u = (p, d, C, O).';
+        const cardDisp = { aim: { description: 'Formula and explanation', body: { text: panelText } }, reactTo: ['action:simulate-pulse.triggered'] };
+        const listDisp = { aim: { description: 'Pillars', body: { items: ['Purpose', 'Disposition', 'Capabilities', 'Outcomes'] } }, reactTo: ['action:simulate-pulse.triggered'] };
+        const actionDisp = { aim: { description: 'Simulate pulse', body: { label: '⚡ Emitir pulso de prueba' } }, reactTo: [] };
+        const ucas = [{ id: 'box:explanation-card', disposition: cardDisp }, { id: 'list:ontological-pillars', disposition: listDisp }, { id: 'action:simulate-pulse', disposition: actionDisp }];
+        return JSON.stringify({ data: { ucas, answer: panelText }, metadata: { tokens: 68 } });
     }
 
     private handleConnect(value: unknown): void {

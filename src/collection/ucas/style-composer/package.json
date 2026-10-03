@@ -1,0 +1,50 @@
+{
+  "name": "@uca/style-composer",
+  "version": "0.1.0",
+  "description": "UCA StyleComposer autonomous cognitive styling and theme composition using Prompt API and CSS capability",
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js",
+      "default": "./index.ts"
+    },
+    "./types": {
+      "types": "./types.d.ts",
+      "import": "./types.js",
+      "default": "./types.ts"
+    },
+    "./types.js": {
+      "types": "./types.d.ts",
+      "import": "./types.js",
+      "default": "./types.ts"
+    },
+    "./constants": {
+      "types": "./constants.d.ts",
+      "import": "./constants.js",
+      "default": "./constants.ts"
+    },
+    "./constants.js": {
+      "types": "./constants.d.ts",
+      "import": "./constants.js",
+      "default": "./constants.ts"
+    }
+  },
+  "dependencies": {
+    "@uca/capability-css": "^0.1.0",
+    "@uca/capability-graph": "^0.1.0",
+    "@uca/capability-prompt-api": "^0.1.0",
+    "@uca/core": "^0.1.0",
+    "@uca/view-composer": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.12.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.7.3"
+  },
+  "scripts": {
+    "test": "tsx tests/index.ts"
+  }
+}
