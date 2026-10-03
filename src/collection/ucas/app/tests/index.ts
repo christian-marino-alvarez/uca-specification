@@ -1,8 +1,15 @@
 import * as assert from 'node:assert';
+import { setMaxListeners } from 'node:events';
 import { Uca } from '@uca/core/uca';
 import { type Signal } from '@uca/core/types';
 import { SignalType as ViewComposerSignalType } from '@uca/view-composer';
 import { App, SignalType, DataType, __ID__, PURPOSE } from '../index.js';
+
+function createTestBus(): EventTarget {
+    const bus = new EventTarget();
+    try { setMaxListeners(50, bus); } catch { }
+    return bus;
+}
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
@@ -23,7 +30,7 @@ function testApp_IdentityAndDefaults(): void {
 }
 
 function testApp_InnervationAndCooky(): void {
-    const bus = new EventTarget();
+    const bus = createTestBus();
     const app = new App().innervate(bus);
     assert.notStrictEqual(app.target, undefined);
     assert.notStrictEqual(app.disposition, undefined);
@@ -31,7 +38,7 @@ function testApp_InnervationAndCooky(): void {
 }
 
 function testApp_PulsesDomainSignals(): void {
-    const bus = new EventTarget();
+    const bus = createTestBus();
     const captured: { property: string; value: unknown }[] = [];
 
     bus.addEventListener(SignalType.CREATED, (event: Event) => {
@@ -57,7 +64,7 @@ function testApp_PulsesDomainSignals(): void {
 }
 
 function testApp_InnervateTriggersViewComposer(): void {
-    const bus = new EventTarget();
+    const bus = createTestBus();
     let capturedCreate: unknown;
 
     bus.addEventListener(ViewComposerSignalType.CREATE, (event: Event) => {
@@ -70,7 +77,7 @@ function testApp_InnervateTriggersViewComposer(): void {
 }
 
 function testApp_ReactsToViewComposerCreated(): void {
-    const bus = new EventTarget();
+    const bus = createTestBus();
     let capturedUpdated: unknown;
 
     bus.addEventListener(SignalType.UPDATED, (event: Event) => {

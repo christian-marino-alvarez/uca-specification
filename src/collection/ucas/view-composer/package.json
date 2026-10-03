@@ -33,9 +33,19 @@
     }
   },
   "dependencies": {
+    "@uca/access": "^0.1.0",
+    "@uca/action": "^0.1.0",
+    "@uca/box": "^0.1.0",
     "@uca/capability-graph": "^0.1.0",
+    "@uca/choice": "^0.1.0",
+    "@uca/collector": "^0.1.0",
     "@uca/core": "^0.1.0",
-    "@uca/llm-web": "^0.1.0"
+    "@uca/dropdown": "^0.1.0",
+    "@uca/input": "^0.1.0",
+    "@uca/list": "^0.1.0",
+    "@uca/llm-web": "^0.1.0",
+    "@uca/picture": "^0.1.0",
+    "@uca/toggle": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.12.0",

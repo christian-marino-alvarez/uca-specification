@@ -1,9 +1,16 @@
 import * as assert from 'node:assert';
+import { setMaxListeners } from 'node:events';
 import { Uca } from '@uca/core/uca';
 import { DispositionSignal, type Signal } from '@uca/core/types';
 import { SignalType as LlmWebSignalType, type StreamPayload } from '@uca/llm-web';
 import { SignalType as GraphSignalType, type UcaItem } from '@uca/capability-graph';
 import { ViewComposer, SignalType, DataType, __ID__, PURPOSE } from '../index.js';
+
+function createTestBus(): EventTarget {
+    const bus = new EventTarget();
+    try { setMaxListeners(50, bus); } catch { }
+    return bus;
+}
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
@@ -24,7 +31,7 @@ function testViewComposer_IdentityAndDefaults(): void {
 }
 
 function testViewComposer_InnervationAndCooky(): void {
-    const bus = new EventTarget();
+    const bus = createTestBus();
     const composer = new ViewComposer().innervate(bus);
     assert.notStrictEqual(composer.target, undefined);
     assert.notStrictEqual(composer.disposition, undefined);
@@ -32,7 +39,7 @@ function testViewComposer_InnervationAndCooky(): void {
 }
 
 function testViewComposer_PulsesDomainSignals(): void {
-    const bus = new EventTarget();
+    const bus = createTestBus();
     const captured: { property: string; value: unknown }[] = [];
 
     bus.addEventListener(SignalType.CREATED, (event: Event) => {
@@ -58,7 +65,7 @@ function testViewComposer_PulsesDomainSignals(): void {
 }
 
 function testViewComposer_CreatePulsesLlmWebStream(): void {
-    const bus = new EventTarget();
+    const bus = createTestBus();
     let capturedStream: StreamPayload | undefined;
 
     bus.addEventListener(LlmWebSignalType.STREAM, (event: Event) => {
@@ -74,8 +81,8 @@ function testViewComposer_CreatePulsesLlmWebStream(): void {
     composer.denervate();
 }
 
-async function testViewComposer_ConsumesGraphUcaStream(): Promise<void> {
-    const bus = new EventTarget();
+async function testViewComposer_ConsumesGraphUcaStreamAndInnervatesWebUca(): Promise<void> {
+    const bus = createTestBus();
     const composer = new ViewComposer('composer-stream-test').innervate(bus);
     const capturedUpdates: string[] = [];
 
@@ -90,6 +97,10 @@ async function testViewComposer_ConsumesGraphUcaStream(): Promise<void> {
                 id: 'box:hero-card',
                 disposition: { aim: { description: 'Hero Card', body: { text: 'Welcome' } }, reactTo: [] },
             });
+            controller.enqueue({
+                id: 'action:submit-btn',
+                disposition: { aim: { description: 'Submit Button', body: { label: 'Go' } }, reactTo: [] },
+            });
             controller.close();
         },
     });
@@ -97,8 +108,9 @@ async function testViewComposer_ConsumesGraphUcaStream(): Promise<void> {
     emitSignal(bus, GraphSignalType.UCA_STREAM, { stream });
     await new Promise((resolve) => setTimeout(resolve, 50));
 
-    assert.strictEqual(capturedUpdates.length, 1);
+    assert.strictEqual(capturedUpdates.length, 2);
     assert.strictEqual(capturedUpdates[0], 'box:hero-card');
+    assert.strictEqual(capturedUpdates[1], 'action:submit-btn');
 
     composer.denervate();
 }
@@ -108,8 +120,8 @@ async function runAllViewComposerTests(): Promise<void> {
     testViewComposer_InnervationAndCooky();
     testViewComposer_PulsesDomainSignals();
     testViewComposer_CreatePulsesLlmWebStream();
-    await testViewComposer_ConsumesGraphUcaStream();
-    console.log('✔ All ViewComposer UCA tests with LlmWeb and Graph capabilities passed successfully.');
+    await testViewComposer_ConsumesGraphUcaStreamAndInnervatesWebUca();
+    console.log('✔ All ViewComposer UCA tests with LlmWeb, Graph, and Web UCAs passed successfully.');
 }
 
 runAllViewComposerTests();

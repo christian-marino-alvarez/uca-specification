@@ -1,8 +1,10 @@
 import { Uca } from '@uca/core/uca';
 import {
     DispositionSignal,
+    type CapabilityConstructor,
     type Cooky,
     type Disposition,
+    type ICapability,
     type Signal,
 } from '@uca/core/types';
 import { LlmWeb, SignalType as LlmWebSignalType } from '@uca/llm-web';
@@ -12,8 +14,40 @@ import {
     type UcaItem,
     type UcaStreamPayload,
 } from '@uca/capability-graph';
+import { Box } from '@uca/box';
+import { Picture } from '@uca/picture';
+import { Toggle } from '@uca/toggle';
+import { Action } from '@uca/action';
+import { List } from '@uca/list';
+import { Input } from '@uca/input';
+import { Dropdown } from '@uca/dropdown';
+import { Choice } from '@uca/choice';
+import { Access } from '@uca/access';
+import { Collector } from '@uca/collector';
 import { __ID__, DEFAULT_SIGNALS, PURPOSE } from './constants.js';
 import { type Body, DataType, SignalType } from './types.js';
+
+const UCA_CATALOG: Record<string, CapabilityConstructor> = {
+    box: Box as unknown as CapabilityConstructor,
+    picture: Picture as unknown as CapabilityConstructor,
+    toggle: Toggle as unknown as CapabilityConstructor,
+    action: Action as unknown as CapabilityConstructor,
+    list: List as unknown as CapabilityConstructor,
+    input: Input as unknown as CapabilityConstructor,
+    dropdown: Dropdown as unknown as CapabilityConstructor,
+    choice: Choice as unknown as CapabilityConstructor,
+    access: Access as unknown as CapabilityConstructor,
+    collector: Collector as unknown as CapabilityConstructor,
+};
+
+const WEB_UCAS: CapabilityConstructor[] = Object.values(UCA_CATALOG);
+
+function createUcaEntry(UcaClass: CapabilityConstructor): [CapabilityConstructor, Disposition] {
+    const TargetClass = UcaClass as unknown as typeof Uca;
+    const { purpose, disposition } = TargetClass;
+    const { reactTo = [] } = disposition ?? {};
+    return [UcaClass, { aim: { description: purpose, body: {} }, reactTo: [...reactTo] }];
+}
 
 export class ViewComposer extends Uca<Body> {
     public static override purpose: string = PURPOSE;
@@ -56,15 +90,10 @@ export class ViewComposer extends Uca<Body> {
     protected override capabilities(): Cooky {
         const { aim } = this.disposition;
         const { model, endpoint, sseEndpoint } = (aim.body ?? {}) as Body;
-        const llmDisp: Disposition = {
-            aim: { description: LlmWeb.purpose, body: { model, endpoint, sseEndpoint } },
-            reactTo: [...LlmWeb.disposition.reactTo ?? []],
-        };
-        const graphDisp: Disposition = {
-            aim: { description: Graph.AIM, body: {} },
-            reactTo: [...Graph.disposition.reactTo ?? []],
-        };
-        return [[LlmWeb, llmDisp], [Graph, graphDisp]];
+        const llmDisp: Disposition = { aim: { description: LlmWeb.purpose, body: { model, endpoint, sseEndpoint } }, reactTo: [...LlmWeb.disposition.reactTo ?? []] };
+        const graphDisp: Disposition = { aim: { description: Graph.AIM, body: {} }, reactTo: [...Graph.disposition.reactTo ?? []] };
+        const webEntries = WEB_UCAS.map(createUcaEntry);
+        return [[LlmWeb, llmDisp], [Graph, graphDisp], ...webEntries];
     }
 
     protected override react(signal: Signal): void {
@@ -119,6 +148,9 @@ export class ViewComposer extends Uca<Body> {
     private handleUcaItem(item: UcaItem): void {
         const { id, disposition } = item;
         if (!id || !disposition) { return; }
+        const [prefix] = id.split(':');
+        const Factory = UCA_CATALOG[prefix ?? id] as (new (id: string) => ICapability) | undefined;
+        Factory && new Factory(id).innervate(this.target, disposition);
         this.pulse(DispositionSignal.UPDATE, { id, disposition });
         this.pulse(SignalType.UPDATED, { detectedUca: { id, disposition } });
     }
