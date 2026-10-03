@@ -53,6 +53,7 @@ function testViewComposer_PulsesDomainSignals(): void {
     });
 
     const composer = new ViewComposer('test-composer').innervate(bus);
+    emitSignal(bus, SignalType.CREATE, { title: 'Initial View' });
     emitSignal(bus, SignalType.UPDATE, { title: 'Updated View' });
     emitSignal(bus, SignalType.REMOVE, {});
 

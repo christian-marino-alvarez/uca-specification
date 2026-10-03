@@ -54,7 +54,7 @@ export class ViewComposer extends Uca<Body> {
 
     public static override disposition: Disposition<Body> = {
         aim: { description: ViewComposer.purpose, body: {} },
-        reactTo: [...DEFAULT_SIGNALS],
+        reactTo: [...DEFAULT_SIGNALS, GraphSignalType.UCA_STREAM],
         inputs: [
             { signal: SignalType.CREATE, type: DataType.VOID, description: 'Initialize view composition scaffolding' },
             { signal: SignalType.UPDATE, type: DataType.VOID, description: 'Update view composition scaffolding' },
@@ -71,20 +71,6 @@ export class ViewComposer extends Uca<Body> {
 
     public constructor(id: string = __ID__) {
         super(id);
-    }
-
-    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
-        const base = disposition ?? ViewComposer.disposition;
-        const { reactTo = [] } = base;
-        const internalSignals = [GraphSignalType.UCA_STREAM];
-        const signals = [...new Set([...reactTo, ...DEFAULT_SIGNALS, ...internalSignals])];
-        super.innervate(target, { ...base, reactTo: signals });
-        this.pulse(SignalType.CREATE, this.getDomainProperties());
-        return this;
-    }
-
-    public override denervate(): void {
-        super.denervate();
     }
 
     protected override capabilities(): Cooky {
