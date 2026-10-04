@@ -29,4 +29,5 @@ export interface Body {
     readonly detectedUca?: { id: string; disposition: unknown };
     readonly factory?: unknown;
     readonly concept?: ConceptMap;
+    readonly thinkingBudget?: number;
 }

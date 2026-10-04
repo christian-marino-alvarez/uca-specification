@@ -237,7 +237,6 @@ export class LlmWeb extends Uca<Body> {
         console.log(`📡 [CLIENT][LlmWeb] Abriendo stream SSE [${streamId}] (${provider}/${model}):`, sseEndpoint);
         try {
             await this.connectSseStream(sseEndpoint, prompt, streamId, model, provider, correlationId, thinkingBudget, schema);
-            console.log(`🏁 [CLIENT][LlmWeb] Stream SSE [${streamId}] completado.`);
         } catch (error) {
             if ((error as Error)?.name === 'AbortError') { return; }
             console.error(`❌ [CLIENT][LlmWeb] Error en stream SSE [${streamId}]:`, error);
@@ -268,6 +267,9 @@ export class LlmWeb extends Uca<Body> {
         const state = { buffer: '', chunkCount: 0, startTime: Date.now() };
         return new TransformStream({
             transform: (chunk, controller) => this.transformSseChunk(chunk, controller, decoder, state),
+            flush: () => {
+                console.log(`🏁 [CLIENT][LlmWeb] Stream SSE completado (${state.chunkCount} chunks en ${Date.now() - state.startTime}ms).`);
+            },
         });
     }
 

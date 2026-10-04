@@ -66,7 +66,6 @@ export function buildCompositionPrompt(
 ): string {
     const catalogSpec = buildCatalogSpecification(catalog);
     const guidelines = getViewGuidelines();
-    const schema = getOutputJsonSchema();
     const context = documentation ? `${documentation}\n\n` : '';
-    return `${context}${catalogSpec}\n\n${guidelines}\n\nTask: ${request}\n\nOUTPUT JSON SCHEMA (defined with Zod):\n${schema}`;
+    return `${context}${catalogSpec}\n\n${guidelines}\n\nTask: ${request}`;
 }

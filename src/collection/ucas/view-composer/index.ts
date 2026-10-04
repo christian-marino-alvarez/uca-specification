@@ -24,7 +24,7 @@ import { Choice } from '@uca/choice';
 import { Access } from '@uca/access';
 import { Collector } from '@uca/collector';
 import { SignalType as ConceptComposerSignalType, type ConceptMap } from '@uca/concept-composer/types';
-import { __ID__, DEFAULT_SIGNALS, PURPOSE } from './constants.js';
+import { __ID__, DEFAULT_SIGNALS, DEFAULT_THINKING_BUDGET, PURPOSE } from './constants.js';
 import { buildCompositionPrompt, getCommunicationJsonSchema } from './prompt.js';
 import { type Body, DataType, SignalType } from './types.js';
 
@@ -84,8 +84,8 @@ export class ViewComposer extends Uca<Body> {
 
     protected override capabilities(): Cooky {
         const { aim } = this.disposition;
-        const { model, provider, endpoint, sseEndpoint, factory } = (aim.body ?? {}) as Body;
-        const llmDisp: Disposition = { aim: { description: LlmWeb.purpose, body: { id: `llm-web:${this.id}`, model, provider, endpoint, sseEndpoint, factory } }, reactTo: [...LlmWeb.disposition.reactTo ?? []] };
+        const { model, provider, endpoint, sseEndpoint, factory, thinkingBudget = DEFAULT_THINKING_BUDGET } = (aim.body ?? {}) as Body;
+        const llmDisp: Disposition = { aim: { description: LlmWeb.purpose, body: { id: `llm-web:${this.id}`, model, provider, endpoint, sseEndpoint, factory, thinkingBudget } }, reactTo: [...LlmWeb.disposition.reactTo ?? []] };
         const graphDisp: Disposition = { aim: { description: Graph.AIM, body: {} }, reactTo: [...Graph.disposition.reactTo ?? []] };
         return [[LlmWeb, llmDisp], [Graph, graphDisp]];
     }
@@ -117,12 +117,17 @@ export class ViewComposer extends Uca<Body> {
         this.streamStartTime = Date.now();
         this.renderedCount = 0;
         const payload = (value ?? {}) as Body;
-        const { concept, prompt, model, provider, documentation, factory } = payload;
+        this.dispatchViewStream(payload);
+        this.pulse(SignalType.CREATED, { ...this.getDomainProperties(), ...payload });
+    }
+
+    private dispatchViewStream(payload: Body): void {
+        const { concept, prompt, model, provider, documentation, factory, thinkingBudget } = payload;
         const request = this.formatRequest(concept, prompt ?? payload.title);
         const fullPrompt = buildCompositionPrompt(request, UCA_CATALOG, documentation);
         const streamId = `view-${this.id}-${Date.now()}`;
-        this.pulse(LlmWebSignalType.STREAM, { id: `llm-web:${this.id}`, correlationId: streamId, streamId, prompt: fullPrompt, model, provider, factory, schema: getCommunicationJsonSchema() });
-        this.pulse(SignalType.CREATED, { ...this.getDomainProperties(), ...payload });
+        const budget = thinkingBudget ?? ((this.disposition.aim.body ?? {}) as Body).thinkingBudget ?? DEFAULT_THINKING_BUDGET;
+        this.pulse(LlmWebSignalType.STREAM, { id: `llm-web:${this.id}`, correlationId: streamId, streamId, prompt: fullPrompt, model, provider, factory, schema: getCommunicationJsonSchema(), thinkingBudget: budget });
     }
 
     private formatRequest(concept?: ConceptMap, title?: string): string {
