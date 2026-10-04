@@ -10,7 +10,7 @@ export const DEFAULT_PROVIDER = 'gemini';
 
 export const DEFAULT_THINKING_BUDGET = 0;
 
-export const DEFAULT_MAX_OUTPUT_TOKENS = 350;
+export const DEFAULT_MAX_OUTPUT_TOKENS = 240;
 
 export const DEFAULT_TEMPERATURE = 0.1;
 

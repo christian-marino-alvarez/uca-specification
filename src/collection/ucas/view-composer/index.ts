@@ -129,9 +129,10 @@ export class ViewComposer extends Uca<Body> {
         if (!concept) { return title ?? this.disposition.aim.description; }
         const { theme, capabilities, zones } = concept;
         const { name, essence, mood, aesthetic } = theme;
-        const caps = capabilities.map((c) => `- ${c.name}: ${c.purpose} (Interaction: ${c.interaction})`).join('\n');
-        const zonesDesc = zones.map((z) => `- Zone "${z.name}" (${z.purpose}) -> Materialize UCAs for: [${z.capabilities.join(', ')}]`).join('\n');
-        return `THEMATIC CONCEPT:\nName: "${name}"\nEssence: ${essence}\nMood: ${mood}\nAesthetic: ${aesthetic}\n\nCONCEPTUAL CAPABILITIES:\n${caps}\n\nZONES TO MATERIALIZE:\n${zonesDesc}\n\nINSTRUCTION: Structure each Zone as a container Box, and instantiate child UCAs for each capability.`;
+        const caps = capabilities.map((c) => `- ${c.name}: ${c.purpose}`).join('\n');
+        const zonesDesc = zones.map((z) => `- Zone "${z.name}" -> Materialize UCAs for: [${z.capabilities.join(', ')}]`).join('\n');
+        const themeDetails = [name, essence, mood, aesthetic].filter(Boolean).join(' | ');
+        return `THEMATIC CONCEPT: ${themeDetails}\n\nCONCEPTUAL CAPABILITIES:\n${caps}\n\nZONES TO MATERIALIZE:\n${zonesDesc}\n\nINSTRUCTION: Structure each Zone as a container Box, and instantiate child UCAs for each capability.`;
     }
 
     private handleUpdate(value: unknown): void {
