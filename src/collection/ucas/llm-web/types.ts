@@ -37,6 +37,8 @@ export interface PromptPayload {
     readonly factory?: AILanguageModelFactory;
     readonly useRemote?: boolean;
     readonly thinkingBudget?: number;
+    readonly temperature?: number;
+    readonly maxOutputTokens?: number;
 }
 
 export interface StreamPayload {
@@ -51,6 +53,8 @@ export interface StreamPayload {
     readonly factory?: AILanguageModelFactory;
     readonly useRemote?: boolean;
     readonly thinkingBudget?: number;
+    readonly temperature?: number;
+    readonly maxOutputTokens?: number;
 }
 
 export interface ResponsePayload {
@@ -69,4 +73,6 @@ export interface Body {
     readonly factory?: AILanguageModelFactory;
     readonly useRemote?: boolean;
     readonly thinkingBudget?: number;
+    readonly temperature?: number;
+    readonly maxOutputTokens?: number;
 }

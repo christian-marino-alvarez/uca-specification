@@ -194,12 +194,12 @@ export class LlmWeb extends Uca<Body> {
     }
 
     private async dispatchFetchPrompt(payload: PromptPayload): Promise<void> {
-        const { prompt, schema, correlationId, requestId, thinkingBudget } = payload;
-        const { endpoint = DEFAULT_ENDPOINT, thinkingBudget: bBudget } = (this.disposition.aim.body ?? {}) as Body;
+        const { prompt, schema, correlationId, requestId, thinkingBudget, temperature, maxOutputTokens } = payload;
+        const { endpoint = DEFAULT_ENDPOINT, thinkingBudget: bB, temperature: bT, maxOutputTokens: bM } = (this.disposition.aim.body ?? {}) as Body;
         const activeId = correlationId ?? requestId ?? this.generateSessionId();
         const { model, provider } = this.resolvePromptTarget(payload);
         try {
-            const data = await this.sendPromptRequest(endpoint, prompt, model, provider, schema, activeId, thinkingBudget ?? bBudget);
+            const data = await this.sendPromptRequest({ endpoint, prompt, model, provider, schema, correlationId: activeId, thinkingBudget: thinkingBudget ?? bB, temperature: temperature ?? bT, maxOutputTokens: maxOutputTokens ?? bM });
             this.pulse(SignalType.RESPONSE, { ...data, sourceId: this.id, correlationId: activeId });
         } catch (error) {
             this.pulse(SignalType.ERROR, { error, sourceId: this.id, correlationId: activeId });
@@ -215,11 +215,12 @@ export class LlmWeb extends Uca<Body> {
         };
     }
 
-    private async sendPromptRequest(endpoint: string, prompt: string, model: string, provider: string, schema?: Record<string, unknown>, correlationId?: string, thinkingBudget?: number): Promise<ResponsePayload> {
+    private async sendPromptRequest(options: { endpoint: string; prompt: string; model: string; provider: string; schema?: Record<string, unknown>; correlationId?: string; thinkingBudget?: number; temperature?: number; maxOutputTokens?: number }): Promise<ResponsePayload> {
+        const { endpoint, prompt, model, provider, schema, correlationId, thinkingBudget, temperature, maxOutputTokens } = options;
         this.abortController = new AbortController();
         const url = this.resolveUrl(endpoint);
         const headers = { 'Content-Type': 'application/json' };
-        const body = JSON.stringify({ prompt, model, provider, schema, correlationId, thinkingBudget });
+        const body = JSON.stringify({ prompt, model, provider, schema, correlationId, thinkingBudget, temperature, maxOutputTokens });
         const response = await fetch(url, { method: 'POST', headers, body, signal: this.abortController.signal });
         return (await response.json()) as ResponsePayload;
     }

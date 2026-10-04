@@ -27,4 +27,6 @@ export interface Body {
     readonly factory?: unknown;
     readonly concept?: ConceptMap;
     readonly thinkingBudget?: number;
+    readonly temperature?: number;
+    readonly maxOutputTokens?: number;
 }

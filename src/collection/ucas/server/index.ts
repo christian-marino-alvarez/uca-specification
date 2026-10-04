@@ -147,13 +147,25 @@ export class Server extends Uca<Body> {
     private handleListening(value: unknown): void {
         const { url } = (value ?? {}) as StartedStatus;
         if (url) {
-            console.log(`\n🚀 UCA Server successfully started at: ${url}`);
-            console.log(`🌐 Web Application running at: ${url}`);
-            console.log(`📡 Health endpoint: ${url}/api/health`);
-            console.log(`🧠 LLM Request endpoint: ${url}/api/llm`);
-            console.log(`⚡ LLM SSE Stream endpoint: ${url}/api/llm/sse\n`);
+            this.logServerStarted(url);
         }
         this.pulse(SignalType.STARTED, value);
+        this.warmupLlm();
+    }
+
+    private logServerStarted(url: string): void {
+        console.log(`\n🚀 UCA Server successfully started at: ${url}`);
+        console.log(`🌐 Web Application running at: ${url}`);
+        console.log(`📡 Health endpoint: ${url}/api/health`);
+        console.log(`🧠 LLM Request endpoint: ${url}/api/llm`);
+        console.log(`⚡ LLM SSE Stream endpoint: ${url}/api/llm/sse\n`);
+    }
+
+    private warmupLlm(): void {
+        const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+        const hasKey = typeof process !== 'undefined' && Boolean(process.env?.GEMINI_API_KEY ?? process.env?.GOOGLE_GENAI_API_KEY);
+        if (isTest || !hasKey) { return; }
+        this.pulse(LlmSignalType.INFER, { request: 'Warmup', limit: 1, correlationId: 'system-warmup', thinkingBudget: 0 });
     }
 
     private buildDefaultRoutes(body: Body): RouteConfig[] {

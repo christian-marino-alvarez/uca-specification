@@ -7,6 +7,9 @@ import {
     DEFAULT_MODEL,
     DEFAULT_PROVIDER,
     DEFAULT_SIGNALS,
+    DEFAULT_THINKING_BUDGET,
+    DEFAULT_MAX_OUTPUT_TOKENS,
+    DEFAULT_TEMPERATURE,
     PURPOSE,
 } from './constants.js';
 import { buildConceptPrompt } from './prompt.js';
@@ -63,9 +66,9 @@ export class ConceptComposer extends Uca<Body> {
 
     protected override capabilities(): Cooky {
         const { aim } = this.disposition;
-        const { model = DEFAULT_MODEL, provider = DEFAULT_PROVIDER, endpoint, sseEndpoint, factory, thinkingBudget = 0 } = (aim.body ?? {}) as Body;
+        const { model = DEFAULT_MODEL, provider = DEFAULT_PROVIDER, endpoint, sseEndpoint, factory, thinkingBudget = DEFAULT_THINKING_BUDGET, temperature = DEFAULT_TEMPERATURE, maxOutputTokens = DEFAULT_MAX_OUTPUT_TOKENS } = (aim.body ?? {}) as Body;
         const llmDisp: Disposition = {
-            aim: { description: LlmWeb.purpose, body: { id: `llm-web:${this.id}`, model, provider, endpoint, sseEndpoint, factory, thinkingBudget } },
+            aim: { description: LlmWeb.purpose, body: { id: `llm-web:${this.id}`, model, provider, endpoint, sseEndpoint, factory, thinkingBudget, temperature, maxOutputTokens } },
             reactTo: [...LlmWeb.disposition.reactTo ?? []],
         };
         return [[LlmWeb, llmDisp]];
@@ -96,16 +99,28 @@ export class ConceptComposer extends Uca<Body> {
 
     private handleCreate(value: unknown): void {
         const payload = (value ?? {}) as Body;
-        const { concept, prompt, title } = payload;
+        const { concept } = payload;
         if (concept) {
             this.pulse(SignalType.CREATED, { ...this.getDomainProperties(), concept });
             return;
         }
+        this.requestConceptSynthesis(payload);
+    }
+
+    private requestConceptSynthesis(payload: Body): void {
+        const { prompt, title } = payload;
         const request = prompt ?? title ?? this.disposition.aim.description;
         const fullPrompt = buildConceptPrompt(request);
-        const { model = DEFAULT_MODEL, provider = DEFAULT_PROVIDER, thinkingBudget } = payload;
+        const { model, provider, thinkingBudget, temperature, maxOutputTokens } = this.resolveConceptOptions(payload);
         const correlationId = `concept-${this.id}-${Date.now()}`;
-        this.pulse(LlmWebSignalType.PROMPT, { id: `llm-web:${this.id}`, correlationId, prompt: fullPrompt, schema: CONCEPT_MAP_SCHEMA, model, provider, thinkingBudget });
+        this.pulse(LlmWebSignalType.PROMPT, { id: `llm-web:${this.id}`, correlationId, prompt: fullPrompt, schema: CONCEPT_MAP_SCHEMA, model, provider, thinkingBudget, temperature, maxOutputTokens });
+    }
+
+    private resolveConceptOptions(payload: Body): { model: string; provider: string; thinkingBudget: number; temperature: number; maxOutputTokens: number } {
+        const { aim } = this.disposition;
+        const body = (aim.body ?? {}) as Body;
+        const { model = body.model ?? DEFAULT_MODEL, provider = body.provider ?? DEFAULT_PROVIDER, thinkingBudget = body.thinkingBudget ?? DEFAULT_THINKING_BUDGET, temperature = body.temperature ?? DEFAULT_TEMPERATURE, maxOutputTokens = body.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS } = payload;
+        return { model, provider, thinkingBudget, temperature, maxOutputTokens };
     }
 
     private handleUpdate(value: unknown): void {
