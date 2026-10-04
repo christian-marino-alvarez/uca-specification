@@ -32,6 +32,7 @@ function createMockFactory(overrides?: Partial<AILanguageModelFactory>): AILangu
     };
 
     return {
+        availability: async () => 'readily' as const,
         capabilities: async (): Promise<CapabilitiesResult> => ({ available: 'readily', defaultTemperature: 0.7, maxTemperature: 2.0 }),
         create: async () => mockSession,
         ...overrides,

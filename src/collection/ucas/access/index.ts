@@ -35,8 +35,9 @@ export class Access extends Uca<Body> {
     protected override onDispositionUpdated(): void {
         const attributes = this.buildAttributes(WEB_COMPONENT_ID);
         const { aim, parentTo } = this.disposition;
-        const { label = aim.description } = aim.body ?? {};
-        this.pulse(CapabilitySignalType.RENDERED, { id: this.id, text: label, attributes, parentTo });
+        const { label, title } = aim.body ?? {};
+        const text = label ?? title ?? '';
+        this.pulse(CapabilitySignalType.RENDERED, { id: this.id, text, attributes, parentTo });
     }
 
     protected override react(signal: Signal): void {

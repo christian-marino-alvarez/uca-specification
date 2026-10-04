@@ -1,4 +1,8 @@
-import type { ConnectionConfig } from '@uca/capability-gemini';
+import type { ConnectionConfig as GeminiConnectionConfig } from '@uca/capability-gemini';
+import type { ConnectionConfig as OpenaiConnectionConfig } from '@uca/capability-openai';
+
+export type ProviderType = 'openai' | 'gemini';
+export type ConnectionConfig = GeminiConnectionConfig | OpenaiConnectionConfig;
 
 export enum SignalType {
     INFER = 'llm.infer',
@@ -23,6 +27,7 @@ export enum DataType {
 
 export interface InferPayload {
     readonly request: string;
+    readonly provider?: ProviderType;
     readonly model?: string;
     readonly imagination?: number;
     readonly context?: unknown;
@@ -56,6 +61,7 @@ export type GeneratePayload = InferPayload;
 export type GenerationResult = InferResult;
 
 export interface Body {
+    readonly provider?: ProviderType;
     readonly model?: string;
     readonly imagination?: number;
     readonly role?: string;

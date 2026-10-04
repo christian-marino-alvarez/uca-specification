@@ -65,13 +65,24 @@ export class Gemini extends Capability<Body> {
     }
 
     private async executeStream(client: GoogleGenAI, prompt: string, model: string, schema?: Record<string, unknown>): Promise<void> {
-        const config = { responseMimeType: 'application/json', ...(schema && { responseSchema: schema }) };
+        const config = { responseMimeType: 'application/json', ...(schema && { responseSchema: schema }), thinkingConfig: { thinkingBudget: 0 } };
         const stream = await client.models.generateContentStream({ model, contents: prompt, config });
+        const state = { start: Date.now(), first: true };
         for await (const chunk of stream) {
-            const text = chunk.text ?? '';
-            if (text) { this.pulse(SignalType.CHUNK, { text, prompt, model }); }
+            this.handleStreamChunk(chunk, state, prompt, model);
         }
+        console.log(`🏁 [GEMINI API] [t=+${Date.now() - state.start}ms] Stream de Google completado.`);
         this.pulse(SignalType.STREAM_END, { prompt, model });
+    }
+
+    private handleStreamChunk(chunk: { text?: string }, state: { start: number; first: boolean }, prompt: string, model: string): void {
+        const text = chunk.text ?? '';
+        if (!text) { return; }
+        if (state.first) {
+            state.first = false;
+            console.log(`⚡ [GEMINI API] [t=+${Date.now() - state.start}ms] ¡Primer token recibido de Google!`);
+        }
+        this.pulse(SignalType.CHUNK, { text, prompt, model });
     }
 
     private handleStreamFallback(prompt: string, model: string): void {
@@ -141,6 +152,7 @@ export class Gemini extends Capability<Body> {
             ...(systemInstruction && { systemInstruction }),
             responseMimeType: 'application/json',
             ...(schema && { responseSchema: schema }),
+            thinkingConfig: { thinkingBudget: 1024 },
             temperature,
             maxOutputTokens,
         };

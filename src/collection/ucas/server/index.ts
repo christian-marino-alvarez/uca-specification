@@ -12,6 +12,8 @@ import {
 import {
     Llm,
     SignalType as LlmSignalType,
+    DEFAULT_PROVIDER,
+    DEFAULT_GEMINI_MODEL,
     type Body as LlmBody,
     type InferResult,
     type ChunkResult,
@@ -118,7 +120,7 @@ export class Server extends Uca<Body> {
 
     private createLlmDisposition(): Disposition<LlmBody> {
         return {
-            aim: { description: Llm.purpose, body: {} },
+            aim: { description: Llm.purpose, body: { provider: DEFAULT_PROVIDER, model: DEFAULT_GEMINI_MODEL } },
             reactTo: [...Llm.disposition.reactTo ?? []],
         };
     }
@@ -168,23 +170,24 @@ export class Server extends Uca<Body> {
 
     private async handleLlmPost(context: RequestContext): Promise<Response> {
         const { body } = context;
-        const { prompt = 'UCA reasoning request', model, temperature, maxOutputTokens, schema } = (body ?? {}) as Record<string, unknown>;
+        const { prompt = 'UCA reasoning request', model, provider, temperature, maxOutputTokens, schema } = (body ?? {}) as Record<string, unknown>;
         const p = String(prompt);
-        const m = model ? String(model) : undefined;
+        const m = model ? String(model) : DEFAULT_GEMINI_MODEL;
+        const prov = provider ? String(provider) : DEFAULT_PROVIDER;
         const temp = typeof temperature === 'number' ? temperature : DEFAULT_TEMPERATURE;
         const maxTokens = typeof maxOutputTokens === 'number' ? maxOutputTokens : DEFAULT_MAX_OUTPUT_TOKENS;
         const sch = (schema as Record<string, unknown>) ?? COMMUNICATION_SCHEMA;
-        const result = await this.requestLlmInference(p, m, temp, maxTokens, sch);
+        const result = await this.requestLlmInference(p, m, prov, temp, maxTokens, sch);
         return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
 
-    private requestLlmInference(request: string, model?: string, imagination = DEFAULT_TEMPERATURE, limit = DEFAULT_MAX_OUTPUT_TOKENS, expectations = COMMUNICATION_SCHEMA): Promise<InferResult> {
+    private requestLlmInference(request: string, model = DEFAULT_GEMINI_MODEL, provider = DEFAULT_PROVIDER, imagination = DEFAULT_TEMPERATURE, limit = DEFAULT_MAX_OUTPUT_TOKENS, expectations = COMMUNICATION_SCHEMA): Promise<InferResult> {
         return new Promise((resolve) => {
             const onInferred = (event: Event) => this.resolveInference(event, resolve, onInferred, onError);
             const onError = (event: Event) => this.failInference(event, resolve, onInferred, onError, request);
             this.target?.addEventListener(LlmSignalType.INFERRED, onInferred);
             this.target?.addEventListener(LlmSignalType.ERROR, onError);
-            this.pulse(LlmSignalType.INFER, { request, model, imagination, limit, expectations });
+            this.pulse(LlmSignalType.INFER, { request, model, provider, imagination, limit, expectations });
         });
     }
 
@@ -245,67 +248,76 @@ export class Server extends Uca<Body> {
 
     private handleLlmSse(context: RequestContext): Response {
         const { query, body } = context;
-        const queryPrompt = query?.prompt;
-        const bodyPrompt = (body as { prompt?: string })?.prompt;
+        const { prompt: queryPrompt, model: queryModel, provider: queryProvider } = (query ?? {}) as Record<string, string>;
+        const { prompt: bodyPrompt, model: bodyModel, provider: bodyProvider } = (body ?? {}) as Record<string, string>;
         const prompt = queryPrompt ?? bodyPrompt ?? 'UCA streaming reasoning';
-        console.log('🌐 [SERVER] Petición SSE recibida para prompt:', prompt.slice(0, 60) + '...');
-        const stream = this.createSseReadableStream(prompt);
+        const model = queryModel ?? bodyModel ?? DEFAULT_GEMINI_MODEL;
+        const provider = queryProvider ?? bodyProvider ?? DEFAULT_PROVIDER;
+        console.log(`🌐 [SERVER] Petición SSE recibida (${provider}/${model}) para prompt:`, prompt.slice(0, 60) + '...');
+        const stream = this.createSseReadableStream(prompt, model, provider);
         return this.createSseResponse(stream);
     }
 
     private createSseResponse(stream: ReadableStream): Response {
-        const headers = { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' };
+        const headers = { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache', Connection: 'keep-alive' };
         return new Response(stream, { headers });
     }
 
-    private createSseReadableStream(prompt: string): ReadableStream {
-        const encoder = new TextEncoder();
+    private createSseReadableStream(prompt: string, model: string, provider: string): ReadableStream {
         let chunkListener: ((event: Event) => void) | undefined;
         let endListener: ((event: Event) => void) | undefined;
-        return new ReadableStream({
-            start: (controller) => {
-                chunkListener = (event: Event) => this.writeSseChunk(event, controller, encoder);
-                endListener = (event: Event) => this.finishSseStream(controller, encoder, chunkListener, endListener);
-                this.bindSseNervousEvents(controller, encoder, prompt, chunkListener, endListener);
-            },
-            cancel: () => {
-                if (chunkListener) { this.target?.removeEventListener(LlmSignalType.CHUNK, chunkListener); }
-                if (endListener) { this.target?.removeEventListener(LlmSignalType.STREAM_END, endListener); }
-            },
-        });
+        const state = { startTime: Date.now(), chunkCount: 0 };
+        const cancel = () => this.removeSseListeners(chunkListener, endListener);
+        const start = (controller: ReadableStreamDefaultController) => {
+            const encoder = new TextEncoder();
+            chunkListener = (event: Event) => this.writeSseChunk(event, controller, encoder, state);
+            endListener = () => this.finishSseStream(controller, encoder, state, chunkListener, endListener);
+            this.bindSseNervousEvents(controller, encoder, prompt, model, provider, chunkListener, endListener);
+        };
+        return new ReadableStream({ start, cancel });
+    }
+
+    private removeSseListeners(chunkListener?: (event: Event) => void, endListener?: (event: Event) => void): void {
+        if (chunkListener) { this.target?.removeEventListener(LlmSignalType.CHUNK, chunkListener); }
+        if (endListener) { this.target?.removeEventListener(LlmSignalType.STREAM_END, endListener); }
     }
 
     private bindSseNervousEvents(
         controller: ReadableStreamDefaultController,
         encoder: TextEncoder,
         prompt: string,
+        model: string,
+        provider: string,
         chunkListener: (event: Event) => void,
         endListener: (event: Event) => void,
     ): void {
-        console.log('⚡ [SERVER] Conectando canal SSE con LLM...');
-        try { controller.enqueue(encoder.encode(`event: start\ndata: ${JSON.stringify({ status: 'connected', prompt })}\n\n`)); } catch {}
+        console.log(`⚡ [SERVER] Conectando canal SSE con LLM (${provider}/${model})...`);
+        try { controller.enqueue(encoder.encode(`event: start\ndata: ${JSON.stringify({ status: 'connected', prompt, model, provider })}\n\n`)); } catch {}
         this.target?.addEventListener(LlmSignalType.CHUNK, chunkListener);
         this.target?.addEventListener(LlmSignalType.STREAM_END, endListener);
-        this.pulse(LlmSignalType.STREAM, { request: prompt, expectations: COMMUNICATION_SCHEMA });
+        this.pulse(LlmSignalType.STREAM, { request: prompt, model, provider, expectations: COMMUNICATION_SCHEMA });
     }
 
-    private writeSseChunk(event: Event, controller: ReadableStreamDefaultController, encoder: TextEncoder): void {
+    private writeSseChunk(event: Event, controller: ReadableStreamDefaultController, encoder: TextEncoder, state: { startTime: number; chunkCount: number }): void {
         const customEvent = event as CustomEvent<Signal>;
         const { text } = (customEvent.detail.value ?? {}) as ChunkResult;
         if (!text) { return; }
-        console.log('📤 [SERVER] Enviando alpha chunk SSE al cliente:', text.slice(0, 40) + '...');
+        state.chunkCount += 1;
+        const elapsed = Date.now() - state.startTime;
+        console.log(`📤 [SERVER] [t=+${elapsed}ms] Chunk #${state.chunkCount} (${text.length} ch): ${text.slice(0, 35).replace(/\n/g, ' ')}...`);
         try { controller.enqueue(encoder.encode(`event: message\ndata: ${JSON.stringify({ text })}\n\n`)); } catch {}
     }
 
     private finishSseStream(
         controller: ReadableStreamDefaultController,
         encoder: TextEncoder,
+        state: { startTime: number; chunkCount: number },
         chunkListener?: (event: Event) => void,
         endListener?: (event: Event) => void,
     ): void {
-        console.log('🏁 [SERVER] Finalizado stream SSE para cliente.');
-        if (chunkListener) { this.target?.removeEventListener(LlmSignalType.CHUNK, chunkListener); }
-        if (endListener) { this.target?.removeEventListener(LlmSignalType.STREAM_END, endListener); }
+        const elapsed = Date.now() - state.startTime;
+        console.log(`🏁 [SERVER] [t=+${elapsed}ms] Finalizado stream SSE (${state.chunkCount} chunks enviados).`);
+        this.removeSseListeners(chunkListener, endListener);
         try {
             controller.enqueue(encoder.encode('event: done\ndata: {"done":true}\n\n'));
             controller.close();

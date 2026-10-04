@@ -20,7 +20,14 @@ export enum DataType {
     UNKNOWN = 'unknown',
 }
 
-export type AvailabilityStatus = 'readily' | 'after-download' | 'no';
+export type AvailabilityStatus =
+    | 'available'
+    | 'downloadable'
+    | 'downloading'
+    | 'unavailable'
+    | 'readily'
+    | 'after-download'
+    | 'no';
 
 export interface CapabilitiesResult {
     readonly available: AvailabilityStatus;
@@ -35,6 +42,7 @@ export interface PromptPayload {
     readonly systemPrompt?: string;
     readonly temperature?: number;
     readonly topK?: number;
+    readonly factory?: AILanguageModelFactory;
 }
 
 export interface PromptResult {
@@ -58,6 +66,7 @@ export interface StreamEndResult {
 export interface AILanguageModelSession {
     prompt(input: string, options?: { signal?: AbortSignal }): Promise<string>;
     promptStreaming(input: string, options?: { signal?: AbortSignal }): ReadableStream<string>;
+    append?(input: string): Promise<void>;
     destroy(): void;
 }
 
@@ -69,7 +78,8 @@ export interface AILanguageModelCreateOptions {
 }
 
 export interface AILanguageModelFactory {
-    capabilities(): Promise<CapabilitiesResult>;
+    availability?: () => Promise<AvailabilityStatus>;
+    capabilities?: () => Promise<CapabilitiesResult>;
     create(options?: AILanguageModelCreateOptions): Promise<AILanguageModelSession>;
 }
 

@@ -5,6 +5,7 @@ import {
     type AILanguageModelFactory,
     type AILanguageModelSession,
     type Body,
+    type CapabilitiesResult,
     type PromptPayload,
     DataType,
     SignalType,
@@ -70,11 +71,19 @@ export class PromptApi extends Capability<Body> {
     private async handleCheck(): Promise<void> {
         try {
             const factory = this.resolveFactory();
-            const capabilities = await factory.capabilities();
+            const capabilities = await this.queryCapabilities(factory);
             this.pulse(SignalType.CHECKED, capabilities);
         } catch (error) {
             this.pulse(SignalType.ERROR, error);
         }
+    }
+
+    private async queryCapabilities(factory: AILanguageModelFactory): Promise<CapabilitiesResult> {
+        if (typeof factory.availability === 'function') {
+            const available = await factory.availability();
+            return { available };
+        }
+        return factory.capabilities ? await factory.capabilities() : { available: 'readily' };
     }
 
     private async handlePrompt(value: unknown): Promise<void> {
@@ -141,18 +150,19 @@ export class PromptApi extends Capability<Body> {
         const effectiveSystem = systemPrompt ?? body.systemPrompt;
         const effectiveTemp = temperature ?? body.temperature;
         const effectiveTopK = topK ?? body.topK;
-        const factory = this.resolveFactory();
+        const factory = this.resolveFactory(payload);
         const options = { systemPrompt: effectiveSystem, temperature: effectiveTemp, topK: effectiveTopK };
         return factory.create(options);
     }
 
-    private resolveFactory(): AILanguageModelFactory {
+    private resolveFactory(payload?: PromptPayload): AILanguageModelFactory {
+        const { factory: payloadFactory } = payload ?? {};
         const { aim } = this.disposition;
-        const { factory } = (aim.body ?? {}) as Body;
-        const globalAi = (globalThis as unknown as { ai?: { languageModel?: AILanguageModelFactory } }).ai;
-        const resolved = factory ?? globalAi?.languageModel;
+        const { factory: bodyFactory } = (aim.body ?? {}) as Body;
+        const globalAny = globalThis as unknown as { LanguageModel?: AILanguageModelFactory; ai?: { languageModel?: AILanguageModelFactory } };
+        const resolved = payloadFactory ?? bodyFactory ?? globalAny.LanguageModel ?? globalAny.ai?.languageModel;
         if (!resolved) {
-            throw new Error('Web Prompt API (ai.languageModel) no disponible en este entorno.');
+            throw new Error('Web Prompt API (LanguageModel / ai.languageModel) no disponible en este entorno.');
         }
         return resolved;
     }

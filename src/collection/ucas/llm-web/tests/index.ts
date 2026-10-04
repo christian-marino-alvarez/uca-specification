@@ -62,7 +62,7 @@ async function testLlmWebUca(): Promise<void> {
         detail: {
             source: 'test-client',
             property: SignalType.PROMPT,
-            value: { prompt: 'Hello' },
+            value: { prompt: 'Hello', useRemote: true },
             timestamp: Date.now(),
         },
     }));
@@ -75,7 +75,7 @@ async function testLlmWebUca(): Promise<void> {
         detail: {
             source: 'test-client',
             property: SignalType.STREAM,
-            value: { prompt: 'Stream test', streamId: 'stream-alpha' },
+            value: { prompt: 'Stream test', streamId: 'stream-alpha', useRemote: true },
             timestamp: Date.now(),
         },
     }));
@@ -87,7 +87,40 @@ async function testLlmWebUca(): Promise<void> {
     // Restore original fetch
     globalThis.fetch = originalFetch;
     llmWeb.denervate();
+}
+
+async function testLlmWeb_PromptApi_PureLocal(): Promise<void> {
+    const factory = {
+        availability: async () => 'readily' as const,
+        create: async () => ({
+            promptStreaming: () => new ReadableStream<string>({
+                start(controller) { controller.enqueue('token-nano'); controller.close(); },
+            }),
+            prompt: async () => 'response-nano',
+            destroy: () => {},
+        }),
+    };
+    const llmWeb = new LlmWeb('local-llm-web');
+    let receivedToken = '';
+    llmWeb.target?.addEventListener(SignalType.STREAM_DECODED, async (event: Event) => {
+        const customEvent = event as CustomEvent<Signal<StreamDecodedPayload>>;
+        const reader = customEvent.detail.value.stream.getReader();
+        const { value } = await reader.read();
+        receivedToken = value ?? '';
+    });
+    llmWeb.innervate(undefined, { aim: { description: 'test', body: { factory } } });
+    llmWeb.target?.dispatchEvent(new CustomEvent(SignalType.STREAM, {
+        detail: { source: 'test', property: SignalType.STREAM, value: { prompt: 'hi' }, timestamp: Date.now() },
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    assert.equal(receivedToken, 'token-nano');
+    llmWeb.denervate();
+}
+
+async function runAllLlmWebTests(): Promise<void> {
+    await testLlmWebUca();
+    await testLlmWeb_PromptApi_PureLocal();
     console.log('✔ All LlmWeb UCA tests passed successfully.');
 }
 
-testLlmWebUca();
+runAllLlmWebTests();

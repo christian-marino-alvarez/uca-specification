@@ -6,7 +6,7 @@ export const AIM = 'Serve HTTP endpoints and routes using lightweight Hono engin
 
 export const DEFAULT_PORT = 3000;
 
-export const DEFAULT_HOSTNAME = '0.0.0.0';
+export const DEFAULT_HOSTNAME = 'localhost';
 
 export const DEFAULT_TIMEOUT_MS = 5000;
 

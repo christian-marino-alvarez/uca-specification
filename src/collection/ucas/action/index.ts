@@ -121,7 +121,7 @@ export class Action extends Uca<Body> {
     protected override onDispositionUpdated(): void {
         const attributes = this.buildAttributes(WEB_COMPONENT_ID);
         const { aim, parentTo } = this.disposition;
-        const { label = aim.description } = aim.body ?? {};
+        const { label = '' } = aim.body ?? {};
         this.pulse(CapabilitySignalType.RENDERED, { id: this.id, text: label, attributes, parentTo });
     }
 

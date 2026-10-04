@@ -122,13 +122,42 @@ async function testViewComposer_ConsumesGraphUcaStreamAndInnervatesWebUca(): Pro
     composer.denervate();
 }
 
+function createMockPromptFactory(): unknown {
+    const json = '{"ucas":[{"id":"box:nano-root","disposition":{"aim":{"description":"Nano Root","body":{}}}},{"id":"action:nano-btn","disposition":{"aim":{"description":"Nano Btn","body":{}},"parentTo":{"uca":"box:nano-root","relation":"action"}}}]}';
+    return {
+        capabilities: async () => ({ available: 'readily' }),
+        create: async () => ({
+            promptStreaming: () => new ReadableStream({
+                start(c) { c.enqueue(json); c.close(); },
+            }),
+            destroy: () => {},
+        }),
+    };
+}
+
+async function testViewComposer_PromptApi_EndToEnd(): Promise<void> {
+    const bus = createTestBus();
+    const factory = createMockPromptFactory();
+    const composer = new ViewComposer('composer-prompt-test').innervate(bus);
+    const captured: string[] = [];
+    bus.addEventListener(BoxSignalType.CREATED, () => captured.push(BoxSignalType.CREATED));
+    bus.addEventListener(ActionSignalType.CREATED, () => captured.push(ActionSignalType.CREATED));
+    emitSignal(bus, SignalType.CREATE, { factory });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    assert.ok(captured.includes(BoxSignalType.CREATED));
+    assert.ok(captured.includes(ActionSignalType.CREATED));
+    composer.denervate();
+}
+
 async function runAllViewComposerTests(): Promise<void> {
     testViewComposer_IdentityAndDefaults();
     testViewComposer_InnervationAndCooky();
     testViewComposer_PulsesDomainSignals();
     testViewComposer_CreatePulsesLlmWebStream();
     await testViewComposer_ConsumesGraphUcaStreamAndInnervatesWebUca();
-    console.log('✔ All ViewComposer UCA tests with LlmWeb, Graph, and Web UCAs passed successfully.');
+    await testViewComposer_PromptApi_EndToEnd();
+    console.log('✔ All ViewComposer UCA tests with LlmWeb, Graph, PromptApi, and Web UCAs passed successfully.');
 }
 
 runAllViewComposerTests();
+

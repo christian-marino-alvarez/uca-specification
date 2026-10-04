@@ -1,8 +1,24 @@
 import { Uca } from '@uca/core/uca';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
-import { Gemini, SignalType as GeminiSignalType, type Body as GeminiBody, type GenerateResult } from '@uca/capability-gemini';
-import { __ID__, DEFAULT_INSTRUCTION, DEFAULT_SIGNALS } from './constants.js';
-import { type Body, type InferPayload, type InferResult, DataType, SignalType } from './types.js';
+import { Gemini, SignalType as GeminiSignalType, type Body as GeminiBody } from '@uca/capability-gemini';
+import { Openai, SignalType as OpenaiSignalType, type Body as OpenaiBody } from '@uca/capability-openai';
+import {
+    __ID__,
+    DEFAULT_GEMINI_MODEL,
+    DEFAULT_INSTRUCTION,
+    DEFAULT_OPENAI_MODEL,
+    DEFAULT_PROVIDER,
+    DEFAULT_SIGNALS,
+} from './constants.js';
+import {
+    type Body,
+    type ConnectionConfig,
+    type InferPayload,
+    type InferResult,
+    type ProviderType,
+    DataType,
+    SignalType,
+} from './types.js';
 
 export class Llm extends Uca<Body> {
     public static override purpose: string = 'Enable open connections with AI models';
@@ -37,6 +53,11 @@ export class Llm extends Uca<Body> {
             GeminiSignalType.STREAM_END,
             GeminiSignalType.CONNECTED,
             GeminiSignalType.ERROR,
+            OpenaiSignalType.GENERATED,
+            OpenaiSignalType.CHUNK,
+            OpenaiSignalType.STREAM_END,
+            OpenaiSignalType.CONNECTED,
+            OpenaiSignalType.ERROR,
         ];
         const signals = [...new Set([...reactTo, ...internalSignals])];
         return super.innervate(target, { ...base, reactTo: signals });
@@ -45,12 +66,34 @@ export class Llm extends Uca<Body> {
     protected override capabilities(): Cooky {
         const { aim } = this.disposition;
         const { connection, model } = (aim.body ?? {}) as Body;
+        return [
+            ...this.buildGeminiCooky(connection, model),
+            ...this.buildOpenaiCooky(connection, model),
+        ];
+    }
+
+    private resolveActiveProvider(requested?: ProviderType): ProviderType {
+        const { aim } = this.disposition;
+        const { provider: bodyProvider } = (aim.body ?? {}) as Body;
+        return requested ?? bodyProvider ?? DEFAULT_PROVIDER;
+    }
+
+    private buildOpenaiCooky(connection?: ConnectionConfig, model?: string): Cooky {
+        const targetModel = model ?? DEFAULT_OPENAI_MODEL;
+        const disposition: Disposition<OpenaiBody> = {
+            aim: { description: Openai.AIM, body: { connection, model: targetModel } },
+            reactTo: [...Openai.disposition.reactTo ?? []],
+        };
+        return [[Openai, disposition]];
+    }
+
+    private buildGeminiCooky(connection?: ConnectionConfig, model?: string): Cooky {
+        const targetModel = model ?? DEFAULT_GEMINI_MODEL;
         const disposition: Disposition<GeminiBody> = {
-            aim: { description: Gemini.AIM, body: { connection, model } },
+            aim: { description: Gemini.AIM, body: { connection, model: targetModel } },
             reactTo: [...Gemini.disposition.reactTo ?? []],
         };
-        const cooky: Cooky = [[Gemini, disposition]];
-        return cooky;
+        return [[Gemini, disposition]];
     }
 
     protected override react(signal: Signal): void {
@@ -73,49 +116,58 @@ export class Llm extends Uca<Body> {
 
     private handleInfer(value: unknown): void {
         const payload = (value ?? {}) as InferPayload;
-        const { request, context, role } = payload;
+        const { request, context, role, provider } = payload;
         const prompt = context ? `${request}\nContext: ${JSON.stringify(context)}` : request;
         const systemInstruction = role ?? DEFAULT_INSTRUCTION;
         const generatePayload = this.buildGeneratePayload(payload, prompt, systemInstruction);
-        this.pulse(GeminiSignalType.GENERATE, generatePayload);
+        const activeProvider = this.resolveActiveProvider(provider);
+        const signal = activeProvider === 'gemini' ? GeminiSignalType.GENERATE : OpenaiSignalType.GENERATE;
+        this.pulse(signal, generatePayload);
     }
 
     private buildGeneratePayload(payload: InferPayload, prompt: string, systemInstruction: string): Record<string, unknown> {
-        const { aim } = this.disposition;
-        const { model: fallbackModel } = aim.body ?? {};
-        const { model, expectations, imagination, limit } = payload;
+        const { provider, model, expectations, imagination, limit } = payload;
+        const activeProvider = this.resolveActiveProvider(provider);
+        const fallbackModel = activeProvider === 'gemini' ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL;
         const targetModel = model ?? fallbackModel;
         return { prompt, schema: expectations, systemInstruction, model: targetModel, temperature: imagination, maxOutputTokens: limit };
     }
 
     private handleConnect(value: unknown): void {
         this.pulse(GeminiSignalType.CONNECT, value);
+        this.pulse(OpenaiSignalType.CONNECT, value);
     }
 
     private handleStream(value: unknown): void {
-        const { aim } = this.disposition;
-        const { model: fallbackModel } = aim.body ?? {};
         const payload = (value ?? {}) as InferPayload;
-        const { request, model, expectations } = payload;
+        const { request, model, expectations, provider, role } = payload;
+        const activeProvider = this.resolveActiveProvider(provider);
+        const fallbackModel = activeProvider === 'gemini' ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL;
         const targetModel = model ?? fallbackModel;
-        this.pulse(GeminiSignalType.STREAM, { prompt: request, model: targetModel, schema: expectations });
+        const signal = activeProvider === 'gemini' ? GeminiSignalType.STREAM : OpenaiSignalType.STREAM;
+        this.pulse(signal, { prompt: request, model: targetModel, schema: expectations, systemInstruction: role ?? DEFAULT_INSTRUCTION });
     }
 
     private handleCapabilitySignal(property: string, value: unknown): void {
         switch (property) {
             case GeminiSignalType.GENERATED:
+            case OpenaiSignalType.GENERATED:
                 this.handleGenerated(value);
                 break;
             case GeminiSignalType.CHUNK:
+            case OpenaiSignalType.CHUNK:
                 this.pulse(SignalType.CHUNK, value);
                 break;
             case GeminiSignalType.STREAM_END:
+            case OpenaiSignalType.STREAM_END:
                 this.pulse(SignalType.STREAM_END, value);
                 break;
             case GeminiSignalType.CONNECTED:
+            case OpenaiSignalType.CONNECTED:
                 this.pulse(SignalType.CONNECTED, 'connected');
                 break;
             case GeminiSignalType.ERROR:
+            case OpenaiSignalType.ERROR:
                 this.pulse(SignalType.ERROR, value);
                 break;
             default:
@@ -124,7 +176,7 @@ export class Llm extends Uca<Body> {
     }
 
     private handleGenerated(value: unknown): void {
-        const { text, data, model, usage } = (value ?? {}) as GenerateResult;
+        const { text, data, model, usage } = (value ?? {}) as { text?: string; data?: unknown; model?: string; usage?: unknown };
         const result: InferResult = { response: text, data, model, usage };
         this.pulse(SignalType.INFERRED, result);
     }

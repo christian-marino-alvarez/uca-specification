@@ -75,8 +75,8 @@ export class ViewComposer extends Uca<Body> {
 
     protected override capabilities(): Cooky {
         const { aim } = this.disposition;
-        const { model, endpoint, sseEndpoint } = (aim.body ?? {}) as Body;
-        const llmDisp: Disposition = { aim: { description: LlmWeb.purpose, body: { model, endpoint, sseEndpoint } }, reactTo: [...LlmWeb.disposition.reactTo ?? []] };
+        const { model, provider, endpoint, sseEndpoint, factory } = (aim.body ?? {}) as Body;
+        const llmDisp: Disposition = { aim: { description: LlmWeb.purpose, body: { model, provider, endpoint, sseEndpoint, factory } }, reactTo: [...LlmWeb.disposition.reactTo ?? []] };
         const graphDisp: Disposition = { aim: { description: Graph.AIM, body: {} }, reactTo: [...Graph.disposition.reactTo ?? []] };
         return [[LlmWeb, llmDisp], [Graph, graphDisp]];
     }
@@ -101,12 +101,17 @@ export class ViewComposer extends Uca<Body> {
         }
     }
 
+    private streamStartTime: number = 0;
+    private renderedCount: number = 0;
+
     private handleCreate(value: unknown): void {
+        this.streamStartTime = Date.now();
+        this.renderedCount = 0;
         const payload = (value ?? {}) as Body;
-        const { prompt, model, documentation } = payload;
+        const { prompt, model, provider, documentation, factory } = payload;
         const request = prompt ?? payload.title ?? this.disposition.aim.description;
         const fullPrompt = buildCompositionPrompt(request, UCA_CATALOG, documentation);
-        this.pulse(LlmWebSignalType.STREAM, { prompt: fullPrompt, model });
+        this.pulse(LlmWebSignalType.STREAM, { prompt: fullPrompt, model, provider, factory });
         this.pulse(SignalType.CREATED, { ...this.getDomainProperties(), ...payload });
     }
 
@@ -136,6 +141,7 @@ export class ViewComposer extends Uca<Body> {
         if (!stream) { return; }
         const consumer = new WritableStream<UcaItem>({
             write: (item: UcaItem) => this.handleUcaItem(item),
+            close: () => this.handleStreamClose(),
         });
         stream.pipeTo(consumer).catch(() => { });
     }
@@ -143,8 +149,16 @@ export class ViewComposer extends Uca<Body> {
     private handleUcaItem(item: UcaItem): void {
         const { id, disposition } = item;
         if (!id || !disposition) { return; }
+        this.renderedCount += 1;
+        const elapsed = this.streamStartTime ? Date.now() - this.streamStartTime : 0;
+        console.log(`⚡ [STREAM-RENDER] [t=+${elapsed}ms] UCA #${this.renderedCount} montada en DOM en vivo: "${id}"`);
         const uca = this.resolveUcaInstance(id);
         uca?.innervate(this.target, disposition);
+    }
+
+    private handleStreamClose(): void {
+        const elapsed = this.streamStartTime ? Date.now() - this.streamStartTime : 0;
+        console.log(`🏁 [STREAM-RENDER] [t=+${elapsed}ms] Stream completado. Total UCAs renderizadas en vivo: ${this.renderedCount}`);
     }
 
     private resolveUcaInstance(id: string): ICapability | undefined {

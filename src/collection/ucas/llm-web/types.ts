@@ -25,17 +25,21 @@ export interface StreamDecodedPayload {
 
 export interface PromptPayload {
     readonly prompt: string;
+    readonly provider?: string;
     readonly model?: string;
     readonly systemPrompt?: string;
     readonly factory?: AILanguageModelFactory;
+    readonly useRemote?: boolean;
 }
 
 export interface StreamPayload {
     readonly prompt: string;
     readonly streamId?: string;
+    readonly provider?: string;
     readonly model?: string;
     readonly systemPrompt?: string;
     readonly factory?: AILanguageModelFactory;
+    readonly useRemote?: boolean;
 }
 
 export interface ResponsePayload {
@@ -47,6 +51,8 @@ export interface ResponsePayload {
 export interface Body {
     readonly endpoint?: string;
     readonly sseEndpoint?: string;
+    readonly provider?: string;
     readonly model?: string;
     readonly factory?: AILanguageModelFactory;
+    readonly useRemote?: boolean;
 }

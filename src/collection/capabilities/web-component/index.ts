@@ -91,8 +91,10 @@ export class WebComponent extends Capability<Body> {
         const { aim } = this.disposition;
         const { id: configuredId } = aim.body ?? {};
         if (!configuredId) { return true; }
-        const matches = id === configuredId || id.startsWith(`${configuredId}-`);
-        return matches;
+        const targetBase = id.includes(':') ? id.split(':')[1] : id;
+        const currentBase = configuredId.includes(':') ? configuredId.split(':')[1] : configuredId;
+        const isGeneric = currentBase === 'box' || currentBase === 'web-component';
+        return targetBase === currentBase || (isGeneric && id.startsWith(`${currentBase}-`));
     }
 
     private defineComponentTag(): void {
@@ -287,6 +289,8 @@ export class WebComponent extends Capability<Body> {
         const defaultContainer = typeof document !== 'undefined' ? document.body : undefined;
         const activeContainer = container ?? fallbackContainer ?? parentContainer ?? defaultContainer;
         mountElementToContainer(element, activeContainer);
+        const targetId = activeContainer?.id || activeContainer?.tagName?.toLowerCase() || 'body';
+        console.log(`🎨 [DOM-MOUNT] #${element.id} (<${element.tagName.toLowerCase()}>) montado en #${targetId}`);
     }
 
     private resolveParentContainer(parentTo?: Disposition['parentTo']): HTMLElement | undefined {
