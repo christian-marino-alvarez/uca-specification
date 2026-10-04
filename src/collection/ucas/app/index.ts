@@ -4,9 +4,14 @@ import {
     type Disposition,
     type Signal,
 } from '@uca/core/types';
+import { ConceptComposer, SignalType as ConceptComposerSignalType, type Body as ConceptComposerBody } from '@uca/concept-composer';
 import { ViewComposer, SignalType as ViewComposerSignalType, type Body as ViewComposerBody } from '@uca/view-composer';
 import { __ID__, DEFAULT_SIGNALS, PURPOSE } from './constants.js';
 import { type Body, DataType, SignalType } from './types.js';
+
+function createChildDisposition<T>(purpose: string, body: T, reactTo?: readonly string[]): Disposition<T> {
+    return { aim: { description: purpose, body }, reactTo: [...reactTo ?? []] };
+}
 
 export class App extends Uca<Body> {
     public static override purpose: string = PURPOSE;
@@ -23,6 +28,7 @@ export class App extends Uca<Body> {
             { signal: SignalType.CREATED, type: DataType.RECORD, description: 'Application initialized' },
             { signal: SignalType.UPDATED, type: DataType.RECORD, description: 'Application state updated' },
             { signal: SignalType.REMOVED, type: DataType.RECORD, description: 'Application torn down' },
+            { signal: ConceptComposerSignalType.CREATE, type: DataType.RECORD, description: 'Request conceptual capability map' },
         ],
     };
 
@@ -35,7 +41,7 @@ export class App extends Uca<Body> {
     public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
         const base = disposition ?? App.disposition;
         const { reactTo = [] } = base;
-        const internalSignals = [ViewComposerSignalType.CREATED];
+        const internalSignals = [ConceptComposerSignalType.CREATED, ViewComposerSignalType.CREATED];
         const signals = [...new Set([...reactTo, ...internalSignals])];
         super.innervate(target, { ...base, reactTo: signals });
         this.pulse(SignalType.CREATE, this.getDomainProperties());
@@ -48,11 +54,10 @@ export class App extends Uca<Body> {
 
     protected override capabilities(): Cooky {
         const { aim } = this.disposition;
-        const viewDisp: Disposition<ViewComposerBody> = {
-            aim: { description: ViewComposer.purpose, body: {} },
-            reactTo: [...ViewComposer.disposition.reactTo ?? []],
-        };
-        return [[ViewComposer, viewDisp]];
+        const { description = PURPOSE } = aim;
+        const conceptDisp = createChildDisposition(ConceptComposer.purpose, { prompt: description } as ConceptComposerBody, ConceptComposer.disposition.reactTo);
+        const viewDisp = createChildDisposition(ViewComposer.purpose, {} as ViewComposerBody, ViewComposer.disposition.reactTo);
+        return [[ConceptComposer, conceptDisp], [ViewComposer, viewDisp]];
     }
 
     protected override react(signal: Signal): void {
@@ -67,6 +72,9 @@ export class App extends Uca<Body> {
             case SignalType.REMOVE:
                 this.handleRemove(value);
                 break;
+            case ConceptComposerSignalType.CREATED:
+                this.handleConceptCreated(value);
+                break;
             case ViewComposerSignalType.CREATED:
                 this.handleViewCreated(value);
                 break;
@@ -80,18 +88,24 @@ export class App extends Uca<Body> {
         this.hasInitialized = true;
         const { aim } = this.disposition;
         const { description = PURPOSE } = aim;
-        this.pulse(ViewComposerSignalType.CREATE, { title: description });
+        this.pulse(ConceptComposerSignalType.CREATE, { prompt: description, title: description });
         this.pulse(SignalType.CREATED, this.getDomainProperties());
     }
 
     private handleUpdate(value: unknown): void {
+        this.pulse(ConceptComposerSignalType.UPDATE, value);
         this.pulse(ViewComposerSignalType.UPDATE, value);
         this.pulse(SignalType.UPDATED, this.getDomainProperties());
     }
 
     private handleRemove(value: unknown): void {
+        this.pulse(ConceptComposerSignalType.REMOVE, value);
         this.pulse(ViewComposerSignalType.REMOVE, value);
         this.pulse(SignalType.REMOVED, this.getDomainProperties());
+    }
+
+    private handleConceptCreated(value: unknown): void {
+        this.pulse(SignalType.UPDATED, { concept: value });
     }
 
     private handleViewCreated(value: unknown): void {

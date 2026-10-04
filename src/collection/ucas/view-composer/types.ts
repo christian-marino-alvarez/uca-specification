@@ -1,3 +1,5 @@
+import type { ConceptMap } from '@uca/concept-composer/types';
+
 export enum SignalType {
     CREATE = 'view-composer.create',
     UPDATE = 'view-composer.update',
@@ -11,6 +13,7 @@ export enum DataType {
     VOID = 'void',
     RECORD = 'Record',
     STREAM = 'Stream',
+    CONCEPT_MAP = 'ConceptMap',
 }
 
 export interface Body {
@@ -25,4 +28,5 @@ export interface Body {
     readonly sseEndpoint?: string;
     readonly detectedUca?: { id: string; disposition: unknown };
     readonly factory?: unknown;
+    readonly concept?: ConceptMap;
 }

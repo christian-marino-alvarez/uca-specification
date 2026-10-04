@@ -18,31 +18,44 @@ export enum DataType {
 }
 
 export interface StreamDecodedPayload {
+    readonly id?: string;
+    readonly correlationId?: string;
     readonly streamId: string;
     readonly stream: ReadableStream<string>;
     readonly model?: string;
 }
 
 export interface PromptPayload {
+    readonly id?: string;
+    readonly correlationId?: string;
+    readonly requestId?: string;
     readonly prompt: string;
     readonly provider?: string;
     readonly model?: string;
     readonly systemPrompt?: string;
+    readonly schema?: Record<string, unknown>;
     readonly factory?: AILanguageModelFactory;
     readonly useRemote?: boolean;
+    readonly thinkingBudget?: number;
 }
 
 export interface StreamPayload {
+    readonly id?: string;
+    readonly correlationId?: string;
     readonly prompt: string;
     readonly streamId?: string;
     readonly provider?: string;
     readonly model?: string;
     readonly systemPrompt?: string;
+    readonly schema?: Record<string, unknown>;
     readonly factory?: AILanguageModelFactory;
     readonly useRemote?: boolean;
+    readonly thinkingBudget?: number;
 }
 
 export interface ResponsePayload {
+    readonly id?: string;
+    readonly correlationId?: string;
     readonly response: string;
     readonly model?: string;
     readonly data?: unknown;
@@ -55,4 +68,5 @@ export interface Body {
     readonly model?: string;
     readonly factory?: AILanguageModelFactory;
     readonly useRemote?: boolean;
+    readonly thinkingBudget?: number;
 }

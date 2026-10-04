@@ -80,11 +80,11 @@ export class Openai extends Capability<Body> {
     }
 
     private async executeGeneration(client: OpenAI, payload: GeneratePayload): Promise<GenerateResult> {
-        const { prompt, schema, systemInstruction, temperature = DEFAULT_TEMPERATURE, maxOutputTokens = DEFAULT_MAX_OUTPUT_TOKENS, model = DEFAULT_MODEL } = payload;
+        const { prompt, schema, systemInstruction, temperature = DEFAULT_TEMPERATURE, maxOutputTokens = DEFAULT_MAX_OUTPUT_TOKENS, model = DEFAULT_MODEL, correlationId } = payload;
         const messages = this.buildMessages(prompt, systemInstruction);
         const responseFormat = schema ? { type: 'json_object' as const } : undefined;
         const response = await client.chat.completions.create({ model, messages, temperature, max_tokens: maxOutputTokens, response_format: responseFormat });
-        return this.formatResult(response, prompt, model);
+        return this.formatResult(response, prompt, model, correlationId);
     }
 
     private buildMessages(prompt: string, systemInstruction?: string): Array<{ role: 'system' | 'user'; content: string }> {
@@ -92,7 +92,7 @@ export class Openai extends Capability<Body> {
         return [...systemMessage, { role: 'user' as const, content: prompt }];
     }
 
-    private formatResult(response: OpenAI.Chat.Completions.ChatCompletion, prompt: string, model: string): GenerateResult {
+    private formatResult(response: OpenAI.Chat.Completions.ChatCompletion, prompt: string, model: string, correlationId?: string): GenerateResult {
         const { choices, usage } = response;
         const text = choices[0]?.message?.content ?? '';
         let data: unknown;
@@ -101,41 +101,42 @@ export class Openai extends Capability<Body> {
         } catch {
             data = undefined;
         }
-        return { prompt, text, data, model, usage };
+        return { prompt, text, data, model, usage, correlationId };
     }
 
     private async handleStream(value: unknown): Promise<void> {
         const payload = this.extractPayload<GeneratePayload>(value);
         if (!payload) { return; }
-        const { prompt, model = DEFAULT_MODEL, systemInstruction, schema } = payload;
+        const { prompt, model = DEFAULT_MODEL, systemInstruction, schema, correlationId, streamId } = payload;
+        const activeCorrelationId = correlationId ?? streamId;
         try {
             const client = this.resolveClient();
-            await this.executeStream(client, prompt, model, systemInstruction, schema);
+            await this.executeStream(client, prompt, model, systemInstruction, schema, activeCorrelationId);
         } catch (error) {
             console.error('❌ [OPENAI] Fallback activado:', error);
-            this.handleStreamFallback(prompt, model);
+            this.handleStreamFallback(prompt, model, activeCorrelationId);
         }
     }
 
-    private async executeStream(client: OpenAI, prompt: string, model: string, systemInstruction?: string, schema?: Record<string, unknown>): Promise<void> {
+    private async executeStream(client: OpenAI, prompt: string, model: string, systemInstruction?: string, schema?: Record<string, unknown>, correlationId?: string): Promise<void> {
         const messages = this.buildMessages(prompt, systemInstruction);
         const responseFormat = schema ? { type: 'json_object' as const } : undefined;
         const stream = await client.chat.completions.create({ model, messages, stream: true, response_format: responseFormat });
         for await (const chunk of stream) {
             const { choices } = chunk;
             const deltaText = choices[0]?.delta?.content ?? '';
-            if (deltaText) { this.pulse(SignalType.CHUNK, { text: deltaText, prompt, model }); }
+            if (deltaText) { this.pulse(SignalType.CHUNK, { text: deltaText, prompt, model, correlationId, streamId: correlationId }); }
         }
-        this.pulse(SignalType.STREAM_END, { prompt, model });
+        this.pulse(SignalType.STREAM_END, { prompt, model, correlationId, streamId: correlationId });
     }
 
-    private handleStreamFallback(prompt: string, model: string): void {
+    private handleStreamFallback(prompt: string, model: string, correlationId?: string): void {
         const fallbackText = this.buildStreamFallbackJson(prompt);
         const tokens = this.sliceIntoTokens(fallbackText);
         for (const token of tokens) {
-            this.pulse(SignalType.CHUNK, { text: token, prompt, model });
+            this.pulse(SignalType.CHUNK, { text: token, prompt, model, correlationId, streamId: correlationId });
         }
-        this.pulse(SignalType.STREAM_END, { prompt, model });
+        this.pulse(SignalType.STREAM_END, { prompt, model, correlationId, streamId: correlationId });
     }
 
     private sliceIntoTokens(text: string): string[] {

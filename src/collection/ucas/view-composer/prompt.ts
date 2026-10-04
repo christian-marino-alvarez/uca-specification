@@ -1,6 +1,6 @@
 import type { CapabilityConstructor } from '@uca/core/types';
 import type { Uca } from '@uca/core/uca';
-import { getOutputJsonSchema } from '@uca/capability-graph';
+import { getOutputJsonSchema, getCommunicationJsonSchema } from '@uca/capability-graph';
 
 const UCA_BODY_SPECS: Record<string, string> = {
     box: 'aim.body: { text?: string, role?: string, className?: string } (roles: "header"|"main"|"card"|"footer")',
@@ -57,7 +57,7 @@ export function getViewGuidelines(): string {
     return VIEW_GUIDELINES.join('\n');
 }
 
-export { getOutputJsonSchema };
+export { getOutputJsonSchema, getCommunicationJsonSchema };
 
 export function buildCompositionPrompt(
     request: string,

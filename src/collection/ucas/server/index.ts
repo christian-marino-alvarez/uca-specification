@@ -17,6 +17,7 @@ import {
     type Body as LlmBody,
     type InferResult,
     type ChunkResult,
+    type StreamEndResult,
 } from '@uca/llm';
 import {
     __ID__,
@@ -29,7 +30,6 @@ import {
     DEFAULT_TEMPERATURE,
     DEFAULT_MAX_OUTPUT_TOKENS,
 } from './constants.js';
-import { COMMUNICATION_SCHEMA } from '@uca/capability-graph';
 import {
     type Body,
     type StartedStatus,
@@ -170,38 +170,41 @@ export class Server extends Uca<Body> {
 
     private async handleLlmPost(context: RequestContext): Promise<Response> {
         const { body } = context;
-        const { prompt = 'UCA reasoning request', model, provider, temperature, maxOutputTokens, schema } = (body ?? {}) as Record<string, unknown>;
-        const p = String(prompt);
-        const m = model ? String(model) : DEFAULT_GEMINI_MODEL;
-        const prov = provider ? String(provider) : DEFAULT_PROVIDER;
-        const temp = typeof temperature === 'number' ? temperature : DEFAULT_TEMPERATURE;
-        const maxTokens = typeof maxOutputTokens === 'number' ? maxOutputTokens : DEFAULT_MAX_OUTPUT_TOKENS;
-        const sch = (schema as Record<string, unknown>) ?? COMMUNICATION_SCHEMA;
-        const result = await this.requestLlmInference(p, m, prov, temp, maxTokens, sch);
+        const { prompt = 'UCA reasoning request', model, provider, temperature, maxOutputTokens, schema, correlationId: bId, requestId, thinkingBudget } = (body ?? {}) as Record<string, unknown>;
+        const correlationId = String(bId ?? requestId ?? crypto.randomUUID());
+        const budget = typeof thinkingBudget === 'number' ? thinkingBudget : undefined;
+        const temp = typeof temperature === 'number' ? temperature : undefined;
+        const limit = typeof maxOutputTokens === 'number' ? maxOutputTokens : undefined;
+        const targetModel = model ? String(model) : undefined;
+        const targetProvider = provider ? String(provider) : undefined;
+        const result = await this.requestLlmInference(String(prompt), targetModel, targetProvider, temp, limit, schema as Record<string, unknown> | undefined, correlationId, budget);
         return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
 
-    private requestLlmInference(request: string, model = DEFAULT_GEMINI_MODEL, provider = DEFAULT_PROVIDER, imagination = DEFAULT_TEMPERATURE, limit = DEFAULT_MAX_OUTPUT_TOKENS, expectations = COMMUNICATION_SCHEMA): Promise<InferResult> {
+    private requestLlmInference(request: string, model?: string, provider?: string, imagination?: number, limit?: number, expectations?: Record<string, unknown>, correlationId: string = crypto.randomUUID(), thinkingBudget?: number): Promise<InferResult> {
         return new Promise((resolve) => {
-            const onInferred = (event: Event) => this.resolveInference(event, resolve, onInferred, onError);
-            const onError = (event: Event) => this.failInference(event, resolve, onInferred, onError, request);
+            const onInferred = (event: Event) => this.resolveInference(event, resolve, onInferred, onError, correlationId);
+            const onError = (event: Event) => this.failInference(event, resolve, onInferred, onError, request, correlationId);
             this.target?.addEventListener(LlmSignalType.INFERRED, onInferred);
             this.target?.addEventListener(LlmSignalType.ERROR, onError);
-            this.pulse(LlmSignalType.INFER, { request, model, provider, imagination, limit, expectations });
+            this.pulse(LlmSignalType.INFER, { request, model, provider, imagination, limit, expectations, correlationId, thinkingBudget });
         });
     }
 
-    private resolveInference(event: Event, resolve: (r: InferResult) => void, onInferred: (e: Event) => void, onError: (e: Event) => void): void {
-        this.removeInferenceListeners(onInferred, onError);
+    private resolveInference(event: Event, resolve: (r: InferResult) => void, onInferred: (e: Event) => void, onError: (e: Event) => void, correlationId: string): void {
         const customEvent = event as CustomEvent<Signal>;
-        resolve(customEvent.detail.value as InferResult);
+        const result = customEvent.detail.value as InferResult | undefined;
+        if (result?.correlationId && result.correlationId !== correlationId) { return; }
+        this.removeInferenceListeners(onInferred, onError);
+        resolve(result as InferResult);
     }
 
-    private failInference(event: Event, resolve: (r: InferResult) => void, onInferred: (e: Event) => void, onError: (e: Event) => void, request: string): void {
-        this.removeInferenceListeners(onInferred, onError);
+    private failInference(event: Event, resolve: (r: InferResult) => void, onInferred: (e: Event) => void, onError: (e: Event) => void, request: string, correlationId: string): void {
         const customEvent = event as CustomEvent<Signal>;
-        const rawError = String(customEvent.detail.value);
-        resolve(this.buildFallbackResult(request, rawError));
+        const { correlationId: errorCorrelationId } = (customEvent.detail.value ?? {}) as { correlationId?: string };
+        if (errorCorrelationId && errorCorrelationId !== correlationId) { return; }
+        this.removeInferenceListeners(onInferred, onError);
+        resolve(this.buildFallbackResult(request, String(customEvent.detail.value)));
     }
 
     private buildFallbackResult(request: string, errorMessage: string): InferResult {
@@ -248,14 +251,16 @@ export class Server extends Uca<Body> {
 
     private handleLlmSse(context: RequestContext): Response {
         const { query, body } = context;
-        const { prompt: queryPrompt, model: queryModel, provider: queryProvider } = (query ?? {}) as Record<string, string>;
-        const { prompt: bodyPrompt, model: bodyModel, provider: bodyProvider } = (body ?? {}) as Record<string, string>;
-        const prompt = queryPrompt ?? bodyPrompt ?? 'UCA streaming reasoning';
-        const model = queryModel ?? bodyModel ?? DEFAULT_GEMINI_MODEL;
-        const provider = queryProvider ?? bodyProvider ?? DEFAULT_PROVIDER;
-        console.log(`🌐 [SERVER] Petición SSE recibida (${provider}/${model}) para prompt:`, prompt.slice(0, 60) + '...');
-        const stream = this.createSseReadableStream(prompt, model, provider);
-        return this.createSseResponse(stream);
+        const { prompt: qP, model: qM, provider: qPr, correlationId: qC, streamId: qS, thinkingBudget: qB } = (query ?? {}) as Record<string, string>;
+        const { prompt: bP, model: bM, provider: bPr, correlationId: bC, streamId: bS, thinkingBudget: bB, schema: bSchema } = (body ?? {}) as Record<string, unknown>;
+        const prompt = qP ?? (bP ? String(bP) : 'UCA streaming reasoning');
+        const correlationId = (bC ? String(bC) : undefined) ?? (bS ? String(bS) : undefined) ?? qC ?? qS ?? crypto.randomUUID();
+        const rawBudget = bB ?? qB;
+        const budget = typeof rawBudget === 'number' ? rawBudget : (typeof rawBudget === 'string' ? Number(rawBudget) : undefined);
+        const model = qM ?? (bM ? String(bM) : undefined);
+        const provider = qPr ?? (bPr ? String(bPr) : undefined);
+        const schema = bSchema as Record<string, unknown> | undefined;
+        return this.createSseResponse(this.createSseReadableStream(prompt, model, provider, correlationId, budget, schema));
     }
 
     private createSseResponse(stream: ReadableStream): Response {
@@ -263,18 +268,17 @@ export class Server extends Uca<Body> {
         return new Response(stream, { headers });
     }
 
-    private createSseReadableStream(prompt: string, model: string, provider: string): ReadableStream {
-        let chunkListener: ((event: Event) => void) | undefined;
-        let endListener: ((event: Event) => void) | undefined;
-        const state = { startTime: Date.now(), chunkCount: 0 };
-        const cancel = () => this.removeSseListeners(chunkListener, endListener);
+    private createSseReadableStream(prompt: string, model: string | undefined, provider: string | undefined, correlationId: string, thinkingBudget?: number, schema?: Record<string, unknown>): ReadableStream {
+        let chunkListener: ((e: Event) => void) | undefined;
+        let endListener: ((e: Event) => void) | undefined;
+        const state = { startTime: Date.now(), chunkCount: 0, correlationId };
         const start = (controller: ReadableStreamDefaultController) => {
             const encoder = new TextEncoder();
-            chunkListener = (event: Event) => this.writeSseChunk(event, controller, encoder, state);
-            endListener = () => this.finishSseStream(controller, encoder, state, chunkListener, endListener);
-            this.bindSseNervousEvents(controller, encoder, prompt, model, provider, chunkListener, endListener);
+            chunkListener = (e: Event) => this.writeSseChunk(e, controller, encoder, state);
+            endListener = (e: Event) => this.finishSseStream(e, controller, encoder, state, chunkListener, endListener);
+            this.bindSseNervousEvents(controller, encoder, prompt, model, provider, correlationId, chunkListener, endListener, thinkingBudget, schema);
         };
-        return new ReadableStream({ start, cancel });
+        return new ReadableStream({ start, cancel: () => this.removeSseListeners(chunkListener, endListener) });
     }
 
     private removeSseListeners(chunkListener?: (event: Event) => void, endListener?: (event: Event) => void): void {
@@ -286,40 +290,49 @@ export class Server extends Uca<Body> {
         controller: ReadableStreamDefaultController,
         encoder: TextEncoder,
         prompt: string,
-        model: string,
-        provider: string,
+        model: string | undefined,
+        provider: string | undefined,
+        correlationId: string,
         chunkListener: (event: Event) => void,
         endListener: (event: Event) => void,
+        thinkingBudget?: number,
+        schema?: Record<string, unknown>,
     ): void {
-        console.log(`⚡ [SERVER] Conectando canal SSE con LLM (${provider}/${model})...`);
-        try { controller.enqueue(encoder.encode(`event: start\ndata: ${JSON.stringify({ status: 'connected', prompt, model, provider })}\n\n`)); } catch {}
+        console.log(`⚡ [SERVER] Conectando canal SSE [${correlationId}] con LLM (${provider ?? 'default'}/${model ?? 'default'})...`);
+        try { controller.enqueue(encoder.encode(`event: start\ndata: ${JSON.stringify({ status: 'connected', correlationId, prompt, model, provider })}\n\n`)); } catch {}
         this.target?.addEventListener(LlmSignalType.CHUNK, chunkListener);
         this.target?.addEventListener(LlmSignalType.STREAM_END, endListener);
-        this.pulse(LlmSignalType.STREAM, { request: prompt, model, provider, expectations: COMMUNICATION_SCHEMA });
+        this.pulse(LlmSignalType.STREAM, { request: prompt, model, provider, correlationId, streamId: correlationId, expectations: schema, thinkingBudget });
     }
 
-    private writeSseChunk(event: Event, controller: ReadableStreamDefaultController, encoder: TextEncoder, state: { startTime: number; chunkCount: number }): void {
+    private writeSseChunk(event: Event, controller: ReadableStreamDefaultController, encoder: TextEncoder, state: { startTime: number; chunkCount: number; correlationId: string }): void {
         const customEvent = event as CustomEvent<Signal>;
-        const { text } = (customEvent.detail.value ?? {}) as ChunkResult;
-        if (!text) { return; }
+        const { text, correlationId, streamId } = (customEvent.detail.value ?? {}) as ChunkResult;
+        const eventId = correlationId ?? streamId;
+        if ((eventId && eventId !== state.correlationId) || !text) { return; }
         state.chunkCount += 1;
         const elapsed = Date.now() - state.startTime;
-        console.log(`📤 [SERVER] [t=+${elapsed}ms] Chunk #${state.chunkCount} (${text.length} ch): ${text.slice(0, 35).replace(/\n/g, ' ')}...`);
-        try { controller.enqueue(encoder.encode(`event: message\ndata: ${JSON.stringify({ text })}\n\n`)); } catch {}
+        console.log(`📤 [SERVER] [${state.correlationId}] [t=+${elapsed}ms] Chunk #${state.chunkCount} (${text.length} ch)`);
+        try { controller.enqueue(encoder.encode(`event: message\ndata: ${JSON.stringify({ text, correlationId: state.correlationId })}\n\n`)); } catch {}
     }
 
     private finishSseStream(
+        event: Event,
         controller: ReadableStreamDefaultController,
         encoder: TextEncoder,
-        state: { startTime: number; chunkCount: number },
+        state: { startTime: number; chunkCount: number; correlationId: string },
         chunkListener?: (event: Event) => void,
         endListener?: (event: Event) => void,
     ): void {
+        const customEvent = event as CustomEvent<Signal>;
+        const { correlationId, streamId } = (customEvent.detail?.value ?? {}) as StreamEndResult;
+        const eventId = correlationId ?? streamId;
+        if (eventId && eventId !== state.correlationId) { return; }
         const elapsed = Date.now() - state.startTime;
-        console.log(`🏁 [SERVER] [t=+${elapsed}ms] Finalizado stream SSE (${state.chunkCount} chunks enviados).`);
+        console.log(`🏁 [SERVER] [${state.correlationId}] [t=+${elapsed}ms] Finalizado stream SSE (${state.chunkCount} chunks enviados).`);
         this.removeSseListeners(chunkListener, endListener);
         try {
-            controller.enqueue(encoder.encode('event: done\ndata: {"done":true}\n\n'));
+            controller.enqueue(encoder.encode(`event: done\ndata: ${JSON.stringify({ done: true, correlationId: state.correlationId })}\n\n`));
             controller.close();
         } catch {}
     }

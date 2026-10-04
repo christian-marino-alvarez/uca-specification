@@ -14,14 +14,6 @@ const app = new App();
 app.innervate(bus);
 
 if (typeof window !== 'undefined') {
-    const globalAny = window as unknown as { LanguageModel?: unknown; ai?: { languageModel?: unknown } };
-    const hasNativeAi = Boolean(globalAny.LanguageModel ?? globalAny.ai?.languageModel);
-    console.log(
-        hasNativeAi
-            ? '%c✨ [PromptApi] LanguageModel / ai.languageModel nativo detectado en este navegador.'
-            : '%cℹ️ [PromptApi] LanguageModel no detectado de forma nativa. Modo híbrido activo (SSE Backend). Puedes probar PromptApi en consola con __UCA__.testPromptApi() o comprobando en consola: await window.LanguageModel?.availability().',
-        'color: #a855f7; font-weight: bold; font-size: 11px;'
-    );
     (window as unknown as { __UCA__: unknown }).__UCA__ = {
         app,
         logger,

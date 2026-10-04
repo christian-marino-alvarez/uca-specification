@@ -88,9 +88,11 @@ export class Llm extends Uca<Body> {
     }
 
     private buildGeminiCooky(connection?: ConnectionConfig, model?: string): Cooky {
+        const { aim } = this.disposition;
+        const { thinkingBudget, imagination, limit, role } = (aim.body ?? {}) as Body;
         const targetModel = model ?? DEFAULT_GEMINI_MODEL;
         const disposition: Disposition<GeminiBody> = {
-            aim: { description: Gemini.AIM, body: { connection, model: targetModel } },
+            aim: { description: Gemini.AIM, body: { connection, model: targetModel, thinkingBudget, temperature: imagination, maxOutputTokens: limit, systemInstruction: role } },
             reactTo: [...Gemini.disposition.reactTo ?? []],
         };
         return [[Gemini, disposition]];
@@ -117,20 +119,24 @@ export class Llm extends Uca<Body> {
     private handleInfer(value: unknown): void {
         const payload = (value ?? {}) as InferPayload;
         const { request, context, role, provider } = payload;
+        const { aim } = this.disposition;
+        const { role: bodyRole } = (aim.body ?? {}) as Body;
         const prompt = context ? `${request}\nContext: ${JSON.stringify(context)}` : request;
-        const systemInstruction = role ?? DEFAULT_INSTRUCTION;
+        const systemInstruction = role ?? bodyRole;
         const generatePayload = this.buildGeneratePayload(payload, prompt, systemInstruction);
         const activeProvider = this.resolveActiveProvider(provider);
         const signal = activeProvider === 'gemini' ? GeminiSignalType.GENERATE : OpenaiSignalType.GENERATE;
         this.pulse(signal, generatePayload);
     }
 
-    private buildGeneratePayload(payload: InferPayload, prompt: string, systemInstruction: string): Record<string, unknown> {
-        const { provider, model, expectations, imagination, limit } = payload;
+    private buildGeneratePayload(payload: InferPayload, prompt: string, systemInstruction?: string): Record<string, unknown> {
+        const { provider, model, expectations, imagination, limit, correlationId, streamId, thinkingBudget } = payload;
+        const { aim } = this.disposition;
+        const { thinkingBudget: bodyBudget, imagination: bTemp, limit: bLimit } = (aim.body ?? {}) as Body;
         const activeProvider = this.resolveActiveProvider(provider);
         const fallbackModel = activeProvider === 'gemini' ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL;
         const targetModel = model ?? fallbackModel;
-        return { prompt, schema: expectations, systemInstruction, model: targetModel, temperature: imagination, maxOutputTokens: limit };
+        return { prompt, schema: expectations, systemInstruction, model: targetModel, temperature: imagination ?? bTemp, maxOutputTokens: limit ?? bLimit, correlationId, streamId, thinkingBudget: thinkingBudget ?? bodyBudget };
     }
 
     private handleConnect(value: unknown): void {
@@ -140,12 +146,14 @@ export class Llm extends Uca<Body> {
 
     private handleStream(value: unknown): void {
         const payload = (value ?? {}) as InferPayload;
-        const { request, model, expectations, provider, role } = payload;
+        const { request, model, expectations, provider, role, correlationId, streamId, thinkingBudget, imagination, limit } = payload;
+        const { aim } = this.disposition;
+        const { thinkingBudget: bBudget, role: bRole, imagination: bTemp, limit: bTokens } = (aim.body ?? {}) as Body;
         const activeProvider = this.resolveActiveProvider(provider);
         const fallbackModel = activeProvider === 'gemini' ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL;
         const targetModel = model ?? fallbackModel;
         const signal = activeProvider === 'gemini' ? GeminiSignalType.STREAM : OpenaiSignalType.STREAM;
-        this.pulse(signal, { prompt: request, model: targetModel, schema: expectations, systemInstruction: role ?? DEFAULT_INSTRUCTION });
+        this.pulse(signal, { prompt: request, model: targetModel, schema: expectations, systemInstruction: role ?? bRole, correlationId, streamId, thinkingBudget: thinkingBudget ?? bBudget, temperature: imagination ?? bTemp, maxOutputTokens: limit ?? bTokens });
     }
 
     private handleCapabilitySignal(property: string, value: unknown): void {
@@ -176,8 +184,8 @@ export class Llm extends Uca<Body> {
     }
 
     private handleGenerated(value: unknown): void {
-        const { text, data, model, usage } = (value ?? {}) as { text?: string; data?: unknown; model?: string; usage?: unknown };
-        const result: InferResult = { response: text, data, model, usage };
+        const { text, data, model, usage, correlationId } = (value ?? {}) as { text?: string; data?: unknown; model?: string; usage?: unknown; correlationId?: string };
+        const result: InferResult = { response: text, data, model, usage, correlationId };
         this.pulse(SignalType.INFERRED, result);
     }
 }

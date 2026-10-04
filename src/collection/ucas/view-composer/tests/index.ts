@@ -6,6 +6,7 @@ import { SignalType as LlmWebSignalType, type StreamPayload } from '@uca/llm-web
 import { SignalType as GraphSignalType, type UcaItem } from '@uca/capability-graph';
 import { SignalType as BoxSignalType } from '@uca/box';
 import { SignalType as ActionSignalType } from '@uca/action';
+import { SignalType as ConceptComposerSignalType, type ConceptMap } from '@uca/concept-composer/types';
 import { ViewComposer, SignalType, DataType, __ID__, PURPOSE } from '../index.js';
 
 function createTestBus(): EventTarget {
@@ -26,7 +27,7 @@ function testViewComposer_IdentityAndDefaults(): void {
     assert.strictEqual(composer.purpose, PURPOSE);
     const { inputs, outputs, aim } = composer.disposition;
     assert.strictEqual(inputs?.length, 4);
-    assert.strictEqual(inputs?.[0]?.type, DataType.VOID);
+    assert.strictEqual(inputs?.[0]?.type, DataType.CONCEPT_MAP);
     assert.strictEqual(outputs?.length, 4);
     assert.strictEqual(outputs?.[0]?.type, DataType.RECORD);
     assert.strictEqual(aim.description, PURPOSE);
@@ -55,7 +56,7 @@ function testViewComposer_PulsesDomainSignals(): void {
     });
 
     const composer = new ViewComposer('test-composer').innervate(bus);
-    emitSignal(bus, SignalType.CREATE, { title: 'Initial View' });
+    emitSignal(bus, ConceptComposerSignalType.CREATED, { title: 'Initial View' });
     emitSignal(bus, SignalType.UPDATE, { title: 'Updated View' });
     emitSignal(bus, SignalType.REMOVE, {});
 
@@ -67,7 +68,7 @@ function testViewComposer_PulsesDomainSignals(): void {
     composer.denervate();
 }
 
-function testViewComposer_CreatePulsesLlmWebStream(): void {
+function testViewComposer_ConceptCreatedPulsesLlmWebStream(): void {
     const bus = createTestBus();
     let capturedStream: StreamPayload | undefined;
 
@@ -76,7 +77,7 @@ function testViewComposer_CreatePulsesLlmWebStream(): void {
     });
 
     const composer = new ViewComposer('composer-llm-test').innervate(bus);
-    emitSignal(bus, SignalType.CREATE, { prompt: 'Compose modern hero card' });
+    emitSignal(bus, ConceptComposerSignalType.CREATED, { prompt: 'Compose modern hero card' });
 
     assert.ok(capturedStream !== undefined);
     assert.ok(capturedStream?.prompt?.includes('Compose modern hero card'));
@@ -142,10 +143,35 @@ async function testViewComposer_PromptApi_EndToEnd(): Promise<void> {
     const captured: string[] = [];
     bus.addEventListener(BoxSignalType.CREATED, () => captured.push(BoxSignalType.CREATED));
     bus.addEventListener(ActionSignalType.CREATED, () => captured.push(ActionSignalType.CREATED));
-    emitSignal(bus, SignalType.CREATE, { factory });
+    emitSignal(bus, ConceptComposerSignalType.CREATED, { factory });
     await new Promise((resolve) => setTimeout(resolve, 80));
     assert.ok(captured.includes(BoxSignalType.CREATED));
     assert.ok(captured.includes(ActionSignalType.CREATED));
+    composer.denervate();
+}
+
+async function testViewComposer_ReactsToConceptComposerCreated(): Promise<void> {
+    const bus = createTestBus();
+    let capturedStream: StreamPayload | undefined;
+
+    bus.addEventListener(LlmWebSignalType.STREAM, (event: Event) => {
+        capturedStream = (event as CustomEvent<Signal<StreamPayload>>).detail?.value;
+    });
+
+    const composer = new ViewComposer('composer-concept-flow').innervate(bus);
+    const concept: ConceptMap = {
+        theme: { name: 'Elysium Organic', essence: 'Artisanal wellness ecosystem', mood: 'Calm, grounded', aesthetic: 'Warm neutral tones' },
+        capabilities: [{ name: 'IngredientShowcase', purpose: 'Display pure ingredients', interaction: 'Card exploration' }],
+        zones: [{ name: 'DiscoveryBay', purpose: 'Introduce botanical values', capabilities: ['IngredientShowcase'] }],
+    };
+
+    emitSignal(bus, ConceptComposerSignalType.CREATED, { concept });
+
+    assert.ok(capturedStream !== undefined);
+    assert.ok(capturedStream?.prompt?.includes('Elysium Organic'));
+    assert.ok(capturedStream?.prompt?.includes('IngredientShowcase'));
+    assert.ok(capturedStream?.prompt?.includes('DiscoveryBay'));
+
     composer.denervate();
 }
 
@@ -153,7 +179,8 @@ async function runAllViewComposerTests(): Promise<void> {
     testViewComposer_IdentityAndDefaults();
     testViewComposer_InnervationAndCooky();
     testViewComposer_PulsesDomainSignals();
-    testViewComposer_CreatePulsesLlmWebStream();
+    testViewComposer_ConceptCreatedPulsesLlmWebStream();
+    await testViewComposer_ReactsToConceptComposerCreated();
     await testViewComposer_ConsumesGraphUcaStreamAndInnervatesWebUca();
     await testViewComposer_PromptApi_EndToEnd();
     console.log('✔ All ViewComposer UCA tests with LlmWeb, Graph, PromptApi, and Web UCAs passed successfully.');

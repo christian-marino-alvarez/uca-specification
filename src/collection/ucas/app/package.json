@@ -33,6 +33,7 @@
     }
   },
   "dependencies": {
+    "@uca/concept-composer": "^0.1.0",
     "@uca/core": "^0.1.0",
     "@uca/view-composer": "^0.1.0"
   },

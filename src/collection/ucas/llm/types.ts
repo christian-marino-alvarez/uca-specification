@@ -26,6 +26,8 @@ export enum DataType {
 }
 
 export interface InferPayload {
+    readonly correlationId?: string;
+    readonly streamId?: string;
     readonly request: string;
     readonly provider?: ProviderType;
     readonly model?: string;
@@ -35,10 +37,12 @@ export interface InferPayload {
     readonly format?: string;
     readonly depth?: number;
     readonly limit?: number;
+    readonly thinkingBudget?: number;
     readonly expectations?: Record<string, unknown>;
 }
 
 export interface InferResult {
+    readonly correlationId?: string;
     readonly response?: string;
     readonly data?: unknown;
     readonly context?: unknown;
@@ -47,12 +51,16 @@ export interface InferResult {
 }
 
 export interface ChunkResult {
+    readonly correlationId?: string;
+    readonly streamId?: string;
     readonly text: string;
     readonly prompt?: string;
     readonly model?: string;
 }
 
 export interface StreamEndResult {
+    readonly correlationId?: string;
+    readonly streamId?: string;
     readonly prompt?: string;
     readonly model?: string;
 }
@@ -66,6 +74,7 @@ export interface Body {
     readonly imagination?: number;
     readonly role?: string;
     readonly limit?: number;
+    readonly thinkingBudget?: number;
     readonly connection?: ConnectionConfig;
 }
 

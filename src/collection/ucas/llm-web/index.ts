@@ -109,7 +109,8 @@ export class LlmWeb extends Uca<Body> {
     private async handlePrompt(value: unknown): Promise<void> {
         const payload = (value ?? {}) as PromptPayload;
         if (!this.shouldUseRemote(payload) && this.isPromptApiAvailable(payload)) {
-            this.pulse(PromptApiSignalType.PROMPT, payload as PromptApiPayload);
+            const { id, ...promptApiPayload } = payload;
+            this.pulse(PromptApiSignalType.PROMPT, promptApiPayload as PromptApiPayload);
             return;
         }
         await this.dispatchFetchPrompt(payload);
@@ -137,14 +138,14 @@ export class LlmWeb extends Uca<Body> {
     }
 
     private delegatePromptApiStream(streamId: string, payload: StreamPayload): void {
-        const { prompt } = payload;
         console.log(`🤖 [CLIENT][LlmWeb] Delegando en capability PromptApi [${streamId}]`);
         const stream = new ReadableStream<string>({
             start: (controller) => { this.activeControllers.set(streamId, controller); },
             cancel: () => { this.activeControllers.delete(streamId); },
         });
-        this.pulse(SignalType.STREAM_DECODED, { streamId, stream, model: 'prompt-api' });
-        this.pulse(PromptApiSignalType.STREAM, payload);
+        this.pulse(SignalType.STREAM_DECODED, { sourceId: this.id, streamId, correlationId: streamId, stream, model: 'prompt-api' });
+        const { id, ...promptApiPayload } = payload;
+        this.pulse(PromptApiSignalType.STREAM, promptApiPayload);
     }
 
     private handlePromptApiChunk(value: unknown): void {
@@ -193,14 +194,15 @@ export class LlmWeb extends Uca<Body> {
     }
 
     private async dispatchFetchPrompt(payload: PromptPayload): Promise<void> {
-        const { prompt } = payload;
-        const { endpoint = DEFAULT_ENDPOINT } = (this.disposition.aim.body ?? {}) as Body;
+        const { prompt, schema, correlationId, requestId, thinkingBudget } = payload;
+        const { endpoint = DEFAULT_ENDPOINT, thinkingBudget: bBudget } = (this.disposition.aim.body ?? {}) as Body;
+        const activeId = correlationId ?? requestId ?? this.generateSessionId();
         const { model, provider } = this.resolvePromptTarget(payload);
         try {
-            const data = await this.sendPromptRequest(endpoint, prompt, model, provider);
-            this.pulse(SignalType.RESPONSE, data);
+            const data = await this.sendPromptRequest(endpoint, prompt, model, provider, schema, activeId, thinkingBudget ?? bBudget);
+            this.pulse(SignalType.RESPONSE, { ...data, sourceId: this.id, correlationId: activeId });
         } catch (error) {
-            this.pulse(SignalType.ERROR, error);
+            this.pulse(SignalType.ERROR, { error, sourceId: this.id, correlationId: activeId });
         }
     }
 
@@ -213,54 +215,44 @@ export class LlmWeb extends Uca<Body> {
         };
     }
 
-    private async sendPromptRequest(endpoint: string, prompt: string, model: string, provider: string): Promise<ResponsePayload> {
+    private async sendPromptRequest(endpoint: string, prompt: string, model: string, provider: string, schema?: Record<string, unknown>, correlationId?: string, thinkingBudget?: number): Promise<ResponsePayload> {
         this.abortController = new AbortController();
         const url = this.resolveUrl(endpoint);
         const headers = { 'Content-Type': 'application/json' };
-        const response = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ prompt, model, provider }), signal: this.abortController.signal });
-        const data = (await response.json()) as ResponsePayload;
-        return data;
+        const body = JSON.stringify({ prompt, model, provider, schema, correlationId, thinkingBudget });
+        const response = await fetch(url, { method: 'POST', headers, body, signal: this.abortController.signal });
+        return (await response.json()) as ResponsePayload;
     }
 
     private async dispatchSseStream(payload: StreamPayload, streamId: string): Promise<void> {
-        const { prompt } = payload;
-        const { sseEndpoint = DEFAULT_SSE_ENDPOINT } = (this.disposition.aim.body ?? {}) as Body;
+        const { prompt, correlationId, thinkingBudget, schema } = payload;
+        const activeCorrelationId = correlationId ?? streamId;
+        const { sseEndpoint = DEFAULT_SSE_ENDPOINT, thinkingBudget: bBudget } = (this.disposition.aim.body ?? {}) as Body;
         const { model, provider } = this.resolvePromptTarget(payload);
-        await this.executeStreamSession(sseEndpoint, prompt, streamId, model, provider);
+        await this.executeStreamSession(sseEndpoint, prompt, streamId, model, provider, activeCorrelationId, thinkingBudget ?? bBudget, schema);
     }
 
-    private async executeStreamSession(
-        sseEndpoint: string,
-        prompt: string,
-        streamId: string,
-        model: string,
-        provider: string,
-    ): Promise<void> {
+    private async executeStreamSession(sseEndpoint: string, prompt: string, streamId: string, model: string, provider: string, correlationId: string, thinkingBudget?: number, schema?: Record<string, unknown>): Promise<void> {
         console.log(`📡 [CLIENT][LlmWeb] Abriendo stream SSE [${streamId}] (${provider}/${model}):`, sseEndpoint);
         try {
-            await this.connectSseStream(sseEndpoint, prompt, streamId, model, provider);
+            await this.connectSseStream(sseEndpoint, prompt, streamId, model, provider, correlationId, thinkingBudget, schema);
             console.log(`🏁 [CLIENT][LlmWeb] Stream SSE [${streamId}] completado.`);
         } catch (error) {
             if ((error as Error)?.name === 'AbortError') { return; }
             console.error(`❌ [CLIENT][LlmWeb] Error en stream SSE [${streamId}]:`, error);
-            this.pulse(SignalType.ERROR, { error, streamId });
+            this.pulse(SignalType.ERROR, { error, streamId, correlationId, sourceId: this.id });
         }
     }
 
-    private async connectSseStream(
-        sseEndpoint: string,
-        prompt: string,
-        streamId: string,
-        model: string,
-        provider: string,
-    ): Promise<void> {
+    private async connectSseStream(sseEndpoint: string, prompt: string, streamId: string, model: string, provider: string, correlationId: string, thinkingBudget?: number, schema?: Record<string, unknown>): Promise<void> {
         this.abortController = new AbortController();
         const fullEndpoint = this.resolveUrl(sseEndpoint);
         const headers = { 'Content-Type': 'application/json', Accept: 'text/event-stream' };
-        const response = await fetch(fullEndpoint, { method: 'POST', headers, body: JSON.stringify({ prompt, model, provider }), signal: this.abortController.signal });
-        const { body } = response;
-        if (!body) { return; }
-        this.pulse(SignalType.STREAM_DECODED, { streamId, stream: body.pipeThrough(this.createSseTransform()), model });
+        const body = JSON.stringify({ prompt, model, provider, streamId, correlationId, thinkingBudget, ...(schema && { schema }) });
+        const response = await fetch(fullEndpoint, { method: 'POST', headers, body, signal: this.abortController.signal });
+        const { body: streamBody } = response;
+        if (!streamBody) { return; }
+        this.pulse(SignalType.STREAM_DECODED, { sourceId: this.id, streamId, correlationId, stream: streamBody.pipeThrough(this.createSseTransform()), model });
     }
 
     private resolveUrl(endpoint: string): string {

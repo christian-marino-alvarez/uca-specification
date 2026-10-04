@@ -33,15 +33,20 @@ export interface ConnectionStatus {
 }
 
 export interface GeneratePayload {
+    readonly correlationId?: string;
+    readonly streamId?: string;
     readonly prompt: string;
     readonly systemInstruction?: string;
     readonly schema?: Record<string, unknown>;
     readonly model?: string;
     readonly temperature?: number;
     readonly maxOutputTokens?: number;
+    readonly thinkingBudget?: number;
+    readonly responseMimeType?: string;
 }
 
 export interface GenerateResult {
+    readonly correlationId?: string;
     readonly prompt: string;
     readonly text?: string;
     readonly data?: unknown;
@@ -50,12 +55,16 @@ export interface GenerateResult {
 }
 
 export interface ChunkResult {
+    readonly correlationId?: string;
+    readonly streamId?: string;
     readonly text: string;
     readonly prompt?: string;
     readonly model?: string;
 }
 
 export interface StreamEndResult {
+    readonly correlationId?: string;
+    readonly streamId?: string;
     readonly prompt?: string;
     readonly model?: string;
 }
@@ -64,4 +73,9 @@ export interface Body {
     readonly client?: GoogleGenAI;
     readonly connection?: ConnectionConfig;
     readonly model?: string;
+    readonly thinkingBudget?: number;
+    readonly temperature?: number;
+    readonly maxOutputTokens?: number;
+    readonly systemInstruction?: string;
+    readonly responseMimeType?: string;
 }

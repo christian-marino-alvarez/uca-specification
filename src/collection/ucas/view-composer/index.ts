@@ -23,8 +23,9 @@ import { Dropdown } from '@uca/dropdown';
 import { Choice } from '@uca/choice';
 import { Access } from '@uca/access';
 import { Collector } from '@uca/collector';
+import { SignalType as ConceptComposerSignalType, type ConceptMap } from '@uca/concept-composer/types';
 import { __ID__, DEFAULT_SIGNALS, PURPOSE } from './constants.js';
-import { buildCompositionPrompt } from './prompt.js';
+import { buildCompositionPrompt, getCommunicationJsonSchema } from './prompt.js';
 import { type Body, DataType, SignalType } from './types.js';
 
 const UCA_CATALOG: Record<string, CapabilityConstructor> = {
@@ -54,9 +55,9 @@ export class ViewComposer extends Uca<Body> {
 
     public static override disposition: Disposition<Body> = {
         aim: { description: ViewComposer.purpose, body: {} },
-        reactTo: [...DEFAULT_SIGNALS, GraphSignalType.UCA_STREAM],
+        reactTo: [ConceptComposerSignalType.CREATED, GraphSignalType.UCA_STREAM, SignalType.UPDATE, SignalType.REMOVE],
         inputs: [
-            { signal: SignalType.CREATE, type: DataType.VOID, description: 'Initialize view composition scaffolding' },
+            { signal: ConceptComposerSignalType.CREATED, type: DataType.CONCEPT_MAP, description: 'Compose view from conceptual map' },
             { signal: SignalType.UPDATE, type: DataType.VOID, description: 'Update view composition scaffolding' },
             { signal: SignalType.REMOVE, type: DataType.VOID, description: 'Tear down view composition scaffolding' },
             { signal: GraphSignalType.UCA_STREAM, type: DataType.STREAM, description: 'Stream of parsed UCA candidates' },
@@ -73,10 +74,18 @@ export class ViewComposer extends Uca<Body> {
         super(id);
     }
 
+    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
+        const base = disposition ?? ViewComposer.disposition;
+        const { reactTo = [] } = base;
+        const internalSignals = [ConceptComposerSignalType.CREATED, GraphSignalType.UCA_STREAM];
+        const signals = [...new Set([...reactTo, ...internalSignals])];
+        return super.innervate(target, { ...base, reactTo: signals });
+    }
+
     protected override capabilities(): Cooky {
         const { aim } = this.disposition;
         const { model, provider, endpoint, sseEndpoint, factory } = (aim.body ?? {}) as Body;
-        const llmDisp: Disposition = { aim: { description: LlmWeb.purpose, body: { model, provider, endpoint, sseEndpoint, factory } }, reactTo: [...LlmWeb.disposition.reactTo ?? []] };
+        const llmDisp: Disposition = { aim: { description: LlmWeb.purpose, body: { id: `llm-web:${this.id}`, model, provider, endpoint, sseEndpoint, factory } }, reactTo: [...LlmWeb.disposition.reactTo ?? []] };
         const graphDisp: Disposition = { aim: { description: Graph.AIM, body: {} }, reactTo: [...Graph.disposition.reactTo ?? []] };
         return [[LlmWeb, llmDisp], [Graph, graphDisp]];
     }
@@ -84,7 +93,7 @@ export class ViewComposer extends Uca<Body> {
     protected override react(signal: Signal): void {
         const { property, value } = signal;
         switch (property) {
-            case SignalType.CREATE:
+            case ConceptComposerSignalType.CREATED:
                 this.handleCreate(value);
                 break;
             case SignalType.UPDATE:
@@ -108,11 +117,21 @@ export class ViewComposer extends Uca<Body> {
         this.streamStartTime = Date.now();
         this.renderedCount = 0;
         const payload = (value ?? {}) as Body;
-        const { prompt, model, provider, documentation, factory } = payload;
-        const request = prompt ?? payload.title ?? this.disposition.aim.description;
+        const { concept, prompt, model, provider, documentation, factory } = payload;
+        const request = this.formatRequest(concept, prompt ?? payload.title);
         const fullPrompt = buildCompositionPrompt(request, UCA_CATALOG, documentation);
-        this.pulse(LlmWebSignalType.STREAM, { prompt: fullPrompt, model, provider, factory });
+        const streamId = `view-${this.id}-${Date.now()}`;
+        this.pulse(LlmWebSignalType.STREAM, { id: `llm-web:${this.id}`, correlationId: streamId, streamId, prompt: fullPrompt, model, provider, factory, schema: getCommunicationJsonSchema() });
         this.pulse(SignalType.CREATED, { ...this.getDomainProperties(), ...payload });
+    }
+
+    private formatRequest(concept?: ConceptMap, title?: string): string {
+        if (!concept) { return title ?? this.disposition.aim.description; }
+        const { theme, capabilities, zones } = concept;
+        const { name, essence, mood, aesthetic } = theme;
+        const caps = capabilities.map((c) => `- ${c.name}: ${c.purpose} (Interaction: ${c.interaction})`).join('\n');
+        const zonesDesc = zones.map((z) => `- Zone "${z.name}" (${z.purpose}) -> Materialize UCAs for: [${z.capabilities.join(', ')}]`).join('\n');
+        return `THEMATIC CONCEPT:\nName: "${name}"\nEssence: ${essence}\nMood: ${mood}\nAesthetic: ${aesthetic}\n\nCONCEPTUAL CAPABILITIES:\n${caps}\n\nZONES TO MATERIALIZE:\n${zonesDesc}\n\nINSTRUCTION: Structure each Zone as a container Box, and instantiate child UCAs for each capability.`;
     }
 
     private handleUpdate(value: unknown): void {
@@ -137,8 +156,8 @@ export class ViewComposer extends Uca<Body> {
 
     private handleUcaStream(value: unknown): void {
         const payload = (value ?? {}) as UcaStreamPayload;
-        const { stream } = payload;
-        if (!stream) { return; }
+        const { stream, streamId } = payload;
+        if (!stream || (streamId && !streamId.includes(this.id))) { return; }
         const consumer = new WritableStream<UcaItem>({
             write: (item: UcaItem) => this.handleUcaItem(item),
             close: () => this.handleStreamClose(),

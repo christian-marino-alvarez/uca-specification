@@ -55,43 +55,43 @@ export class Gemini extends Capability<Body> {
     private async handleStream(value: unknown): Promise<void> {
         const payload = this.extractPayload<GeneratePayload>(value);
         if (!payload) { return; }
-        const { prompt, model = DEFAULT_MODEL, schema } = payload;
+        const { prompt, correlationId, streamId } = payload;
+        const activeCorrelationId = correlationId ?? streamId;
         try {
-            await this.executeStream(this.resolveClient(), prompt, model, schema);
+            await this.executeStream(this.resolveClient(), payload, activeCorrelationId);
         } catch (error) {
             console.error('❌ [GEMINI] Fallback activado:', error);
-            this.handleStreamFallback(prompt, model);
+            this.handleStreamFallback(prompt, activeCorrelationId);
         }
     }
 
-    private async executeStream(client: GoogleGenAI, prompt: string, model: string, schema?: Record<string, unknown>): Promise<void> {
-        const config = { responseMimeType: 'application/json', ...(schema && { responseSchema: schema }), thinkingConfig: { thinkingBudget: 0 } };
+    private async executeStream(client: GoogleGenAI, payload: GeneratePayload, correlationId?: string): Promise<void> {
+        const { prompt } = payload;
+        const { model, config } = this.resolveGenerationConfig(payload);
         const stream = await client.models.generateContentStream({ model, contents: prompt, config });
         const state = { start: Date.now(), first: true };
-        for await (const chunk of stream) {
-            this.handleStreamChunk(chunk, state, prompt, model);
-        }
-        console.log(`🏁 [GEMINI API] [t=+${Date.now() - state.start}ms] Stream de Google completado.`);
-        this.pulse(SignalType.STREAM_END, { prompt, model });
+        for await (const chunk of stream) { this.handleStreamChunk(chunk, state, prompt, model, correlationId); }
+        console.log(`🏁 [GEMINI API] [${correlationId ?? 'stream'}] [t=+${Date.now() - state.start}ms] Stream completado.`);
+        this.pulse(SignalType.STREAM_END, { prompt, model, correlationId, streamId: correlationId });
     }
 
-    private handleStreamChunk(chunk: { text?: string }, state: { start: number; first: boolean }, prompt: string, model: string): void {
+    private handleStreamChunk(chunk: { text?: string }, state: { start: number; first: boolean }, prompt: string, model: string, correlationId?: string): void {
         const text = chunk.text ?? '';
         if (!text) { return; }
         if (state.first) {
             state.first = false;
-            console.log(`⚡ [GEMINI API] [t=+${Date.now() - state.start}ms] ¡Primer token recibido de Google!`);
+            console.log(`⚡ [GEMINI API] [${correlationId ?? 'stream'}] [t=+${Date.now() - state.start}ms] ¡Primer token recibido!`);
         }
-        this.pulse(SignalType.CHUNK, { text, prompt, model });
+        this.pulse(SignalType.CHUNK, { text, prompt, model, correlationId, streamId: correlationId });
     }
 
-    private handleStreamFallback(prompt: string, model: string): void {
+    private handleStreamFallback(prompt: string, correlationId?: string): void {
         const fallbackText = this.buildStreamFallbackJson(prompt);
         const tokens = this.sliceIntoTokens(fallbackText);
         for (const token of tokens) {
-            this.pulse(SignalType.CHUNK, { text: token, prompt, model });
+            this.pulse(SignalType.CHUNK, { text: token, prompt, correlationId, streamId: correlationId });
         }
-        this.pulse(SignalType.STREAM_END, { prompt, model });
+        this.pulse(SignalType.STREAM_END, { prompt, correlationId, streamId: correlationId });
     }
 
     private sliceIntoTokens(text: string): string[] {
@@ -147,20 +147,24 @@ export class Gemini extends Capability<Body> {
     }
 
     private async executeGeneration(client: GoogleGenAI, payload: GeneratePayload): Promise<GenerateResult> {
-        const { prompt, schema, systemInstruction, temperature = DEFAULT_TEMPERATURE, maxOutputTokens = DEFAULT_MAX_OUTPUT_TOKENS, model = DEFAULT_MODEL } = payload;
-        const config = {
-            ...(systemInstruction && { systemInstruction }),
-            responseMimeType: 'application/json',
-            ...(schema && { responseSchema: schema }),
-            thinkingConfig: { thinkingBudget: 1024 },
-            temperature,
-            maxOutputTokens,
-        };
+        const { prompt, correlationId } = payload;
+        const { model, config } = this.resolveGenerationConfig(payload);
         const response = await client.models.generateContent({ model, contents: prompt, config });
-        return this.formatResult(response, prompt, model);
+        return this.formatResult(response, prompt, model, correlationId);
     }
 
-    private formatResult(response: { text?: string; usageMetadata?: unknown }, prompt: string, model: string): GenerateResult {
+    private resolveGenerationConfig(payload: GeneratePayload): { model: string; config: Record<string, unknown> } {
+        const { aim } = this.disposition;
+        const { model: bM, temperature: bT, maxOutputTokens: bL, thinkingBudget: bB, systemInstruction: bI, responseMimeType: bR } = (aim.body ?? {}) as Body;
+        const { schema: s, systemInstruction = bI, temperature = bT, maxOutputTokens = bL, model = bM ?? DEFAULT_MODEL, thinkingBudget = bB, responseMimeType = bR } = payload;
+        const schema = typeof s === 'string' ? JSON.parse(s) : s;
+        const mimeType = responseMimeType ?? (schema ? 'application/json' : undefined);
+        const thinkingConfig = thinkingBudget !== undefined ? { thinkingBudget } : undefined;
+        const config = { ...(systemInstruction && { systemInstruction }), ...(mimeType && { responseMimeType: mimeType }), ...(schema && { responseSchema: schema }), ...(thinkingConfig && { thinkingConfig }), ...(temperature !== undefined && { temperature }), ...(maxOutputTokens !== undefined && { maxOutputTokens }) };
+        return { model, config };
+    }
+
+    private formatResult(response: { text?: string; usageMetadata?: unknown }, prompt: string, model: string, correlationId?: string): GenerateResult {
         const { text = '', usageMetadata } = response;
         const usage = usageMetadata as Record<string, unknown> | undefined;
         let data: unknown;
@@ -169,7 +173,7 @@ export class Gemini extends Capability<Body> {
         } catch {
             data = undefined;
         }
-        return { prompt, text, data, model, usage };
+        return { prompt, text, data, model, usage, correlationId };
     }
 
     private resolveClient(): GoogleGenAI {
