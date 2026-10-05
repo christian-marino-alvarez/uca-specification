@@ -2,13 +2,8 @@ import { DomHarness } from '../../../../../tests/shared/dom-harness.js';
 import * as assert from 'node:assert';
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
-import type { Body, LifecycleContext, EventContext } from '../index.js';
-import {
-    DataType,
-    SignalType,
-    WebComponent,
-    WebComponents,
-} from '../index.js';
+import { type Body, type LifecycleContext, type EventContext, DataType, SignalType } from '../types.js';
+import { WebComponent, WebComponents } from '../index.js';
 
 function testWebComponent_IdentityAndPorts(): void {
     const component = new WebComponent();

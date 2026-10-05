@@ -256,5 +256,3 @@ export class HttpServer extends Capability<Body> {
     }
 }
 
-export * from './types.js';
-export * from './constants.js';

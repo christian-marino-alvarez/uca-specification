@@ -1,7 +1,9 @@
 import { Uca } from '@uca/core/uca';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
-import { Gemini, SignalType as GeminiSignalType, type Body as GeminiBody } from '@uca/capability-gemini';
-import { Openai, SignalType as OpenaiSignalType, type Body as OpenaiBody } from '@uca/capability-openai';
+import { Gemini } from '@uca/capability-gemini';
+import { SignalType as GeminiSignalType, type Body as GeminiBody } from '@uca/capability-gemini/types';
+import { Openai } from '@uca/capability-openai';
+import { SignalType as OpenaiSignalType, type Body as OpenaiBody } from '@uca/capability-openai/types';
 import {
     __ID__,
     DEFAULT_GEMINI_MODEL,
@@ -130,13 +132,13 @@ export class Llm extends Uca<Body> {
     }
 
     private buildGeneratePayload(payload: InferPayload, prompt: string, systemInstruction?: string): Record<string, unknown> {
-        const { provider, model, expectations, imagination, limit, correlationId, streamId, thinkingBudget } = payload;
+        const { provider, model, expectations, imagination, limit, correlationId, streamId, thinkingBudget, thinkingLevel } = payload;
         const { aim } = this.disposition;
-        const { thinkingBudget: bodyBudget, imagination: bTemp, limit: bLimit } = (aim.body ?? {}) as Body;
+        const { thinkingBudget: bodyBudget, thinkingLevel: bodyLevel, imagination: bTemp, limit: bLimit } = (aim.body ?? {}) as Body;
         const activeProvider = this.resolveActiveProvider(provider);
         const fallbackModel = activeProvider === 'gemini' ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL;
         const targetModel = model ?? fallbackModel;
-        return { prompt, schema: expectations, systemInstruction, model: targetModel, temperature: imagination ?? bTemp, maxOutputTokens: limit ?? bLimit, correlationId, streamId, thinkingBudget: thinkingBudget ?? bodyBudget };
+        return { prompt, schema: expectations, systemInstruction, model: targetModel, temperature: imagination ?? bTemp, maxOutputTokens: limit ?? bLimit, correlationId, streamId, thinkingBudget: thinkingBudget ?? bodyBudget, thinkingLevel: thinkingLevel ?? bodyLevel };
     }
 
     private handleConnect(value: unknown): void {
@@ -146,14 +148,14 @@ export class Llm extends Uca<Body> {
 
     private handleStream(value: unknown): void {
         const payload = (value ?? {}) as InferPayload;
-        const { request, model, expectations, provider, role, correlationId, streamId, thinkingBudget, imagination, limit } = payload;
+        const { request, model, expectations, provider, role, correlationId, streamId, thinkingBudget, thinkingLevel, imagination, limit } = payload;
         const { aim } = this.disposition;
-        const { thinkingBudget: bBudget, role: bRole, imagination: bTemp, limit: bTokens } = (aim.body ?? {}) as Body;
+        const { thinkingBudget: bBudget, thinkingLevel: bLevel, role: bRole, imagination: bTemp, limit: bTokens } = (aim.body ?? {}) as Body;
         const activeProvider = this.resolveActiveProvider(provider);
         const fallbackModel = activeProvider === 'gemini' ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL;
         const targetModel = model ?? fallbackModel;
         const signal = activeProvider === 'gemini' ? GeminiSignalType.STREAM : OpenaiSignalType.STREAM;
-        this.pulse(signal, { prompt: request, model: targetModel, schema: expectations, systemInstruction: role ?? bRole, correlationId, streamId, thinkingBudget: thinkingBudget ?? bBudget, temperature: imagination ?? bTemp, maxOutputTokens: limit ?? bTokens });
+        this.pulse(signal, { prompt: request, model: targetModel, schema: expectations, systemInstruction: role ?? bRole, correlationId, streamId, thinkingBudget: thinkingBudget ?? bBudget, thinkingLevel: thinkingLevel ?? bLevel, temperature: imagination ?? bTemp, maxOutputTokens: limit ?? bTokens });
     }
 
     private handleCapabilitySignal(property: string, value: unknown): void {
@@ -190,5 +192,3 @@ export class Llm extends Uca<Body> {
     }
 }
 
-export * from './types.js';
-export * from './constants.js';

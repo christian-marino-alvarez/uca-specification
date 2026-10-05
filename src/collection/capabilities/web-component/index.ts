@@ -309,6 +309,3 @@ export class WebComponent extends Capability<Body> {
 }
 
 export { WebComponent as WebComponents };
-export * from './constants.js';
-export * from './types.js';
-export * from './helpers.js';

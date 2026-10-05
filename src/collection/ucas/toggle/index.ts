@@ -1,7 +1,9 @@
 import { Uca } from '@uca/core/uca';
 import { Capability } from '@uca/core/capability';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
-import { WebComponent, SignalType as CapabilitySignalType, __ID__ as WEB_COMPONENT_ID } from '@uca/capability-web-component';
+import { WebComponent } from '@uca/capability-web-component';
+import { SignalType as CapabilitySignalType } from '@uca/capability-web-component/types';
+import { __ID__ as WEB_COMPONENT_ID } from '@uca/capability-web-component/constants';
 import type { Body } from './types.js';
 import { SignalType } from './types.js';
 
@@ -170,5 +172,3 @@ export class Toggle extends Uca<Body> {
     }
 }
 
-export * from './types.js';
-export * from './schema.js';

@@ -2,23 +2,25 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Uca } from '@uca/core/uca';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
+import { HttpServer } from '@uca/capability-http-server';
 import {
-    HttpServer,
     SignalType as HttpServerSignalType,
     type Body as HttpServerBody,
     type RequestContext,
     type RouteConfig,
-} from '@uca/capability-http-server';
+} from '@uca/capability-http-server/types';
+import { Llm } from '@uca/llm';
 import {
-    Llm,
     SignalType as LlmSignalType,
-    DEFAULT_PROVIDER,
-    DEFAULT_GEMINI_MODEL,
     type Body as LlmBody,
     type InferResult,
     type ChunkResult,
     type StreamEndResult,
-} from '@uca/llm';
+} from '@uca/llm/types';
+import {
+    DEFAULT_PROVIDER,
+    DEFAULT_GEMINI_MODEL,
+} from '@uca/llm/constants';
 import {
     __ID__,
     DEFAULT_AUTO_START,
@@ -27,8 +29,8 @@ import {
     DEFAULT_PORT,
     DEFAULT_SIGNALS,
     DEFAULT_WEB_DIR,
-    DEFAULT_TEMPERATURE,
     DEFAULT_MAX_OUTPUT_TOKENS,
+    DELIBERATION_BUDGET_SCALE,
 } from './constants.js';
 import {
     type Body,
@@ -182,15 +184,28 @@ export class Server extends Uca<Body> {
 
     private async handleLlmPost(context: RequestContext): Promise<Response> {
         const { body } = context;
-        const { prompt = 'UCA reasoning request', model, provider, temperature, maxOutputTokens, schema, correlationId: bId, requestId, thinkingBudget } = (body ?? {}) as Record<string, unknown>;
+        const { prompt = 'UCA reasoning request', model, provider, temperature, maxOutputTokens, schema, correlationId: bId, requestId, thinkingBudget, deliberation, conciseness } = (body ?? {}) as Record<string, unknown>;
         const correlationId = String(bId ?? requestId ?? crypto.randomUUID());
-        const budget = typeof thinkingBudget === 'number' ? thinkingBudget : undefined;
+        const budget = this.resolveThinkingBudget(thinkingBudget, deliberation);
+        const limit = this.resolveMaxOutputTokens(maxOutputTokens, conciseness);
         const temp = typeof temperature === 'number' ? temperature : undefined;
-        const limit = typeof maxOutputTokens === 'number' ? maxOutputTokens : undefined;
-        const targetModel = model ? String(model) : undefined;
+        const targetModel = model ? String(model) : DEFAULT_GEMINI_MODEL;
         const targetProvider = provider ? String(provider) : undefined;
         const result = await this.requestLlmInference(String(prompt), targetModel, targetProvider, temp, limit, schema as Record<string, unknown> | undefined, correlationId, budget);
         return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    private resolveThinkingBudget(thinkingBudget: unknown, deliberation: unknown): number | undefined {
+        if (typeof thinkingBudget === 'number') { return thinkingBudget; }
+        if (typeof deliberation === 'number') {
+            return deliberation === 0 ? 0 : Math.round(deliberation * DELIBERATION_BUDGET_SCALE);
+        }
+        return undefined;
+    }
+
+    private resolveMaxOutputTokens(maxOutputTokens: unknown, _conciseness: unknown): number | undefined {
+        if (typeof maxOutputTokens === 'number') { return maxOutputTokens; }
+        return DEFAULT_MAX_OUTPUT_TOKENS;
     }
 
     private requestLlmInference(request: string, model?: string, provider?: string, imagination?: number, limit?: number, expectations?: Record<string, unknown>, correlationId: string = crypto.randomUUID(), thinkingBudget?: number): Promise<InferResult> {
@@ -311,7 +326,7 @@ export class Server extends Uca<Body> {
         schema?: Record<string, unknown>,
     ): void {
         console.log(`⚡ [SERVER] Conectando canal SSE [${correlationId}] con LLM (${provider ?? 'default'}/${model ?? 'default'})...`);
-        try { controller.enqueue(encoder.encode(`event: start\ndata: ${JSON.stringify({ status: 'connected', correlationId, prompt, model, provider })}\n\n`)); } catch {}
+        try { controller.enqueue(encoder.encode(`event: start\ndata: ${JSON.stringify({ status: 'connected', correlationId, prompt, model, provider })}\n\n`)); } catch { }
         this.target?.addEventListener(LlmSignalType.CHUNK, chunkListener);
         this.target?.addEventListener(LlmSignalType.STREAM_END, endListener);
         this.pulse(LlmSignalType.STREAM, { request: prompt, model, provider, correlationId, streamId: correlationId, expectations: schema, thinkingBudget });
@@ -325,7 +340,7 @@ export class Server extends Uca<Body> {
         state.chunkCount += 1;
         const elapsed = Date.now() - state.startTime;
         console.log(`📤 [SERVER] [${state.correlationId}] [t=+${elapsed}ms] Chunk #${state.chunkCount} (${text.length} ch)`);
-        try { controller.enqueue(encoder.encode(`event: message\ndata: ${JSON.stringify({ text, correlationId: state.correlationId })}\n\n`)); } catch {}
+        try { controller.enqueue(encoder.encode(`event: message\ndata: ${JSON.stringify({ text, correlationId: state.correlationId })}\n\n`)); } catch { }
     }
 
     private finishSseStream(
@@ -346,7 +361,7 @@ export class Server extends Uca<Body> {
         try {
             controller.enqueue(encoder.encode(`event: done\ndata: ${JSON.stringify({ done: true, correlationId: state.correlationId })}\n\n`));
             controller.close();
-        } catch {}
+        } catch { }
     }
 
     private handleStaticRequest(context: RequestContext, staticDir?: string, webDir?: string): Response {
@@ -390,5 +405,3 @@ export class Server extends Uca<Body> {
     }
 }
 
-export * from './types.js';
-export * from './constants.js';

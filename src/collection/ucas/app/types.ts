@@ -6,22 +6,15 @@ export enum SignalType {
     CREATED = 'app.created',
     UPDATED = 'app.updated',
     REMOVED = 'app.removed',
+    METRICS = 'app.metrics',
 }
 
 export enum DataType {
     VOID = 'void',
-    RECORD = 'Record',
+    RECORD = 'record',
     STRING = 'string',
+    METRICS = 'metrics',
+    STREAM = 'stream',
 }
 
-export interface Body {
-    readonly title?: string;
-    readonly question?: string;
-    readonly buttonLabel?: string;
-    readonly documentation?: string;
-    readonly model?: string;
-    readonly endpoint?: string;
-    readonly sseEndpoint?: string;
-    readonly factory?: unknown;
-    readonly composedResult?: unknown;
-}
+export type { Body, PerformanceMetrics } from './schema.js';

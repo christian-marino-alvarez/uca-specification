@@ -65,5 +65,3 @@ export class Contains extends Capability<Body> {
     }
 }
 
-export * from './constants.js';
-export * from './types.js';

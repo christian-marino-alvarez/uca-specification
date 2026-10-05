@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Signal } from '@uca/core/types';
-import { LlmWeb, SignalType, type ResponsePayload, type StreamDecodedPayload } from '../index.js';
+import { LlmWeb } from '../index.js';
+import { SignalType, type ResponsePayload, type StreamDecodedPayload } from '../types.js';
 
 async function testLlmWebUca(): Promise<void> {
     const llmWeb = new LlmWeb('test-llm-web');
@@ -117,9 +118,27 @@ async function testLlmWeb_PromptApi_PureLocal(): Promise<void> {
     llmWeb.denervate();
 }
 
+async function testLlmWeb_CognitiveDeterminism(): Promise<void> {
+    const originalFetch = globalThis.fetch;
+    let capturedBody: { temperature?: number } | undefined;
+    globalThis.fetch = async (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+        capturedBody = JSON.parse(String(init?.body)) as { temperature?: number };
+        return new Response(JSON.stringify({ response: 'ok' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    };
+    const llmWeb = new LlmWeb('cognitive-llm-web').innervate();
+    llmWeb.target?.dispatchEvent(new CustomEvent(SignalType.PROMPT, {
+        detail: { source: 'test', property: SignalType.PROMPT, value: { prompt: 'test', determinism: 90, useRemote: true }, timestamp: Date.now() },
+    }));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.ok(Math.abs((capturedBody?.temperature ?? 0) - 0.1) < 0.001);
+    globalThis.fetch = originalFetch;
+    llmWeb.denervate();
+}
+
 async function runAllLlmWebTests(): Promise<void> {
     await testLlmWebUca();
     await testLlmWeb_PromptApi_PureLocal();
+    await testLlmWeb_CognitiveDeterminism();
     console.log('✔ All LlmWeb UCA tests passed successfully.');
 }
 

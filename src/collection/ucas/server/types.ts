@@ -5,7 +5,7 @@ import type {
     RouteHandler,
     HttpMethod,
     RespondConfig,
-} from '@uca/capability-http-server';
+} from '@uca/capability-http-server/types';
 
 export enum SignalType {
     START = 'server.start',

@@ -1,7 +1,9 @@
 import * as assert from 'node:assert';
 import { Capability } from '@uca/core/capability';
 import { DispositionSignal, type DispositionUpdatePayload, type Signal } from '@uca/core/types';
-import { Graph, SignalType, DataType, __ID__, AIM, type UcaItem, type UcaStreamPayload } from '../index.js';
+import { Graph } from '../index.js';
+import { SignalType, DataType, type UcaItem, type UcaStreamPayload } from '../types.js';
+import { __ID__, AIM } from '../constants.js';
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
@@ -16,9 +18,9 @@ function testGraph_IdentityAndDefaults(): void {
     const { inputs, outputs, aim } = graph.disposition;
     assert.strictEqual(inputs?.length, 1);
     assert.strictEqual(inputs?.[0]?.type, DataType.STREAM_DECODED_PAYLOAD);
-    assert.strictEqual(outputs?.length, 2);
-    assert.strictEqual(outputs?.[0]?.type, DataType.UCA_STREAM_PAYLOAD);
-    assert.strictEqual(outputs?.[1]?.type, DataType.UNKNOWN);
+    assert.strictEqual(outputs?.length, 3);
+    assert.strictEqual(outputs?.[0]?.type, DataType.GRAPH_STREAM_PAYLOAD);
+    assert.strictEqual(outputs?.[1]?.type, DataType.GRAPH_NODE);
     assert.strictEqual(aim.description, AIM);
 }
 
@@ -62,7 +64,7 @@ async function testGraph_ProcessesDecodedWebStreamViaTransformAndWritable(): Pro
         const { stream } = payload;
         const writable = new WritableStream<UcaItem>({
             write(uca) {
-                detectedUcas.push(uca.id);
+                detectedUcas.push(uca.key);
             },
         });
         stream.pipeTo(writable);
@@ -99,8 +101,8 @@ async function testGraph_ProcessesMultipleStreamsInParallelWithIsolatedQueues():
         const { stream, streamId } = payload;
         const writable = new WritableStream<UcaItem>({
             write(uca) {
-                if (streamId === 'stream-A') { streamAUcas.push(uca.id); }
-                if (streamId === 'stream-B') { streamBUcas.push(uca.id); }
+                if (streamId === 'stream-A') { streamAUcas.push(uca.key); }
+                if (streamId === 'stream-B') { streamBUcas.push(uca.key); }
             },
         });
         stream.pipeTo(writable);
@@ -137,11 +139,48 @@ async function testGraph_ProcessesMultipleStreamsInParallelWithIsolatedQueues():
     graphCap.denervate();
 }
 
+async function testGraph_StreamsKeyValuesAgainstSchema(): Promise<void> {
+    const bus = new EventTarget();
+    const graphCap = new Graph('graph-schema-test').innervate(bus);
+    const streamedKeys: string[] = [];
+
+    bus.addEventListener(SignalType.STREAM, (event: Event) => {
+        const payload = (event as CustomEvent<Signal<UcaStreamPayload>>).detail.value;
+        const { stream } = payload;
+        const writable = new WritableStream<UcaItem>({
+            write(node) {
+                streamedKeys.push(node.key);
+            },
+        });
+        stream.pipeTo(writable);
+    });
+
+    const stream = new ReadableStream<string>({
+        start(controller) {
+            controller.enqueue('{\n  "global": { "--color": "#10b981" },\n');
+            controller.enqueue('  "header": { "parentTo": "app",');
+            controller.enqueue(' "purpose": "Nav" },\n  "login": { "parentTo": "header" }\n}');
+            controller.close();
+        },
+    });
+
+    emitSignal(bus, SignalType.STREAM_DECODED, { stream });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    assert.strictEqual(streamedKeys.length, 3);
+    assert.strictEqual(streamedKeys[0], 'global');
+    assert.strictEqual(streamedKeys[1], 'header');
+    assert.strictEqual(streamedKeys[2], 'login');
+
+    graphCap.denervate();
+}
+
 async function runAllGraphTests(): Promise<void> {
     testGraph_IdentityAndDefaults();
     await testGraph_DiscardsInvalidUcaCandidate();
     await testGraph_ProcessesDecodedWebStreamViaTransformAndWritable();
     await testGraph_ProcessesMultipleStreamsInParallelWithIsolatedQueues();
+    await testGraph_StreamsKeyValuesAgainstSchema();
     console.log('✔ All Graph capability tests passed successfully.');
 }
 

@@ -1,5 +1,5 @@
-import type { ConnectionConfig as GeminiConnectionConfig } from '@uca/capability-gemini';
-import type { ConnectionConfig as OpenaiConnectionConfig } from '@uca/capability-openai';
+import type { ConnectionConfig as GeminiConnectionConfig, ThinkingLevel } from '@uca/capability-gemini/types';
+import type { ConnectionConfig as OpenaiConnectionConfig } from '@uca/capability-openai/types';
 
 export type ProviderType = 'openai' | 'gemini';
 export type ConnectionConfig = GeminiConnectionConfig | OpenaiConnectionConfig;
@@ -38,6 +38,7 @@ export interface InferPayload {
     readonly depth?: number;
     readonly limit?: number;
     readonly thinkingBudget?: number;
+    readonly thinkingLevel?: ThinkingLevel;
     readonly expectations?: Record<string, unknown>;
 }
 
@@ -75,6 +76,7 @@ export interface Body {
     readonly role?: string;
     readonly limit?: number;
     readonly thinkingBudget?: number;
+    readonly thinkingLevel?: ThinkingLevel;
     readonly connection?: ConnectionConfig;
 }
 

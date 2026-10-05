@@ -1,20 +1,23 @@
 import { Uca } from '@uca/core/uca';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
+import { PromptApi } from '@uca/capability-prompt-api';
 import {
-    PromptApi,
     SignalType as PromptApiSignalType,
     type AILanguageModelFactory,
     type ChunkResult,
     type PromptPayload as PromptApiPayload,
     type PromptResult,
-} from '@uca/capability-prompt-api';
+} from '@uca/capability-prompt-api/types';
 import {
     __ID__,
+    DEFAULT_CONCISENESS,
+    DEFAULT_DELIBERATION,
     DEFAULT_ENDPOINT,
     DEFAULT_MODEL,
     DEFAULT_PROVIDER,
     DEFAULT_SIGNALS,
     DEFAULT_SSE_ENDPOINT,
+    DEFAULT_TEMPERATURE,
     DEFAULT_USE_REMOTE,
 } from './constants.js';
 import {
@@ -106,25 +109,37 @@ export class LlmWeb extends Uca<Body> {
         }
     }
 
+    private resolvePromptContent(payload: PromptPayload | StreamPayload): string {
+        const { prompt, purpose, aim } = payload;
+        if (prompt) { return prompt; }
+        const { description = '', body } = aim ?? {};
+        const context = body ? `\nContext:\n${JSON.stringify(body, null, 2)}` : '';
+        return `Purpose: ${purpose ?? LlmWeb.purpose}\nAim: ${description}${context}\nRespond strictly with a valid, completely closed JSON object satisfying this aim.`;
+    }
+
     private async handlePrompt(value: unknown): Promise<void> {
         const payload = (value ?? {}) as PromptPayload;
-        if (!this.shouldUseRemote(payload) && this.isPromptApiAvailable(payload)) {
-            const { id, ...promptApiPayload } = payload;
+        const prompt = this.resolvePromptContent(payload);
+        const resolved = { ...payload, prompt };
+        if (!this.shouldUseRemote(resolved) && this.isPromptApiAvailable(resolved)) {
+            const { id, ...promptApiPayload } = resolved;
             this.pulse(PromptApiSignalType.PROMPT, promptApiPayload as PromptApiPayload);
             return;
         }
-        await this.dispatchFetchPrompt(payload);
+        await this.dispatchFetchPrompt(resolved);
     }
 
     private async handleStream(value: unknown): Promise<void> {
         const payload = (value ?? {}) as StreamPayload;
-        const { streamId } = payload;
+        const prompt = this.resolvePromptContent(payload);
+        const resolved = { ...payload, prompt };
+        const { streamId } = resolved;
         const activeStreamId = streamId ?? this.generateSessionId();
-        if (!this.shouldUseRemote(payload) && this.isPromptApiAvailable(payload)) {
-            this.delegatePromptApiStream(activeStreamId, payload);
+        if (!this.shouldUseRemote(resolved) && this.isPromptApiAvailable(resolved)) {
+            this.delegatePromptApiStream(activeStreamId, resolved);
             return;
         }
-        await this.dispatchSseStream(payload, activeStreamId);
+        await this.dispatchSseStream(resolved, activeStreamId);
     }
 
     private shouldUseRemote(payload: { useRemote?: boolean; factory?: AILanguageModelFactory }): boolean {
@@ -174,7 +189,8 @@ export class LlmWeb extends Uca<Body> {
 
     private handlePromptApiResponded(value: unknown): void {
         const { response } = (value ?? {}) as PromptResult;
-        this.pulse(SignalType.RESPONSE, { response, model: 'prompt-api' });
+        const data = this.parseResponseData(response);
+        this.pulse(SignalType.RESPONSE, { response, data, model: 'prompt-api' });
     }
 
     private isPromptApiAvailable(payload?: StreamPayload | PromptPayload): boolean {
@@ -193,17 +209,63 @@ export class LlmWeb extends Uca<Body> {
         return `stream-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
     }
 
+    private resolveTemperature(payload: PromptPayload | StreamPayload): number {
+        const { temperature, determinism, imagination } = payload;
+        if (temperature !== undefined) { return temperature; }
+        if (imagination !== undefined) {
+            const value = imagination > 1 ? imagination / 100 : imagination;
+            return Math.max(0, Math.min(1, value));
+        }
+        if (determinism !== undefined) {
+            const value = determinism > 1 ? determinism / 100 : determinism;
+            return Math.max(0, Math.min(1, 1 - value));
+        }
+        const { temperature: bodyTemp } = (this.disposition.aim.body ?? {}) as Body;
+        return bodyTemp ?? DEFAULT_TEMPERATURE;
+    }
+
     private async dispatchFetchPrompt(payload: PromptPayload): Promise<void> {
-        const { prompt, schema, correlationId, requestId, thinkingBudget, temperature, maxOutputTokens } = payload;
-        const { endpoint = DEFAULT_ENDPOINT, thinkingBudget: bB, temperature: bT, maxOutputTokens: bM } = (this.disposition.aim.body ?? {}) as Body;
+        const { correlationId, requestId } = payload;
         const activeId = correlationId ?? requestId ?? this.generateSessionId();
-        const { model, provider } = this.resolvePromptTarget(payload);
         try {
-            const data = await this.sendPromptRequest({ endpoint, prompt, model, provider, schema, correlationId: activeId, thinkingBudget: thinkingBudget ?? bB, temperature: temperature ?? bT, maxOutputTokens: maxOutputTokens ?? bM });
-            this.pulse(SignalType.RESPONSE, { ...data, sourceId: this.id, correlationId: activeId });
+            const result = await this.executePromptRequest(payload, activeId);
+            const rawText = (result as { text?: string; response?: string }).text ?? result.response ?? '';
+            const data = result.data ?? this.parseResponseData(rawText);
+            this.pulse(SignalType.RESPONSE, { ...result, response: rawText, data, sourceId: this.id, correlationId: activeId });
         } catch (error) {
             this.pulse(SignalType.ERROR, { error, sourceId: this.id, correlationId: activeId });
         }
+    }
+
+    private resolveDeliberation(payload: PromptPayload | StreamPayload): number {
+        const { deliberation } = payload;
+        if (deliberation !== undefined) { return deliberation; }
+        const { deliberation: bD } = (this.disposition.aim.body ?? {}) as Body;
+        return bD ?? DEFAULT_DELIBERATION;
+    }
+
+    private resolveConciseness(payload: PromptPayload | StreamPayload): number {
+        const { conciseness } = payload;
+        if (conciseness !== undefined) { return conciseness; }
+        const { conciseness: bC } = (this.disposition.aim.body ?? {}) as Body;
+        return bC ?? DEFAULT_CONCISENESS;
+    }
+
+    private async executePromptRequest(payload: PromptPayload, correlationId: string): Promise<ResponsePayload> {
+        const { schema, thinkingBudget, maxOutputTokens } = payload;
+        const prompt = this.resolvePromptContent(payload);
+        const { endpoint = DEFAULT_ENDPOINT, thinkingBudget: bB, maxOutputTokens: bM } = (this.disposition.aim.body ?? {}) as Body;
+        const { model, provider } = this.resolvePromptTarget(payload);
+        const temperature = this.resolveTemperature(payload);
+        const deliberation = this.resolveDeliberation(payload);
+        const conciseness = this.resolveConciseness(payload);
+        return this.sendPromptRequest({ endpoint, prompt, model, provider, schema, correlationId, deliberation, conciseness, temperature, thinkingBudget: thinkingBudget ?? bB, maxOutputTokens: maxOutputTokens ?? bM });
+    }
+
+    private parseResponseData(response?: string): unknown {
+        if (!response) { return undefined; }
+        const cleaned = response.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
+        try { return JSON.parse(cleaned); } catch { return undefined; }
     }
 
     private resolvePromptTarget(payload: PromptPayload | StreamPayload): { model: string; provider: string } {
@@ -215,18 +277,19 @@ export class LlmWeb extends Uca<Body> {
         };
     }
 
-    private async sendPromptRequest(options: { endpoint: string; prompt: string; model: string; provider: string; schema?: Record<string, unknown>; correlationId?: string; thinkingBudget?: number; temperature?: number; maxOutputTokens?: number }): Promise<ResponsePayload> {
-        const { endpoint, prompt, model, provider, schema, correlationId, thinkingBudget, temperature, maxOutputTokens } = options;
+    private async sendPromptRequest(options: { endpoint: string; [key: string]: unknown }): Promise<ResponsePayload> {
+        const { endpoint, ...bodyData } = options;
         this.abortController = new AbortController();
         const url = this.resolveUrl(endpoint);
         const headers = { 'Content-Type': 'application/json' };
-        const body = JSON.stringify({ prompt, model, provider, schema, correlationId, thinkingBudget, temperature, maxOutputTokens });
+        const body = JSON.stringify(bodyData);
         const response = await fetch(url, { method: 'POST', headers, body, signal: this.abortController.signal });
         return (await response.json()) as ResponsePayload;
     }
 
     private async dispatchSseStream(payload: StreamPayload, streamId: string): Promise<void> {
-        const { prompt, correlationId, thinkingBudget, schema } = payload;
+        const { correlationId, thinkingBudget, schema } = payload;
+        const prompt = this.resolvePromptContent(payload);
         const activeCorrelationId = correlationId ?? streamId;
         const { sseEndpoint = DEFAULT_SSE_ENDPOINT, thinkingBudget: bBudget } = (this.disposition.aim.body ?? {}) as Body;
         const { model, provider } = this.resolvePromptTarget(payload);
@@ -305,6 +368,3 @@ export class LlmWeb extends Uca<Body> {
         } catch { }
     }
 }
-
-export * from './types.js';
-export * from './constants.js';

@@ -1,7 +1,7 @@
 {
-  "name": "@uca/concept-composer",
+  "name": "@uca/scaffold-composer",
   "version": "0.1.0",
-  "description": "UCA ConceptComposer transforms application intent into a thematic capability map",
+  "description": "UCA ScaffoldComposer interprets application intent and defines minimal conceptual architecture with styles",
   "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",
@@ -31,26 +31,25 @@
       "import": "./constants.js",
       "default": "./constants.ts"
     },
-    "./schemas": {
-      "types": "./schemas/index.d.ts",
-      "import": "./schemas/index.js",
-      "default": "./schemas/index.ts"
+    "./schema": {
+      "types": "./schema.d.ts",
+      "import": "./schema.js",
+      "default": "./schema.ts"
     },
-    "./schemas/*": {
-      "types": "./schemas/*.d.ts",
-      "import": "./schemas/*.js",
-      "default": "./schemas/*.ts"
+    "./schema.js": {
+      "types": "./schema.d.ts",
+      "import": "./schema.js",
+      "default": "./schema.ts"
     }
   },
   "dependencies": {
+    "@uca/capability-graph": "^0.1.0",
     "@uca/core": "^0.1.0",
-    "@uca/llm-web": "^0.1.0",
-    "zod": "^4.6.5"
+    "@uca/llm-web": "^0.1.0"
   },
   "devDependencies": {
-    "@types/node": "^22.12.0",
-    "tsx": "^4.19.3",
-    "typescript": "^5.7.3"
+    "typescript": "^5.9.3",
+    "tsx": "^4.21.0"
   },
   "scripts": {
     "test": "tsx tests/index.ts"

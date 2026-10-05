@@ -1,12 +1,13 @@
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import { GoogleGenAI } from '@google/genai';
-import { __ID__, __DEFAULT_SIGNALS__, DEFAULT_MODEL, DEFAULT_TEMPERATURE, DEFAULT_MAX_OUTPUT_TOKENS } from './constants.js';
+import { __ID__, __DEFAULT_SIGNALS__, DEFAULT_MODEL, DEFAULT_THINKING_LEVEL, THINKING_LEVEL_MODEL_PREFIX } from './constants.js';
 import {
     type Body,
     type ConnectionConfig,
     type GeneratePayload,
     type GenerateResult,
+    type ThinkingLevel,
     DataType,
     SignalType,
 } from './types.js';
@@ -61,6 +62,7 @@ export class Gemini extends Capability<Body> {
             await this.executeStream(this.resolveClient(), payload, activeCorrelationId);
         } catch (error) {
             console.error('❌ [GEMINI] Fallback activado:', error);
+            this.pulse(SignalType.ERROR, { error: String(error), correlationId: activeCorrelationId });
             this.handleStreamFallback(prompt, activeCorrelationId);
         }
     }
@@ -68,8 +70,10 @@ export class Gemini extends Capability<Body> {
     private async executeStream(client: GoogleGenAI, payload: GeneratePayload, correlationId?: string): Promise<void> {
         const { prompt } = payload;
         const { model, config } = this.resolveGenerationConfig(payload);
-        const stream = await client.models.generateContentStream({ model, contents: prompt, config });
         const state = { start: Date.now(), first: true };
+        console.log(`⏳ [GEMINI API] [${correlationId ?? 'stream'}] [t=0ms] Iniciando petición generateContentStream con prompt de ${prompt.length} caracteres y config:`, JSON.stringify(config, null, 2));
+        const stream = await client.models.generateContentStream({ model, contents: prompt, config });
+        console.log(`✅ [GEMINI API] [${correlationId ?? 'stream'}] [t=+${Date.now() - state.start}ms] Promesa de stream resuelta. Esperando primer chunk...`);
         for await (const chunk of stream) { this.handleStreamChunk(chunk, state, prompt, model, correlationId); }
         console.log(`🏁 [GEMINI API] [${correlationId ?? 'stream'}] [t=+${Date.now() - state.start}ms] Stream completado.`);
         this.pulse(SignalType.STREAM_END, { prompt, model, correlationId, streamId: correlationId });
@@ -155,13 +159,23 @@ export class Gemini extends Capability<Body> {
 
     private resolveGenerationConfig(payload: GeneratePayload): { model: string; config: Record<string, unknown> } {
         const { aim } = this.disposition;
-        const { model: bM, temperature: bT, maxOutputTokens: bL, thinkingBudget: bB, systemInstruction: bI, responseMimeType: bR } = (aim.body ?? {}) as Body;
-        const { schema: s, systemInstruction = bI, temperature = bT, maxOutputTokens = bL, model = bM ?? DEFAULT_MODEL, thinkingBudget = bB, responseMimeType = bR } = payload;
+        const { model: bM, temperature: bT, maxOutputTokens: bL, thinkingBudget: bB, thinkingLevel: bLevel, systemInstruction: bI, responseMimeType: bR } = (aim.body ?? {}) as Body;
+        const { schema: s, systemInstruction = bI, temperature = bT, maxOutputTokens = bL, model = bM ?? DEFAULT_MODEL, thinkingBudget = bB, thinkingLevel = bLevel, responseMimeType = bR } = payload;
         const schema = typeof s === 'string' ? JSON.parse(s) : s;
         const mimeType = responseMimeType ?? (schema ? 'application/json' : undefined);
-        const thinkingConfig = thinkingBudget !== undefined ? { thinkingBudget } : undefined;
-        const config = { ...(systemInstruction && { systemInstruction }), ...(mimeType && { responseMimeType: mimeType }), ...(schema && { responseSchema: schema }), ...(thinkingConfig && { thinkingConfig }), ...(temperature !== undefined && { temperature }), ...(maxOutputTokens !== undefined && { maxOutputTokens }) };
+        const thinkingConfig = this.resolveThinkingConfig(model, thinkingBudget, thinkingLevel);
+        const config = { ...(systemInstruction && { systemInstruction }), ...(mimeType && { responseMimeType: mimeType }), ...(schema && { responseJsonSchema: schema }), ...(thinkingConfig && { thinkingConfig }), ...(temperature !== undefined && { temperature }), ...(maxOutputTokens !== undefined && { maxOutputTokens }) };
         return { model, config };
+    }
+
+    private resolveThinkingConfig(model: string, thinkingBudget?: number, thinkingLevel?: ThinkingLevel): Record<string, unknown> | undefined {
+        if (thinkingLevel) {
+            return { thinkingLevel };
+        }
+        if (thinkingBudget !== undefined && thinkingBudget >= 0) {
+            return { thinkingBudget };
+        }
+        return model.startsWith(THINKING_LEVEL_MODEL_PREFIX) ? { thinkingLevel: DEFAULT_THINKING_LEVEL } : undefined;
     }
 
     private formatResult(response: { text?: string; usageMetadata?: unknown }, prompt: string, model: string, correlationId?: string): GenerateResult {
@@ -212,5 +226,3 @@ export class Gemini extends Capability<Body> {
     }
 }
 
-export * from './constants.js';
-export * from './types.js';

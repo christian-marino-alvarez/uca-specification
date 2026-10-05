@@ -30,12 +30,21 @@
       "types": "./constants.d.ts",
       "import": "./constants.js",
       "default": "./constants.ts"
+    },
+    "./schema": {
+      "types": "./schema.d.ts",
+      "import": "./schema.js",
+      "default": "./schema.ts"
+    },
+    "./schema.js": {
+      "types": "./schema.d.ts",
+      "import": "./schema.js",
+      "default": "./schema.ts"
     }
   },
   "dependencies": {
-    "@uca/concept-composer": "^0.1.0",
     "@uca/core": "^0.1.0",
-    "@uca/view-composer": "^0.1.0"
+    "@uca/scaffold-composer": "^0.1.0"
   },
   "scripts": {
     "test": "tsx tests/index.ts"

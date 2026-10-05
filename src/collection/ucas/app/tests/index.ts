@@ -2,9 +2,11 @@ import * as assert from 'node:assert';
 import { setMaxListeners } from 'node:events';
 import { Uca } from '@uca/core/uca';
 import { type Signal } from '@uca/core/types';
-import { SignalType as ConceptComposerSignalType } from '@uca/concept-composer';
-import { SignalType as ViewComposerSignalType } from '@uca/view-composer';
-import { App, SignalType, DataType, __ID__, PURPOSE } from '../index.js';
+import { SignalType as ScaffoldComposerSignalType } from '@uca/scaffold-composer/types';
+import type { Scaffold } from '@uca/scaffold-composer/types';
+import { App } from '../index.js';
+import { SignalType, DataType } from '../types.js';
+import { __ID__ } from '../constants.js';
 
 function createTestBus(): EventTarget {
     const bus = new EventTarget();
@@ -21,13 +23,13 @@ function testApp_IdentityAndDefaults(): void {
     const app = new App();
     assert.ok(app instanceof Uca);
     assert.strictEqual(app.id, __ID__);
-    assert.strictEqual(app.purpose, PURPOSE);
+    assert.strictEqual(app.purpose, App.purpose);
     const { inputs, outputs, aim } = app.disposition;
-    assert.strictEqual(inputs?.length, 3);
+    assert.strictEqual(inputs?.length, 4);
     assert.strictEqual(inputs?.[0]?.type, DataType.VOID);
-    assert.strictEqual(outputs?.length, 4);
+    assert.strictEqual(outputs?.length, 3);
     assert.strictEqual(outputs?.[0]?.type, DataType.RECORD);
-    assert.strictEqual(aim.description, PURPOSE);
+    assert.strictEqual(aim.description, App.purpose);
 }
 
 function testApp_InnervationAndCooky(): void {
@@ -38,68 +40,122 @@ function testApp_InnervationAndCooky(): void {
     app.denervate();
 }
 
-function testApp_PulsesDomainSignals(): void {
+function testApp_CreateSignalRequestsScaffold(): void {
     const bus = createTestBus();
-    const captured: { property: string; value: unknown }[] = [];
+    let capturedScaffoldCreate: unknown;
+
+    bus.addEventListener(ScaffoldComposerSignalType.CREATE, (event: Event) => {
+        capturedScaffoldCreate = (event as CustomEvent<Signal>).detail?.value;
+    });
+
+    const app = new App('app-test').innervate(bus);
+    emitSignal(bus, SignalType.CREATE, {});
+    assert.ok(capturedScaffoldCreate !== undefined);
+    app.denervate();
+}
+
+async function testApp_ReceivesScaffoldCreatedAndEmitsCreated(): Promise<void> {
+    const bus = createTestBus();
+    let appCreated: unknown;
 
     bus.addEventListener(SignalType.CREATED, (event: Event) => {
-        captured.push({ property: SignalType.CREATED, value: (event as CustomEvent<Signal>).detail?.value });
-    });
-    bus.addEventListener(SignalType.UPDATED, (event: Event) => {
-        captured.push({ property: SignalType.UPDATED, value: (event as CustomEvent<Signal>).detail?.value });
-    });
-    bus.addEventListener(SignalType.REMOVED, (event: Event) => {
-        captured.push({ property: SignalType.REMOVED, value: (event as CustomEvent<Signal>).detail?.value });
+        appCreated = (event as CustomEvent<Signal>).detail?.value;
     });
 
-    const app = new App('app-scaffold').innervate(bus);
-    emitSignal(bus, SignalType.UPDATE, {});
-    emitSignal(bus, SignalType.REMOVE, {});
+    const app = new App('app-test').innervate(bus);
 
-    assert.ok(captured.length >= 3);
-    assert.ok(captured.some((c) => c.property === SignalType.CREATED));
-    assert.ok(captured.some((c) => c.property === SignalType.UPDATED));
-    assert.ok(captured.some((c) => c.property === SignalType.REMOVED));
+    const scaffold: Scaffold = {
+        purpose: 'Interactive knowledge exploration workbench',
+        ucas: {
+            header: { parentTo: 'app', purpose: 'Introduce UCA' },
+            hero: { parentTo: 'header', purpose: 'Overview' },
+        },
+        theme: {
+            global: ':root { --color: red; }',
+            header: { layout: 'stack' },
+        },
+    };
+
+    emitSignal(bus, ScaffoldComposerSignalType.CREATED, { scaffold });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    assert.ok(appCreated !== undefined);
+    const { scaffold: received } = (appCreated as { scaffold?: Scaffold }) ?? {};
+    assert.strictEqual(received?.purpose, scaffold.purpose);
+    assert.strictEqual(received?.ucas?.header?.parentTo, 'app');
+    assert.strictEqual(received?.ucas?.hero?.parentTo, 'header');
 
     app.denervate();
 }
 
-function testApp_InnervateTriggersConceptComposer(): void {
+async function testApp_ReceivesScaffoldUpdatedAndEmitsUpdated(): Promise<void> {
     const bus = createTestBus();
-    let capturedCreate: unknown;
+    let appUpdated: unknown;
 
-    bus.addEventListener(ConceptComposerSignalType.CREATE, (event: Event) => {
-        capturedCreate = (event as CustomEvent<Signal>).detail?.value;
+    bus.addEventListener(SignalType.UPDATED, (event: Event) => {
+        appUpdated = (event as CustomEvent<Signal>).detail?.value;
     });
 
-    const app = new App('app-composer-test').innervate(bus);
-    assert.ok(capturedCreate !== undefined);
+    const app = new App('app-test').innervate(bus);
+
+    const scaffold: Scaffold = {
+        purpose: 'Updated knowledge exploration workbench',
+        ucas: {
+            footer: { parentTo: 'app', purpose: 'Footer links' },
+        },
+        theme: {
+            global: ':root { --color: blue; }',
+        },
+    };
+
+    emitSignal(bus, ScaffoldComposerSignalType.UPDATED, { scaffold });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    assert.ok(appUpdated !== undefined);
+    const { scaffold: received } = (appUpdated as { scaffold?: Scaffold }) ?? {};
+    assert.strictEqual(received?.purpose, scaffold.purpose);
+
     app.denervate();
 }
 
-function testApp_ReactsToConceptComposerAndFinalView(): void {
+async function testApp_ReceivesScaffoldStreamAsFinalObjects(): Promise<void> {
     const bus = createTestBus();
-    const capturedUpdates: unknown[] = [];
+    const app = new App('app-test').innervate(bus);
+    const received: { key: string; value: unknown }[] = [];
+    const originalLog = console.log;
+    console.log = (message?: unknown, value?: unknown) => {
+        const match = String(message).match(/scaffold node "(.+)"/);
+        if (match) { received.push({ key: match[1], value }); }
+    };
 
-    bus.addEventListener(SignalType.UPDATED, (event: Event) => {
-        capturedUpdates.push((event as CustomEvent<Signal>).detail?.value);
+    const stream = new ReadableStream<{ key: string; value: unknown }>({
+        start(controller) {
+            controller.enqueue({ key: 'global', value: ':root { --color: red; }' });
+            controller.enqueue({ key: 'header', value: { parentTo: 'app', purpose: 'Navigation' } });
+            controller.close();
+        },
     });
 
-    const app = new App('app-flow-test').innervate(bus);
-    emitSignal(bus, ConceptComposerSignalType.CREATED, { concept: { theme: { name: 'TestTheme' } } });
-    emitSignal(bus, ViewComposerSignalType.CREATED, { title: 'Final View' });
+    emitSignal(bus, ScaffoldComposerSignalType.STREAM, { streamId: 'create:scaffold-composer:1', stream });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    console.log = originalLog;
 
-    assert.ok(capturedUpdates.length >= 2);
+    assert.strictEqual(received.length, 2);
+    assert.deepStrictEqual(received[0], { key: 'global', value: ':root { --color: red; }' });
+    assert.deepStrictEqual(received[1], { key: 'header', value: { parentTo: 'app', purpose: 'Navigation' } });
+
     app.denervate();
 }
 
 async function runAllAppTests(): Promise<void> {
+    console.log('🧪 Testing App UCA (coordinating with ScaffoldComposer only)...');
     testApp_IdentityAndDefaults();
     testApp_InnervationAndCooky();
-    testApp_PulsesDomainSignals();
-    testApp_InnervateTriggersConceptComposer();
-    testApp_ReactsToConceptComposerAndFinalView();
-    console.log('✔ All App UCA lifecycle and ConceptComposer/ViewComposer scaffolding tests passed successfully.');
+    testApp_CreateSignalRequestsScaffold();
+    await testApp_ReceivesScaffoldCreatedAndEmitsCreated();
+    await testApp_ReceivesScaffoldUpdatedAndEmitsUpdated();
+    await testApp_ReceivesScaffoldStreamAsFinalObjects();
+    console.log('✅ All App UCA tests passed successfully!');
 }
 
 runAllAppTests();

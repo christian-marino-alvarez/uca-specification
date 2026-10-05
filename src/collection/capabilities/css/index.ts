@@ -200,6 +200,4 @@ export class Css extends Capability<Body> {
     }
 }
 
-export * from './constants.js';
-export * from './types.js';
 

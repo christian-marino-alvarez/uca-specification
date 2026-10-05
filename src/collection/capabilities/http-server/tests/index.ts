@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Signal } from '@uca/core/types';
-import { HttpServer, SignalType, type RequestContext, type ListeningStatus } from '../index.js';
+import { HttpServer } from '../index.js';
+import { SignalType, type RequestContext, type ListeningStatus } from '../types.js';
 
 async function testHttpServerCapability(): Promise<void> {
     const target = new EventTarget();

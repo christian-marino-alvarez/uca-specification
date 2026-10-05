@@ -1,4 +1,4 @@
-import type { AILanguageModelFactory } from '@uca/capability-prompt-api';
+import type { AILanguageModelFactory } from '@uca/capability-prompt-api/types';
 
 export enum SignalType {
     PROMPT = 'llm-web.prompt',
@@ -17,6 +17,13 @@ export enum DataType {
     UNKNOWN = 'unknown',
 }
 
+export interface CognitiveOptions {
+    readonly determinism?: number;
+    readonly imagination?: number;
+    readonly deliberation?: number;
+    readonly conciseness?: number;
+}
+
 export interface StreamDecodedPayload {
     readonly id?: string;
     readonly correlationId?: string;
@@ -29,7 +36,13 @@ export interface PromptPayload {
     readonly id?: string;
     readonly correlationId?: string;
     readonly requestId?: string;
-    readonly prompt: string;
+    readonly purpose?: string;
+    readonly aim?: { description: string; body?: unknown };
+    readonly prompt?: string;
+    readonly determinism?: number;
+    readonly imagination?: number;
+    readonly deliberation?: number;
+    readonly conciseness?: number;
     readonly provider?: string;
     readonly model?: string;
     readonly systemPrompt?: string;
@@ -44,8 +57,14 @@ export interface PromptPayload {
 export interface StreamPayload {
     readonly id?: string;
     readonly correlationId?: string;
-    readonly prompt: string;
+    readonly purpose?: string;
+    readonly aim?: { description: string; body?: unknown };
+    readonly prompt?: string;
     readonly streamId?: string;
+    readonly determinism?: number;
+    readonly imagination?: number;
+    readonly deliberation?: number;
+    readonly conciseness?: number;
     readonly provider?: string;
     readonly model?: string;
     readonly systemPrompt?: string;
@@ -68,6 +87,10 @@ export interface ResponsePayload {
 export interface Body {
     readonly endpoint?: string;
     readonly sseEndpoint?: string;
+    readonly determinism?: number;
+    readonly imagination?: number;
+    readonly deliberation?: number;
+    readonly conciseness?: number;
     readonly provider?: string;
     readonly model?: string;
     readonly factory?: AILanguageModelFactory;

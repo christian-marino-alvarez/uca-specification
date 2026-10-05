@@ -44,7 +44,7 @@ Todo código producido en este repositorio debe respetar rigurosamente los sigui
      ```
 4. **Prohibición de Redundancia de Dominio y Namespace en Ficheros e Identificadores**:
    * **Nombres de Ficheros y Carpetas**: Nombrar directamente en singular por el concepto funcional (ej. `web-component/`, `div.ts`, nunca `web-components/`, `web-component.capability.ts` ni `div.uca.ts`).
-   * **Fichero Principal de Dominio (`index.ts`)**: Cuando un elemento posea su propia carpeta/subdominio (ej. `capabilities/web-component/`), su implementación principal y punto de entrada **DEBE** ser directamente `index.ts`. Queda terminantemente prohibido crear ficheros que repitan el nombre de la carpeta contenedora dentro de ella (ej. `web-component/web-component.ts` está **PROHIBIDO**; debe ser `web-component/index.ts`).
+   * **Fichero Principal de Dominio (`index.ts`)**: Cuando un elemento posea su propia carpeta/subdominio (ej. `capabilities/web-component/`), su implementación principal y punto de entrada **DEBE** ser directamente `index.ts`. Queda terminantemente prohibido crear ficheros que repitan el nombre de la carpeta contenedora dentro de ella (ej. `web-component/web-component.ts` está **PROHIBIDO**; debe ser `web-component/index.ts`). **`index.ts` debe exportar exclusivamente la clase**. Queda estrictamente prohibido utilizar `index.ts` como "barrel file" re-exportando `constants.ts`, `types.ts` o `schema.ts` (`export * from ...`). Los consumidores deben importar tipos desde `<modulo>/types`, esquemas desde `<modulo>/schema` y constantes desde `<modulo>/constants`.
    * **Tipos, Enums e Interfaces dentro del Dominio**: Queda terminantemente prohibido prefijar los tipos o enumerados con el nombre del propio dominio o carpeta. El contexto y la desambiguación ya los proporciona el namespace o ruta del módulo.
      * Correcto dentro de `web-component/types.ts`: `SignalType`, `LifecycleEventType`, `Body`, `Config`, `LifecycleContext`.
      * Incorrecto: `WebComponentSignalType`, `WebComponentLifecycleEventType`, `WebComponentBody`.
@@ -72,7 +72,7 @@ Todo código producido en este repositorio debe respetar rigurosamente los sigui
 11. **Fichero Dedicado de Constantes (`constants.ts`)**:
    * Queda terminantemente prohibido hardcodear arrays por defecto, etiquetas fallback, listas de atributos fijos o valores de configuración estáticos de forma inline dentro de las clases o métodos.
    * Todos los valores por defecto, configuraciones inmutables y listas fijas deben declararse en un archivo dedicado `constants.ts` del dominio correspondiente, nombrados en `SCREAMING_SNAKE_CASE` (ej. `DEFAULT_OBSERVED_ATTRIBUTES`, `DEFAULT_COMPONENT_TAG`) y tipados con inmutabilidad (`as const` o `readonly`).
-   * El archivo `constants.ts` debe re-exportarse en el `index.ts` del dominio correspondiente.
+   * **El propósito existencial (`purpose`) pertenece ontológicamente a la clase** y debe declararse directamente en ella (`public static override purpose: string = '...'`), nunca en `constants.ts`. Las constantes se importan a través del subpath dedicado (`./constants`).
 12. **Orden Canónico de Miembros y Métodos en Clases y Capabilities**:
    * **Propiedades y métodos estáticos (`static`)**: Siempre en la cabecera de la clase, por encima del constructor.
    * **Propiedades de instancia**: Justo antes del constructor.
@@ -107,6 +107,15 @@ Todo código producido en este repositorio debe respetar rigurosamente los sigui
 18. **Construcción Declarativa Directa (Prohibición de Bucles Imperativos para Mapeos)**:
    * Queda prohibido fragmentar la clase en métodos privados con bucles imperativos (`for..in`, `for..of`, `Object.entries`) para combinar o filtrar propiedades.
    * Usar siempre patrones declarativos de TypeScript (spreading condicional, operadores lógicos y mapeos directos).
+19. **Mapeo Unívoco Señal -> Handler Dedicado en `react()` (Prohibición de Fallthrough de Casos)**:
+   * Cada señal nerviosa capturada en la estructura `switch-case` del método `react(signal: Signal)` representa un estímulo u operación de dominio independiente.
+   * **Queda estrictamente prohibido agrupar múltiples señales bajo un mismo bloque o fallthrough** (ej. `case CREATED: case UPDATED: this.handleX(...)` está **PROHIBIDO**).
+   * **Cada `case` de señal DEBE delegar en su propio método privado unívoco y dedicado** (`handleCreated`, `handleUpdated`, `handleScaffoldCreated`, `handleScaffoldUpdated`), garantizando propósito único y trazabilidad reactiva nítida.
+20. **Definición de Schemas con Zod como Única Fuente de Verdad (`schema.ts`)**:
+   * Las UCAs deben modelar sus contratos de datos y cuerpo de disposición (`Body`) mediante esquemas formales de **Zod** en un archivo dedicado `schema.ts`.
+   * Los tipos TypeScript se infieren directamente de Zod (`export type Body = z.infer<typeof bodySchema>`), erradicando interfaces escritas manualmente sin validación en runtime.
+   * `types.ts` re-exporta los tipos derivados de `schema.ts` junto a los enumerados obligatorios de señales (`SignalType`) y tipos de datos (`DataType`).
+   * La validación en tiempo de ejecución se realiza de forma reactiva y determinista mediante la capability primitiva `@uca/capability-schema`.
 
 ---
 
@@ -122,11 +131,12 @@ Todo código producido en este repositorio debe respetar rigurosamente los sigui
 
 ### ¿Cómo Crear una Nueva UCA?
 1. Leer [src/collection/ucas/rules.md](file:///Users/milos/Documents/workspace/uca-specification/src/collection/ucas/rules.md).
-2. Declarar el tipo del cuerpo (`Body`) en `src/collection/ucas/<nombre>/types.ts`.
-3. Crear la clase en `src/collection/ucas/<nombre>/index.ts` heredando de `Uca<Body>`. Sin guardar propiedades de datos; constructor identitario `super(id, purpose)`.
-4. Definir `purpose` en el constructor y componer capacidades en `protected override capabilities(): Cooky`.
-5. Exportar en `src/collection/ucas/index.ts`.
-6. Crear la suite en `src/collection/ucas/<nombre>/tests/index.ts`.
+2. Definir el esquema formal con Zod (`bodySchema`) en `src/collection/ucas/<nombre>/schema.ts` e inferir `Body = z.infer<typeof bodySchema>`.
+3. Re-exportar tipos en `src/collection/ucas/<nombre>/types.ts` junto a `SignalType` y `DataType`.
+4. Crear la clase en `src/collection/ucas/<nombre>/index.ts` heredando de `Uca<Body>`. Sin guardar propiedades de datos; constructor identitario `super(id, purpose)`.
+5. Definir `purpose` en el constructor y componer capacidades en `protected override capabilities(): Cooky`.
+6. Exportar en `src/collection/ucas/index.ts`.
+7. Crear la suite en `src/collection/ucas/<nombre>/tests/index.ts`.
 
 ---
 

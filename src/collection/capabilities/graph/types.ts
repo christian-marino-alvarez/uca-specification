@@ -1,17 +1,15 @@
-import type { Disposition } from '@uca/core/types';
-import type { UcaItem } from './schemas/index.js';
-
 export enum SignalType {
     STREAM_DECODED = 'llm-web.stream_decoded',
-    UCA_STREAM = 'graph.uca_stream',
-    UCA_DETECTED = 'graph.uca_detected',
+    STREAM = 'graph.stream',
+    UCA_STREAM = 'graph.stream',
+    NODE_DETECTED = 'graph.node_detected',
     ERROR = 'graph.error',
 }
 
 export enum DataType {
     STREAM_DECODED_PAYLOAD = 'StreamDecodedPayload',
-    UCA_STREAM_PAYLOAD = 'UcaStreamPayload',
-    UCA_DETECTED_PAYLOAD = 'UcaDetectedPayload',
+    GRAPH_STREAM_PAYLOAD = 'GraphStreamPayload',
+    GRAPH_NODE = 'GraphNode',
     UNKNOWN = 'unknown',
 }
 
@@ -21,21 +19,28 @@ export interface StreamDecodedPayload {
     readonly model?: string;
 }
 
-export interface UcaStreamPayload {
-    readonly streamId?: string;
-    readonly stream: ReadableStream<UcaItem>;
+export interface GraphNode<T = unknown> {
+    readonly key: string;
+    readonly value: T;
 }
 
+export interface GraphStreamPayload {
+    readonly streamId?: string;
+    readonly stream: ReadableStream<GraphNode>;
+}
 
-
-export interface UcaDetectedPayload {
-    readonly id: string;
-    readonly disposition: Disposition;
+export interface NodeDetectedPayload {
+    readonly key: string;
+    readonly value: unknown;
     readonly streamId?: string;
 }
 
 export interface Body {
+    readonly schema?: unknown;
     readonly strict?: boolean;
 }
 
-export type { ResponseSchema, UcaItem } from './schemas/index.js';
+export type UcaItem = GraphNode;
+export type UcaStreamPayload = GraphStreamPayload;
+export type { ResponseSchema } from './schemas/index.js';
+

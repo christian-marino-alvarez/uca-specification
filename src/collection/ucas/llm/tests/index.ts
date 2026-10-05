@@ -1,9 +1,11 @@
 import * as assert from 'node:assert';
 import { Uca } from '@uca/core/uca';
 import type { Signal } from '@uca/core/types';
-import { SignalType as GeminiSignalType } from '@uca/capability-gemini';
-import { SignalType as OpenaiSignalType } from '@uca/capability-openai';
-import { Llm, SignalType, DataType, __ID__, DEFAULT_OPENAI_MODEL, DEFAULT_GEMINI_MODEL } from '../index.js';
+import { SignalType as GeminiSignalType } from '@uca/capability-gemini/types';
+import { SignalType as OpenaiSignalType } from '@uca/capability-openai/types';
+import { Llm } from '../index.js';
+import { SignalType, DataType } from '../types.js';
+import { __ID__, DEFAULT_OPENAI_MODEL, DEFAULT_GEMINI_MODEL } from '../constants.js';
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };

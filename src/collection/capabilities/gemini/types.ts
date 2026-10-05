@@ -21,6 +21,12 @@ export enum DataType {
     UNKNOWN = 'unknown',
 }
 
+export enum ThinkingLevel {
+    LOW = 'low',
+    MEDIUM = 'medium',
+    HIGH = 'high',
+}
+
 export interface ConnectionConfig {
     readonly apiKey?: string;
     readonly baseURL?: string;
@@ -42,6 +48,7 @@ export interface GeneratePayload {
     readonly temperature?: number;
     readonly maxOutputTokens?: number;
     readonly thinkingBudget?: number;
+    readonly thinkingLevel?: ThinkingLevel;
     readonly responseMimeType?: string;
 }
 
@@ -74,6 +81,7 @@ export interface Body {
     readonly connection?: ConnectionConfig;
     readonly model?: string;
     readonly thinkingBudget?: number;
+    readonly thinkingLevel?: ThinkingLevel;
     readonly temperature?: number;
     readonly maxOutputTokens?: number;
     readonly systemInstruction?: string;

@@ -1,7 +1,9 @@
 import * as assert from 'node:assert';
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
-import { Divide, DataType, SignalType, type Body, type Outcome, __ID__ } from '../index.js';
+import { Divide } from '../index.js';
+import { DataType, SignalType, type Body, type Outcome } from '../types.js';
+import { __ID__ } from '../constants.js';
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };

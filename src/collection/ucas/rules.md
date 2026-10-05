@@ -135,6 +135,25 @@ Una **UCA** (Unidad Cognitiva Autónoma) es la unidad primaria de comportamiento
 16. **Construcción Declarativa Directa (Sin Bucles para Mapeos)**:
     * Prohibido fragmentar la UCA en métodos privados con bucles imperativos (`for..in`, `for..of`, `Object.entries`) para combinar o filtrar propiedades.
     * Usar siempre patrones declarativos directos (spreading condicional `...(cond && { prop })`, operadores lógicos y mapeos directos).
+17. **Máxima Ontológica de UCA: Superación del "Prompt sin Propósito" y la Disposición (`Disposition`) como Medio de Comunicación**:
+    * **La UCA no es un prompt**: Una UCA es una Unidad Cognitiva Autónoma definida formalmente por su identidad teleológica inmutable (`purpose`), su disposición situacional (`aim`: `description` + `body`), sus puertos reactivos (`inputs`, `outputs`) y sus capacidades (`capabilities` / `Cooky`).
+    * **Prohibición Estricta de Ficheros de Plantillas de Prompt (`prompt.ts`)**: Queda terminantemente prohibido crear archivos `prompt.ts` con cadenas imperativas de texto ("Eres un asistente...", "TAREA: ..."). UCA existe precisamente para erradicar la ingeniería artesanal de prompts sin propósito y sustituirla por arquitectura ontológica tipada.
+    * **La Disposición (`Disposition`) como Medio Universal de Comunicación Cognitiva (en especial con LLMs)**:
+      * Al interactuar con capacidades o terminales de inteligencia artificial (ej. `LlmWeb`, `Llm`), la UCA **comunica directamente su propia ontología**:
+        - Su identidad ontológica: `this.purpose`.
+        - Su teleología situacional: `this.disposition.aim` (`description` como misión activa y `body` como contexto/características de dominio).
+        - Sus diales cognitivos universales: `determinism` e `imagination` (porcentajes de fidelidad estructural vs. creatividad).
+      * La terminal cognitiva (`LlmWeb`) es la responsable exclusiva de transducir este estado ontológico a las particularidades técnicas de los modelos de IA, preservando la pureza ontológica y el desacoplamiento total de los compositores y agentes de dominio respecto a cualquier vendor o configuración técnica de LLM.
+18. **Mapeo Unívoco Señal -> Handler Dedicado en `react()` (Prohibición de Fallthrough y Handlers Compartidos)**:
+    * Cada señal nerviosa capturada en el switch-router de `react(signal: Signal)` representa un evento semántico y ontológico independiente (ej. `SignalType.CREATED` vs `SignalType.UPDATED`).
+    * **Queda estrictamente prohibido agrupar múltiples señales mediante fallthrough de `case`** (ej. `case CREATED: case UPDATED: this.handleX(...)` está **PROHIBIDO**).
+    * **Cada `case` de señal DEBE delegar en su propio handler privado unívoco y dedicado** (`handleCreated`, `handleUpdated`, `handleScaffoldCreated`, `handleScaffoldUpdated`).
+    * Compartir un único handler para señales de semántica distinta colapsa el ciclo de vida ontológico y vulnera el principio de propósito único.
+19. **Definición de Schemas con Zod como Única Fuente de Verdad (`schema.ts`)**:
+    * Toda UCA debe declarar sus contratos de datos y cuerpo de disposición (`Body`) mediante esquemas formales de **Zod** en un archivo dedicado `schema.ts`.
+    * Los tipos TypeScript se infieren directamente de Zod (`export type Body = z.infer<typeof bodySchema>`), erradicando interfaces `interface Body` redactadas manualmente sin validación.
+    * El fichero `types.ts` actúa como fachada re-exportando los tipos derivados de `schema.ts` junto a los enumerados de señales (`SignalType`) y tipos de datos (`DataType`).
+    * La validación de los datos en tiempo de ejecución se delega en la capability primitiva `@uca/capability-schema`.
 
 ---
 
@@ -144,17 +163,20 @@ Para añadir una nueva UCA al catálogo, cada UCA constituye su propio subdomini
  
 1. **Crear Directorio de Subdominio en Singular**:
    * Crear la carpeta `src/collection/ucas/<nombre>/`.
-2. **Definir Tipos de Dominio (`types.ts`)**:
-   * Crear `src/collection/ucas/<nombre>/types.ts` sin redundancia de prefijos:
+2. **Definir Schemas con Zod (`schema.ts`) y Tipos de Dominio (`types.ts`)**:
+   * Crear `src/collection/ucas/<nombre>/schema.ts` con Zod:
      ```typescript
-     export interface Body {
-         readonly label?: string;
-     }
+     import { z } from 'zod';
+     export const bodySchema = z.object({
+         label: z.string().optional(),
+     });
+     export type Body = z.infer<typeof bodySchema>;
      ```
+   * En `types.ts`, re-exportar `Body` de `./schema.js` y declarar `SignalType` y `DataType`.
 3. **Implementar la Clase UCA (`index.ts`)**:
    * Crear el archivo `src/collection/ucas/<nombre>/index.ts`.
-   * Extender `Uca<Body>`, invocar `super(id, purpose)` en el constructor (sin opciones) y declarar `capabilities(): Cooky` vinculando las capacidades necesarias.
-   * Re-exportar sus tipos: `export * from './types.js';`.
+   * Extender `Uca<Body>`, declarar `purpose` inline en la clase (`public static override purpose: string = '...'`) y componer `capabilities(): Cooky`.
+   * **`index.ts` exporta exclusivamente la clase**. Queda estrictamente prohibido re-exportar `types`, `constants` o `schema` al pie del fichero. Cada recurso se consume a través de los subpaths de `package.json` (`./types`, `./constants`, `./schema`).
 4. **Crear Suite de Pruebas Espejo en su Subdominio (`tests/index.ts`)**:
    * Crear `src/collection/ucas/<nombre>/tests/index.ts` replicando exactamente el nombre del archivo testeado (`index.ts`) sin sufijo `.test`.
    * Verificar instanciación identitaria, asignación de propósito, inervación con disposición o señales y flujo reactivo.

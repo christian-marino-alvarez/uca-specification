@@ -2,15 +2,9 @@ import '../../../../../tests/shared/dom-harness.js';
 import * as assert from 'node:assert';
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
-import {
-    LocalStorage,
-    DataType,
-    SignalType,
-    type Body,
-    type StoredItem,
-    type StorageError,
-    __ID__,
-} from '../index.js';
+import { LocalStorage } from '../index.js';
+import { DataType, SignalType, type Body, type StoredItem, type StorageError } from '../types.js';
+import { __ID__ } from '../constants.js';
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };

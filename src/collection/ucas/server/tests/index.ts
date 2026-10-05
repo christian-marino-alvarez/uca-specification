@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
 import type { Signal } from '@uca/core/types';
-import {
-    Server,
-    SignalType,
-    type RequestContext,
-    type StartedStatus,
-} from '../index.js';
+import { Server } from '../index.js';
+import { SignalType, type RequestContext, type StartedStatus } from '../types.js';
 
 async function testServerUca(): Promise<void> {
     const server = new Server('api-server');

@@ -12,6 +12,7 @@ logger.innervate(bus);
 
 const app = new App();
 app.innervate(bus);
+bus.dispatchEvent(new CustomEvent('app.create', { detail: { source: 'client', property: 'app.create', value: {}, timestamp: Date.now() } }));
 
 if (typeof window !== 'undefined') {
     (window as unknown as { __UCA__: unknown }).__UCA__ = {
@@ -40,8 +41,8 @@ function runPromptApiTest(eventBus: EventTarget, customJson?: string): void {
             destroy: () => {},
         }),
     };
-    const signal = { source: 'prompt-test', property: 'view-composer.create', value: { factory }, timestamp: Date.now() };
-    eventBus.dispatchEvent(new CustomEvent('view-composer.create', { detail: signal }));
+    const signal = { source: 'prompt-test', property: 'scaffold-composer.create', value: { factory }, timestamp: Date.now() };
+    eventBus.dispatchEvent(new CustomEvent('scaffold-composer.create', { detail: signal }));
 }
 
 console.log(

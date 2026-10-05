@@ -1,16 +1,8 @@
 import * as assert from 'node:assert';
 import { Capability } from '@uca/core/capability';
 import type { Signal } from '@uca/core/types';
-import {
-    type AILanguageModelFactory,
-    type AILanguageModelSession,
-    type CapabilitiesResult,
-    type ChunkResult,
-    type PromptResult,
-    type StreamEndResult,
-    PromptApi,
-    SignalType,
-} from '../index.js';
+import { PromptApi } from '../index.js';
+import { type AILanguageModelFactory, type AILanguageModelSession, type CapabilitiesResult, type ChunkResult, type PromptResult, type StreamEndResult, SignalType } from '../types.js';
 
 function createMockFactory(overrides?: Partial<AILanguageModelFactory>): AILanguageModelFactory {
     const mockSession: AILanguageModelSession = {
