@@ -303,7 +303,8 @@ export class WebComponent extends Capability<Body> {
         if (!parentTo?.uca || typeof document === 'undefined') { return undefined; }
         const { uca } = parentTo;
         const resolvedId = uca.includes(':') ? uca.split(':')[1] : uca;
-        return document.getElementById(resolvedId ?? uca) ?? document.getElementById(uca) ?? undefined;
+        const direct = document.getElementById(resolvedId ?? uca) ?? document.getElementById(uca);
+        return direct ?? document.getElementById(`box:${resolvedId}`) ?? undefined;
     }
 
     private unbindElementListeners(element: HTMLElement): void {

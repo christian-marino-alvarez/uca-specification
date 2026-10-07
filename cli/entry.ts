@@ -16,6 +16,38 @@ logger.innervate(bus);
 const app = new App();
 app.innervate(bus);
 
+function getQueryText(): string | undefined {
+    const input = document.querySelector('ext-input, #input\\:query, [id*="query"]') as HTMLElement | null;
+    return input?.textContent?.trim() || undefined;
+}
+
+function triggerDiscovery(): void {
+    const request = getQueryText();
+    const event = new CustomEvent('action.triggered', {
+        detail: { source: 'user', property: 'action.triggered', value: { request } },
+    });
+    bus.dispatchEvent(event);
+}
+
+if (typeof document !== 'undefined') {
+    document.addEventListener('click', (event: MouseEvent) => {
+        const target = event.target as HTMLElement;
+        if (target?.closest?.('ext-action, #action\\:submit, [id*="submit"]')) {
+            triggerDiscovery();
+        }
+    });
+
+    document.addEventListener('keydown', (event: KeyboardEvent) => {
+        if (event.key === 'Enter') {
+            const target = event.target as HTMLElement;
+            if (target?.closest?.('ext-input, #input\\:query, [id*="query"]')) {
+                event.preventDefault();
+                triggerDiscovery();
+            }
+        }
+    });
+}
+
 if (typeof window !== 'undefined') {
     (window as unknown as { __UCA__: unknown }).__UCA__ = {
         app,

@@ -19,7 +19,7 @@ import {
 
 export class Footer extends Uca<Body> {
     public static override purpose: string =
-        'Provide ontological closure and foundational grounding to the experience, orchestrating legal compliance, attribution, documentation metadata, and secondary discovery pathways';
+        'Provide minimalist closure and grounding to the interface, orchestrating copyright, attribution, and repository status';
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Footer.purpose, body: {} },
