@@ -1,7 +1,7 @@
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import { GoogleGenAI } from '@google/genai';
-import { __ID__, __DEFAULT_SIGNALS__, DEFAULT_MODEL, DEFAULT_THINKING_LEVEL, THINKING_LEVEL_MODEL_PREFIX } from './constants.js';
+import { __ID__, __DEFAULT_SIGNALS__, DEFAULT_MODEL, DEFAULT_THINKING_BUDGET, DEFAULT_THINKING_LEVEL, THINKING_LEVEL_MODEL_PREFIX } from './constants.js';
 import {
     type Body,
     type ConnectionConfig,
@@ -175,7 +175,7 @@ export class Gemini extends Capability<Body> {
         if (thinkingBudget !== undefined && thinkingBudget >= 0) {
             return { thinkingBudget };
         }
-        return model.startsWith(THINKING_LEVEL_MODEL_PREFIX) ? { thinkingLevel: DEFAULT_THINKING_LEVEL } : undefined;
+        return model.startsWith(THINKING_LEVEL_MODEL_PREFIX) ? { thinkingBudget: DEFAULT_THINKING_BUDGET } : undefined;
     }
 
     private formatResult(response: { text?: string; usageMetadata?: unknown }, prompt: string, model: string, correlationId?: string): GenerateResult {

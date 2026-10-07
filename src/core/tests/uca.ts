@@ -578,6 +578,44 @@ async function testCore_UcaRespondsToDispositionGetWithProvide(): Promise<void> 
     card.denervate();
 }
 
+async function testCore_UcaMatchesIdIsolation(): Promise<void> {
+    class ProbeUca extends Uca {
+        public checkMatch(targetId?: string): boolean {
+            return this.matchesId(targetId);
+        }
+    }
+    const headerScaffold = new ProbeUca('header:scaffold');
+    const contentScaffold = new ProbeUca('content:scaffold');
+    const boxHeader = new ProbeUca('box:header');
+
+    assert.strictEqual(headerScaffold.checkMatch('header:scaffold'), true);
+    assert.strictEqual(headerScaffold.checkMatch('content:scaffold'), false);
+    assert.strictEqual(contentScaffold.checkMatch('header:scaffold'), false);
+    assert.strictEqual(boxHeader.checkMatch('header'), true);
+    assert.strictEqual(boxHeader.checkMatch('content'), false);
+    assert.strictEqual(headerScaffold.checkMatch(undefined), true);
+}
+
+async function testCore_UcaContextAndParentToPropagation(): Promise<void> {
+    class ChildProbe extends Uca {
+        public static override purpose: string = 'Child purpose';
+    }
+    class ParentProbe extends Uca {
+        public static override purpose: string = 'Parent master purpose';
+        protected override capabilities(): Cooky {
+            const disposition: Disposition = { aim: { description: ChildProbe.purpose, body: { id: 'child-1' } } };
+            return [[ChildProbe, disposition]];
+        }
+    }
+    const parent = new ParentProbe('parent-1');
+    parent.innervate();
+    const child = (parent as unknown as { registry: Map<string, Uca> }).registry.get('child-1');
+    assert.ok(child !== undefined);
+    assert.strictEqual(child?.context, 'Parent master purpose');
+    assert.deepStrictEqual(child?.disposition.parentTo, { uca: 'parent-1', relation: 'contains' });
+    parent.denervate();
+}
+
 async function runAllTests(): Promise<void> {
     await testDeclaration_CookyMapping();
     await testDeclaration_EmptyUca();
@@ -595,7 +633,9 @@ async function runAllTests(): Promise<void> {
     await testCore_BuildAttributesDistinguishesCapabilities();
     await testCore_UcaDispositionUpdateAndStorage();
     await testCore_UcaRespondsToDispositionGetWithProvide();
-    console.log('✔ All 16 Core UCA lifecycle, Cooky, attribute mapping and storage tests passed successfully.');
+    await testCore_UcaMatchesIdIsolation();
+    await testCore_UcaContextAndParentToPropagation();
+    console.log('✔ All 18 Core UCA lifecycle, Cooky, attribute mapping, context and storage tests passed successfully.');
 }
 
 runAllTests().catch((error: unknown) => {

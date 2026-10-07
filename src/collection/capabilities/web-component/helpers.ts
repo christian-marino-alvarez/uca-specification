@@ -64,6 +64,17 @@ export function copyElementState(source: HTMLElement, target: HTMLElement): void
     }
 }
 
+function synchronizePictureContent(element: HTMLElement, attributes?: Readonly<Record<string, string>>): void {
+    if (element.tagName.toLowerCase() !== 'ext-picture' || !attributes?.src) { return; }
+    let img = element.querySelector('img');
+    if (!img) {
+        img = document.createElement('img');
+        element.appendChild(img);
+    }
+    if (img.src !== attributes.src) { img.src = attributes.src; }
+    if (attributes.alt && img.alt !== attributes.alt) { img.alt = attributes.alt; }
+}
+
 export function synchronizeElementAttributes(
     element: HTMLElement,
     attributes?: Readonly<Record<string, string>>,
@@ -79,6 +90,7 @@ export function synchronizeElementAttributes(
             element.removeAttribute(name);
         }
     }
+    synchronizePictureContent(element, attributes);
 }
 
 export function synchronizeElementText(element: HTMLElement, text?: string): void {
@@ -88,8 +100,10 @@ export function synchronizeElementText(element: HTMLElement, text?: string): voi
     }
 }
 
-export function mountElementToContainer(element: HTMLElement, container?: HTMLElement): void {
+export function mountElementToContainer(element: HTMLElement, container?: HTMLElement): boolean {
     if (container && !container.contains(element)) {
         container.appendChild(element);
+        return true;
     }
+    return false;
 }

@@ -6,13 +6,15 @@ import { SignalType as CapabilitySignalType } from '@uca/capability-web-componen
 import { __ID__ as WEB_COMPONENT_ID } from '@uca/capability-web-component/constants';
 import { DEFAULT_TRIGGER_SIGNAL } from './constants.js';
 import type { Body } from './types.js';
-import { SignalType } from './types.js';
+import { DataType, SignalType } from './types.js';
+import { bodySchema } from './schema.js';
 
 export class Collector extends Uca<Body> {
     public static override purpose: string = 'Aggregate and encapsulate interactive input data collection';
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Collector.purpose, body: {} },
+        inputs: [{ signal: SignalType.CREATE, type: DataType.RECORD, schema: bodySchema, description: 'Domain body contract' }],
         reactTo: [
             SignalType.CREATE,
             SignalType.UPDATE,

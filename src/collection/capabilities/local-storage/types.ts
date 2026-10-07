@@ -21,15 +21,18 @@ export enum DataType {
 export interface ItemPayload {
     readonly key: string;
     readonly value: string;
+    readonly [extra: string]: unknown;
 }
 
 export interface KeyPayload {
     readonly key: string;
+    readonly [extra: string]: unknown;
 }
 
 export interface StoredItem {
     readonly key: string;
     readonly value: string | null;
+    readonly [extra: string]: unknown;
 }
 
 export interface StorageError {

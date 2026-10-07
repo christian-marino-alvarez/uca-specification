@@ -1,7 +1,7 @@
 {
   "name": "@uca/app",
   "version": "0.1.0",
-  "description": "UCA App scaffolding and lifecycle coordinator",
+  "description": "App UCA with local LLM loading indicator and dynamic web scaffolding capability",
   "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",
@@ -10,6 +10,16 @@
       "types": "./index.d.ts",
       "import": "./index.js",
       "default": "./index.ts"
+    },
+    "./schema": {
+      "types": "./schema.d.ts",
+      "import": "./schema.js",
+      "default": "./schema.ts"
+    },
+    "./schema.js": {
+      "types": "./schema.d.ts",
+      "import": "./schema.js",
+      "default": "./schema.ts"
     },
     "./types": {
       "types": "./types.d.ts",
@@ -30,21 +40,19 @@
       "types": "./constants.d.ts",
       "import": "./constants.js",
       "default": "./constants.ts"
-    },
-    "./schema": {
-      "types": "./schema.d.ts",
-      "import": "./schema.js",
-      "default": "./schema.ts"
-    },
-    "./schema.js": {
-      "types": "./schema.d.ts",
-      "import": "./schema.js",
-      "default": "./schema.ts"
     }
   },
   "dependencies": {
+    "@uca/action": "^0.1.0",
+    "@uca/box": "^0.1.0",
+    "@uca/capability-api-prompt": "^0.1.0",
+    "@uca/capability-web-component": "^0.1.0",
+    "@uca/content": "^0.1.0",
     "@uca/core": "^0.1.0",
-    "@uca/scaffold-composer": "^0.1.0"
+    "@uca/footer": "^0.1.0",
+    "@uca/header": "^0.1.0",
+    "@uca/web-llm": "^0.1.0",
+    "zod": "^4.6.5"
   },
   "scripts": {
     "test": "tsx tests/index.ts"

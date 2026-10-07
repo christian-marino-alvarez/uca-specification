@@ -1,20 +1,53 @@
+import type { Body, CreatePayload, StreamPayload } from './schema.js';
+import type { Item, Node, Scaffold as ScaffoldStructure } from '@uca/scaffold/types';
+
 export enum SignalType {
     CREATE = 'app.create',
-    UPDATE = 'app.update',
-    REMOVE = 'app.remove',
-    EXPLAIN = 'app.explain',
     CREATED = 'app.created',
-    UPDATED = 'app.updated',
-    REMOVED = 'app.removed',
-    METRICS = 'app.metrics',
+    STREAM = 'app.stream',
+    STREAMED = 'app.streamed',
+    CHUNK = 'app.chunk',
+    LOADING = 'app.loading',
+    PROGRESS = 'app.progress',
+    DESTROY = 'app.destroy',
+    DESTROYED = 'app.destroyed',
+    ERROR = 'app.error',
 }
 
 export enum DataType {
-    VOID = 'void',
+    PAYLOAD = 'payload',
     RECORD = 'record',
-    STRING = 'string',
-    METRICS = 'metrics',
     STREAM = 'stream',
+    BOOLEAN = 'boolean',
+    NUMBER = 'number',
+    VOID = 'void',
+    UNKNOWN = 'unknown',
 }
 
-export type { Body, PerformanceMetrics } from './schema.js';
+export interface ProgressResult {
+    readonly percentage: number;
+    readonly loaded?: number;
+    readonly total?: number;
+}
+
+export interface LoadingResult {
+    readonly loading: boolean;
+    readonly message?: string;
+}
+
+export interface CreatedResult {
+    readonly correlationId?: string;
+    readonly scaffold: ScaffoldStructure;
+}
+
+export interface StreamResult {
+    readonly correlationId?: string;
+    readonly streamId?: string;
+    readonly stream: ReadableStream<Item>;
+}
+
+export interface DestroyResult {
+    readonly destroyed: boolean;
+}
+
+export type { Body, CreatePayload, StreamPayload, Item, Node, ScaffoldStructure as Scaffold };

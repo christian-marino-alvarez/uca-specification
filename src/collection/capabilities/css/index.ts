@@ -94,16 +94,52 @@ export class Css extends Capability<Body> {
     }
 
     private handleCreate(value: unknown): void {
-        const rule = this.extractPayload<CssRule>(value);
-        if (!rule?.selector || !rule.declarations) { return; }
-        const ruleText = this.formatRuleText(rule);
+        if (typeof value === 'string') {
+            if (this.id !== 'css' && !this.id.endsWith(':app')) { return; }
+            this.insertCssText(value);
+            return;
+        }
+        const payload = this.extractPayload<CssRule & { cssText?: string }>(value);
+        if (payload?.cssText) {
+            this.insertCssText(payload.cssText);
+            return;
+        }
+        if (!payload?.selector || !payload.declarations) { return; }
+        this.insertRule(payload);
+    }
+
+    private insertCssText(cssText: string): void {
+        if (typeof document !== 'undefined') {
+            let style = document.querySelector<HTMLStyleElement>(`style[data-uca-capability="${this.id}"]`);
+            if (!style) {
+                style = document.createElement('style');
+                style.setAttribute('data-uca-capability', this.id);
+                document.head.appendChild(style);
+            }
+            if (style.textContent?.trim() !== cssText.trim()) {
+                style.textContent = cssText;
+            }
+        }
+        this.pulse(SignalType.CREATED, { id: this.id, selector: ':root', declarations: { cssText } });
+    }
+
+    private insertRule(rule: CssRule): void {
         try {
+            const ruleText = this.formatRuleText(rule);
             const sheet = this.ensureStyleSheet();
             const index = sheet.insertRule(ruleText, sheet.cssRules.length);
             this.ruleIndexes.set(rule.selector, index);
+            this.appendRuleToDom(ruleText);
             this.pulse(SignalType.CREATED, rule);
-        } catch (error) {
-            this.pulse(SignalType.ERROR, error);
+        } catch (error) { this.pulse(SignalType.ERROR, error); }
+    }
+
+    private appendRuleToDom(ruleText: string): void {
+        if (typeof document !== 'undefined') {
+            const styleElement = document.querySelector<HTMLStyleElement>(`style[data-uca-capability="${this.id}"]`);
+            if (styleElement) {
+                styleElement.appendChild(document.createTextNode(`${ruleText}\n`));
+            }
         }
     }
 
@@ -118,10 +154,9 @@ export class Css extends Capability<Body> {
             sheet.deleteRule(currentIndex);
             const newIndex = sheet.insertRule(ruleText, currentIndex);
             this.ruleIndexes.set(rule.selector, newIndex);
+            this.rebuildDomText();
             this.pulse(SignalType.UPDATED, rule);
-        } catch (error) {
-            this.pulse(SignalType.ERROR, error);
-        }
+        } catch (error) { this.pulse(SignalType.ERROR, error); }
     }
 
     private handleRemove(value: unknown): void {
@@ -134,9 +169,18 @@ export class Css extends Capability<Body> {
             sheet.deleteRule(currentIndex);
             this.ruleIndexes.delete(selector);
             this.rebuildIndexPositions();
+            this.rebuildDomText();
             this.pulse(SignalType.REMOVED, selector);
-        } catch (error) {
-            this.pulse(SignalType.ERROR, error);
+        } catch (error) { this.pulse(SignalType.ERROR, error); }
+    }
+
+    private rebuildDomText(): void {
+        if (typeof document !== 'undefined') {
+            const styleElement = document.querySelector<HTMLStyleElement>(`style[data-uca-capability="${this.id}"]`);
+            if (styleElement) {
+                const rules = this.getRules();
+                styleElement.textContent = rules.length ? `${rules.join('\n')}\n` : '';
+            }
         }
     }
 
@@ -174,9 +218,12 @@ export class Css extends Capability<Body> {
 
     private createDefaultStyleSheet(): SheetAdapter {
         if (typeof document !== 'undefined' && document.createElement) {
-            const styleElement = document.createElement('style');
-            styleElement.setAttribute('data-uca-capability', this.id);
-            document.head.appendChild(styleElement);
+            let styleElement = document.querySelector<HTMLStyleElement>(`style[data-uca-capability="${this.id}"]`);
+            if (!styleElement) {
+                styleElement = document.createElement('style');
+                styleElement.setAttribute('data-uca-capability', this.id);
+                document.head.appendChild(styleElement);
+            }
             return styleElement.sheet as unknown as SheetAdapter;
         }
         return this.createFallbackMemorySheet();

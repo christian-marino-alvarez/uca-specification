@@ -54,44 +54,47 @@ export class LocalStorage extends Capability<Body> {
         }
     }
 
-    private handleSet(value: unknown): void {
-        const payload = (value ?? {}) as ItemPayload;
-        const { key, value: itemValue } = payload;
+    private isOwnerMatch(key?: string): boolean {
         const { aim } = this.disposition;
         const { ownerId } = (aim.body ?? {}) as Body;
-        if (ownerId && key !== ownerId) { return; }
+        return !ownerId || key === ownerId;
+    }
+
+    private serializeValue(value: unknown): string {
+        return typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
+    }
+
+    private handleSet(value: unknown): void {
+        const { key, value: raw, id: _target, targetId, ...rest } = (value ?? {}) as ItemPayload;
+        if (!this.isOwnerMatch(key)) { return; }
         const storage = this.resolveStorage();
-        if (!storage || !key) {
-            this.pulseError('set', 'Storage not available or missing key', key);
-            return;
-        }
-        const serialized = typeof itemValue === 'object' && itemValue !== null ? JSON.stringify(itemValue) : String(itemValue);
+        if (!storage || !key) { this.pulseError('set', 'Storage not available or missing key', key); return; }
+        const serialized = this.serializeValue(raw);
         storage.setItem(this.resolveKey(key), serialized);
-        this.pulse(SignalType.SAVED, { key, value: serialized });
+        const targetMetadata = targetId !== undefined ? { id: targetId } : {};
+        this.pulse(SignalType.SAVED, { ...rest, ...targetMetadata, key, value: serialized });
     }
 
     private handleGet(value: unknown): void {
         const payload = typeof value === 'string' ? { key: value } : ((value ?? {}) as KeyPayload);
-        const { key } = payload;
+        const { key, id: _target, targetId, ...rest } = payload;
+        if (!this.isOwnerMatch(key)) { return; }
         const storage = this.resolveStorage();
-        if (!storage || !key) {
-            this.pulseError('get', 'Storage not available or missing key', key);
-            return;
-        }
+        if (!storage || !key) { this.pulseError('get', 'Storage not available or missing key', key); return; }
         const retrieved = storage.getItem(this.resolveKey(key));
-        this.pulse(SignalType.RETRIEVED, { key, value: retrieved });
+        const targetMetadata = targetId !== undefined ? { id: targetId } : {};
+        this.pulse(SignalType.RETRIEVED, { ...rest, ...targetMetadata, key, value: retrieved });
     }
 
     private handleRemove(value: unknown): void {
         const payload = typeof value === 'string' ? { key: value } : ((value ?? {}) as KeyPayload);
-        const { key } = payload;
+        const { key, id: _target, targetId, ...rest } = payload;
+        if (!this.isOwnerMatch(key)) { return; }
         const storage = this.resolveStorage();
-        if (!storage || !key) {
-            this.pulseError('remove', 'Storage not available or missing key', key);
-            return;
-        }
+        if (!storage || !key) { this.pulseError('remove', 'Storage not available or missing key', key); return; }
         storage.removeItem(this.resolveKey(key));
-        this.pulse(SignalType.REMOVED, { key });
+        const targetMetadata = targetId !== undefined ? { id: targetId } : {};
+        this.pulse(SignalType.REMOVED, { ...rest, ...targetMetadata, key });
     }
 
     private handleClear(): void {

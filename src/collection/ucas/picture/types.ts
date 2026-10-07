@@ -19,3 +19,7 @@ export interface Body {
     readonly sharpness?: number;
     readonly alt?: string;
 }
+
+export enum DataType {
+    RECORD = 'record',
+}

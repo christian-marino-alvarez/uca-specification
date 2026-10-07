@@ -5,13 +5,15 @@ import { WebComponent } from '@uca/capability-web-component';
 import { SignalType as CapabilitySignalType } from '@uca/capability-web-component/types';
 import { __ID__ as WEB_COMPONENT_ID } from '@uca/capability-web-component/constants';
 import type { Body } from './types.js';
-import { SignalType } from './types.js';
+import { DataType, SignalType } from './types.js';
+import { bodySchema } from './schema.js';
 
 export class Dropdown extends Uca<Body> {
     public static override purpose: string = 'Present a collapsible list of text options, highlight selected text, and emit user choice';
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Dropdown.purpose, body: {} },
+        inputs: [{ signal: SignalType.CREATE, type: DataType.RECORD, schema: bodySchema, description: 'Domain body contract' }],
         reactTo: [
             SignalType.CREATE,
             SignalType.UPDATE,

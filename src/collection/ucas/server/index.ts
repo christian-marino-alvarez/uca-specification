@@ -200,7 +200,7 @@ export class Server extends Uca<Body> {
         if (typeof deliberation === 'number') {
             return deliberation === 0 ? 0 : Math.round(deliberation * DELIBERATION_BUDGET_SCALE);
         }
-        return undefined;
+        return 0;
     }
 
     private resolveMaxOutputTokens(maxOutputTokens: unknown, _conciseness: unknown): number | undefined {
@@ -283,7 +283,7 @@ export class Server extends Uca<Body> {
         const prompt = qP ?? (bP ? String(bP) : 'UCA streaming reasoning');
         const correlationId = (bC ? String(bC) : undefined) ?? (bS ? String(bS) : undefined) ?? qC ?? qS ?? crypto.randomUUID();
         const rawBudget = bB ?? qB;
-        const budget = typeof rawBudget === 'number' ? rawBudget : (typeof rawBudget === 'string' ? Number(rawBudget) : undefined);
+        const budget = typeof rawBudget === 'number' ? rawBudget : (typeof rawBudget === 'string' ? Number(rawBudget) : 0);
         const model = qM ?? (bM ? String(bM) : undefined);
         const provider = qPr ?? (bPr ? String(bPr) : undefined);
         const schema = bSchema as Record<string, unknown> | undefined;
@@ -375,7 +375,8 @@ export class Server extends Uca<Body> {
         }
         const contentType = this.resolveMimeType(filePath);
         const content = fs.readFileSync(filePath);
-        return new Response(content, { status: 200, headers: { 'Content-Type': contentType } });
+        const headers = { 'Content-Type': contentType, 'Cache-Control': 'no-cache, no-store, must-revalidate' };
+        return new Response(content, { status: 200, headers });
     }
 
     private resolveStaticPath(requestPath: string, staticDir?: string, webDir?: string): string | null {

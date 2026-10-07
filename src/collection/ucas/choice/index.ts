@@ -5,13 +5,15 @@ import { WebComponent } from '@uca/capability-web-component';
 import { SignalType as CapabilitySignalType } from '@uca/capability-web-component/types';
 import { __ID__ as WEB_COMPONENT_ID } from '@uca/capability-web-component/constants';
 import type { Body, OptionItem } from './types.js';
-import { SignalType } from './types.js';
+import { DataType, SignalType } from './types.js';
+import { bodySchema } from './schema.js';
 
 export class Choice extends Uca<Body> {
     public static override purpose: string = 'Select one or more options from a defined set of alternatives';
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Choice.purpose, body: {} },
+        inputs: [{ signal: SignalType.CREATE, type: DataType.RECORD, schema: bodySchema, description: 'Domain body contract' }],
         reactTo: [
             SignalType.CREATE,
             SignalType.UPDATE,

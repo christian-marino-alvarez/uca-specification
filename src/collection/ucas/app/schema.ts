@@ -1,32 +1,24 @@
 import { z } from 'zod';
-
-export const performanceMetricsSchema = z.object({
-    t0: z.number(),
-    ts: z.number().optional(),
-    sc: z.number().optional(),
-    tu: z.number().optional(),
-    tr: z.number().optional(),
-    th: z.number().optional(),
-    tc: z.number().optional(),
-    timeToScaffold: z.number().optional(),
-    timeToFirstUca: z.number().optional(),
-    timeToFirstRender: z.number().optional(),
-    themeTime: z.number().optional(),
-    initialCompositionTime: z.number().optional(),
-});
+import { scaffoldSchema } from '@uca/scaffold/schema';
 
 export const bodySchema = z.object({
-    title: z.string().optional(),
-    question: z.string().optional(),
-    buttonLabel: z.string().optional(),
-    documentation: z.string().optional(),
-    model: z.string().optional(),
-    endpoint: z.string().optional(),
-    sseEndpoint: z.string().optional(),
-    factory: z.unknown().optional(),
-    composedResult: z.unknown().optional(),
-    metrics: performanceMetricsSchema.optional(),
+    request: z.string().optional(),
+    loading: z.boolean().optional(),
+    progress: z.number().min(0).max(100).optional(),
+    scaffold: scaffoldSchema.optional(),
 });
 
-export type PerformanceMetrics = z.infer<typeof performanceMetricsSchema>;
+export const createPayloadSchema = z.object({
+    request: z.string().describe('Web application goal or prompt to scaffold'),
+    model: z.enum(['local', 'nube']).optional().default('local'),
+    provider: z.string().optional(),
+    imagination: z.number().min(0).max(10).optional().default(4),
+    correlationId: z.string().optional(),
+    streamId: z.string().optional(),
+});
+
+export const streamPayloadSchema = createPayloadSchema;
+
 export type Body = z.infer<typeof bodySchema>;
+export type CreatePayload = z.infer<typeof createPayloadSchema>;
+export type StreamPayload = z.infer<typeof streamPayloadSchema>;

@@ -17,3 +17,7 @@ export interface Body {
     readonly hidden?: boolean;
     readonly className?: string;
 }
+
+export enum DataType {
+    RECORD = 'record',
+}

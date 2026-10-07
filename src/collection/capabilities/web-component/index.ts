@@ -12,6 +12,7 @@ import {
     __DEFAULT_TAG__,
     __DEFAULT_OBSERVED_ATTRIBUTES__,
     __DEFAULT_DOM_EVENTS__,
+    __GENERIC_IDS__,
 } from './constants.js';
 import {
     createReactiveElementClass,
@@ -93,7 +94,7 @@ export class WebComponent extends Capability<Body> {
         if (!configuredId) { return true; }
         const targetBase = id.includes(':') ? id.split(':')[1] : id;
         const currentBase = configuredId.includes(':') ? configuredId.split(':')[1] : configuredId;
-        const isGeneric = currentBase === 'box' || currentBase === 'web-component';
+        const isGeneric = __GENERIC_IDS__.includes(currentBase);
         return targetBase === currentBase || (isGeneric && id.startsWith(`${currentBase}-`));
     }
 
@@ -288,8 +289,13 @@ export class WebComponent extends Capability<Body> {
         const parentContainer = this.resolveParentContainer(parentTo);
         const defaultContainer = typeof document !== 'undefined' ? document.body : undefined;
         const activeContainer = container ?? fallbackContainer ?? parentContainer ?? defaultContainer;
-        mountElementToContainer(element, activeContainer);
-        const targetId = activeContainer?.id || activeContainer?.tagName?.toLowerCase() || 'body';
+        if (mountElementToContainer(element, activeContainer)) {
+            this.logMountedElement(element, activeContainer);
+        }
+    }
+
+    private logMountedElement(element: HTMLElement, container?: HTMLElement): void {
+        const targetId = container?.id || container?.tagName?.toLowerCase() || 'body';
         console.log(`🎨 [DOM-MOUNT] #${element.id} (<${element.tagName.toLowerCase()}>) montado en #${targetId}`);
     }
 

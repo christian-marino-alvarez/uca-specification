@@ -19,3 +19,7 @@ export interface Body {
     readonly backgroundColor?: string;
     readonly fontFamily?: string;
 }
+
+export enum DataType {
+    RECORD = 'record',
+}

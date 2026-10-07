@@ -18,3 +18,8 @@ export const __DEFAULT_DOM_EVENTS__: readonly string[] = [
     'input',
     'change',
 ] as const;
+
+export const __GENERIC_IDS__: readonly string[] = [
+    'box',
+    'web-component',
+] as const;

@@ -70,9 +70,11 @@ function testSynchronizeElementText(): void {
 function testMountElementToContainer(): void {
     const container = document.createElement('div');
     const element = document.createElement('span');
-    mountElementToContainer(element, container);
+    const firstMount = mountElementToContainer(element, container);
+    assert.strictEqual(firstMount, true);
     assert.strictEqual(container.contains(element), true);
-    mountElementToContainer(element, container);
+    const secondMount = mountElementToContainer(element, container);
+    assert.strictEqual(secondMount, false);
     assert.strictEqual(container.children.length, 1);
 }
 

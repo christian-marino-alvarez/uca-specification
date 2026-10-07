@@ -1,8 +1,11 @@
 import { App } from '@uca/app';
 import { Logger } from '@uca/logger';
+import { ApiPrompt } from '@uca/capability-api-prompt';
+
+ApiPrompt.prewarm();
 
 console.log(
-    '%c🧠 [UCA Client] Iniciando red neuronal UCA y registrador del bus...',
+    '%c🧠 [UCA Client] Iniciando red neuronal UCA con App y Scaffolding...',
     'color: #00d2ff; font-weight: bold; font-size: 13px; padding: 4px;'
 );
 
@@ -12,37 +15,13 @@ logger.innervate(bus);
 
 const app = new App();
 app.innervate(bus);
-bus.dispatchEvent(new CustomEvent('app.create', { detail: { source: 'client', property: 'app.create', value: {}, timestamp: Date.now() } }));
 
 if (typeof window !== 'undefined') {
     (window as unknown as { __UCA__: unknown }).__UCA__ = {
         app,
         logger,
         bus,
-        testPromptApi: (customJson?: string) => runPromptApiTest(bus, customJson),
     };
-}
-
-function runPromptApiTest(eventBus: EventTarget, customJson?: string): void {
-    const json = customJson ?? JSON.stringify({
-        ucas: [
-            { id: 'box:prompt_demo', disposition: { aim: { description: 'Generado con PromptApi', body: {} } } },
-            { id: 'box:nano_title', disposition: { aim: { description: 'Título local', body: { text: '⚡ Generado 100% en local con PromptApi (Gemini Nano)' } }, parentTo: { uca: 'box:prompt_demo', relation: 'child' } } },
-            { id: 'action:nano_action', disposition: { aim: { description: 'Acción local', body: { label: 'Acción Instantánea en Cliente' } }, parentTo: { uca: 'box:prompt_demo', relation: 'action' } } },
-        ],
-    });
-    const factory = {
-        availability: async () => 'readily' as const,
-        capabilities: async () => ({ available: 'readily' as const }),
-        create: async () => ({
-            promptStreaming: () => new ReadableStream({
-                start(controller) { controller.enqueue(json); controller.close(); },
-            }),
-            destroy: () => {},
-        }),
-    };
-    const signal = { source: 'prompt-test', property: 'scaffold-composer.create', value: { factory }, timestamp: Date.now() };
-    eventBus.dispatchEvent(new CustomEvent('scaffold-composer.create', { detail: signal }));
 }
 
 console.log(

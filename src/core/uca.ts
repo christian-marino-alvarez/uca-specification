@@ -36,6 +36,12 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         return (this.constructor as typeof Uca).purpose;
     }
 
+    public get context(): string | undefined {
+        const { aim } = this.disposition;
+        const { context } = (aim?.body ?? {}) as { context?: string };
+        return context;
+    }
+
     public override innervate(target?: EventTarget, disposition?: Disposition<TBody>): this {
         const activeTarget = target || this.target || new EventTarget();
         const incoming = disposition ?? this.disposition;
@@ -109,9 +115,8 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
     }
 
     protected override matchesId(id?: string): boolean {
-        const targetBase = id?.includes(':') ? id.split(':')[1] : id;
-        const currentBase = this.id.includes(':') ? this.id.split(':')[1] : this.id;
-        const matches = !id || id === this.id || targetBase === currentBase;
+        if (!id || id === this.id) { return true; }
+        const matches = this.id.endsWith(`:${id}`) || id.endsWith(`:${this.id}`);
         return matches;
     }
 
@@ -158,12 +163,24 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         return bodyId ?? staticId;
     }
 
+    private resolveChildDisposition(disposition: Disposition): Disposition {
+        const { aim, parentTo } = disposition;
+        const currentBody = (aim?.body ?? {}) as Record<string, unknown>;
+        const inherited = this.context ?? this.purpose;
+        const context = currentBody.context ?? inherited;
+        const body = { context, ...currentBody };
+        const resolvedAim = { ...aim, body };
+        const resolvedParentTo = parentTo ?? { uca: this.id, relation: 'contains' };
+        return { ...disposition, aim: resolvedAim, parentTo: resolvedParentTo };
+    }
+
     private innervateCapabilities(activeTarget: EventTarget): void {
         const declarations = [...this.defaultCapabilities(), ...this.capabilities()];
         for (const [CapabilityClass, capabilityDisposition] of declarations) {
-            const capabilityId = this.getCapabilityId(CapabilityClass, capabilityDisposition);
-            const capability = (capabilityId ? this.registry.get(capabilityId) : undefined) ?? this.createCapability(CapabilityClass, capabilityDisposition);
-            capability.innervate(activeTarget, capabilityDisposition);
+            const resolvedDisposition = this.resolveChildDisposition(capabilityDisposition);
+            const capabilityId = this.getCapabilityId(CapabilityClass, resolvedDisposition);
+            const capability = (capabilityId ? this.registry.get(capabilityId) : undefined) ?? this.createCapability(CapabilityClass, resolvedDisposition);
+            capability.innervate(activeTarget, resolvedDisposition);
         }
     }
 }
