@@ -4,10 +4,27 @@ import { Uca } from '@uca/core/uca';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
 import { Scaffold } from '@uca/scaffold';
 import { SignalType as ScaffoldSignalType } from '@uca/scaffold/types';
+import { WebComponent } from '@uca/capability-web-component';
+import { Box } from '@uca/box';
+import { Action } from '@uca/action';
+import { Input } from '@uca/input';
+import { Picture } from '@uca/picture';
+import { Toggle } from '@uca/toggle';
+import { Choice } from '@uca/choice';
+import { Dropdown } from '@uca/dropdown';
+import { List } from '@uca/list';
+import { Contains } from '@uca/capability-contains';
+import { Equal } from '@uca/capability-equal';
+import { GreaterThan } from '@uca/capability-greater-than';
+import { LessThan } from '@uca/capability-less-than';
+import { Divide } from '@uca/capability-divide';
+import { Multiply } from '@uca/capability-multiply';
+import { Loop } from '@uca/capability-loop';
 import {
     __ID__,
     DEFAULT_GOAL,
     DEFAULT_SIGNALS,
+    CATEGORY_KEYWORDS,
 } from './constants.js';
 import {
     type Body,
@@ -16,6 +33,27 @@ import {
     DataType,
     SignalType,
 } from './types.js';
+
+function detectCategory(key: string, purpose: string): string {
+    const text = `${key} ${purpose}`.toLowerCase();
+    for (const [kind, words] of CATEGORY_KEYWORDS) {
+        if (words.some((word) => text.includes(word))) { return kind; }
+    }
+    return 'box';
+}
+
+function createLivingUca(kind: string, id: string): Uca {
+    switch (kind) {
+        case 'action': return new Action(id);
+        case 'input': return new Input(id);
+        case 'picture': return new Picture(id);
+        case 'toggle': return new Toggle(id);
+        case 'choice': return new Choice(id);
+        case 'dropdown': return new Dropdown(id);
+        case 'list': return new List(id);
+        default: return new Box(id);
+    }
+}
 
 export class Content extends Uca<Body> {
     public static override purpose: string =
@@ -37,8 +75,18 @@ export class Content extends Uca<Body> {
         ],
     };
 
+    private readonly emergentUcas: Map<string, Uca> = new Map();
+
     public constructor(id: string = __ID__) {
         super(id);
+    }
+
+    public override denervate(): void {
+        super.denervate();
+        for (const instance of this.emergentUcas.values()) {
+            instance.denervate();
+        }
+        this.emergentUcas.clear();
     }
 
     protected override react(signal: Signal): void {
@@ -74,13 +122,43 @@ export class Content extends Uca<Body> {
     }
 
     protected override capabilities(): Cooky {
+        const core = this.createCoreCapabilities();
+        const web = this.createWebCapabilities();
+        const logic = this.createLogicCapabilities();
+        return [...core, ...web, ...logic];
+    }
+
+    private createCoreCapabilities(): Cooky {
         const { reactTo: scaffoldReactTo = [] } = Scaffold.disposition;
         const { reactTo: storageReactTo = [] } = LocalStorage.disposition;
+        const { reactTo: webReactTo = [] } = WebComponent.disposition;
         const scaffoldAim = { description: 'Scaffolding for Content', body: { id: `${this.id}:scaffold` } };
         const storageAim = { description: 'Storage for Content', body: { id: `${this.id}:storage`, ownerId: this.id, prefix: 'uca:' } };
+        const webAim = { description: 'Web Component for Content', body: { id: `${this.id}:web-component` } };
         const scaffoldItem: Cooky[number] = [Scaffold, { aim: scaffoldAim, reactTo: [...scaffoldReactTo] }];
         const storageItem: Cooky[number] = [LocalStorage, { aim: storageAim, reactTo: [...storageReactTo] }];
-        return [scaffoldItem, storageItem];
+        const webItem: Cooky[number] = [WebComponent, { aim: webAim, reactTo: [...webReactTo] }];
+        return [scaffoldItem, storageItem, webItem];
+    }
+
+    private createWebCapabilities(): Cooky {
+        const webClasses = [Box, Action, Input, Picture, Toggle, Choice, Dropdown, List];
+        return webClasses.map((UcaClass) => {
+            const { purpose, disposition } = UcaClass;
+            const { reactTo = [] } = disposition;
+            const aim = { description: purpose, body: { id: `${this.id}:${UcaClass.name.toLowerCase()}` } };
+            return [UcaClass, { aim, reactTo: [...reactTo] }] as Cooky[number];
+        });
+    }
+
+    private createLogicCapabilities(): Cooky {
+        const logicClasses = [Contains, Equal, GreaterThan, LessThan, Divide, Multiply, Loop];
+        return logicClasses.map((CapabilityClass) => {
+            const { AIM, disposition } = CapabilityClass as unknown as { AIM: string; disposition: Disposition };
+            const { reactTo = [] } = disposition ?? {};
+            const aim = { description: AIM, body: { id: `${this.id}:${CapabilityClass.name.toLowerCase()}` } };
+            return [CapabilityClass, { aim, reactTo: [...reactTo] }] as Cooky[number];
+        });
     }
 
     private handleCreate(value: unknown): void {
@@ -118,6 +196,7 @@ export class Content extends Uca<Body> {
         try {
             const scaffold = JSON.parse(raw);
             const resolvedCorrelationId = correlationId ?? `${this.id}:cache:${Date.now()}`;
+            this.materializeEmergentNodes(scaffold);
             this.pulse(SignalType.CREATED, { correlationId: resolvedCorrelationId, scaffold });
         } catch {
             this.pulse(LocalStorageSignalType.REMOVE, { id: `${this.id}:storage`, key: this.id });
@@ -132,6 +211,10 @@ export class Content extends Uca<Body> {
     }
 
     private handleDestroy(): void {
+        for (const instance of this.emergentUcas.values()) {
+            instance.denervate();
+        }
+        this.emergentUcas.clear();
         this.pulse(ScaffoldSignalType.DESTROY, { id: `${this.id}:scaffold` });
     }
 
@@ -144,11 +227,28 @@ export class Content extends Uca<Body> {
         return Object.fromEntries(entries);
     }
 
+    private materializeEmergentNodes(nodes: Record<string, unknown>): void {
+        for (const [key, node] of Object.entries(nodes)) {
+            const { purpose = 'Visual component' } = (node ?? {}) as { purpose?: string };
+            this.materializeNode(key, purpose);
+        }
+    }
+
+    private materializeNode(key: string, purpose: string): void {
+        const kind = detectCategory(key, purpose);
+        const instance = this.emergentUcas.get(key) ?? createLivingUca(kind, key);
+        this.emergentUcas.set(key, instance);
+        const aim = { description: purpose, body: { id: key, text: purpose, label: key, placeholder: purpose } };
+        const disposition: Disposition = { aim, parentTo: { uca: this.id, relation: 'contains' } };
+        instance.innervate(this.target, disposition as never);
+    }
+
     private handleScaffoldChunk(value: unknown): void {
         const { correlationId, chunk } = (value ?? {}) as { correlationId?: string; chunk?: Record<string, unknown> };
         if (correlationId && !correlationId.startsWith(this.id)) { return; }
         const validChunk = this.validateScaffold(chunk);
         if (Object.keys(validChunk).length === 0) { return; }
+        this.materializeEmergentNodes(validChunk);
         this.pulse(SignalType.CHUNK, { correlationId, chunk: validChunk });
     }
 
@@ -163,6 +263,7 @@ export class Content extends Uca<Body> {
         if (correlationId && !correlationId.startsWith(this.id)) { return; }
         const validScaffold = this.validateScaffold(scaffold);
         if (Object.keys(validScaffold).length === 0) { return; }
+        this.materializeEmergentNodes(validScaffold);
         this.pulse(LocalStorageSignalType.SET, { id: `${this.id}:storage`, key: this.id, value: JSON.stringify(validScaffold) });
         this.pulse(SignalType.CREATED, { correlationId, scaffold: validScaffold });
     }

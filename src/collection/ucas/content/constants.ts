@@ -8,6 +8,16 @@ export const DEFAULT_GOAL = 'Emerge only the essential flat child layout spaces 
 
 export const DEFAULT_MODEL = 'local';
 
+export const CATEGORY_KEYWORDS: readonly (readonly [string, readonly string[]])[] = [
+    ['action', ['action', 'button', 'click', 'trigger', 'submit']],
+    ['input', ['input', 'search', 'query', 'field', 'prompt']],
+    ['picture', ['picture', 'image', 'img', 'diagram', 'photo']],
+    ['toggle', ['toggle', 'switch', 'checkbox']],
+    ['choice', ['choice', 'radio', 'chip', 'option']],
+    ['dropdown', ['dropdown', 'select', 'menu']],
+    ['list', ['list', 'items', 'collection', 'group']],
+] as const;
+
 export const DEFAULT_SIGNALS: readonly string[] = [
     SignalType.CREATE,
     SignalType.STREAM,
