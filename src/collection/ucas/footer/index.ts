@@ -85,7 +85,7 @@ export class Footer extends Uca<Body> {
 
     private resolveContext(context?: string): string {
         if (context) { return context; }
-        return this.context ? `${this.context} | Section: ${Footer.purpose}` : Footer.purpose;
+        return this.context ? `${this.context} → ${Footer.purpose}` : Footer.purpose;
     }
 
     private handleCreate(value: unknown): void {
@@ -140,13 +140,11 @@ export class Footer extends Uca<Body> {
         this.pulse(ScaffoldSignalType.DESTROY, { id: `${this.id}:scaffold` });
     }
 
-    private normalizeScaffold(scaffold?: Record<string, unknown>): Record<string, unknown> {
+    private validateScaffold(scaffold?: Record<string, unknown>): Record<string, unknown> {
         if (!scaffold) { return {}; }
-        const entries = Object.entries(scaffold).map(([key, value]) => {
-            const node = (value ?? {}) as { purpose?: string; parentTo?: string | null };
-            const parentTo = node.parentTo ?? this.id;
-            const resolvedKey = key === this.id ? 'grounding' : key;
-            return [resolvedKey, { ...node, parentTo }];
+        const entries = Object.entries(scaffold).filter(([key, value]) => {
+            const { parentTo } = (value ?? {}) as { parentTo?: string | null };
+            return key !== this.id && parentTo === this.id;
         });
         return Object.fromEntries(entries);
     }
@@ -154,8 +152,9 @@ export class Footer extends Uca<Body> {
     private handleScaffoldChunk(value: unknown): void {
         const { correlationId, chunk } = (value ?? {}) as { correlationId?: string; chunk?: Record<string, unknown> };
         if (correlationId && !correlationId.startsWith(this.id)) { return; }
-        const normalized = this.normalizeScaffold(chunk);
-        this.pulse(SignalType.CHUNK, { correlationId, chunk: normalized });
+        const validChunk = this.validateScaffold(chunk);
+        if (Object.keys(validChunk).length === 0) { return; }
+        this.pulse(SignalType.CHUNK, { correlationId, chunk: validChunk });
     }
 
     private handleScaffoldStreamed(value: unknown): void {
@@ -167,11 +166,10 @@ export class Footer extends Uca<Body> {
     private handleScaffoldCreated(value: unknown): void {
         const { correlationId, scaffold } = (value ?? {}) as { correlationId?: string; scaffold?: Record<string, unknown> };
         if (correlationId && !correlationId.startsWith(this.id)) { return; }
-        const normalized = this.normalizeScaffold(scaffold);
-        if (Object.keys(normalized).length > 0) {
-            this.pulse(LocalStorageSignalType.SET, { id: `${this.id}:storage`, key: this.id, value: JSON.stringify(normalized) });
-        }
-        this.pulse(SignalType.CREATED, { correlationId, scaffold: normalized });
+        const validScaffold = this.validateScaffold(scaffold);
+        if (Object.keys(validScaffold).length === 0) { return; }
+        this.pulse(LocalStorageSignalType.SET, { id: `${this.id}:storage`, key: this.id, value: JSON.stringify(validScaffold) });
+        this.pulse(SignalType.CREATED, { correlationId, scaffold: validScaffold });
     }
 
     private handleScaffoldError(value: unknown): void {

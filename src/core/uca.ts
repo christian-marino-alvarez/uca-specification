@@ -163,10 +163,17 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         return bodyId ?? staticId;
     }
 
+    private resolveInheritedContext(): string | undefined {
+        if (this.context && this.purpose) {
+            return `${this.context} → ${this.purpose}`;
+        }
+        return this.context ?? this.purpose;
+    }
+
     private resolveChildDisposition(disposition: Disposition): Disposition {
         const { aim, parentTo } = disposition;
         const currentBody = (aim?.body ?? {}) as Record<string, unknown>;
-        const inherited = this.context ?? this.purpose;
+        const inherited = this.resolveInheritedContext();
         const context = currentBody.context ?? inherited;
         const body = { context, ...currentBody };
         const resolvedAim = { ...aim, body };

@@ -596,23 +596,35 @@ async function testCore_UcaMatchesIdIsolation(): Promise<void> {
     assert.strictEqual(headerScaffold.checkMatch(undefined), true);
 }
 
-async function testCore_UcaContextAndParentToPropagation(): Promise<void> {
-    class ChildProbe extends Uca {
-        public static override purpose: string = 'Child purpose';
-    }
-    class ParentProbe extends Uca {
-        public static override purpose: string = 'Parent master purpose';
-        protected override capabilities(): Cooky {
-            const disposition: Disposition = { aim: { description: ChildProbe.purpose, body: { id: 'child-1' } } };
-            return [[ChildProbe, disposition]];
-        }
-    }
-    const parent = new ParentProbe('parent-1');
-    parent.innervate();
+function assertChildPropagation(parent: Uca): Uca {
     const child = (parent as unknown as { registry: Map<string, Uca> }).registry.get('child-1');
     assert.ok(child !== undefined);
     assert.strictEqual(child?.context, 'Parent master purpose');
     assert.deepStrictEqual(child?.disposition.parentTo, { uca: 'parent-1', relation: 'contains' });
+    return child!;
+}
+
+function assertGrandchildPropagation(child: Uca): void {
+    const grandchild = (child as unknown as { registry: Map<string, Uca> }).registry.get('grandchild-1');
+    assert.ok(grandchild !== undefined);
+    assert.strictEqual(grandchild?.context, 'Parent master purpose → Child purpose');
+    assert.deepStrictEqual(grandchild?.disposition.parentTo, { uca: 'child-1', relation: 'contains' });
+}
+
+async function testCore_UcaContextAndParentToPropagation(): Promise<void> {
+    class GrandchildProbe extends Uca { public static override purpose = 'Grandchild purpose'; }
+    class ChildProbe extends Uca {
+        public static override purpose = 'Child purpose';
+        protected override capabilities(): Cooky { return [[GrandchildProbe, { aim: { description: GrandchildProbe.purpose, body: { id: 'grandchild-1' } } }]]; }
+    }
+    class ParentProbe extends Uca {
+        public static override purpose = 'Parent master purpose';
+        protected override capabilities(): Cooky { return [[ChildProbe, { aim: { description: ChildProbe.purpose, body: { id: 'child-1' } } }]]; }
+    }
+    const parent = new ParentProbe('parent-1');
+    parent.innervate();
+    const child = assertChildPropagation(parent);
+    assertGrandchildPropagation(child);
     parent.denervate();
 }
 
