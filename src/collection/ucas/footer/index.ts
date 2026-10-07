@@ -18,7 +18,8 @@ import {
 } from './types.js';
 
 export class Footer extends Uca<Body> {
-    public static override purpose: string = 'Ontological layout disposition space and scaffolding for the footer section of a web application';
+    public static override purpose: string =
+        'Provide ontological closure and foundational grounding to the experience, orchestrating legal compliance, attribution, documentation metadata, and secondary discovery pathways';
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Footer.purpose, body: {} },
@@ -82,9 +83,14 @@ export class Footer extends Uca<Body> {
         return [scaffoldItem, storageItem];
     }
 
+    private resolveContext(context?: string): string {
+        if (context) { return context; }
+        return this.context ? `${this.context} | Section: ${Footer.purpose}` : Footer.purpose;
+    }
+
     private handleCreate(value: unknown): void {
-        const { request = DEFAULT_GOAL, correlationId = `${this.id}:create:${Date.now()}`, forceRefresh, context = this.context, parentTo = this.id, ...rest } = (value ?? {}) as CreatePayload;
-        const payload = { ...rest, id: `${this.id}:scaffold`, request, context, parentTo, correlationId };
+        const { request = DEFAULT_GOAL, correlationId = `${this.id}:create:${Date.now()}`, forceRefresh, context, parentTo = this.id, ...rest } = (value ?? {}) as CreatePayload;
+        const payload = { ...rest, id: `${this.id}:scaffold`, request, context: this.resolveContext(context), parentTo, correlationId };
         if (forceRefresh) {
             this.pulse(ScaffoldSignalType.CREATE, payload);
             return;
@@ -93,8 +99,8 @@ export class Footer extends Uca<Body> {
     }
 
     private handleStream(value: unknown): void {
-        const { request = DEFAULT_GOAL, correlationId = `${this.id}:stream:${Date.now()}`, forceRefresh, context = this.context, parentTo = this.id, ...rest } = (value ?? {}) as StreamPayload;
-        const payload = { ...rest, id: `${this.id}:scaffold`, request, context, parentTo, correlationId };
+        const { request = DEFAULT_GOAL, correlationId = `${this.id}:stream:${Date.now()}`, forceRefresh, context, parentTo = this.id, ...rest } = (value ?? {}) as StreamPayload;
+        const payload = { ...rest, id: `${this.id}:scaffold`, request, context: this.resolveContext(context), parentTo, correlationId };
         if (forceRefresh) {
             this.pulse(ScaffoldSignalType.STREAM, payload);
             return;
