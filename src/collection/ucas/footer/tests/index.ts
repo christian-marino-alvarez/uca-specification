@@ -116,10 +116,22 @@ async function testFooter_TransducesScaffoldSignals(): Promise<void> {
     footer.denervate();
 }
 
+function testFooter_InheritedContextDisposition(): void {
+    const bus = new EventTarget();
+    const disposition = { aim: { description: 'Parent', body: { context: 'App Master Purpose' } } };
+    const footer = new Footer('footer').innervate(bus, disposition as never);
+    const { registry } = footer as unknown as { registry: Map<string, Uca> };
+    const scaffold = registry.get('footer:scaffold');
+    assert.strictEqual((footer as unknown as Record<string, unknown>).resolveContext, undefined);
+    assert.strictEqual(scaffold?.context, `App Master Purpose → ${Footer.purpose}`);
+    footer.denervate();
+}
+
 async function runTests(): Promise<void> {
     console.log('🧪 Testing Footer UCA (specialized layout disposition & scaffolding)...');
     testFooter_IdentityAndDefaults();
     testFooter_Innervation();
+    testFooter_InheritedContextDisposition();
     await testFooter_DelegatesToScaffold();
     await testFooter_UsesCacheWhenAvailable();
     await testFooter_TransducesScaffoldSignals();

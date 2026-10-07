@@ -83,14 +83,9 @@ export class Footer extends Uca<Body> {
         return [scaffoldItem, storageItem];
     }
 
-    private resolveContext(context?: string): string {
-        if (context) { return context; }
-        return this.context ? `${this.context} → ${Footer.purpose}` : Footer.purpose;
-    }
-
     private handleCreate(value: unknown): void {
         const { request = DEFAULT_GOAL, correlationId = `${this.id}:create:${Date.now()}`, forceRefresh, context, parentTo = this.id, ...rest } = (value ?? {}) as CreatePayload;
-        const payload = { ...rest, id: `${this.id}:scaffold`, request, context: this.resolveContext(context), parentTo, correlationId };
+        const payload = { ...rest, id: `${this.id}:scaffold`, request, ...(context && { context }), parentTo, correlationId };
         if (forceRefresh) {
             this.pulse(ScaffoldSignalType.CREATE, payload);
             return;
@@ -100,7 +95,7 @@ export class Footer extends Uca<Body> {
 
     private handleStream(value: unknown): void {
         const { request = DEFAULT_GOAL, correlationId = `${this.id}:stream:${Date.now()}`, forceRefresh, context, parentTo = this.id, ...rest } = (value ?? {}) as StreamPayload;
-        const payload = { ...rest, id: `${this.id}:scaffold`, request, context: this.resolveContext(context), parentTo, correlationId };
+        const payload = { ...rest, id: `${this.id}:scaffold`, request, ...(context && { context }), parentTo, correlationId };
         if (forceRefresh) {
             this.pulse(ScaffoldSignalType.STREAM, payload);
             return;

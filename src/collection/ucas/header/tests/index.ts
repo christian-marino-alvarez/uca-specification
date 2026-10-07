@@ -96,10 +96,22 @@ async function testHeader_TransducesScaffoldSignals(): Promise<void> {
     header.denervate();
 }
 
+function testHeader_InheritedContextDisposition(): void {
+    const bus = new EventTarget();
+    const disposition = { aim: { description: 'Parent', body: { context: 'App Master Purpose' } } };
+    const header = new Header('header').innervate(bus, disposition as never);
+    const { registry } = header as unknown as { registry: Map<string, Uca> };
+    const scaffold = registry.get('header:scaffold');
+    assert.strictEqual((header as unknown as Record<string, unknown>).resolveContext, undefined);
+    assert.strictEqual(scaffold?.context, `App Master Purpose → ${Header.purpose}`);
+    header.denervate();
+}
+
 async function runTests(): Promise<void> {
     console.log('🧪 Testing Header UCA (specialized layout disposition & scaffolding)...');
     testHeader_IdentityAndDefaults();
     testHeader_Innervation();
+    testHeader_InheritedContextDisposition();
     await testHeader_DelegatesToScaffold();
     await testHeader_UsesCacheWhenAvailable();
     await testHeader_TransducesScaffoldSignals();

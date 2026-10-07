@@ -133,10 +133,22 @@ async function testApp_ActionTriggeredStartsScaffolding(): Promise<void> {
     app.denervate();
 }
 
+function testApp_CascadingConceptualLineageTrace(): void {
+    const app = new App('app').innervate(new EventTarget());
+    const { registry } = app as unknown as { registry: Map<string, Uca> };
+    const header = registry.get('header');
+    const { registry: headerRegistry } = header as unknown as { registry: Map<string, Uca> };
+    const scaffold = headerRegistry.get('header:scaffold');
+    assert.strictEqual(header?.context, App.purpose);
+    assert.strictEqual(scaffold?.context, `${App.purpose} → ${header?.purpose}`);
+    app.denervate();
+}
+
 async function runTests(): Promise<void> {
     console.log('🧪 Testing App UCA with cascade Header, Content, and Footer...');
     testApp_IdentityAndDefaults();
     testApp_Innervation();
+    testApp_CascadingConceptualLineageTrace();
     await testApp_LocalLlmLoadingAndProgressFlow();
     await testApp_ActionTriggeredStartsScaffolding();
     await testApp_CascadeScaffoldForwardingAndCompletion();

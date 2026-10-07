@@ -116,10 +116,22 @@ async function testContent_TransducesScaffoldSignals(): Promise<void> {
     content.denervate();
 }
 
+function testContent_InheritedContextDisposition(): void {
+    const bus = new EventTarget();
+    const disposition = { aim: { description: 'Parent', body: { context: 'App Master Purpose' } } };
+    const content = new Content('content').innervate(bus, disposition as never);
+    const { registry } = content as unknown as { registry: Map<string, Uca> };
+    const scaffold = registry.get('content:scaffold');
+    assert.strictEqual((content as unknown as Record<string, unknown>).resolveContext, undefined);
+    assert.strictEqual(scaffold?.context, `App Master Purpose → ${Content.purpose}`);
+    content.denervate();
+}
+
 async function runTests(): Promise<void> {
     console.log('🧪 Testing Content UCA (specialized layout disposition & scaffolding)...');
     testContent_IdentityAndDefaults();
     testContent_Innervation();
+    testContent_InheritedContextDisposition();
     await testContent_DelegatesToScaffold();
     await testContent_UsesCacheWhenAvailable();
     await testContent_TransducesScaffoldSignals();
