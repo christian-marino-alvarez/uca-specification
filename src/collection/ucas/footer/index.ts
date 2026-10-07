@@ -140,10 +140,22 @@ export class Footer extends Uca<Body> {
         this.pulse(ScaffoldSignalType.DESTROY, { id: `${this.id}:scaffold` });
     }
 
+    private normalizeScaffold(scaffold?: Record<string, unknown>): Record<string, unknown> {
+        if (!scaffold) { return {}; }
+        const entries = Object.entries(scaffold).map(([key, value]) => {
+            const node = (value ?? {}) as { purpose?: string; parentTo?: string | null };
+            const parentTo = node.parentTo ?? this.id;
+            const resolvedKey = key === this.id ? 'grounding' : key;
+            return [resolvedKey, { ...node, parentTo }];
+        });
+        return Object.fromEntries(entries);
+    }
+
     private handleScaffoldChunk(value: unknown): void {
-        const { correlationId } = (value ?? {}) as { correlationId?: string };
+        const { correlationId, chunk } = (value ?? {}) as { correlationId?: string; chunk?: Record<string, unknown> };
         if (correlationId && !correlationId.startsWith(this.id)) { return; }
-        this.pulse(SignalType.CHUNK, value);
+        const normalized = this.normalizeScaffold(chunk);
+        this.pulse(SignalType.CHUNK, { correlationId, chunk: normalized });
     }
 
     private handleScaffoldStreamed(value: unknown): void {
@@ -155,10 +167,11 @@ export class Footer extends Uca<Body> {
     private handleScaffoldCreated(value: unknown): void {
         const { correlationId, scaffold } = (value ?? {}) as { correlationId?: string; scaffold?: Record<string, unknown> };
         if (correlationId && !correlationId.startsWith(this.id)) { return; }
-        if (scaffold && Object.keys(scaffold).length > 0) {
-            this.pulse(LocalStorageSignalType.SET, { id: `${this.id}:storage`, key: this.id, value: JSON.stringify(scaffold) });
+        const normalized = this.normalizeScaffold(scaffold);
+        if (Object.keys(normalized).length > 0) {
+            this.pulse(LocalStorageSignalType.SET, { id: `${this.id}:storage`, key: this.id, value: JSON.stringify(normalized) });
         }
-        this.pulse(SignalType.CREATED, value);
+        this.pulse(SignalType.CREATED, { correlationId, scaffold: normalized });
     }
 
     private handleScaffoldError(value: unknown): void {

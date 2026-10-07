@@ -87,10 +87,12 @@ export class Scaffold extends Uca<Body> {
     private formatGoalRequest(request: string, context?: string, parentUca?: string): string {
         const parentValue = parentUca ? `"${parentUca}"` : 'null';
         const schema = `{"<childName>":{"purpose":"<1-sentence purpose (8-15 words)>","parentTo":${parentValue}}}`;
+        const parentRule = parentUca ? `Rule: Every child MUST have "parentTo": ${parentValue}. Never use null. Do not name any child "${parentUca}".` : '';
         const lines = [
             ...(context ? [`Context: ${context}`] : []),
             `Request: ${request}`,
             `${SCAFFOLD_INSTRUCTION_PREFIX} ${schema}`,
+            ...(parentRule ? [parentRule] : []),
             SCAFFOLD_RESTRICTIONS,
         ];
         return lines.join('\n');
