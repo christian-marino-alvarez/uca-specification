@@ -21,8 +21,20 @@ function getQueryText(): string | undefined {
     return input?.textContent?.trim() || undefined;
 }
 
+function setStatusFeedback(message: string, busy: boolean = true): void {
+    const statusText = document.getElementById('app:status-text');
+    const statusContainer = document.getElementById('app:status');
+    if (statusText) { statusText.textContent = message; }
+    if (statusContainer) { statusContainer.classList.toggle('busy', busy); }
+}
+
 function triggerDiscovery(): void {
+    const actionElement = document.querySelector('ext-action, #action\\:submit, [id*="submit"]') as HTMLElement | null;
+    if (actionElement?.hasAttribute('disabled') || actionElement?.classList.contains('disabled')) {
+        return;
+    }
     const request = getQueryText();
+    setStatusFeedback(`🧠 Descubriendo para "${request ?? 'UCA'}"...`, true);
     const event = new CustomEvent('action.triggered', {
         detail: { source: 'user', property: 'action.triggered', value: { request } },
     });

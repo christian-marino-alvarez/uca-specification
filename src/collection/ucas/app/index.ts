@@ -168,8 +168,21 @@ export class App extends Uca<Body> {
         this.pulse(BoxSignalType.CREATE, { id: 'box:content' });
         this.pulse(BoxSignalType.CREATE, { id: 'box:emergent', text: '' });
         this.pulse(BoxSignalType.CREATE, { id: 'box:footer', text: 'UCA · Universal Cognitive Architecture' });
-        this.pulse(ActionSignalType.CREATE, { id: 'action:submit', label: '→', disabled: true });
+        this.pulse(ActionSignalType.CREATE, { id: 'action:submit', label: '→', disabled: false });
+        this.updateStatus('⚡ Sistema UCA preparado');
         void this.watchGpuReadiness();
+    }
+
+    private updateStatus(message: string, busy?: boolean): void {
+        if (typeof document !== 'undefined') {
+            const container = document.getElementById('app:status');
+            const textElement = document.getElementById('app:status-text');
+            if (textElement) { textElement.textContent = message; }
+            if (container && busy !== undefined) { container.classList.toggle('busy', busy); }
+        }
+        if (busy !== undefined) {
+            this.pulse(SignalType.LOADING, { loading: busy, message });
+        }
     }
 
     private async watchGpuReadiness(): Promise<void> {
@@ -182,37 +195,38 @@ export class App extends Uca<Body> {
         const { request } = (value ?? {}) as { request?: string };
         const query = request || DEFAULT_GOAL;
         this.pulse(ActionSignalType.UPDATE, { id: 'action:submit', disabled: true });
+        this.updateStatus(`🧠 Razonando espacios para "${query}"...`, true);
         this.pulse(BoxSignalType.UPDATE, { id: 'box:emergent', text: `⚡ Razonando para: "${query}"...` });
         this.pulse(ContentSignalType.STREAM, { request: query, model: 'local', forceRefresh: true });
     }
 
     private handleCreate(value: unknown): void {
         const { model = 'local', request = DEFAULT_GOAL, ...rest } = (value ?? {}) as CreatePayload;
-        this.pulse(SignalType.LOADING, { loading: true, message: `Iniciando layout (${model})...` });
+        this.updateStatus(`Iniciando layout (${model})...`, true);
         this.pulse(ContentSignalType.STREAM, { model, request, ...rest });
     }
 
     private handleStream(value: unknown): void {
         const { model = 'local', request = DEFAULT_GOAL, ...rest } = (value ?? {}) as StreamPayload;
-        this.pulse(SignalType.LOADING, { loading: true, message: `Iniciando streaming layout (${model})...` });
+        this.updateStatus(`Iniciando streaming layout (${model})...`, true);
         this.pulse(ContentSignalType.STREAM, { model, request, ...rest });
     }
 
     private handleDownloading(value: unknown): void {
         const { percentage = 0, loaded, total } = (value ?? {}) as DownloadProgressPayload;
         const message = `⏳ Descargando modelo: ${percentage}% (${loaded}/${total})`;
-        this.pulse(SignalType.LOADING, { loading: true, message });
+        this.updateStatus(message, true);
         this.pulse(SignalType.PROGRESS, { percentage, loaded, total });
         this.pulse(BoxSignalType.UPDATE, { id: 'box:emergent', text: message });
     }
 
     private handleReady(): void {
-        const message = '⚡ Modelo local listo en GPU';
-        this.pulse(SignalType.LOADING, { loading: false, message });
+        this.updateStatus('⚡ Modelo local listo en GPU', false);
         this.pulse(ActionSignalType.UPDATE, { id: 'action:submit', label: '→', disabled: false });
     }
 
     private handleContentChunk(value: unknown): void {
+        this.updateStatus('🎨 Materializando nodos cognitivos...', true);
         this.emitChunkView('Content', value);
     }
 
@@ -240,6 +254,7 @@ export class App extends Uca<Body> {
 
     private handleContentCreated(value: unknown): void {
         this.emitSectionCompleted('Content', value);
+        this.updateStatus('✅ Scaffolding UCA completado', false);
         this.pulse(ActionSignalType.UPDATE, { id: 'action:submit', disabled: false });
         this.pulse(FooterSignalType.STREAM, { model: 'local' });
     }
@@ -251,6 +266,7 @@ export class App extends Uca<Body> {
 
     private handleContentError(value: unknown): void {
         this.emitSectionError('Content', value);
+        this.updateStatus('❌ Error en el razonamiento', false);
         this.pulse(ActionSignalType.UPDATE, { id: 'action:submit', disabled: false });
         this.pulse(FooterSignalType.STREAM, { model: 'local' });
     }

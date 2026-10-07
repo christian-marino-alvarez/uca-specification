@@ -84,18 +84,20 @@ export class Scaffold extends Uca<Body> {
         return [llmItem, transformerItem];
     }
 
-    private formatGoalRequest(request: string, context?: string, parentUca?: string): string {
+    private formatGoalRequest(request: string, context?: string, parentUca?: string, dispositions?: Record<string, string>): string {
         const parentValue = parentUca ? `"${parentUca}"` : 'null';
         const schema = `{"<childName>":{"purpose":"<1-sentence purpose (8-15 words)>","parentTo":${parentValue}}}`;
-        const parentRule = parentUca ? `Rule: Every child MUST have "parentTo": ${parentValue}. Never use null. Do not name any child "${parentUca}".` : '';
-        const lines = [
-            ...(context ? [`Context: ${context}`] : []),
-            `Request: ${request}`,
-            `${SCAFFOLD_INSTRUCTION_PREFIX} ${schema}`,
-            ...(parentRule ? [parentRule] : []),
-            SCAFFOLD_RESTRICTIONS,
-        ];
+        const parentRule = parentUca ? [`Rule: Every child MUST have "parentTo": ${parentValue}. Never use null.`] : [];
+        const catalog = this.formatDispositions(dispositions);
+        const contextLine = context ? [`Context: ${context}`] : [];
+        const lines = [...contextLine, `Request: ${request}`, ...catalog, `${SCAFFOLD_INSTRUCTION_PREFIX} ${schema}`, ...parentRule, SCAFFOLD_RESTRICTIONS];
         return lines.join('\n');
+    }
+
+    private formatDispositions(dispositions?: Record<string, string>): string[] {
+        if (!dispositions || Object.keys(dispositions).length === 0) { return []; }
+        const entries = Object.entries(dispositions).map(([name, desc]) => `- ${name}: ${desc}`);
+        return ['Available Elements & Dispositions:', ...entries, 'Rule: childName MUST use an available element name as prefix (e.g. actionSubmit, inputQuery, boxSection).'];
     }
 
     private handleCreate(value: unknown): void {
@@ -111,10 +113,10 @@ export class Scaffold extends Uca<Body> {
     }
 
     private dispatchReasoning(payload: CreatePayload): void {
-        const { request = DEFAULT_GOAL, model, provider, imagination = DEFAULT_IMAGINATION, correlationId, streamId } = payload;
+        const { request = DEFAULT_GOAL, model, provider, imagination = DEFAULT_IMAGINATION, correlationId, streamId, dispositions } = payload;
         const resolvedContext = payload.context ?? this.context;
         const parentUca = payload.parentTo ?? this.disposition.parentTo?.uca;
-        const promptText = this.formatGoalRequest(request, resolvedContext, parentUca);
+        const promptText = this.formatGoalRequest(request, resolvedContext, parentUca, dispositions);
         const webLlmPayload = { id: `${this.id}:web-llm`, request: promptText, model, provider, imagination, correlationId, streamId };
         this.pulse(WebLlmSignalType.STREAM, webLlmPayload);
     }

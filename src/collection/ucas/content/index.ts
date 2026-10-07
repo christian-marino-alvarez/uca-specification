@@ -35,7 +35,11 @@ import {
 } from './types.js';
 
 function detectCategory(key: string, purpose: string): string {
-    const text = `${key} ${purpose}`.toLowerCase();
+    const lowerKey = key.toLowerCase();
+    const categories = ['action', 'input', 'picture', 'toggle', 'choice', 'dropdown', 'list', 'box'];
+    const directMatch = categories.find((kind) => lowerKey.startsWith(kind));
+    if (directMatch) { return directMatch; }
+    const text = `${lowerKey} ${purpose.toLowerCase()}`;
     for (const [kind, words] of CATEGORY_KEYWORDS) {
         if (words.some((word) => text.includes(word))) { return kind; }
     }
@@ -161,9 +165,21 @@ export class Content extends Uca<Body> {
         });
     }
 
+    private compileAvailableDispositions(): Record<string, string> {
+        const ucaClasses = [Box, Action, Input, Picture, Toggle, Choice, Dropdown, List];
+        const entries = ucaClasses.map((ClassRef) => {
+            const name = ClassRef.name.toLowerCase();
+            const { aim } = ClassRef.disposition;
+            const description = aim.description ?? ClassRef.purpose;
+            return [name, description];
+        });
+        return Object.fromEntries(entries);
+    }
+
     private handleCreate(value: unknown): void {
         const { request = DEFAULT_GOAL, correlationId = `${this.id}:create:${Date.now()}`, forceRefresh, context, parentTo = this.id, ...rest } = (value ?? {}) as CreatePayload;
-        const payload = { ...rest, id: `${this.id}:scaffold`, request, ...(context && { context }), parentTo, correlationId };
+        const dispositions = this.compileAvailableDispositions();
+        const payload = { ...rest, id: `${this.id}:scaffold`, request, ...(context && { context }), parentTo, correlationId, dispositions };
         if (forceRefresh) {
             this.pulse(ScaffoldSignalType.CREATE, payload);
             return;
@@ -173,7 +189,8 @@ export class Content extends Uca<Body> {
 
     private handleStream(value: unknown): void {
         const { request = DEFAULT_GOAL, correlationId = `${this.id}:stream:${Date.now()}`, forceRefresh, context, parentTo = this.id, ...rest } = (value ?? {}) as StreamPayload;
-        const payload = { ...rest, id: `${this.id}:scaffold`, request, ...(context && { context }), parentTo, correlationId };
+        const dispositions = this.compileAvailableDispositions();
+        const payload = { ...rest, id: `${this.id}:scaffold`, request, ...(context && { context }), parentTo, correlationId, dispositions };
         if (forceRefresh) {
             this.pulse(ScaffoldSignalType.STREAM, payload);
             return;

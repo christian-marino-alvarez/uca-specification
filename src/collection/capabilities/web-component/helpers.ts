@@ -83,6 +83,9 @@ export function synchronizeElementAttributes(
     if (!('hidden' in attributes) && element.hasAttribute('hidden')) {
         element.removeAttribute('hidden');
     }
+    if (!('disabled' in attributes) && element.hasAttribute('disabled')) {
+        element.removeAttribute('disabled');
+    }
     for (const [name, value] of Object.entries(attributes)) {
         if (value !== undefined && value !== null) {
             element.setAttribute(name, value);

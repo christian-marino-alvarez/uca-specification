@@ -172,6 +172,39 @@
             transform: translateY(0);
         }
 
+        .uca-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 18px;
+            font-size: 13px;
+            color: var(--muted-color);
+            font-family: 'JetBrains Mono', monospace;
+            transition: all 0.25s ease;
+        }
+
+        .uca-status .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #238636;
+            box-shadow: 0 0 8px rgba(35, 134, 54, 0.6);
+            display: inline-block;
+            transition: all 0.25s ease;
+        }
+
+        .uca-status.busy .status-dot {
+            background: #58a6ff;
+            box-shadow: 0 0 10px rgba(88, 166, 255, 0.8);
+            animation: pulse-dot 1.2s infinite ease-in-out;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.3); opacity: 1; }
+        }
+
         #box\:emergent, ext-box[id="box:emergent"] {
             display: block;
             width: 100%;
@@ -213,7 +246,11 @@
                 <p class="uca-subtitle">¿Qué quieres descubrir o hacer?</p>
                 <div class="uca-input-container">
                     <ext-input id="input:query" placeholder="Ej: Ciclo de vida reactivo, bus de señales..." contenteditable="true"></ext-input>
-                    <ext-action id="action:submit" class="disabled" title="Descubrir">→</ext-action>
+                    <ext-action id="action:submit" title="Descubrir">→</ext-action>
+                </div>
+                <div id="app:status" class="uca-status">
+                    <span class="status-dot"></span>
+                    <span id="app:status-text">⚡ Sistema UCA preparado</span>
                 </div>
             </div>
             <ext-box id="box:emergent"></ext-box>
