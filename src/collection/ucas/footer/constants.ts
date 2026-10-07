@@ -4,7 +4,7 @@ import { SignalType } from './types.js';
 
 export const __ID__ = 'footer';
 
-export const DEFAULT_GOAL = 'Infer and design strictly the essential, minimal layout disposition spaces required by its purpose as a website footer (e.g. copyrightNotice, legalLinks, socialRow). Parent is footerSection.';
+export const DEFAULT_GOAL = 'Emerge 2 to 4 distinct flat child spaces (e.g. copyright, legal, social). Every space has parentTo: "footer". Never name a space "footer".';
 
 export const DEFAULT_MODEL = 'local';
 

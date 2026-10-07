@@ -84,14 +84,15 @@ export class Scaffold extends Uca<Body> {
         return [llmItem, transformerItem];
     }
 
-    private formatGoalRequest(request: string, context?: string): string {
+    private formatGoalRequest(request: string, context?: string, parentUca?: string): string {
+        const parentDirective = parentUca ? [`Root parent is "${parentUca}". Emerge multiple flat child spaces with parentTo: "${parentUca}".`] : [];
         const lines = [
             ...(context ? [`Context: ${context}`] : []),
-            'Goal: Create key-value schema of camelCase ucaName representing layout spaces.',
             `Request: ${request}`,
+            ...parentDirective,
             SCAFFOLD_NDJSON_INSTRUCTION,
             `Schema: ${SCAFFOLD_SCHEMA_TEMPLATE}`,
-            'Restrictions: Flat layout only. parentTo is string or null. No CSS, markdown or nested objects.',
+            'Restrictions: Flat children only. ucaName must be distinct child concept, not parent. No CSS or markdown.',
         ];
         return lines.join('\n');
     }
@@ -111,7 +112,8 @@ export class Scaffold extends Uca<Body> {
     private dispatchReasoning(payload: CreatePayload): void {
         const { request = DEFAULT_GOAL, model, provider, imagination = DEFAULT_IMAGINATION, correlationId, streamId } = payload;
         const resolvedContext = payload.context ?? this.context;
-        const promptText = this.formatGoalRequest(request, resolvedContext);
+        const parentUca = payload.parentTo ?? this.disposition.parentTo?.uca;
+        const promptText = this.formatGoalRequest(request, resolvedContext, parentUca);
         const webLlmPayload = { id: `${this.id}:web-llm`, request: promptText, model, provider, imagination, correlationId, streamId };
         this.pulse(WebLlmSignalType.STREAM, webLlmPayload);
     }

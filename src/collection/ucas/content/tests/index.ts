@@ -93,7 +93,7 @@ async function testContent_TransducesScaffoldSignals(): Promise<void> {
 
     emitSignal(bus, ScaffoldSignalType.CHUNK, {
         correlationId: 'content:stream:456',
-        chunk: { heroBanner: { purpose: 'Main value proposition banner', parentTo: 'contentSection' } },
+        chunk: { heroBanner: { purpose: 'Main value proposition banner', parentTo: 'content' } },
     });
 
     emitSignal(bus, ScaffoldSignalType.CHUNK, {
@@ -103,15 +103,15 @@ async function testContent_TransducesScaffoldSignals(): Promise<void> {
 
     emitSignal(bus, ScaffoldSignalType.CREATED, {
         correlationId: 'content:stream:456',
-        scaffold: { heroBanner: { purpose: 'Main value proposition banner', parentTo: 'contentSection' } },
+        scaffold: { heroBanner: { purpose: 'Main value proposition banner', parentTo: 'content' } },
     });
 
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     assert.strictEqual(chunks.length, 1);
-    assert.deepStrictEqual(chunks[0]?.chunk, { heroBanner: { purpose: 'Main value proposition banner', parentTo: 'contentSection' } });
+    assert.deepStrictEqual(chunks[0]?.chunk, { heroBanner: { purpose: 'Main value proposition banner', parentTo: 'content' } });
     assert.ok(created !== undefined);
-    assert.deepStrictEqual(created.scaffold, { heroBanner: { purpose: 'Main value proposition banner', parentTo: 'contentSection' } });
+    assert.deepStrictEqual(created.scaffold, { heroBanner: { purpose: 'Main value proposition banner', parentTo: 'content' } });
 
     content.denervate();
 }

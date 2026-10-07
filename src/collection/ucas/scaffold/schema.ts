@@ -12,6 +12,7 @@ export const scaffoldSchema = z.record(z.string(), nodeSchema);
 export const createPayloadSchema = z.object({
     request: z.string().describe('Web application goal or prompt request'),
     context: z.string().optional().describe('Parent UCA context or purpose'),
+    parentTo: z.string().optional().describe('Parent UCA identifier acting as the root of this disposition'),
     model: z.enum(['local', 'nube']).optional().default('local'),
     provider: z.string().optional(),
     imagination: z.number().min(0).max(10).optional().default(1),
@@ -23,6 +24,7 @@ export const streamPayloadSchema = createPayloadSchema;
 
 export const bodySchema = z.object({
     context: z.string().optional(),
+    parentTo: z.string().optional(),
     request: z.string().optional(),
     scaffold: scaffoldSchema.optional(),
 });

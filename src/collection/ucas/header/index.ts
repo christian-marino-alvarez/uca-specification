@@ -83,21 +83,23 @@ export class Header extends Uca<Body> {
     }
 
     private handleCreate(value: unknown): void {
-        const { request = DEFAULT_GOAL, correlationId = `${this.id}:create:${Date.now()}`, forceRefresh, context = this.context, ...rest } = (value ?? {}) as CreatePayload;
+        const { request = DEFAULT_GOAL, correlationId = `${this.id}:create:${Date.now()}`, forceRefresh, context = this.context, parentTo = this.id, ...rest } = (value ?? {}) as CreatePayload;
+        const payload = { ...rest, id: `${this.id}:scaffold`, request, context, parentTo, correlationId };
         if (forceRefresh) {
-            this.pulse(ScaffoldSignalType.CREATE, { ...rest, id: `${this.id}:scaffold`, request, context, correlationId });
+            this.pulse(ScaffoldSignalType.CREATE, payload);
             return;
         }
-        this.pulse(LocalStorageSignalType.GET, { id: `${this.id}:storage`, targetId: this.id, key: this.id, action: 'create', payload: { ...rest, request, context, correlationId } });
+        this.pulse(LocalStorageSignalType.GET, { id: `${this.id}:storage`, targetId: this.id, key: this.id, action: 'create', payload });
     }
 
     private handleStream(value: unknown): void {
-        const { request = DEFAULT_GOAL, correlationId = `${this.id}:stream:${Date.now()}`, forceRefresh, context = this.context, ...rest } = (value ?? {}) as StreamPayload;
+        const { request = DEFAULT_GOAL, correlationId = `${this.id}:stream:${Date.now()}`, forceRefresh, context = this.context, parentTo = this.id, ...rest } = (value ?? {}) as StreamPayload;
+        const payload = { ...rest, id: `${this.id}:scaffold`, request, context, parentTo, correlationId };
         if (forceRefresh) {
-            this.pulse(ScaffoldSignalType.STREAM, { ...rest, id: `${this.id}:scaffold`, request, context, correlationId });
+            this.pulse(ScaffoldSignalType.STREAM, payload);
             return;
         }
-        this.pulse(LocalStorageSignalType.GET, { id: `${this.id}:storage`, targetId: this.id, key: this.id, action: 'stream', payload: { ...rest, request, context, correlationId } });
+        this.pulse(LocalStorageSignalType.GET, { id: `${this.id}:storage`, targetId: this.id, key: this.id, action: 'stream', payload });
     }
 
     private handleRetrieved(value: unknown): void {

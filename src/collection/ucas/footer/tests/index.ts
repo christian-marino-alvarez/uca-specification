@@ -93,7 +93,7 @@ async function testFooter_TransducesScaffoldSignals(): Promise<void> {
 
     emitSignal(bus, ScaffoldSignalType.CHUNK, {
         correlationId: 'footer:stream:789',
-        chunk: { copyrightNotice: { purpose: 'Legal copyright and attribution', parentTo: 'footerSection' } },
+        chunk: { copyrightNotice: { purpose: 'Legal copyright and attribution', parentTo: 'footer' } },
     });
 
     emitSignal(bus, ScaffoldSignalType.CHUNK, {
@@ -103,15 +103,15 @@ async function testFooter_TransducesScaffoldSignals(): Promise<void> {
 
     emitSignal(bus, ScaffoldSignalType.CREATED, {
         correlationId: 'footer:stream:789',
-        scaffold: { copyrightNotice: { purpose: 'Legal copyright and attribution', parentTo: 'footerSection' } },
+        scaffold: { copyrightNotice: { purpose: 'Legal copyright and attribution', parentTo: 'footer' } },
     });
 
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     assert.strictEqual(chunks.length, 1);
-    assert.deepStrictEqual(chunks[0]?.chunk, { copyrightNotice: { purpose: 'Legal copyright and attribution', parentTo: 'footerSection' } });
+    assert.deepStrictEqual(chunks[0]?.chunk, { copyrightNotice: { purpose: 'Legal copyright and attribution', parentTo: 'footer' } });
     assert.ok(created !== undefined);
-    assert.deepStrictEqual(created.scaffold, { copyrightNotice: { purpose: 'Legal copyright and attribution', parentTo: 'footerSection' } });
+    assert.deepStrictEqual(created.scaffold, { copyrightNotice: { purpose: 'Legal copyright and attribution', parentTo: 'footer' } });
 
     footer.denervate();
 }

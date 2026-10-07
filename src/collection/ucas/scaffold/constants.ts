@@ -10,9 +10,9 @@ export const DEFAULT_MODEL = 'local';
 
 export const DEFAULT_IMAGINATION = 1;
 
-export const SCAFFOLD_SCHEMA_TEMPLATE = '{"<ucaName>":{"purpose":"<under 4 words>","parentTo":"<parent|null>"}}';
+export const SCAFFOLD_SCHEMA_TEMPLATE = '{"<childUcaName>":{"purpose":"<clear 1-sentence purpose (8-15 words)>","parentTo":"<parentUca>"}}';
 
-export const SCAFFOLD_NDJSON_INSTRUCTION = 'Format: Strict compact single-line NDJSON without spaces or linebreaks. Flat schema: {"<ucaName>":{"purpose":"...","parentTo":"<parentId|null>"}}. Never nest children or objects.';
+export const SCAFFOLD_NDJSON_INSTRUCTION = 'Format: Flat compact NDJSON, one child per line. Schema: {"<childUcaName>":{"purpose":"...","parentTo":"<parentUca>"}}. Purpose must be a clear teleological intent explaining its functional role.';
 
 export const DEFAULT_SIGNALS: readonly string[] = [
     SignalType.CREATE,

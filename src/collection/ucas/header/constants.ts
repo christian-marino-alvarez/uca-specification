@@ -4,7 +4,7 @@ import { SignalType } from './types.js';
 
 export const __ID__ = 'header';
 
-export const DEFAULT_GOAL = 'Infer and design strictly the essential, minimal layout disposition spaces required by its purpose as a website header (e.g. brandLogo, navigationMenu, themeToggle, searchInput). Parent is headerSection.';
+export const DEFAULT_GOAL = 'Emerge 2 to 4 distinct flat child spaces (e.g. identity, navigation). Every space has parentTo: "header". Never name a space "header".';
 
 export const DEFAULT_MODEL = 'local';
 

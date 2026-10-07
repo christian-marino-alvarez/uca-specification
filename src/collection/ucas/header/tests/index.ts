@@ -73,7 +73,7 @@ async function testHeader_TransducesScaffoldSignals(): Promise<void> {
 
     emitSignal(bus, ScaffoldSignalType.CHUNK, {
         correlationId: 'header:stream:123',
-        chunk: { brandLogo: { purpose: 'Brand visual identity', parentTo: 'headerSection' } },
+        chunk: { brandLogo: { purpose: 'Brand visual identity', parentTo: 'header' } },
     });
 
     emitSignal(bus, ScaffoldSignalType.CHUNK, {
@@ -83,15 +83,15 @@ async function testHeader_TransducesScaffoldSignals(): Promise<void> {
 
     emitSignal(bus, ScaffoldSignalType.CREATED, {
         correlationId: 'header:stream:123',
-        scaffold: { brandLogo: { purpose: 'Brand visual identity', parentTo: 'headerSection' } },
+        scaffold: { brandLogo: { purpose: 'Brand visual identity', parentTo: 'header' } },
     });
 
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     assert.strictEqual(chunks.length, 1);
-    assert.deepStrictEqual(chunks[0]?.chunk, { brandLogo: { purpose: 'Brand visual identity', parentTo: 'headerSection' } });
+    assert.deepStrictEqual(chunks[0]?.chunk, { brandLogo: { purpose: 'Brand visual identity', parentTo: 'header' } });
     assert.ok(created !== undefined);
-    assert.deepStrictEqual(created.scaffold, { brandLogo: { purpose: 'Brand visual identity', parentTo: 'headerSection' } });
+    assert.deepStrictEqual(created.scaffold, { brandLogo: { purpose: 'Brand visual identity', parentTo: 'header' } });
 
     header.denervate();
 }
