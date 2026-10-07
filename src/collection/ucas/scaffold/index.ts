@@ -9,8 +9,8 @@ import {
     DEFAULT_GOAL,
     DEFAULT_IMAGINATION,
     DEFAULT_SIGNALS,
-    SCAFFOLD_NDJSON_INSTRUCTION,
-    SCAFFOLD_SCHEMA_TEMPLATE,
+    SCAFFOLD_INSTRUCTION_PREFIX,
+    SCAFFOLD_RESTRICTIONS,
 } from './constants.js';
 import { itemSchema } from './schema.js';
 import {
@@ -85,14 +85,13 @@ export class Scaffold extends Uca<Body> {
     }
 
     private formatGoalRequest(request: string, context?: string, parentUca?: string): string {
-        const parentDirective = parentUca ? [`Root parent is "${parentUca}". Emerge multiple flat child spaces with parentTo: "${parentUca}".`] : [];
+        const parentValue = parentUca ? `"${parentUca}"` : 'null';
+        const schema = `{"<childName>":{"purpose":"<1-sentence purpose (8-15 words)>","parentTo":${parentValue}}}`;
         const lines = [
             ...(context ? [`Context: ${context}`] : []),
             `Request: ${request}`,
-            ...parentDirective,
-            SCAFFOLD_NDJSON_INSTRUCTION,
-            `Schema: ${SCAFFOLD_SCHEMA_TEMPLATE}`,
-            'Restrictions: Flat children only. ucaName must be distinct child concept, not parent. No CSS or markdown.',
+            `${SCAFFOLD_INSTRUCTION_PREFIX} ${schema}`,
+            SCAFFOLD_RESTRICTIONS,
         ];
         return lines.join('\n');
     }

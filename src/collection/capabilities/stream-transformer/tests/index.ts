@@ -157,6 +157,30 @@ async function testStreamTransformer_TransformWrappedOuterObject(): Promise<void
     transformer.denervate();
 }
 
+async function testStreamTransformer_IgnoresStandaloneMetadata(): Promise<void> {
+    const bus = new EventTarget();
+    let result: TransformResult | undefined;
+    bus.addEventListener(SignalType.TRANSFORMED, (event: Event) => {
+        result = (event as CustomEvent<Signal>).detail?.value as TransformResult;
+    });
+    const transformer = new StreamTransformer().innervate(bus);
+    const textStream = createTextStream(['{"parentTo": "header"}\n', '{"brandLogo": {"purpose": "Brand", "parentTo": "header"}}\n']);
+    const schema = z.record(z.string(), z.object({ purpose: z.string(), parentTo: z.string() }));
+    emitSignal(bus, SignalType.TRANSFORM, { correlationId: 'c-meta', stream: textStream, schema });
+    await assertSanitizedStream(result, transformer);
+}
+
+async function assertSanitizedStream(result: TransformResult | undefined, transformer: StreamTransformer): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.ok(result !== undefined);
+    const reader = result.stream.getReader();
+    const { value } = await reader.read();
+    assert.deepStrictEqual(value, { brandLogo: { purpose: 'Brand', parentTo: 'header' } });
+    const { done } = await reader.read();
+    assert.strictEqual(done, true);
+    transformer.denervate();
+}
+
 async function runTests(): Promise<void> {
     console.log('🧪 Testing StreamTransformer Capability (text stream -> object stream)...');
     testStreamTransformer_IdentityAndDefaults();
@@ -164,6 +188,7 @@ async function runTests(): Promise<void> {
     await testStreamTransformer_TransformToObjects();
     await testStreamTransformer_TransformWithSchemaValidation();
     await testStreamTransformer_TransformWrappedOuterObject();
+    await testStreamTransformer_IgnoresStandaloneMetadata();
     console.log('✅ All StreamTransformer Capability tests passed successfully!');
 }
 

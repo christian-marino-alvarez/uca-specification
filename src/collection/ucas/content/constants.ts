@@ -4,7 +4,7 @@ import { SignalType } from './types.js';
 
 export const __ID__ = 'content';
 
-export const DEFAULT_GOAL = 'Emerge 2 to 4 distinct flat child spaces (e.g. hero, explainer, showcase). Every space has parentTo: "content". Never name a space "content".';
+export const DEFAULT_GOAL = 'Emerge only the essential flat child layout spaces strictly required to fulfill this purpose. Stop when covered.';
 
 export const DEFAULT_MODEL = 'local';
 

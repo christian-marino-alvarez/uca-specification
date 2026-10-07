@@ -4,7 +4,7 @@ import { SignalType } from './types.js';
 
 export const __ID__ = 'footer';
 
-export const DEFAULT_GOAL = 'Emerge 2 to 4 distinct flat child spaces (e.g. copyright, legal, social). Every space has parentTo: "footer". Never name a space "footer".';
+export const DEFAULT_GOAL = 'Emerge only the essential flat child layout spaces strictly required to fulfill this purpose. Stop when covered.';
 
 export const DEFAULT_MODEL = 'local';
 

@@ -118,10 +118,19 @@ export class StreamTransformer extends Capability<Body> {
         return -1;
     }
 
+    private sanitizeItem(item: Record<string, unknown>): Record<string, unknown> {
+        const entries = Object.entries(item).filter(([, value]) => {
+            return typeof value === 'object' && value !== null;
+        });
+        return Object.fromEntries(entries);
+    }
+
     private enqueueValidated(item: Record<string, unknown>, controller: TransformStreamDefaultController<Record<string, unknown>>, schema?: z.ZodTypeAny): void {
-        const validation = schema ? schema.safeParse(item) : { success: true, data: item };
+        const candidate = 'purpose' in item ? item : this.sanitizeItem(item);
+        if (Object.keys(candidate).length === 0) { return; }
+        const validation = schema ? schema.safeParse(candidate) : { success: true, data: candidate };
         if (!validation.success) {
-            console.warn('⚠️ [stream-transformer] Chunk rejected by schema:', item);
+            console.warn('⚠️ [stream-transformer] Chunk rejected by schema:', candidate);
             return;
         }
         this.dispatchValidated(validation.data as Record<string, unknown>, controller);

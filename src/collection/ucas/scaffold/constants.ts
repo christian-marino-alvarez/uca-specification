@@ -4,15 +4,15 @@ import { SignalType } from './types.js';
 
 export const __ID__ = 'scaffold';
 
-export const DEFAULT_GOAL = 'Create a key-value schema of camelCase ucaName and purpose with parentTo representing web disposition layout spaces';
+export const DEFAULT_GOAL = 'Emerge only the essential flat child layout spaces strictly required to fulfill this purpose';
 
 export const DEFAULT_MODEL = 'local';
 
 export const DEFAULT_IMAGINATION = 1;
 
-export const SCAFFOLD_SCHEMA_TEMPLATE = '{"<childUcaName>":{"purpose":"<clear 1-sentence purpose (8-15 words)>","parentTo":"<parentUca>"}}';
+export const SCAFFOLD_INSTRUCTION_PREFIX = 'Format: Flat compact NDJSON, one child per line. Schema:';
 
-export const SCAFFOLD_NDJSON_INSTRUCTION = 'Format: Flat compact NDJSON, one child per line. Schema: {"<childUcaName>":{"purpose":"...","parentTo":"<parentUca>"}}. Purpose must be a clear teleological intent explaining its functional role.';
+export const SCAFFOLD_RESTRICTIONS = 'Restrictions: Only emit child spaces with parentTo. Never emit standalone parentTo or root wrappers. Stop when purpose is covered.';
 
 export const DEFAULT_SIGNALS: readonly string[] = [
     SignalType.CREATE,
