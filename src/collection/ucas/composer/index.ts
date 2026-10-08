@@ -79,7 +79,7 @@ export class Composer extends Uca<Body> {
     private handleCompose(value: unknown): void {
         const payload = (value ?? {}) as ComposePayload;
         const { targetUca, purpose, parentTo, parentContext, themeClasses, model = DEFAULT_MODEL, provider = DEFAULT_PROVIDER } = payload;
-        const correlationId = payload.correlationId ?? `${this.id}:compose:${targetUca}:${Date.now()}`;
+        const correlationId = `${this.id}:compose:${targetUca}:${Date.now()}`;
         const prompt = this.formatPrompt(targetUca, purpose, parentTo, parentContext, themeClasses);
         console.log(`🎼 [Composer:Prompt] Componiendo #${targetUca}\n`, prompt);
         const webLlmPayload = { id: `${this.id}:web-llm`, request: prompt, model, provider, correlationId, targetUca };
@@ -90,7 +90,7 @@ export class Composer extends Uca<Body> {
         const payload = (value ?? {}) as ComposeStreamPayload;
         const { stream, parentContext, themeClasses, correlationId } = payload;
         if (!stream) { return; }
-        const outputStream = this.createPipedComposerStream(stream, parentContext, themeClasses, correlationId);
+        const outputStream = this.createPipedComposerStream(stream, parentContext, themeClasses);
         this.pulse(SignalType.STREAMED, { stream: outputStream, correlationId });
     }
 
@@ -98,12 +98,11 @@ export class Composer extends Uca<Body> {
         inputStream: ReadableStream<unknown>,
         parentContext?: string,
         themeClasses?: string[],
-        correlationId?: string,
     ): ReadableStream<ComposedResult> {
         const self = this;
         return new ReadableStream<ComposedResult>({
             async start(controller) {
-                await self.pumpScaffoldStream(inputStream, controller, parentContext, themeClasses, correlationId);
+                await self.pumpScaffoldStream(inputStream, controller, parentContext, themeClasses);
             },
         });
     }
@@ -113,14 +112,13 @@ export class Composer extends Uca<Body> {
         controller: ReadableStreamDefaultController<ComposedResult>,
         parentContext?: string,
         themeClasses?: string[],
-        correlationId?: string,
     ): Promise<void> {
         const reader = (inputStream as ReadableStream<Record<string, { purpose?: string; parentTo?: string | null }>>).getReader();
         try {
             while (true) {
                 const { done, value: chunk } = await reader.read();
                 if (done) { break; }
-                await this.processChunkItems(chunk, controller, parentContext, themeClasses, correlationId);
+                await this.processChunkItems(chunk, controller, parentContext, themeClasses);
             }
         } finally {
             controller.close();
@@ -132,12 +130,11 @@ export class Composer extends Uca<Body> {
         controller: ReadableStreamDefaultController<ComposedResult>,
         parentContext?: string,
         themeClasses?: string[],
-        correlationId?: string,
     ): Promise<void> {
         if (!chunk || typeof chunk !== 'object') { return; }
         for (const [ucaName, ucaDef] of Object.entries(chunk)) {
             if (ucaName.toLowerCase() === 'app') { continue; }
-            await this.composeAndEnqueue(ucaName, ucaDef, controller, parentContext, themeClasses, correlationId);
+            await this.composeAndEnqueue(ucaName, ucaDef, controller, parentContext, themeClasses);
         }
     }
 
@@ -147,13 +144,12 @@ export class Composer extends Uca<Body> {
         controller: ReadableStreamDefaultController<ComposedResult>,
         parentContext?: string,
         themeClasses?: string[],
-        correlationId?: string,
     ): Promise<void> {
         const { purpose = targetUca, parentTo = 'app' } = ucaDef ?? {};
         const parentId = parentTo || 'app';
         const resolvedContext = this.ucaContexts.get(parentId) ?? parentContext;
         this.ucaContexts.set(targetUca, purpose);
-        const composed = await this.composeUcaAsync(targetUca, purpose, parentId, resolvedContext, themeClasses, correlationId);
+        const composed = await this.composeUcaAsync(targetUca, purpose, parentId, resolvedContext, themeClasses);
         controller.enqueue(composed);
         this.pulse(SignalType.COMPOSED, composed);
     }
@@ -164,9 +160,8 @@ export class Composer extends Uca<Body> {
         parentTo: string,
         parentContext?: string,
         themeClasses?: string[],
-        correlationId?: string,
     ): Promise<ComposedResult> {
-        const cid = correlationId ?? `${this.id}:compose:${targetUca}:${Date.now()}`;
+        const cid = `${this.id}:compose:${targetUca}:${Date.now()}`;
         const prompt = this.formatPrompt(targetUca, purpose, parentTo, parentContext, themeClasses);
         console.log(`🎼 [Composer:Prompt] Componiendo #${targetUca}\n`, prompt);
         const text = await this.requestReasoning(prompt, cid, targetUca);
@@ -226,9 +221,12 @@ export class Composer extends Uca<Body> {
     }
 
     private parseComposedData(text: string): { nodes: TemplateNode[]; rules: CustomCssRule[] } {
-        const cleaned = text.replace(/```(?:json)?/g, '').replace(/```/g, '').trim();
+        const start = text.indexOf('{');
+        const end = text.lastIndexOf('}');
+        if (start === -1 || end === -1 || end <= start) { return { nodes: [], rules: [] }; }
+        const jsonSubstring = text.slice(start, end + 1);
         try {
-            const parsed = JSON.parse(cleaned) as Record<string, unknown>;
+            const parsed = JSON.parse(jsonSubstring) as Record<string, unknown>;
             const nodes = this.parseNodes(parsed.nodes);
             const rules = this.parseRules(parsed.rules);
             return { nodes, rules };
@@ -244,14 +242,14 @@ export class Composer extends Uca<Body> {
     }
 
     private normalizeNode(item: Record<string, unknown>): TemplateNode | undefined {
-        const { id, uca, parentTo, body = {}, purpose } = item;
+        const { id, uca, parentTo = 'app', body = {}, purpose } = item;
         const validUcas = new Set(AVAILABLE_PRIMITIVES);
-        if (typeof id !== 'string' || typeof parentTo !== 'string' || !validUcas.has(String(uca))) {
-            return undefined;
-        }
+        const ucaKey = String(uca ?? '').toLowerCase();
+        if (typeof id !== 'string' || !validUcas.has(ucaKey)) { return undefined; }
+        const targetParent = typeof parentTo === 'string' ? parentTo : 'app';
         const nodeBody = typeof body === 'object' && body !== null ? body as Record<string, unknown> : {};
         const nodePurpose = typeof purpose === 'string' ? purpose : undefined;
-        return { id, uca: uca as TemplateNode['uca'], parentTo, body: nodeBody, purpose: nodePurpose };
+        return { id, uca: ucaKey as TemplateNode['uca'], parentTo: targetParent, body: nodeBody, purpose: nodePurpose };
     }
 
     private parseRules(data: unknown): CustomCssRule[] {

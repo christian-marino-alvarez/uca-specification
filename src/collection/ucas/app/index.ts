@@ -108,7 +108,7 @@ export class App extends Uca<Body> {
             case CssSignalType.CREATED: this.handleCssCreated(value); break;
             case CssSignalType.ERROR: this.handleCssError(value); break;
             case ComposerSignalType.STREAMED: this.handleComposerStreamed(value); break;
-            case ComposerSignalType.COMPOSED: this.handleComposerComposed(value); break;
+            case ComposerSignalType.COMPOSED: if (!this.isStreamActive) { this.handleComposerComposed(value); } break;
             case ComposerSignalType.ERROR: this.handleComposerError(value); break;
             default: break;
         }
@@ -288,6 +288,7 @@ export class App extends Uca<Body> {
 
     private mountComposedNode(node: TemplateNode): void {
         const { id, uca, parentTo, body = {}, purpose = '' } = node;
+        if (this.activeUcas.has(id)) { return; }
         const instance = this.createWebUca(uca, id);
         if (!instance) { return; }
         this.ucaContexts.set(id, purpose);
