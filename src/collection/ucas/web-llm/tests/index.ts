@@ -157,11 +157,11 @@ async function testWebLlm_StreamContractNube(): Promise<void> {
         const stream = new ReadableStream<Uint8Array>({
             start(controller) {
                 const encoder = new TextEncoder();
-                controller.enqueue(encoder.encode('nube token 1'));
+                controller.enqueue(encoder.encode('data: nube token 1\n\n'));
                 controller.close();
             },
         });
-        return new Response(stream, { headers: { 'Content-Type': 'text/plain' } });
+        return new Response(stream, { headers: { 'Content-Type': 'text/event-stream' } });
     };
 
     const webLlm = new WebLlm().innervate(bus);

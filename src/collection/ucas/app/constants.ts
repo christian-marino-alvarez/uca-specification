@@ -2,6 +2,7 @@ import { SignalType as BrowserSignalType } from '@uca/capability-browser/types';
 import { SignalType as CssSignalType } from '@uca/capability-css/types';
 import { SignalType as ScaffoldSignalType } from '@uca/scaffold/types';
 import { SignalType as ThemeCssSignalType } from '@uca/theme-css/types';
+import { SignalType as ComposerSignalType } from '@uca/composer/types';
 import { SignalType } from './types.js';
 
 export const __ID__ = 'app';
@@ -32,4 +33,6 @@ export const DEFAULT_SIGNALS: readonly string[] = [
     ThemeCssSignalType.ERROR,
     CssSignalType.CREATED,
     CssSignalType.ERROR,
+    ComposerSignalType.COMPOSED,
+    ComposerSignalType.ERROR,
 ] as const;

@@ -124,6 +124,67 @@ function testApp_ThemeAndCssIntegration(): void {
     app.denervate();
 }
 
+import { SignalType as ComposerSignalType, type ComposePayload, type ComposedResult } from '@uca/composer/types';
+
+function testApp_PassesParentContextToComposer(): void {
+    const app = new App().innervate();
+    const capturedPayloads: ComposePayload[] = [];
+
+    app.target?.addEventListener(ComposerSignalType.COMPOSE, (event: Event) => {
+        const { detail } = event as CustomEvent<Signal<ComposePayload>>;
+        capturedPayloads.push(detail.value);
+    });
+
+    emitSignal(app, ThemeCssSignalType.CREATED, { correlationId: 't1', rules: [] } satisfies ThemeResult);
+
+    const chunk1 = {
+        mainContainer: { purpose: 'Main layout box container', parentTo: 'app' },
+    };
+    emitSignal(app, ScaffoldSignalType.CHUNK, { chunk: chunk1 });
+
+    assert.strictEqual(capturedPayloads.length, 1);
+    assert.strictEqual(capturedPayloads[0].targetUca, 'mainContainer');
+    assert.strictEqual(capturedPayloads[0].parentTo, 'app');
+    assert.strictEqual(capturedPayloads[0].parentContext, DEFAULT_CONTEXT);
+
+    const chunk2 = {
+        headerNav: { purpose: 'Top navigation bar', parentTo: 'mainContainer' },
+    };
+    emitSignal(app, ScaffoldSignalType.CHUNK, { chunk: chunk2 });
+
+    assert.strictEqual(capturedPayloads.length, 2);
+    assert.strictEqual(capturedPayloads[1].targetUca, 'headerNav');
+    assert.strictEqual(capturedPayloads[1].parentTo, 'mainContainer');
+    assert.strictEqual(capturedPayloads[1].parentContext, 'Main layout box container');
+
+    app.denervate();
+}
+
+function testApp_MountsComposedNodes(): void {
+    const app = new App().innervate();
+    let capturedComposed: ComposedResult | undefined;
+
+    app.target?.addEventListener(SignalType.COMPOSED, (event: Event) => {
+        const { detail } = event as CustomEvent<Signal<ComposedResult>>;
+        capturedComposed = detail.value;
+    });
+
+    const mockComposed: ComposedResult = {
+        targetUca: 'mainContainer',
+        nodes: [
+            { id: 'container-box', uca: 'box', parentTo: 'app', body: { className: 'p-4' }, purpose: 'Layout box' },
+            { id: 'btn-action', uca: 'action', parentTo: 'container-box', body: { label: 'Click me' }, purpose: 'Action button' },
+        ],
+    };
+    emitSignal(app, ComposerSignalType.COMPOSED, mockComposed);
+
+    assert.notStrictEqual(capturedComposed, undefined);
+    assert.strictEqual(capturedComposed?.targetUca, 'mainContainer');
+    assert.strictEqual(capturedComposed?.nodes.length, 2);
+
+    app.denervate();
+}
+
 testApp_IdentityAndPurpose();
 testApp_ContextProvisioningToScaffold();
 testApp_ContextProvisioningToTheme();
@@ -131,6 +192,8 @@ testApp_InjectsBaseThemeOnStart();
 testApp_BarrierHoldsScaffold();
 testApp_BarrierFlushesOnTheme();
 testApp_ThemeAndCssIntegration();
+testApp_PassesParentContextToComposer();
+testApp_MountsComposedNodes();
 
-console.log('✅ App UCA with Scaffold, ThemeCss, and Barrier tests passed successfully');
+console.log('✅ App UCA with Scaffold, ThemeCss, Barrier, Composer, and parentTo context tests passed successfully');
 

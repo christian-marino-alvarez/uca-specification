@@ -11,6 +11,7 @@ export enum SignalType {
     CHUNK = 'app.chunk',
     CREATED = 'app.created',
     THEME_CREATED = 'app.theme_created',
+    COMPOSED = 'app.composed',
     ERROR = 'app.error',
     TRIGGER = 'action.triggered',
 }

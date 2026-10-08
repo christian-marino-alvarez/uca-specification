@@ -6,9 +6,23 @@ import { Css } from '@uca/capability-css';
 import { SignalType as CssSignalType } from '@uca/capability-css/types';
 import { Scaffold } from '@uca/scaffold';
 import { SignalType as ScaffoldSignalType } from '@uca/scaffold/types';
+import type { Node as ScaffoldNode } from '@uca/scaffold/schema';
 import { ThemeCss } from '@uca/theme-css';
 import { BASE_THEME_RULES } from '@uca/theme-css/constants';
 import { SignalType as ThemeCssSignalType, type ThemeResult } from '@uca/theme-css/types';
+import { Composer } from '@uca/composer';
+import {
+    SignalType as ComposerSignalType,
+    type ComposedResult,
+    type TemplateNode,
+} from '@uca/composer/types';
+import { Box } from '@uca/box';
+import { Action } from '@uca/action';
+import { Input } from '@uca/input';
+import { List } from '@uca/list';
+import { Picture } from '@uca/picture';
+import { Toggle } from '@uca/toggle';
+import { Dropdown } from '@uca/dropdown';
 import {
     __ID__,
     DEFAULT_CONTEXT,
@@ -41,6 +55,8 @@ export class App extends Uca<Body> {
             { signal: ThemeCssSignalType.ERROR, type: DataType.PAYLOAD, description: 'Theme error signal' },
             { signal: CssSignalType.CREATED, type: DataType.PAYLOAD, description: 'Css rule created signal' },
             { signal: CssSignalType.ERROR, type: DataType.PAYLOAD, description: 'Css error signal' },
+            { signal: ComposerSignalType.COMPOSED, type: DataType.PAYLOAD, description: 'Composer composed signal' },
+            { signal: ComposerSignalType.ERROR, type: DataType.PAYLOAD, description: 'Composer error signal' },
         ],
         outputs: [
             { signal: SignalType.STARTED, type: DataType.RESULT, description: 'Application started' },
@@ -49,10 +65,12 @@ export class App extends Uca<Body> {
             { signal: SignalType.CHUNK, type: DataType.RESULT, description: 'Application scaffold chunk' },
             { signal: SignalType.CREATED, type: DataType.RESULT, description: 'Application scaffold created' },
             { signal: SignalType.THEME_CREATED, type: DataType.RESULT, description: 'Application theme created' },
+            { signal: SignalType.COMPOSED, type: DataType.RESULT, description: 'Application node composed and mounted' },
             { signal: SignalType.ERROR, type: DataType.RESULT, description: 'Application error' },
             { signal: ScaffoldSignalType.STREAM, type: DataType.PAYLOAD, description: 'Trigger scaffold stream' },
             { signal: ThemeCssSignalType.CREATE, type: DataType.PAYLOAD, description: 'Trigger theme creation' },
             { signal: CssSignalType.CREATE, type: DataType.PAYLOAD, description: 'Create CSS rule' },
+            { signal: ComposerSignalType.COMPOSE, type: DataType.PAYLOAD, description: 'Trigger UCA composition' },
             { signal: BrowserSignalType.READ, type: DataType.VOID, description: 'Trigger browser context capture' },
         ],
     };
@@ -60,6 +78,9 @@ export class App extends Uca<Body> {
     private isThemeReady: boolean = false;
     private pendingChunks: unknown[] = [];
     private pendingScaffold: unknown = undefined;
+    private themeClasses: string[] = [];
+    private ucaContexts: Map<string, string> = new Map();
+    private activeUcas: Map<string, Uca<unknown>> = new Map();
 
     public constructor(id: string = __ID__) {
         super(id);
@@ -80,6 +101,8 @@ export class App extends Uca<Body> {
             case ThemeCssSignalType.ERROR: this.handleThemeError(value); break;
             case CssSignalType.CREATED: this.handleCssCreated(value); break;
             case CssSignalType.ERROR: this.handleCssError(value); break;
+            case ComposerSignalType.COMPOSED: this.handleComposerComposed(value); break;
+            case ComposerSignalType.ERROR: this.handleComposerError(value); break;
             default: break;
         }
     }
@@ -89,11 +112,13 @@ export class App extends Uca<Body> {
         const scaffold = this.createScaffoldCapability();
         const theme = this.createThemeCapability();
         const css = this.createCssCapability();
-        return [...browser, ...scaffold, ...theme, ...css];
+        const composer = this.createComposerCapability();
+        return [...browser, ...scaffold, ...theme, ...css, ...composer];
     }
 
     private handleStart(value?: unknown): void {
         const payload = (value ?? {}) as Body;
+        this.ucaContexts.set(this.id, this.context ?? this.purpose);
         this.pulse(SignalType.STARTED, { id: this.id, started: true, ...payload });
         this.pulse(BrowserSignalType.READ, { id: `${this.id}:browser` });
         this.injectBaseTheme();
@@ -110,6 +135,7 @@ export class App extends Uca<Body> {
         this.isThemeReady = false;
         this.pendingChunks = [];
         this.pendingScaffold = undefined;
+        this.ucaContexts.set(this.id, this.context ?? this.purpose);
         this.dispatchScaffold(request);
         this.dispatchTheme(request);
     }
@@ -133,6 +159,7 @@ export class App extends Uca<Body> {
     private handleThemeCreated(value: unknown): void {
         const { rules = [] } = (value ?? {}) as ThemeResult;
         console.log(`🎨 [App:Theme-Created] Aplicando ${rules.length} reglas CSS`);
+        this.themeClasses = rules.map((rule) => rule.selector).filter((selector) => selector.startsWith('.'));
         rules.forEach((rule) => this.pulse(CssSignalType.CREATE, rule));
         this.isThemeReady = true;
         this.pulse(SignalType.THEME_CREATED, value);
@@ -183,9 +210,63 @@ export class App extends Uca<Body> {
     }
 
     private emitScaffoldChunk(value: unknown): void {
-        const { chunk } = (value ?? {}) as { chunk?: unknown };
+        const { chunk } = (value ?? {}) as { chunk?: Record<string, ScaffoldNode> };
         console.log('🧩 [App:Scaffold-Chunk]', JSON.stringify(chunk ?? value, null, 2));
+        if (chunk && typeof chunk === 'object') {
+            this.composeChunkNodes(chunk);
+        }
         this.pulse(SignalType.CHUNK, value);
+    }
+
+    private composeChunkNodes(chunk: Record<string, ScaffoldNode>): void {
+        for (const [ucaName, ucaDef] of Object.entries(chunk)) {
+            this.dispatchComposeUca(ucaName, ucaDef);
+        }
+    }
+
+    private dispatchComposeUca(ucaName: string, ucaDef: ScaffoldNode): void {
+        const { purpose = ucaName, parentTo = this.id } = ucaDef ?? {};
+        const parentId = parentTo || this.id;
+        const parentContext = this.ucaContexts.get(parentId) ?? this.context ?? this.purpose;
+        this.ucaContexts.set(ucaName, purpose);
+        const payload = { targetUca: ucaName, purpose, parentTo: parentId, parentContext, themeClasses: this.themeClasses };
+        this.pulse(ComposerSignalType.COMPOSE, payload);
+    }
+
+    private handleComposerComposed(value: unknown): void {
+        const { targetUca, nodes = [] } = (value ?? {}) as ComposedResult;
+        console.log(`🏗️ [App:Composer-Composed] Montando ${nodes.length} nodos para #${targetUca}`);
+        nodes.forEach((node) => this.mountComposedNode(node));
+        this.pulse(SignalType.COMPOSED, value);
+    }
+
+    private mountComposedNode(node: TemplateNode): void {
+        const { id, uca, parentTo, body = {}, purpose = '' } = node;
+        const instance = this.createWebUca(uca, id);
+        if (!instance) { return; }
+        this.ucaContexts.set(id, purpose);
+        const aim = { description: purpose, body };
+        const disposition = { aim, parentTo: { uca: parentTo, relation: 'child' } };
+        instance.innervate(this.target, disposition);
+        this.activeUcas.set(id, instance);
+    }
+
+    private createWebUca(uca: string, id: string): Uca<unknown> | undefined {
+        switch (uca) {
+            case 'box': return new Box(id);
+            case 'action': return new Action(id);
+            case 'input': return new Input(id);
+            case 'list': return new List(id);
+            case 'picture': return new Picture(id);
+            case 'toggle': return new Toggle(id);
+            case 'dropdown': return new Dropdown(id);
+            default: return undefined;
+        }
+    }
+
+    private handleComposerError(value: unknown): void {
+        console.error('🚨 [App:Composer-Error]', value);
+        this.pulse(SignalType.ERROR, value);
     }
 
     private handleScaffoldCreated(value: unknown): void {
@@ -232,5 +313,12 @@ export class App extends Uca<Body> {
         const body = { id: `${this.id}:css` };
         const aim = { description: 'CSS styling capability for App', body };
         return [[Css, { aim, reactTo: [...reactTo] }]];
+    }
+
+    private createComposerCapability(): Cooky {
+        const { reactTo = [] } = Composer.disposition;
+        const body = { id: `${this.id}:composer` };
+        const aim = { description: 'Composer for emergent scaffold UCAs', body };
+        return [[Composer, { aim, reactTo: [...reactTo] }]];
     }
 }
