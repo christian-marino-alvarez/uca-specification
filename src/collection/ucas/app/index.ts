@@ -48,6 +48,7 @@ export class App extends Uca<Body> {
             { signal: SignalType.TRIGGER, type: DataType.PAYLOAD, description: 'Action triggered input' },
             { signal: BrowserSignalType.DETECTED, type: DataType.RECORD, description: 'Browser client context detected' },
             { signal: BrowserSignalType.CHANGED, type: DataType.RECORD, description: 'Browser client context changed' },
+            { signal: ScaffoldSignalType.STREAMED, type: DataType.PAYLOAD, description: 'Scaffold stream signal' },
             { signal: ScaffoldSignalType.CHUNK, type: DataType.PAYLOAD, description: 'Scaffold chunk signal' },
             { signal: ScaffoldSignalType.CREATED, type: DataType.PAYLOAD, description: 'Scaffold created signal' },
             { signal: ScaffoldSignalType.ERROR, type: DataType.PAYLOAD, description: 'Scaffold error signal' },
@@ -55,6 +56,7 @@ export class App extends Uca<Body> {
             { signal: ThemeCssSignalType.ERROR, type: DataType.PAYLOAD, description: 'Theme error signal' },
             { signal: CssSignalType.CREATED, type: DataType.PAYLOAD, description: 'Css rule created signal' },
             { signal: CssSignalType.ERROR, type: DataType.PAYLOAD, description: 'Css error signal' },
+            { signal: ComposerSignalType.STREAMED, type: DataType.PAYLOAD, description: 'Composer streamed signal' },
             { signal: ComposerSignalType.COMPOSED, type: DataType.PAYLOAD, description: 'Composer composed signal' },
             { signal: ComposerSignalType.ERROR, type: DataType.PAYLOAD, description: 'Composer error signal' },
         ],
@@ -70,12 +72,15 @@ export class App extends Uca<Body> {
             { signal: ScaffoldSignalType.STREAM, type: DataType.PAYLOAD, description: 'Trigger scaffold stream' },
             { signal: ThemeCssSignalType.CREATE, type: DataType.PAYLOAD, description: 'Trigger theme creation' },
             { signal: CssSignalType.CREATE, type: DataType.PAYLOAD, description: 'Create CSS rule' },
+            { signal: ComposerSignalType.STREAM, type: DataType.PAYLOAD, description: 'Forward stream to composer' },
             { signal: ComposerSignalType.COMPOSE, type: DataType.PAYLOAD, description: 'Trigger UCA composition' },
             { signal: BrowserSignalType.READ, type: DataType.VOID, description: 'Trigger browser context capture' },
         ],
     };
 
     private isThemeReady: boolean = false;
+    private isStreamActive: boolean = false;
+    private themeGateResolvers: (() => void)[] = [];
     private pendingChunks: unknown[] = [];
     private pendingScaffold: unknown = undefined;
     private themeClasses: string[] = [];
@@ -94,6 +99,7 @@ export class App extends Uca<Body> {
             case SignalType.STOP: this.handleStop(); break;
             case BrowserSignalType.DETECTED: this.handleBrowserDetected(value); break;
             case BrowserSignalType.CHANGED: this.handleBrowserChanged(value); break;
+            case ScaffoldSignalType.STREAMED: this.handleScaffoldStreamed(value); break;
             case ScaffoldSignalType.CHUNK: this.handleScaffoldChunk(value); break;
             case ScaffoldSignalType.CREATED: this.handleScaffoldCreated(value); break;
             case ScaffoldSignalType.ERROR: this.handleScaffoldError(value); break;
@@ -101,6 +107,7 @@ export class App extends Uca<Body> {
             case ThemeCssSignalType.ERROR: this.handleThemeError(value); break;
             case CssSignalType.CREATED: this.handleCssCreated(value); break;
             case CssSignalType.ERROR: this.handleCssError(value); break;
+            case ComposerSignalType.STREAMED: this.handleComposerStreamed(value); break;
             case ComposerSignalType.COMPOSED: this.handleComposerComposed(value); break;
             case ComposerSignalType.ERROR: this.handleComposerError(value); break;
             default: break;
@@ -118,6 +125,9 @@ export class App extends Uca<Body> {
 
     private handleStart(value?: unknown): void {
         const payload = (value ?? {}) as Body;
+        this.isThemeReady = false;
+        this.isStreamActive = false;
+        this.themeGateResolvers = [];
         this.ucaContexts.set(this.id, this.context ?? this.purpose);
         this.pulse(SignalType.STARTED, { id: this.id, started: true, ...payload });
         this.pulse(BrowserSignalType.READ, { id: `${this.id}:browser` });
@@ -133,6 +143,8 @@ export class App extends Uca<Body> {
     private handleTrigger(value?: unknown): void {
         const { request } = (value ?? {}) as { request?: string };
         this.isThemeReady = false;
+        this.isStreamActive = false;
+        this.themeGateResolvers = [];
         this.pendingChunks = [];
         this.pendingScaffold = undefined;
         this.ucaContexts.set(this.id, this.context ?? this.purpose);
@@ -156,12 +168,46 @@ export class App extends Uca<Body> {
         this.pulse(ThemeCssSignalType.CREATE, payload);
     }
 
+    private handleScaffoldStreamed(value: unknown): void {
+        const { stream, correlationId } = (value ?? {}) as { stream?: ReadableStream<unknown>; correlationId?: string };
+        if (!stream) { return; }
+        this.isStreamActive = true;
+        const parentContext = this.context ?? this.purpose;
+        const payload = { stream, parentContext, themeClasses: this.themeClasses, correlationId };
+        this.pulse(ComposerSignalType.STREAM, payload);
+    }
+
+    private handleComposerStreamed(value: unknown): void {
+        const { stream } = (value ?? {}) as { stream?: ReadableStream<ComposedResult> };
+        if (!stream) { return; }
+        void this.consumeComposedStream(stream);
+    }
+
+    private async consumeComposedStream(stream: ReadableStream<ComposedResult>): Promise<void> {
+        const reader = stream.getReader();
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) { break; }
+            await this.waitForThemeGate();
+            this.handleComposerComposed(value);
+        }
+    }
+
+    private async waitForThemeGate(): Promise<void> {
+        if (this.isThemeReady) { return; }
+        await new Promise<void>((resolve) => {
+            this.themeGateResolvers.push(resolve);
+        });
+    }
+
     private handleThemeCreated(value: unknown): void {
         const { rules = [] } = (value ?? {}) as ThemeResult;
         console.log(`🎨 [App:Theme-Created] Aplicando ${rules.length} reglas CSS`);
         this.themeClasses = rules.map((rule) => rule.selector).filter((selector) => selector.startsWith('.'));
         rules.forEach((rule) => this.pulse(CssSignalType.CREATE, rule));
         this.isThemeReady = true;
+        this.themeGateResolvers.forEach((resolve) => resolve());
+        this.themeGateResolvers = [];
         this.pulse(SignalType.THEME_CREATED, value);
         this.flushPendingScaffold();
     }
@@ -212,7 +258,7 @@ export class App extends Uca<Body> {
     private emitScaffoldChunk(value: unknown): void {
         const { chunk } = (value ?? {}) as { chunk?: Record<string, ScaffoldNode> };
         console.log('🧩 [App:Scaffold-Chunk]', JSON.stringify(chunk ?? value, null, 2));
-        if (chunk && typeof chunk === 'object') {
+        if (chunk && typeof chunk === 'object' && !this.isStreamActive) {
             this.composeChunkNodes(chunk);
         }
         this.pulse(SignalType.CHUNK, value);

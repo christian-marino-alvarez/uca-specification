@@ -26,6 +26,7 @@ export const DEFAULT_SIGNALS: readonly string[] = [
     SignalType.TRIGGER,
     BrowserSignalType.DETECTED,
     BrowserSignalType.CHANGED,
+    ScaffoldSignalType.STREAMED,
     ScaffoldSignalType.CHUNK,
     ScaffoldSignalType.CREATED,
     ScaffoldSignalType.ERROR,
@@ -34,5 +35,6 @@ export const DEFAULT_SIGNALS: readonly string[] = [
     CssSignalType.CREATED,
     CssSignalType.ERROR,
     ComposerSignalType.COMPOSED,
+    ComposerSignalType.STREAMED,
     ComposerSignalType.ERROR,
 ] as const;

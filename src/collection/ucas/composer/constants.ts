@@ -23,6 +23,7 @@ export const AVAILABLE_PRIMITIVES: readonly string[] = [
 
 export const DEFAULT_SIGNALS: readonly string[] = [
     SignalType.COMPOSE,
+    SignalType.STREAM,
     SignalType.DESTROY,
     WebLlmSignalType.STREAMED,
     WebLlmSignalType.ERROR,

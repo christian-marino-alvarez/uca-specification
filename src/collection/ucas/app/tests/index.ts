@@ -185,15 +185,71 @@ function testApp_MountsComposedNodes(): void {
     app.denervate();
 }
 
-testApp_IdentityAndPurpose();
-testApp_ContextProvisioningToScaffold();
-testApp_ContextProvisioningToTheme();
-testApp_InjectsBaseThemeOnStart();
-testApp_BarrierHoldsScaffold();
-testApp_BarrierFlushesOnTheme();
-testApp_ThemeAndCssIntegration();
-testApp_PassesParentContextToComposer();
-testApp_MountsComposedNodes();
+async function testApp_StreamPipelineAndThemeGate(): Promise<void> {
+    const app = new App().innervate();
+    const composedList: ComposedResult[] = [];
 
-console.log('✅ App UCA with Scaffold, ThemeCss, Barrier, Composer, and parentTo context tests passed successfully');
+    app.target?.addEventListener(SignalType.COMPOSED, (event: Event) => {
+        const { detail } = event as CustomEvent<Signal<ComposedResult>>;
+        composedList.push(detail.value);
+    });
+
+    let forwardStreamPayload: unknown;
+    app.target?.addEventListener(ComposerSignalType.STREAM, (event: Event) => {
+        const { detail } = event as CustomEvent<Signal<unknown>>;
+        forwardStreamPayload = detail.value;
+    });
+
+    emitSignal(app, SignalType.START);
+
+    const mockScaffoldStream = new ReadableStream({
+        start(controller) {
+            controller.enqueue({ hero: { purpose: 'Hero banner', parentTo: 'app' } });
+            controller.close();
+        },
+    });
+    emitSignal(app, ScaffoldSignalType.STREAMED, { stream: mockScaffoldStream, correlationId: 'scaff-1' });
+
+    assert.notStrictEqual(forwardStreamPayload, undefined);
+
+    let streamController: ReadableStreamDefaultController<ComposedResult>;
+    const mockComposerStream = new ReadableStream<ComposedResult>({
+        start(controller) { streamController = controller; },
+    });
+    emitSignal(app, ComposerSignalType.STREAMED, { stream: mockComposerStream, correlationId: 'comp-1' });
+
+    streamController!.enqueue({
+        targetUca: 'hero',
+        nodes: [{ id: 'hero-box', uca: 'box', parentTo: 'app', body: { className: 'hero' }, purpose: 'Hero' }],
+        rules: [],
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.strictEqual(composedList.length, 0);
+
+    emitSignal(app, ThemeCssSignalType.CREATED, { correlationId: 't1', rules: [] } satisfies ThemeResult);
+
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.strictEqual(composedList.length, 1);
+    assert.strictEqual(composedList[0].targetUca, 'hero');
+
+    streamController!.close();
+    app.denervate();
+}
+
+async function runAllTests(): Promise<void> {
+    testApp_IdentityAndPurpose();
+    testApp_ContextProvisioningToScaffold();
+    testApp_ContextProvisioningToTheme();
+    testApp_InjectsBaseThemeOnStart();
+    testApp_BarrierHoldsScaffold();
+    testApp_BarrierFlushesOnTheme();
+    testApp_ThemeAndCssIntegration();
+    testApp_PassesParentContextToComposer();
+    testApp_MountsComposedNodes();
+    await testApp_StreamPipelineAndThemeGate();
+    console.log('✅ App UCA with Scaffold, ThemeCss, Barrier, Composer, and stream gate tests passed successfully');
+}
+
+void runAllTests();
 

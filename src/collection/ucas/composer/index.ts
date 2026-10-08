@@ -15,6 +15,7 @@ import {
 import {
     type Body,
     type ComposePayload,
+    type ComposeStreamPayload,
     type ComposedResult,
     type CustomCssRule,
     type TemplateNode,
@@ -30,18 +31,23 @@ export class Composer extends Uca<Body> {
         reactTo: [...DEFAULT_SIGNALS],
         inputs: [
             { signal: SignalType.COMPOSE, type: DataType.COMPOSE_PAYLOAD, description: 'Compose template and logic for an emergent UCA' },
+            { signal: SignalType.STREAM, type: DataType.STREAM_PAYLOAD, description: 'Stream scaffold items to compose' },
             { signal: SignalType.DESTROY, type: DataType.VOID, description: 'Cancel composition' },
             { signal: CssSignalType.CREATED, type: DataType.UNKNOWN, description: 'Custom CSS rule created' },
             { signal: CssSignalType.ERROR, type: DataType.UNKNOWN, description: 'CSS error notification' },
         ],
         outputs: [
             { signal: SignalType.COMPOSED, type: DataType.COMPOSED_RESULT, description: 'Fractal template and logic composed' },
+            { signal: SignalType.STREAMED, type: DataType.STREAM_RESULT, description: 'ReadableStream of composed template results' },
             { signal: SignalType.DESTROYED, type: DataType.VOID, description: 'Composition canceled' },
             { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'Composition error' },
             { signal: CssSignalType.CREATE, type: DataType.UNKNOWN, description: 'Create custom CSS rule' },
             { signal: WebLlmSignalType.STREAM, type: DataType.UNKNOWN, description: 'Stream LLM reasoning' },
         ],
     };
+
+    private ucaContexts: Map<string, string> = new Map();
+    private pendingReasonings: Map<string, (text: string) => void> = new Map();
 
     public constructor(id: string = __ID__) {
         super(id);
@@ -51,6 +57,7 @@ export class Composer extends Uca<Body> {
         const { property, source, value } = signal;
         switch (property) {
             case SignalType.COMPOSE: this.handleCompose(value); break;
+            case SignalType.STREAM: this.handleStream(value); break;
             case SignalType.DESTROY: this.handleDestroy(); break;
             case WebLlmSignalType.STREAMED: await this.handleStreamed(value, source); break;
             case WebLlmSignalType.ERROR: this.handleError(value, source); break;
@@ -79,6 +86,103 @@ export class Composer extends Uca<Body> {
         this.pulse(WebLlmSignalType.STREAM, webLlmPayload);
     }
 
+    private handleStream(value: unknown): void {
+        const payload = (value ?? {}) as ComposeStreamPayload;
+        const { stream, parentContext, themeClasses, correlationId } = payload;
+        if (!stream) { return; }
+        const outputStream = this.createPipedComposerStream(stream, parentContext, themeClasses, correlationId);
+        this.pulse(SignalType.STREAMED, { stream: outputStream, correlationId });
+    }
+
+    private createPipedComposerStream(
+        inputStream: ReadableStream<unknown>,
+        parentContext?: string,
+        themeClasses?: string[],
+        correlationId?: string,
+    ): ReadableStream<ComposedResult> {
+        const self = this;
+        return new ReadableStream<ComposedResult>({
+            async start(controller) {
+                await self.pumpScaffoldStream(inputStream, controller, parentContext, themeClasses, correlationId);
+            },
+        });
+    }
+
+    private async pumpScaffoldStream(
+        inputStream: ReadableStream<unknown>,
+        controller: ReadableStreamDefaultController<ComposedResult>,
+        parentContext?: string,
+        themeClasses?: string[],
+        correlationId?: string,
+    ): Promise<void> {
+        const reader = (inputStream as ReadableStream<Record<string, { purpose?: string; parentTo?: string | null }>>).getReader();
+        try {
+            while (true) {
+                const { done, value: chunk } = await reader.read();
+                if (done) { break; }
+                await this.processChunkItems(chunk, controller, parentContext, themeClasses, correlationId);
+            }
+        } finally {
+            controller.close();
+        }
+    }
+
+    private async processChunkItems(
+        chunk: Record<string, { purpose?: string; parentTo?: string | null }>,
+        controller: ReadableStreamDefaultController<ComposedResult>,
+        parentContext?: string,
+        themeClasses?: string[],
+        correlationId?: string,
+    ): Promise<void> {
+        if (!chunk || typeof chunk !== 'object') { return; }
+        for (const [ucaName, ucaDef] of Object.entries(chunk)) {
+            if (ucaName.toLowerCase() === 'app') { continue; }
+            await this.composeAndEnqueue(ucaName, ucaDef, controller, parentContext, themeClasses, correlationId);
+        }
+    }
+
+    private async composeAndEnqueue(
+        targetUca: string,
+        ucaDef: { purpose?: string; parentTo?: string | null },
+        controller: ReadableStreamDefaultController<ComposedResult>,
+        parentContext?: string,
+        themeClasses?: string[],
+        correlationId?: string,
+    ): Promise<void> {
+        const { purpose = targetUca, parentTo = 'app' } = ucaDef ?? {};
+        const parentId = parentTo || 'app';
+        const resolvedContext = this.ucaContexts.get(parentId) ?? parentContext;
+        this.ucaContexts.set(targetUca, purpose);
+        const composed = await this.composeUcaAsync(targetUca, purpose, parentId, resolvedContext, themeClasses, correlationId);
+        controller.enqueue(composed);
+        this.pulse(SignalType.COMPOSED, composed);
+    }
+
+    private async composeUcaAsync(
+        targetUca: string,
+        purpose: string,
+        parentTo: string,
+        parentContext?: string,
+        themeClasses?: string[],
+        correlationId?: string,
+    ): Promise<ComposedResult> {
+        const cid = correlationId ?? `${this.id}:compose:${targetUca}:${Date.now()}`;
+        const prompt = this.formatPrompt(targetUca, purpose, parentTo, parentContext, themeClasses);
+        console.log(`🎼 [Composer:Prompt] Componiendo #${targetUca}\n`, prompt);
+        const text = await this.requestReasoning(prompt, cid, targetUca);
+        const { nodes, rules } = this.parseComposedData(text);
+        this.applyCustomRules(rules);
+        return { targetUca, nodes, rules, correlationId: cid };
+    }
+
+    private requestReasoning(prompt: string, correlationId: string, targetUca: string): Promise<string> {
+        return new Promise<string>((resolve) => {
+            this.pendingReasonings.set(correlationId, resolve);
+            const payload = { id: `${this.id}:web-llm`, request: prompt, model: DEFAULT_MODEL, provider: DEFAULT_PROVIDER, correlationId, targetUca };
+            this.pulse(WebLlmSignalType.STREAM, payload);
+        });
+    }
+
     private formatPrompt(targetUca: string, purpose: string, parentTo: string, parentContext?: string, themeClasses?: string[]): string {
         const parentInfo = parentContext ? `(parentTo: "${parentTo}", contexto del padre: "${parentContext}")` : `(parentTo: "${parentTo}")`;
         const goal = `Compón la plantilla UCA para "${targetUca}" ${parentInfo}.`;
@@ -94,6 +198,16 @@ export class Composer extends Uca<Body> {
         const { correlationId, stream, targetUca = 'unknown' } = (value ?? {}) as { correlationId?: string; stream?: ReadableStream<string>; targetUca?: string };
         if (!stream) { return; }
         const text = await this.readFullStream(stream);
+        const resolver = correlationId ? this.pendingReasonings.get(correlationId) : undefined;
+        if (resolver) {
+            this.pendingReasonings.delete(correlationId!);
+            resolver(text);
+            return;
+        }
+        this.finishComposition(text, targetUca, correlationId);
+    }
+
+    private finishComposition(text: string, targetUca: string, correlationId?: string): void {
         const { nodes, rules } = this.parseComposedData(text);
         this.applyCustomRules(rules);
         console.log(`🎼 [Composer:Composed] Compuestos ${nodes.length} nodos y ${rules.length} reglas para #${targetUca}`);

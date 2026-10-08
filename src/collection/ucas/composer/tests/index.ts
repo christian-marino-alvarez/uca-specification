@@ -60,9 +60,55 @@ async function testComposer_StreamedReaction(): Promise<void> {
     assertComposedResult(composedResult, customCssRules);
 }
 
+async function testComposer_PipedStreamReaction(): Promise<void> {
+    const bus = new EventTarget();
+    const composer = new Composer();
+    composer.innervate(bus);
+
+    let outputStream: ReadableStream<ComposedResult> | undefined;
+    bus.addEventListener(SignalType.STREAMED, (event: Event) => {
+        const { detail } = event as CustomEvent;
+        outputStream = detail?.value?.stream;
+    });
+
+    const mockContent = JSON.stringify({
+        nodes: [{ id: 'boxCard', uca: 'box', parentTo: 'app', body: {} }],
+        rules: [],
+    });
+
+    bus.addEventListener('web-llm.stream', (event: Event) => {
+        const { detail } = event as CustomEvent;
+        const { correlationId, targetUca } = detail?.value ?? {};
+        const stream = createMockStream(mockContent);
+        bus.dispatchEvent(new CustomEvent('web-llm.streamed', {
+            detail: { source: 'test', property: 'web-llm.streamed', value: { correlationId, stream, targetUca } },
+        }));
+    });
+
+    const inputStream = new ReadableStream({
+        start(controller) {
+            controller.enqueue({ container: { purpose: 'Main box', parentTo: 'app' } });
+            controller.close();
+        },
+    });
+
+    bus.dispatchEvent(new CustomEvent(SignalType.STREAM, {
+        detail: { source: 'test', property: SignalType.STREAM, value: { stream: inputStream } },
+    }));
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert.ok(outputStream instanceof ReadableStream);
+    const reader = outputStream.getReader();
+    const { value: firstResult } = await reader.read();
+    assert.ok(firstResult);
+    assert.equal(firstResult?.targetUca, 'container');
+    assert.equal(firstResult?.nodes.length, 1);
+}
+
 async function runTests(): Promise<void> {
     testComposer_Initialization();
     await testComposer_StreamedReaction();
+    await testComposer_PipedStreamReaction();
     console.log('✅ Composer UCA tests passed successfully');
 }
 

@@ -31,6 +31,24 @@ export const composedResultSchema = z.object({
     correlationId: z.string().optional(),
 });
 
+export const composeStreamPayloadSchema = z.object({
+    stream: z.custom<ReadableStream<unknown>>((v) => v instanceof ReadableStream, {
+        message: 'Expected ReadableStream instance',
+    }).describe('ReadableStream of Scaffold items'),
+    parentContext: z.string().optional().describe('Parent or host UCA context'),
+    themeClasses: z.array(z.string()).optional(),
+    model: z.string().optional().default('gemini-3.5-flash-lite'),
+    provider: z.string().optional().default('gemini'),
+    correlationId: z.string().optional(),
+});
+
+export const composeStreamResultSchema = z.object({
+    stream: z.custom<ReadableStream<ComposedResult>>((v) => v instanceof ReadableStream, {
+        message: 'Expected ReadableStream instance',
+    }).describe('ReadableStream of ComposedResult items'),
+    correlationId: z.string().optional(),
+});
+
 export const bodySchema = z.object({
     context: z.string().optional().describe('Composition aesthetic and functional context'),
 });
@@ -39,4 +57,6 @@ export type TemplateNode = z.infer<typeof templateNodeSchema>;
 export type CustomCssRule = z.infer<typeof customCssRuleSchema>;
 export type ComposePayload = z.infer<typeof composePayloadSchema>;
 export type ComposedResult = z.infer<typeof composedResultSchema>;
+export type ComposeStreamPayload = z.infer<typeof composeStreamPayloadSchema>;
+export type ComposeStreamResult = z.infer<typeof composeStreamResultSchema>;
 export type Body = z.infer<typeof bodySchema>;
