@@ -1,53 +1,25 @@
-import type { Body, CreatePayload, StreamPayload } from './schema.js';
-import type { Item, Node, Scaffold as ScaffoldStructure } from '@uca/scaffold/types';
+import type { z } from 'zod';
+import type { bodySchema } from './schema.js';
 
 export enum SignalType {
-    CREATE = 'app.create',
-    CREATED = 'app.created',
-    STREAM = 'app.stream',
-    STREAMED = 'app.streamed',
+    INIT = 'app.init',
+    START = 'app.start',
+    STOP = 'app.stop',
+    STARTED = 'app.started',
+    STOPPED = 'app.stopped',
+    CONTEXT = 'app.context',
     CHUNK = 'app.chunk',
-    LOADING = 'app.loading',
-    PROGRESS = 'app.progress',
-    DESTROY = 'app.destroy',
-    DESTROYED = 'app.destroyed',
+    CREATED = 'app.created',
+    THEME_CREATED = 'app.theme_created',
     ERROR = 'app.error',
+    TRIGGER = 'action.triggered',
 }
+
+export type Body = z.infer<typeof bodySchema>;
 
 export enum DataType {
-    PAYLOAD = 'payload',
     RECORD = 'record',
-    STREAM = 'stream',
-    BOOLEAN = 'boolean',
-    NUMBER = 'number',
     VOID = 'void',
-    UNKNOWN = 'unknown',
+    RESULT = 'result',
+    PAYLOAD = 'payload',
 }
-
-export interface ProgressResult {
-    readonly percentage: number;
-    readonly loaded?: number;
-    readonly total?: number;
-}
-
-export interface LoadingResult {
-    readonly loading: boolean;
-    readonly message?: string;
-}
-
-export interface CreatedResult {
-    readonly correlationId?: string;
-    readonly scaffold: ScaffoldStructure;
-}
-
-export interface StreamResult {
-    readonly correlationId?: string;
-    readonly streamId?: string;
-    readonly stream: ReadableStream<Item>;
-}
-
-export interface DestroyResult {
-    readonly destroyed: boolean;
-}
-
-export type { Body, CreatePayload, StreamPayload, Item, Node, ScaffoldStructure as Scaffold };

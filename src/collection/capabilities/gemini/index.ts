@@ -1,7 +1,7 @@
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import { GoogleGenAI } from '@google/genai';
-import { __ID__, __DEFAULT_SIGNALS__, DEFAULT_MODEL, DEFAULT_THINKING_BUDGET, DEFAULT_THINKING_LEVEL, THINKING_LEVEL_MODEL_PREFIX } from './constants.js';
+import { __ID__, __DEFAULT_SIGNALS__, DEFAULT_MODEL, DEFAULT_THINKING_LEVEL, THINKING_LEVEL_MODEL_PREFIX } from './constants.js';
 import {
     type Body,
     type ConnectionConfig,
@@ -159,23 +159,30 @@ export class Gemini extends Capability<Body> {
 
     private resolveGenerationConfig(payload: GeneratePayload): { model: string; config: Record<string, unknown> } {
         const { aim } = this.disposition;
-        const { model: bM, temperature: bT, maxOutputTokens: bL, thinkingBudget: bB, thinkingLevel: bLevel, systemInstruction: bI, responseMimeType: bR } = (aim.body ?? {}) as Body;
-        const { schema: s, systemInstruction = bI, temperature = bT, maxOutputTokens = bL, model = bM ?? DEFAULT_MODEL, thinkingBudget = bB, thinkingLevel = bLevel, responseMimeType = bR } = payload;
-        const schema = typeof s === 'string' ? JSON.parse(s) : s;
-        const mimeType = responseMimeType ?? (schema ? 'application/json' : undefined);
-        const thinkingConfig = this.resolveThinkingConfig(model, thinkingBudget, thinkingLevel);
-        const config = { ...(systemInstruction && { systemInstruction }), ...(mimeType && { responseMimeType: mimeType }), ...(schema && { responseJsonSchema: schema }), ...(thinkingConfig && { thinkingConfig }), ...(temperature !== undefined && { temperature }), ...(maxOutputTokens !== undefined && { maxOutputTokens }) };
+        const body = (aim.body ?? {}) as Body;
+        const model = payload.model ?? body.model ?? DEFAULT_MODEL;
+        const thinkingLevel = payload.thinkingLevel ?? body.thinkingLevel;
+        const thinkingConfig = this.resolveThinkingConfig(model, thinkingLevel);
+        const config = this.buildConfig(payload, body, model, thinkingConfig);
         return { model, config };
     }
 
-    private resolveThinkingConfig(model: string, thinkingBudget?: number, thinkingLevel?: ThinkingLevel): Record<string, unknown> | undefined {
-        if (thinkingLevel) {
-            return { thinkingLevel };
+    private buildConfig(payload: GeneratePayload, body: Body, model: string, thinkingConfig?: Record<string, unknown>): Record<string, unknown> {
+        const systemInstruction = payload.systemInstruction ?? body.systemInstruction;
+        const schema = typeof payload.schema === 'string' ? JSON.parse(payload.schema) : payload.schema;
+        const responseMimeType = payload.responseMimeType ?? body.responseMimeType ?? (schema ? 'application/json' : undefined);
+        const allowSampling = !thinkingConfig && !model.startsWith(THINKING_LEVEL_MODEL_PREFIX);
+        const temperature = allowSampling ? (payload.temperature ?? body.temperature) : undefined;
+        const maxOutputTokens = payload.maxOutputTokens ?? body.maxOutputTokens;
+        return { ...(systemInstruction && { systemInstruction }), ...(responseMimeType && { responseMimeType }), ...(schema && { responseJsonSchema: schema }), ...(thinkingConfig && { thinkingConfig }), ...(temperature !== undefined && { temperature }), ...(maxOutputTokens !== undefined && { maxOutputTokens }) };
+    }
+
+    private resolveThinkingConfig(model: string, thinkingLevel?: ThinkingLevel): Record<string, unknown> | undefined {
+        if (model.includes('lite')) { return undefined; }
+        if (model.startsWith(THINKING_LEVEL_MODEL_PREFIX)) {
+            return { thinkingLevel: thinkingLevel ?? DEFAULT_THINKING_LEVEL };
         }
-        if (thinkingBudget !== undefined && thinkingBudget >= 0) {
-            return { thinkingBudget };
-        }
-        return model.startsWith(THINKING_LEVEL_MODEL_PREFIX) ? { thinkingBudget: DEFAULT_THINKING_BUDGET } : undefined;
+        return thinkingLevel ? { thinkingLevel } : undefined;
     }
 
     private formatResult(response: { text?: string; usageMetadata?: unknown }, prompt: string, model: string, correlationId?: string): GenerateResult {

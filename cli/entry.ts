@@ -9,12 +9,18 @@ console.log(
     'color: #00d2ff; font-weight: bold; font-size: 13px; padding: 4px;'
 );
 
+import { SignalType as AppSignalType } from '@uca/app/types';
+
 const bus = new EventTarget();
 const logger = new Logger('bus-logger');
 logger.innervate(bus);
 
 const app = new App();
 app.innervate(bus);
+
+bus.dispatchEvent(new CustomEvent(AppSignalType.START, {
+    detail: { source: 'entry', property: AppSignalType.START, value: {} },
+}));
 
 function getQueryText(): string | undefined {
     const input = document.querySelector('ext-input, #input\\:query, [id*="query"]') as HTMLElement | null;

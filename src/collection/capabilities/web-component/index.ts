@@ -106,12 +106,27 @@ export class WebComponent extends Capability<Body> {
     }
 
     private createComponent(id: string, payload?: Body): HTMLElement {
-        const existing = this.getElement(id);
+        const existing = this.getElement(id) ?? this.adoptExistingDomElement(id);
         if (existing) {
             this.updateComponent(id, payload);
             return existing;
         }
         return this.instantiateComponent(id, payload);
+    }
+
+    private adoptExistingDomElement(id: string): HTMLElement | undefined {
+        const element = this.findExistingElement(id);
+        if (!element) { return undefined; }
+        this.bindLifecycleListeners(element, id);
+        this.setElement(id, element);
+        return element;
+    }
+
+    private findExistingElement(id: string): HTMLElement | undefined {
+        if (typeof document === 'undefined') { return undefined; }
+        const resolvedId = id.includes(':') ? id.split(':')[1] : id;
+        const direct = document.getElementById(id) ?? (resolvedId ? document.getElementById(resolvedId) : null);
+        return direct ?? undefined;
     }
 
     private instantiateComponent(id: string, payload?: Body): HTMLElement {
@@ -283,12 +298,14 @@ export class WebComponent extends Capability<Body> {
     }
 
     private mountElement(element: HTMLElement, container?: HTMLElement, payloadParentTo?: Disposition['parentTo']): void {
+        if (element.isConnected && !container && !payloadParentTo) { return; }
         const { aim, parentTo: dispositionParentTo } = this.disposition;
         const parentTo = payloadParentTo ?? dispositionParentTo;
         const { container: fallbackContainer } = aim.body ?? {};
         const parentContainer = this.resolveParentContainer(parentTo);
         const defaultContainer = typeof document !== 'undefined' ? document.body : undefined;
         const activeContainer = container ?? fallbackContainer ?? parentContainer ?? defaultContainer;
+        if (activeContainer === element) { return; }
         if (mountElementToContainer(element, activeContainer)) {
             this.logMountedElement(element, activeContainer);
         }

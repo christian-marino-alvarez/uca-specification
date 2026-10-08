@@ -97,8 +97,10 @@ export function synchronizeElementAttributes(
 }
 
 export function synchronizeElementText(element: HTMLElement, text?: string): void {
+    if (text === undefined) { return; }
+    if (text === '' && element.children.length > 0) { return; }
     const { textContent } = element;
-    if (text !== undefined && textContent !== text) {
+    if (textContent !== text) {
         element.textContent = text;
     }
 }

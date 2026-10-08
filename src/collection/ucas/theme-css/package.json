@@ -1,7 +1,7 @@
 {
-  "name": "@uca/content",
+  "name": "@uca/theme-css",
   "version": "0.1.0",
-  "description": "Content UCA for layout disposition, specialized scaffolding and living web and logic materialization",
+  "description": "Theme CSS UCA generating responsive OOCSS rules and tokens to satisfy application purpose",
   "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",
@@ -43,25 +43,10 @@
     }
   },
   "dependencies": {
-    "@uca/action": "^0.1.0",
-    "@uca/box": "^0.1.0",
-    "@uca/capability-contains": "^0.1.0",
-    "@uca/capability-divide": "^0.1.0",
-    "@uca/capability-equal": "^0.1.0",
-    "@uca/capability-greater-than": "^0.1.0",
-    "@uca/capability-less-than": "^0.1.0",
-    "@uca/capability-local-storage": "^0.1.0",
-    "@uca/capability-loop": "^0.1.0",
-    "@uca/capability-multiply": "^0.1.0",
-    "@uca/capability-web-component": "^0.1.0",
-    "@uca/choice": "^0.1.0",
+    "@uca/capability-css": "^0.1.0",
+    "@uca/capability-material": "^0.1.0",
     "@uca/core": "^0.1.0",
-    "@uca/dropdown": "^0.1.0",
-    "@uca/input": "^0.1.0",
-    "@uca/list": "^0.1.0",
-    "@uca/picture": "^0.1.0",
-    "@uca/scaffold": "^0.1.0",
-    "@uca/toggle": "^0.1.0",
+    "@uca/web-llm": "^0.1.0",
     "zod": "^4.6.5"
   },
   "scripts": {

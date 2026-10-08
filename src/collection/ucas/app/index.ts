@@ -1,304 +1,236 @@
 import { Uca } from '@uca/core/uca';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
-import { SignalType as ApiPromptSignalType, type DownloadProgressPayload } from '@uca/capability-api-prompt/types';
-import { SignalType as WebLlmSignalType } from '@uca/web-llm/types';
-import { Content } from '@uca/content';
-import { SignalType as ContentSignalType } from '@uca/content/types';
-import { Footer } from '@uca/footer';
-import { SignalType as FooterSignalType } from '@uca/footer/types';
-import { Box } from '@uca/box';
-import { SignalType as BoxSignalType } from '@uca/box/types';
-import { Action } from '@uca/action';
-import { SignalType as ActionSignalType } from '@uca/action/types';
-import { ApiPrompt } from '@uca/capability-api-prompt';
+import { Browser } from '@uca/capability-browser';
+import { SignalType as BrowserSignalType } from '@uca/capability-browser/types';
+import { Css } from '@uca/capability-css';
+import { SignalType as CssSignalType } from '@uca/capability-css/types';
+import { Scaffold } from '@uca/scaffold';
+import { SignalType as ScaffoldSignalType } from '@uca/scaffold/types';
+import { ThemeCss } from '@uca/theme-css';
+import { BASE_THEME_RULES } from '@uca/theme-css/constants';
+import { SignalType as ThemeCssSignalType, type ThemeResult } from '@uca/theme-css/types';
 import {
     __ID__,
-    DEFAULT_GOAL,
+    DEFAULT_CONTEXT,
+    DEFAULT_MODEL,
+    DEFAULT_THEME_MODEL,
+    DEFAULT_PROVIDER,
+    DEFAULT_PURPOSE,
     DEFAULT_SIGNALS,
 } from './constants.js';
-import {
-    type Body,
-    type CreatePayload,
-    type StreamPayload,
-    DataType,
-    SignalType,
-} from './types.js';
+import { bodySchema } from './schema.js';
+import { type Body, DataType, SignalType } from './types.js';
 
 export class App extends Uca<Body> {
-    public static override purpose: string = 'Orchestrate a live responsive web interface explaining the Universal Cognitive Architecture (UCA)';
+    public static override purpose: string = DEFAULT_PURPOSE;
 
     public static override disposition: Disposition<Body> = {
-        aim: { description: App.purpose, body: {} },
+        aim: { description: App.purpose, body: { context: DEFAULT_CONTEXT } },
         reactTo: [...DEFAULT_SIGNALS],
         inputs: [
-            { signal: SignalType.CREATE, type: DataType.PAYLOAD, description: 'Request full application scaffolding' },
-            { signal: SignalType.STREAM, type: DataType.PAYLOAD, description: 'Request streaming application scaffolding' },
-            { signal: SignalType.DESTROY, type: DataType.VOID, description: 'Cancel scaffolding operations' },
-            { signal: ApiPromptSignalType.DOWNLOADING, type: DataType.RECORD, description: 'Local model download progress' },
-            { signal: WebLlmSignalType.READY, type: DataType.RECORD, description: 'Local model ready for inference' },
-            { signal: ActionSignalType.TRIGGERED, type: DataType.RECORD, description: 'User action to generate scaffolding' },
-            { signal: ContentSignalType.CHUNK, type: DataType.RECORD, description: 'Content layout chunk' },
-            { signal: ContentSignalType.STREAMED, type: DataType.STREAM, description: 'Content layout stream' },
-            { signal: ContentSignalType.CREATED, type: DataType.RECORD, description: 'Content layout completed' },
-            { signal: ContentSignalType.ERROR, type: DataType.RECORD, description: 'Content layout error' },
-            { signal: FooterSignalType.CHUNK, type: DataType.RECORD, description: 'Footer layout chunk' },
-            { signal: FooterSignalType.STREAMED, type: DataType.STREAM, description: 'Footer layout stream' },
-            { signal: FooterSignalType.CREATED, type: DataType.RECORD, description: 'Footer layout completed' },
-            { signal: FooterSignalType.ERROR, type: DataType.RECORD, description: 'Footer layout error' },
+            { signal: SignalType.INIT, type: DataType.RECORD, schema: bodySchema, description: 'Initialize application' },
+            { signal: SignalType.START, type: DataType.VOID, description: 'Start application' },
+            { signal: SignalType.STOP, type: DataType.VOID, description: 'Stop application' },
+            { signal: SignalType.TRIGGER, type: DataType.PAYLOAD, description: 'Action triggered input' },
+            { signal: BrowserSignalType.DETECTED, type: DataType.RECORD, description: 'Browser client context detected' },
+            { signal: BrowserSignalType.CHANGED, type: DataType.RECORD, description: 'Browser client context changed' },
+            { signal: ScaffoldSignalType.CHUNK, type: DataType.PAYLOAD, description: 'Scaffold chunk signal' },
+            { signal: ScaffoldSignalType.CREATED, type: DataType.PAYLOAD, description: 'Scaffold created signal' },
+            { signal: ScaffoldSignalType.ERROR, type: DataType.PAYLOAD, description: 'Scaffold error signal' },
+            { signal: ThemeCssSignalType.CREATED, type: DataType.PAYLOAD, description: 'Theme created signal' },
+            { signal: ThemeCssSignalType.ERROR, type: DataType.PAYLOAD, description: 'Theme error signal' },
+            { signal: CssSignalType.CREATED, type: DataType.PAYLOAD, description: 'Css rule created signal' },
+            { signal: CssSignalType.ERROR, type: DataType.PAYLOAD, description: 'Css error signal' },
         ],
         outputs: [
-            { signal: SignalType.CREATED, type: DataType.RECORD, description: 'Application scaffold created' },
-            { signal: SignalType.STREAMED, type: DataType.STREAM, description: 'Application scaffold stream' },
-            { signal: SignalType.CHUNK, type: DataType.RECORD, description: 'Application scaffold node chunk' },
-            { signal: SignalType.LOADING, type: DataType.BOOLEAN, description: 'Local model loading status' },
-            { signal: SignalType.PROGRESS, type: DataType.NUMBER, description: 'Local model download progress percentage' },
-            { signal: SignalType.DESTROYED, type: DataType.RECORD, description: 'Application destroyed confirmation' },
-            { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'Application error' },
-            { signal: ContentSignalType.STREAM, type: DataType.PAYLOAD, description: 'Stream content layout' },
-            { signal: ContentSignalType.CREATE, type: DataType.PAYLOAD, description: 'Create content layout' },
-            { signal: FooterSignalType.STREAM, type: DataType.PAYLOAD, description: 'Stream footer layout' },
-            { signal: FooterSignalType.CREATE, type: DataType.PAYLOAD, description: 'Create footer layout' },
-            { signal: BoxSignalType.CREATE, type: DataType.RECORD, description: 'Create section box views' },
-            { signal: BoxSignalType.UPDATE, type: DataType.RECORD, description: 'Update section box chunks' },
-            { signal: BoxSignalType.REMOVE, type: DataType.RECORD, description: 'Remove section box views' },
-            { signal: ActionSignalType.CREATE, type: DataType.RECORD, description: 'Create action button' },
-            { signal: ActionSignalType.UPDATE, type: DataType.RECORD, description: 'Update action button' },
-            { signal: WebLlmSignalType.CREATE, type: DataType.RECORD, description: 'Preload model on innervation' },
+            { signal: SignalType.STARTED, type: DataType.RESULT, description: 'Application started' },
+            { signal: SignalType.STOPPED, type: DataType.RESULT, description: 'Application stopped' },
+            { signal: SignalType.CONTEXT, type: DataType.RECORD, description: 'Client browser context emitted' },
+            { signal: SignalType.CHUNK, type: DataType.RESULT, description: 'Application scaffold chunk' },
+            { signal: SignalType.CREATED, type: DataType.RESULT, description: 'Application scaffold created' },
+            { signal: SignalType.THEME_CREATED, type: DataType.RESULT, description: 'Application theme created' },
+            { signal: SignalType.ERROR, type: DataType.RESULT, description: 'Application error' },
+            { signal: ScaffoldSignalType.STREAM, type: DataType.PAYLOAD, description: 'Trigger scaffold stream' },
+            { signal: ThemeCssSignalType.CREATE, type: DataType.PAYLOAD, description: 'Trigger theme creation' },
+            { signal: CssSignalType.CREATE, type: DataType.PAYLOAD, description: 'Create CSS rule' },
+            { signal: BrowserSignalType.READ, type: DataType.VOID, description: 'Trigger browser context capture' },
         ],
     };
+
+    private isThemeReady: boolean = false;
+    private pendingChunks: unknown[] = [];
+    private pendingScaffold: unknown = undefined;
 
     public constructor(id: string = __ID__) {
         super(id);
     }
 
-    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
-        super.innervate(target, disposition);
-        this.mountInitialView();
-        return this;
-    }
-
-    public override denervate(): void {
-        super.denervate();
-    }
-
     protected override react(signal: Signal): void {
         const { property, value } = signal;
         switch (property) {
-            case SignalType.CREATE:
-                this.handleCreate(value);
-                break;
-            case SignalType.STREAM:
-                this.handleStream(value);
-                break;
-            case SignalType.DESTROY:
-                this.handleDestroy();
-                break;
-            case ApiPromptSignalType.DOWNLOADING:
-                this.handleDownloading(value);
-                break;
-            case WebLlmSignalType.READY:
-                this.handleReady();
-                break;
-            case ActionSignalType.TRIGGERED:
-                this.handleActionTriggered(value);
-                break;
-            case ContentSignalType.CHUNK:
-                this.handleContentChunk(value);
-                break;
-            case ContentSignalType.STREAMED:
-                this.handleContentStreamed(value);
-                break;
-            case ContentSignalType.CREATED:
-                this.handleContentCreated(value);
-                break;
-            case ContentSignalType.ERROR:
-                this.handleContentError(value);
-                break;
-            case FooterSignalType.CHUNK:
-                this.handleFooterChunk(value);
-                break;
-            case FooterSignalType.STREAMED:
-                this.handleFooterStreamed(value);
-                break;
-            case FooterSignalType.CREATED:
-                this.handleFooterCreated(value);
-                break;
-            case FooterSignalType.ERROR:
-                this.handleFooterError(value);
-                break;
-            default:
-                break;
+            case SignalType.START: this.handleStart(value); break;
+            case SignalType.TRIGGER: this.handleTrigger(value); break;
+            case SignalType.STOP: this.handleStop(); break;
+            case BrowserSignalType.DETECTED: this.handleBrowserDetected(value); break;
+            case BrowserSignalType.CHANGED: this.handleBrowserChanged(value); break;
+            case ScaffoldSignalType.CHUNK: this.handleScaffoldChunk(value); break;
+            case ScaffoldSignalType.CREATED: this.handleScaffoldCreated(value); break;
+            case ScaffoldSignalType.ERROR: this.handleScaffoldError(value); break;
+            case ThemeCssSignalType.CREATED: this.handleThemeCreated(value); break;
+            case ThemeCssSignalType.ERROR: this.handleThemeError(value); break;
+            case CssSignalType.CREATED: this.handleCssCreated(value); break;
+            case CssSignalType.ERROR: this.handleCssError(value); break;
+            default: break;
         }
     }
 
     protected override capabilities(): Cooky {
-        const domainItems = this.createDomainCapabilities();
-        const presentationItems = this.createPresentationCapabilities();
-        return [...domainItems, ...presentationItems];
+        const browser = this.createBrowserCapability();
+        const scaffold = this.createScaffoldCapability();
+        const theme = this.createThemeCapability();
+        const css = this.createCssCapability();
+        return [...browser, ...scaffold, ...theme, ...css];
     }
 
-    private createDomainCapabilities(): Cooky {
-        const { reactTo: contentSignals = [] } = Content.disposition;
-        const { reactTo: footerSignals = [] } = Footer.disposition;
-        const content = [Content, { aim: { description: Content.purpose, body: {} }, reactTo: [...contentSignals] }] as Cooky[number];
-        const footer = [Footer, { aim: { description: Footer.purpose, body: {} }, reactTo: [...footerSignals] }] as Cooky[number];
-        return [content, footer];
+    private handleStart(value?: unknown): void {
+        const payload = (value ?? {}) as Body;
+        this.pulse(SignalType.STARTED, { id: this.id, started: true, ...payload });
+        this.pulse(BrowserSignalType.READ, { id: `${this.id}:browser` });
+        this.injectBaseTheme();
+        this.dispatchScaffold();
+        this.dispatchTheme();
     }
 
-    private createPresentationCapabilities(): Cooky {
-        const { reactTo: boxSignals = [] } = Box.disposition;
-        const { reactTo: actionSignals = [] } = Action.disposition;
-        const boxes = this.createBoxCapabilities(boxSignals);
-        const action = [Action, { aim: { description: 'Submit action', body: { id: 'action:submit' } }, reactTo: [...actionSignals] }] as Cooky[number];
-        return [...boxes, action];
+    private injectBaseTheme(): void {
+        BASE_THEME_RULES.forEach((rule) => this.pulse(CssSignalType.CREATE, rule));
     }
 
-    private createBoxCapabilities(signals: readonly string[]): Cooky {
-        return ['box:content', 'box:emergent', 'box:footer'].map((id) => {
-            return [Box, { aim: { description: `${id} container`, body: { id, text: '' } }, reactTo: [...signals] }] as Cooky[number];
-        });
-    }
-
-    protected override matchesId(id?: string): boolean {
-        if (!id || id === this.id) { return true; }
-        return this.hasCapability(id) || super.matchesId(id);
-    }
-
-    private mountInitialView(): void {
-        this.pulse(BoxSignalType.CREATE, { id: 'box:content' });
-        this.pulse(BoxSignalType.CREATE, { id: 'box:emergent', text: '' });
-        this.pulse(BoxSignalType.CREATE, { id: 'box:footer', text: 'UCA · Universal Cognitive Architecture' });
-        this.pulse(ActionSignalType.CREATE, { id: 'action:submit', label: '→', disabled: false });
-        this.updateStatus('⚡ Sistema UCA preparado');
-        void this.watchGpuReadiness();
-    }
-
-    private updateStatus(message: string, busy?: boolean): void {
-        if (typeof document !== 'undefined') {
-            const container = document.getElementById('app:status');
-            const textElement = document.getElementById('app:status-text');
-            if (textElement) { textElement.textContent = message; }
-            if (container && busy !== undefined) { container.classList.toggle('busy', busy); }
-        }
-        if (busy !== undefined) {
-            this.pulse(SignalType.LOADING, { loading: busy, message });
-        }
-    }
-
-    private async watchGpuReadiness(): Promise<void> {
-        const ready = await ApiPrompt.whenReady();
-        if (!ready) { return; }
-        this.pulse(ActionSignalType.UPDATE, { id: 'action:submit', label: '→', disabled: false });
-    }
-
-    private handleActionTriggered(value?: unknown): void {
+    private handleTrigger(value?: unknown): void {
         const { request } = (value ?? {}) as { request?: string };
-        const query = request || DEFAULT_GOAL;
-        this.pulse(ActionSignalType.UPDATE, { id: 'action:submit', disabled: true });
-        this.updateStatus(`🧠 Razonando espacios para "${query}"...`, true);
-        this.pulse(BoxSignalType.UPDATE, { id: 'box:emergent', text: `⚡ Razonando para: "${query}"...` });
-        this.pulse(ContentSignalType.STREAM, { request: query, model: 'local', forceRefresh: true });
+        this.isThemeReady = false;
+        this.pendingChunks = [];
+        this.pendingScaffold = undefined;
+        this.dispatchScaffold(request);
+        this.dispatchTheme(request);
     }
 
-    private handleCreate(value: unknown): void {
-        const { model = 'local', request = DEFAULT_GOAL, ...rest } = (value ?? {}) as CreatePayload;
-        this.updateStatus(`Iniciando layout (${model})...`, true);
-        this.pulse(ContentSignalType.STREAM, { model, request, ...rest });
+    private dispatchScaffold(requestText?: string): void {
+        const request = requestText ?? this.purpose;
+        const context = this.context ?? DEFAULT_CONTEXT;
+        const correlationId = `${this.id}:scaffold:${Date.now()}`;
+        const payload = { id: `${this.id}:scaffold`, request, context, parentTo: this.id, model: DEFAULT_MODEL, provider: DEFAULT_PROVIDER, correlationId };
+        this.pulse(ScaffoldSignalType.STREAM, payload);
     }
 
-    private handleStream(value: unknown): void {
-        const { model = 'local', request = DEFAULT_GOAL, ...rest } = (value ?? {}) as StreamPayload;
-        this.updateStatus(`Iniciando streaming layout (${model})...`, true);
-        this.pulse(ContentSignalType.STREAM, { model, request, ...rest });
+    private dispatchTheme(requestText?: string): void {
+        const request = requestText ?? this.purpose;
+        const context = this.context ?? DEFAULT_CONTEXT;
+        const correlationId = `${this.id}:theme-css:${Date.now()}`;
+        const payload = { id: `${this.id}:theme-css`, request, context, model: DEFAULT_THEME_MODEL, provider: DEFAULT_PROVIDER, correlationId };
+        this.pulse(ThemeCssSignalType.CREATE, payload);
     }
 
-    private handleDownloading(value: unknown): void {
-        const { percentage = 0, loaded, total } = (value ?? {}) as DownloadProgressPayload;
-        const message = `⏳ Descargando modelo: ${percentage}% (${loaded}/${total})`;
-        this.updateStatus(message, true);
-        this.pulse(SignalType.PROGRESS, { percentage, loaded, total });
-        this.pulse(BoxSignalType.UPDATE, { id: 'box:emergent', text: message });
+    private handleThemeCreated(value: unknown): void {
+        const { rules = [] } = (value ?? {}) as ThemeResult;
+        console.log(`🎨 [App:Theme-Created] Aplicando ${rules.length} reglas CSS`);
+        rules.forEach((rule) => this.pulse(CssSignalType.CREATE, rule));
+        this.isThemeReady = true;
+        this.pulse(SignalType.THEME_CREATED, value);
+        this.flushPendingScaffold();
     }
 
-    private handleReady(): void {
-        this.updateStatus('⚡ Modelo local listo en GPU', false);
-        this.pulse(ActionSignalType.UPDATE, { id: 'action:submit', label: '→', disabled: false });
+    private flushPendingScaffold(): void {
+        this.pendingChunks.forEach((chunk) => this.emitScaffoldChunk(chunk));
+        this.pendingChunks = [];
+        if (this.pendingScaffold) {
+            this.emitScaffoldCreated(this.pendingScaffold);
+            this.pendingScaffold = undefined;
+        }
     }
 
-    private handleContentChunk(value: unknown): void {
-        this.updateStatus('🎨 Materializando nodos cognitivos...', true);
-        this.emitChunkView('Content', value);
+    private handleThemeError(value: unknown): void {
+        console.error('🚨 [App:Theme-Error]', value);
+        this.pulse(SignalType.ERROR, value);
     }
 
-    private handleFooterChunk(value: unknown): void {
-        this.emitChunkView('Footer', value);
+    private handleCssCreated(value: unknown): void {
+        const { selector } = (value ?? {}) as { selector?: string };
+        console.log(`🖌️ [App:Css-Rule-Created] Regla CSS inyectada: ${selector}`);
     }
 
-    private emitChunkView(section: string, value: unknown): void {
-        const { chunk } = (value ?? {}) as { chunk?: Record<string, unknown> };
-        const payload = chunk ?? (value as Record<string, unknown>);
-        if (!payload || Object.keys(payload).length === 0) { return; }
-        const boxId = section === 'Content' ? 'box:emergent' : 'box:footer';
-        const chunkText = `[${section}]\n${JSON.stringify(payload, null, 2)}`;
-        this.pulse(BoxSignalType.UPDATE, { id: boxId, text: chunkText });
+    private handleCssError(value: unknown): void {
+        console.error('🚨 [App:Css-Error]', value);
+    }
+
+    private handleStop(): void {
+        this.pulse(SignalType.STOPPED, { id: this.id, started: false });
+    }
+
+    private handleBrowserDetected(value: unknown): void {
+        this.pulse(SignalType.CONTEXT, { id: this.id, context: value });
+    }
+
+    private handleBrowserChanged(value: unknown): void {
+        this.pulse(SignalType.CONTEXT, { id: this.id, context: value, updated: true });
+    }
+
+    private handleScaffoldChunk(value: unknown): void {
+        if (!this.isThemeReady) {
+            this.pendingChunks.push(value);
+            return;
+        }
+        this.emitScaffoldChunk(value);
+    }
+
+    private emitScaffoldChunk(value: unknown): void {
+        const { chunk } = (value ?? {}) as { chunk?: unknown };
+        console.log('🧩 [App:Scaffold-Chunk]', JSON.stringify(chunk ?? value, null, 2));
         this.pulse(SignalType.CHUNK, value);
     }
 
-    private handleContentStreamed(value: unknown): void {
-        this.pulse(SignalType.STREAMED, value);
+    private handleScaffoldCreated(value: unknown): void {
+        if (!this.isThemeReady) {
+            this.pendingScaffold = value;
+            return;
+        }
+        this.emitScaffoldCreated(value);
     }
 
-    private handleFooterStreamed(value: unknown): void {
-        this.pulse(SignalType.STREAMED, value);
-    }
-
-    private handleContentCreated(value: unknown): void {
-        this.emitSectionCompleted('Content', value);
-        this.updateStatus('✅ Scaffolding UCA completado', false);
-        this.pulse(ActionSignalType.UPDATE, { id: 'action:submit', disabled: false });
-        this.pulse(FooterSignalType.STREAM, { model: 'local' });
-    }
-
-    private handleFooterCreated(value: unknown): void {
-        this.emitSectionCompleted('Footer', value);
-        this.pulse(ActionSignalType.UPDATE, { id: 'action:submit', disabled: false });
-    }
-
-    private handleContentError(value: unknown): void {
-        this.emitSectionError('Content', value);
-        this.updateStatus('❌ Error en el razonamiento', false);
-        this.pulse(ActionSignalType.UPDATE, { id: 'action:submit', disabled: false });
-        this.pulse(FooterSignalType.STREAM, { model: 'local' });
-    }
-
-    private handleFooterError(value: unknown): void {
-        this.emitSectionError('Footer', value);
-        this.pulse(ActionSignalType.UPDATE, { id: 'action:submit', disabled: false });
-    }
-
-    private emitSectionCompleted(section: string, value: unknown): void {
-        const { scaffold } = (value ?? {}) as { scaffold?: Record<string, unknown> };
-        const payload = scaffold ?? (value as Record<string, unknown>);
-        const boxId = section === 'Content' ? 'box:emergent' : 'box:footer';
-        const text = `✅ ${section} completado:\n${JSON.stringify(payload, null, 2)}`;
-        this.pulse(BoxSignalType.UPDATE, { id: boxId, text });
+    private emitScaffoldCreated(value: unknown): void {
+        const { scaffold } = (value ?? {}) as { scaffold?: unknown };
+        console.log('🏛️ [App:Scaffold-Created]', JSON.stringify(scaffold ?? value, null, 2));
         this.pulse(SignalType.CREATED, value);
     }
 
-    private emitSectionError(section: string, value: unknown): void {
-        const { error } = (value ?? {}) as { error?: string };
-        const boxId = section === 'Content' ? 'box:emergent' : 'box:footer';
-        const message = error ?? String(value);
-        this.pulse(BoxSignalType.UPDATE, { id: boxId, text: `❌ ${section} error:\n${message}` });
-        this.pulse(SignalType.ERROR, { section: section.toLowerCase(), error: value });
+    private handleScaffoldError(value: unknown): void {
+        console.error('🚨 [App:Scaffold-Error]', value);
+        this.pulse(SignalType.ERROR, value);
     }
 
-    private handleDestroy(): void {
-        this.pulse(BoxSignalType.REMOVE, { id: 'box:content' });
-        this.pulse(BoxSignalType.REMOVE, { id: 'box:emergent' });
-        this.pulse(BoxSignalType.REMOVE, { id: 'box:footer' });
-        this.pulse(ContentSignalType.DESTROY, {});
-        this.pulse(FooterSignalType.DESTROY, {});
-        this.pulse(SignalType.DESTROYED, { destroyed: true });
+    private createBrowserCapability(): Cooky {
+        const { reactTo = [] } = Browser.disposition;
+        const aim = { description: Browser.AIM, body: { id: `${this.id}:browser` } };
+        return [[Browser, { aim, reactTo: [...reactTo] }]];
+    }
+
+    private createScaffoldCapability(): Cooky {
+        const { reactTo = [] } = Scaffold.disposition;
+        const body = { id: `${this.id}:scaffold`, model: DEFAULT_MODEL, provider: DEFAULT_PROVIDER };
+        const aim = { description: 'Scaffolding for App', body };
+        return [[Scaffold, { aim, reactTo: [...reactTo] }]];
+    }
+
+    private createThemeCapability(): Cooky {
+        const { reactTo = [] } = ThemeCss.disposition;
+        const body = { id: `${this.id}:theme-css`, model: DEFAULT_THEME_MODEL, provider: DEFAULT_PROVIDER };
+        const aim = { description: 'Theme generation for App', body };
+        return [[ThemeCss, { aim, reactTo: [...reactTo] }]];
+    }
+
+    private createCssCapability(): Cooky {
+        const { reactTo = [] } = Css.disposition;
+        const body = { id: `${this.id}:css` };
+        const aim = { description: 'CSS styling capability for App', body };
+        return [[Css, { aim, reactTo: [...reactTo] }]];
     }
 }

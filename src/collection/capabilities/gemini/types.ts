@@ -22,6 +22,7 @@ export enum DataType {
 }
 
 export enum ThinkingLevel {
+    MINIMAL = 'minimal',
     LOW = 'low',
     MEDIUM = 'medium',
     HIGH = 'high',

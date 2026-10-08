@@ -1,142 +1,136 @@
 import * as assert from 'node:assert';
 import { Uca } from '@uca/core/uca';
-import { type Signal } from '@uca/core/types';
-import { SignalType as ApiPromptSignalType } from '@uca/capability-api-prompt/types';
-import { SignalType as WebLlmSignalType } from '@uca/web-llm/types';
-import { SignalType as ContentSignalType } from '@uca/content/types';
-import { SignalType as FooterSignalType } from '@uca/footer/types';
-import { SignalType as ActionSignalType } from '@uca/action/types';
+import type { Signal } from '@uca/core/types';
+import { SignalType as CssSignalType } from '@uca/capability-css/types';
+import { SignalType as ScaffoldSignalType } from '@uca/scaffold/types';
+import { SignalType as ThemeCssSignalType, type CssRule, type ThemeResult } from '@uca/theme-css/types';
 import { App } from '../index.js';
-import { __ID__ } from '../constants.js';
-import {
-    type DestroyResult,
-    type LoadingResult,
-    type ProgressResult,
-    DataType,
-    SignalType,
-} from '../types.js';
+import { DEFAULT_CONTEXT, DEFAULT_MODEL, DEFAULT_THEME_MODEL, DEFAULT_PROVIDER, DEFAULT_PURPOSE } from '../constants.js';
+import { SignalType } from '../types.js';
 
-function emitSignal(bus: EventTarget, property: string, value: unknown): void {
+function emitSignal(app: App, property: string, value?: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
-    bus.dispatchEvent(new CustomEvent(property, { detail: signal }));
+    app.target?.dispatchEvent(new CustomEvent(property, { detail: signal }));
 }
 
-function testApp_IdentityAndDefaults(): void {
+function testApp_IdentityAndPurpose(): void {
     const app = new App();
     assert.ok(app instanceof Uca);
-    assert.strictEqual(app.id, __ID__);
-    assert.strictEqual(app.purpose, App.purpose);
-    const { inputs, outputs, aim } = App.disposition;
-    assert.strictEqual(inputs?.length, 14);
-    assert.strictEqual(outputs?.length, 17);
-    assert.strictEqual(inputs?.[0]?.type, DataType.PAYLOAD);
-    assert.strictEqual(aim.description, App.purpose);
-}
-
-function testApp_Innervation(): void {
-    const bus = new EventTarget();
-    const app = new App('custom-app').innervate(bus);
-    assert.strictEqual(app.id, 'custom-app');
-    assert.strictEqual(app.target, bus);
+    assert.strictEqual(app.id, 'app');
+    assert.strictEqual(app.purpose, DEFAULT_PURPOSE);
+    assert.strictEqual(app.context, DEFAULT_CONTEXT);
     app.denervate();
 }
 
-async function testApp_LocalLlmLoadingAndProgressFlow(): Promise<void> {
-    const bus = new EventTarget();
-    const loadingStates: LoadingResult[] = [];
-    const progressList: ProgressResult[] = [];
-    bus.addEventListener(SignalType.LOADING, (e) => loadingStates.push((e as CustomEvent<Signal>).detail?.value as LoadingResult));
-    bus.addEventListener(SignalType.PROGRESS, (e) => progressList.push((e as CustomEvent<Signal>).detail?.value as ProgressResult));
-    const app = new App().innervate(bus);
-    emitSignal(bus, ApiPromptSignalType.DOWNLOADING, { loaded: 50, total: 100, percentage: 50 });
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    assert.strictEqual(progressList.length, 1);
-    assert.strictEqual(loadingStates[0]?.loading, true);
-    emitSignal(bus, WebLlmSignalType.READY, { ready: true });
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    assert.strictEqual(loadingStates[1]?.loading, false);
-    app.denervate();
-}
+function testApp_ContextProvisioningToScaffold(): void {
+    const app = new App().innervate();
+    let capturedScaffoldPayload: { request?: string; context?: string; model?: string; provider?: string } | undefined;
 
-function setupStreamListeners(bus: EventTarget): { get: () => [boolean, boolean] } {
-    let contentStreamStarted = false;
-    let footerStreamStarted = false;
-    bus.addEventListener(ContentSignalType.STREAM, () => { contentStreamStarted = true; });
-    bus.addEventListener(FooterSignalType.STREAM, () => { footerStreamStarted = true; });
-    return { get: () => [contentStreamStarted, footerStreamStarted] };
-}
-
-async function testApp_CascadeScaffoldForwardingAndCompletion(): Promise<void> {
-    const bus = new EventTarget();
-    const streams = setupStreamListeners(bus);
-    let completedCount = 0;
-    bus.addEventListener(SignalType.CREATED, () => { completedCount++; });
-    const app = new App().innervate(bus);
-    emitSignal(bus, SignalType.STREAM, { model: 'local' });
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    assert.deepStrictEqual(streams.get(), [true, false]);
-    await advanceCascadeStages(bus, streams);
-    assert.strictEqual(completedCount, 2);
-    app.denervate();
-}
-
-async function advanceCascadeStages(bus: EventTarget, streams: { get: () => [boolean, boolean] }): Promise<void> {
-    emitSignal(bus, ContentSignalType.CREATED, { correlationId: 'content:stream:1', scaffold: { hero: {} } });
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    assert.deepStrictEqual(streams.get(), [true, true]);
-    emitSignal(bus, FooterSignalType.CREATED, { correlationId: 'footer:stream:2', scaffold: { copyright: {} } });
-    await new Promise((resolve) => setTimeout(resolve, 20));
-}
-
-async function testApp_DestroyContract(): Promise<void> {
-    const bus = new EventTarget();
-    let destroyedResult: DestroyResult | undefined;
-    bus.addEventListener(SignalType.DESTROYED, (event: Event) => {
-        destroyedResult = (event as CustomEvent<Signal>).detail?.value as DestroyResult;
+    app.target?.addEventListener(ScaffoldSignalType.STREAM, (event: Event) => {
+        const { detail } = event as CustomEvent<Signal<{ request: string; context: string; model: string; provider: string }>>;
+        capturedScaffoldPayload = detail.value;
     });
-    const app = new App().innervate(bus);
-    emitSignal(bus, SignalType.DESTROY, {});
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    assert.ok(destroyedResult !== undefined);
-    assert.strictEqual(destroyedResult?.destroyed, true);
+
+    emitSignal(app, SignalType.START);
+    assert.notStrictEqual(capturedScaffoldPayload, undefined);
+    assert.strictEqual(capturedScaffoldPayload?.request, DEFAULT_PURPOSE);
+    assert.strictEqual(capturedScaffoldPayload?.context, DEFAULT_CONTEXT);
+    assert.strictEqual(capturedScaffoldPayload?.model, DEFAULT_MODEL);
+    assert.strictEqual(capturedScaffoldPayload?.provider, DEFAULT_PROVIDER);
+
     app.denervate();
 }
 
-async function testApp_ActionTriggeredStartsScaffolding(): Promise<void> {
-    const bus = new EventTarget();
-    let contentStreamTriggered = false;
-    bus.addEventListener(ContentSignalType.STREAM, () => { contentStreamTriggered = true; });
-    const app = new App().innervate(bus);
-    emitSignal(bus, ActionSignalType.TRIGGERED, { id: 'action:submit', request: 'Test query' });
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    assert.strictEqual(contentStreamTriggered, true);
+function testApp_ContextProvisioningToTheme(): void {
+    const app = new App().innervate();
+    let capturedThemePayload: { request?: string; context?: string; model?: string; provider?: string } | undefined;
+
+    app.target?.addEventListener(ThemeCssSignalType.CREATE, (event: Event) => {
+        const { detail } = event as CustomEvent<Signal<{ request: string; context: string; model: string; provider: string }>>;
+        capturedThemePayload = detail.value;
+    });
+
+    emitSignal(app, SignalType.START);
+    assert.notStrictEqual(capturedThemePayload, undefined);
+    assert.strictEqual(capturedThemePayload?.request, DEFAULT_PURPOSE);
+    assert.strictEqual(capturedThemePayload?.model, DEFAULT_THEME_MODEL);
+    assert.strictEqual(capturedThemePayload?.model, 'gemini-3.5-flash-lite');
+
     app.denervate();
 }
 
-function testApp_CascadingConceptualLineageTrace(): void {
-    const app = new App('app').innervate(new EventTarget());
-    const { registry } = app as unknown as { registry: Map<string, Uca> };
-    const content = registry.get('content');
-    const { registry: contentRegistry } = content as unknown as { registry: Map<string, Uca> };
-    const scaffold = contentRegistry.get('content:scaffold');
-    assert.strictEqual(content?.context, App.purpose);
-    assert.strictEqual(scaffold?.context, `${App.purpose} → ${content?.purpose}`);
+function testApp_InjectsBaseThemeOnStart(): void {
+    const app = new App().innervate();
+    const createdRules: unknown[] = [];
+    app.target?.addEventListener(CssSignalType.CREATE, (event: Event) => {
+        const { detail } = event as CustomEvent<Signal<unknown>>;
+        createdRules.push(detail.value);
+    });
+    emitSignal(app, SignalType.START);
+    assert.ok(createdRules.length >= 4);
     app.denervate();
 }
 
-async function runTests(): Promise<void> {
-    console.log('🧪 Testing App UCA with Content and Footer...');
-    testApp_IdentityAndDefaults();
-    testApp_Innervation();
-    testApp_CascadingConceptualLineageTrace();
-    await testApp_LocalLlmLoadingAndProgressFlow();
-    await testApp_ActionTriggeredStartsScaffolding();
-    await testApp_CascadeScaffoldForwardingAndCompletion();
-    await testApp_DestroyContract();
-    console.log('✅ All App UCA tests passed successfully!');
+function testApp_BarrierHoldsScaffold(): void {
+    const app = new App().innervate();
+    let receivedChunk: unknown;
+    app.target?.addEventListener(SignalType.CHUNK, (event: Event) => {
+        const { detail } = event as CustomEvent<Signal<{ chunk: unknown }>>;
+        receivedChunk = detail.value.chunk;
+    });
+    const mockChunk = { boxHeader: { purpose: 'Header', parentTo: 'app' } };
+    emitSignal(app, ScaffoldSignalType.CHUNK, { chunk: mockChunk });
+    assert.strictEqual(receivedChunk, undefined);
+    app.denervate();
 }
 
-runTests().catch((error) => {
-    console.error('❌ Test failed:', error);
-    process.exit(1);
-});
+function testApp_BarrierFlushesOnTheme(): void {
+    const app = new App().innervate();
+    let receivedChunk: unknown;
+    app.target?.addEventListener(SignalType.CHUNK, (event: Event) => {
+        const { detail } = event as CustomEvent<Signal<{ chunk: unknown }>>;
+        receivedChunk = detail.value.chunk;
+    });
+    const mockChunk = { boxHeader: { purpose: 'Header', parentTo: 'app' } };
+    emitSignal(app, ScaffoldSignalType.CHUNK, { chunk: mockChunk });
+    emitSignal(app, ThemeCssSignalType.CREATED, { correlationId: 't1', rules: [] } satisfies ThemeResult);
+    assert.deepStrictEqual(receivedChunk, mockChunk);
+    app.denervate();
+}
+
+function testApp_ThemeAndCssIntegration(): void {
+    const app = new App().innervate();
+    const createdCssRules: unknown[] = [];
+    let capturedThemeResult: unknown;
+
+    app.target?.addEventListener(CssSignalType.CREATE, (event: Event) => {
+        const { detail } = event as CustomEvent<Signal<unknown>>;
+        createdCssRules.push(detail.value);
+    });
+    app.target?.addEventListener(SignalType.THEME_CREATED, (event: Event) => {
+        const { detail } = event as CustomEvent<Signal<unknown>>;
+        capturedThemeResult = detail.value;
+    });
+
+    const mockRules: CssRule[] = [
+        { selector: ':root', declarations: { '--bg-color': '#111' } },
+        { selector: '.box', declarations: { padding: '1rem' } },
+    ];
+    emitSignal(app, ThemeCssSignalType.CREATED, { correlationId: 'theme-1', rules: mockRules } satisfies ThemeResult);
+
+    assert.strictEqual(createdCssRules.length, 2);
+    assert.deepStrictEqual(createdCssRules, mockRules);
+    assert.ok(capturedThemeResult);
+    app.denervate();
+}
+
+testApp_IdentityAndPurpose();
+testApp_ContextProvisioningToScaffold();
+testApp_ContextProvisioningToTheme();
+testApp_InjectsBaseThemeOnStart();
+testApp_BarrierHoldsScaffold();
+testApp_BarrierFlushesOnTheme();
+testApp_ThemeAndCssIntegration();
+
+console.log('✅ App UCA with Scaffold, ThemeCss, and Barrier tests passed successfully');
+

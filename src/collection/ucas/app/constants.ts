@@ -1,29 +1,35 @@
-import { SignalType as ApiPromptSignalType } from '@uca/capability-api-prompt/types';
-import { SignalType as WebLlmSignalType } from '@uca/web-llm/types';
-import { SignalType as ContentSignalType } from '@uca/content/types';
-import { SignalType as FooterSignalType } from '@uca/footer/types';
-import { SignalType as ActionSignalType } from '@uca/action/types';
+import { SignalType as BrowserSignalType } from '@uca/capability-browser/types';
+import { SignalType as CssSignalType } from '@uca/capability-css/types';
+import { SignalType as ScaffoldSignalType } from '@uca/scaffold/types';
+import { SignalType as ThemeCssSignalType } from '@uca/theme-css/types';
 import { SignalType } from './types.js';
 
 export const __ID__ = 'app';
 
-export const DEFAULT_GOAL = 'Descubrir y articular la arquitectura cognitiva universal y sus conceptos clave';
+export const DEFAULT_PURPOSE =
+    'Crear una interfaz web interactiva para explicar la arquitectura UCA (Universal Cognitive Architecture - Unidades Cognitivas Autónomas)';
+
+export const DEFAULT_CONTEXT =
+    'Interfaz web minimalista y reactiva organizada jerárquicamente en contenedores y componentes para una demo viva de UCA';
+
+export const DEFAULT_MODEL = 'gemini-3.5-flash';
+
+export const DEFAULT_THEME_MODEL = 'gemini-3.5-flash-lite';
+
+export const DEFAULT_PROVIDER = 'gemini';
 
 export const DEFAULT_SIGNALS: readonly string[] = [
-    SignalType.CREATE,
-    SignalType.STREAM,
-    SignalType.DESTROY,
-    ApiPromptSignalType.DOWNLOADING,
-    WebLlmSignalType.READY,
-    ActionSignalType.TRIGGERED,
-    ContentSignalType.CHUNK,
-    ContentSignalType.STREAMED,
-    ContentSignalType.CREATED,
-    ContentSignalType.ERROR,
-    FooterSignalType.CHUNK,
-    FooterSignalType.STREAMED,
-    FooterSignalType.CREATED,
-    FooterSignalType.ERROR,
-];
-
-export const __DEFAULT_SIGNALS__ = DEFAULT_SIGNALS;
+    SignalType.INIT,
+    SignalType.START,
+    SignalType.STOP,
+    SignalType.TRIGGER,
+    BrowserSignalType.DETECTED,
+    BrowserSignalType.CHANGED,
+    ScaffoldSignalType.CHUNK,
+    ScaffoldSignalType.CREATED,
+    ScaffoldSignalType.ERROR,
+    ThemeCssSignalType.CREATED,
+    ThemeCssSignalType.ERROR,
+    CssSignalType.CREATED,
+    CssSignalType.ERROR,
+] as const;

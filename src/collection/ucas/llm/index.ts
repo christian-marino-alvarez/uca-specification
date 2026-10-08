@@ -91,10 +91,10 @@ export class Llm extends Uca<Body> {
 
     private buildGeminiCooky(connection?: ConnectionConfig, model?: string): Cooky {
         const { aim } = this.disposition;
-        const { thinkingBudget, imagination, limit, role } = (aim.body ?? {}) as Body;
+        const { thinkingBudget, thinkingLevel, imagination, limit, role } = (aim.body ?? {}) as Body;
         const targetModel = model ?? DEFAULT_GEMINI_MODEL;
         const disposition: Disposition<GeminiBody> = {
-            aim: { description: Gemini.AIM, body: { connection, model: targetModel, thinkingBudget, temperature: imagination, maxOutputTokens: limit, systemInstruction: role } },
+            aim: { description: Gemini.AIM, body: { connection, model: targetModel, thinkingBudget, thinkingLevel, temperature: imagination, maxOutputTokens: limit, systemInstruction: role } },
             reactTo: [...Gemini.disposition.reactTo ?? []],
         };
         return [[Gemini, disposition]];

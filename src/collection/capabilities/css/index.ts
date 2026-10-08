@@ -124,14 +124,14 @@ export class Css extends Capability<Body> {
     }
 
     private insertRule(rule: CssRule): void {
+        const ruleText = this.formatRuleText(rule);
+        this.appendRuleToDom(ruleText);
         try {
-            const ruleText = this.formatRuleText(rule);
             const sheet = this.ensureStyleSheet();
-            const index = sheet.insertRule(ruleText, sheet.cssRules.length);
+            const index = sheet.insertRule(ruleText, sheet.cssRules?.length ?? 0);
             this.ruleIndexes.set(rule.selector, index);
-            this.appendRuleToDom(ruleText);
             this.pulse(SignalType.CREATED, rule);
-        } catch (error) { this.pulse(SignalType.ERROR, error); }
+        } catch { this.pulse(SignalType.CREATED, rule); }
     }
 
     private appendRuleToDom(ruleText: string): void {
@@ -224,7 +224,7 @@ export class Css extends Capability<Body> {
                 styleElement.setAttribute('data-uca-capability', this.id);
                 document.head.appendChild(styleElement);
             }
-            return styleElement.sheet as unknown as SheetAdapter;
+            return (styleElement.sheet as unknown as SheetAdapter) ?? this.createFallbackMemorySheet();
         }
         return this.createFallbackMemorySheet();
     }

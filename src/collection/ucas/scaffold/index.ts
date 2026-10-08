@@ -24,7 +24,7 @@ import {
 } from './types.js';
 
 export class Scaffold extends Uca<Body> {
-    public static override purpose: string = 'Create a key-value schema of camelCase ucaName and purpose with parentTo of another ucaName, representing exclusively web disposition layout spaces without css or styles';
+    public static override purpose: string = 'Emerge the conceptual disposition of interactive experience required to fulfill an ontological purpose';
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Scaffold.purpose, body: {} },
@@ -84,20 +84,14 @@ export class Scaffold extends Uca<Body> {
         return [llmItem, transformerItem];
     }
 
-    private formatGoalRequest(request: string, context?: string, parentUca?: string, dispositions?: Record<string, string>): string {
-        const parentValue = parentUca ? `"${parentUca}"` : 'null';
-        const schema = `{"<childName>":{"purpose":"<1-sentence purpose (8-15 words)>","parentTo":${parentValue}}}`;
-        const parentRule = parentUca ? [`Rule: Every child MUST have "parentTo": ${parentValue}. Never use null.`] : [];
-        const catalog = this.formatDispositions(dispositions);
-        const contextLine = context ? [`Context: ${context}`] : [];
-        const lines = [...contextLine, `Request: ${request}`, ...catalog, `${SCAFFOLD_INSTRUCTION_PREFIX} ${schema}`, ...parentRule, SCAFFOLD_RESTRICTIONS];
+    private formatGoalRequest(request: string, context?: string, parentUca?: string): string {
+        const root = parentUca ?? 'app';
+        const schema = '{"<ucaName>":{"purpose":"<Propósito rico de 1-2 líneas>","parentTo":"<ucaPadre>"}}';
+        const goal = `¿Qué disposición conceptual necesita este Purpose para ser satisfecho?: "${request}".`;
+        const role = 'Concibe la disposición conceptual de la experiencia que satisface el Purpose (no describas su dominio).';
+        const rules = `"${root}" ya existe como anfitrión (los elementos raíz deben usar "parentTo": "${root}"). Prohibido generar "${root}" o "App". Emerge la disposición conceptual mínima necesaria para comenzar a satisfacer el Purpose y finaliza. NDJSON sin markdown: ${schema}`;
+        const lines = [goal, context && `Contexto: ${context}`, role, rules].filter(Boolean);
         return lines.join('\n');
-    }
-
-    private formatDispositions(dispositions?: Record<string, string>): string[] {
-        if (!dispositions || Object.keys(dispositions).length === 0) { return []; }
-        const entries = Object.entries(dispositions).map(([name, desc]) => `- ${name}: ${desc}`);
-        return ['Available Elements & Dispositions:', ...entries, 'Rule: childName MUST use an available element name as prefix (e.g. actionSubmit, inputQuery, boxSection).'];
     }
 
     private handleCreate(value: unknown): void {
@@ -113,10 +107,11 @@ export class Scaffold extends Uca<Body> {
     }
 
     private dispatchReasoning(payload: CreatePayload): void {
-        const { request = DEFAULT_GOAL, model, provider, imagination = DEFAULT_IMAGINATION, correlationId, streamId, dispositions } = payload;
+        const { request = DEFAULT_GOAL, model, provider, imagination = DEFAULT_IMAGINATION, correlationId, streamId } = payload;
         const resolvedContext = payload.context ?? this.context;
         const parentUca = payload.parentTo ?? this.disposition.parentTo?.uca;
-        const promptText = this.formatGoalRequest(request, resolvedContext, parentUca, dispositions);
+        const promptText = this.formatGoalRequest(request, resolvedContext, parentUca);
+        console.log('📝 [Scaffold:Prompt]\n', promptText);
         const webLlmPayload = { id: `${this.id}:web-llm`, request: promptText, model, provider, imagination, correlationId, streamId };
         this.pulse(WebLlmSignalType.STREAM, webLlmPayload);
     }
@@ -143,12 +138,22 @@ export class Scaffold extends Uca<Body> {
         const reader = stream.getReader();
         let scaffold: ScaffoldStructure = {};
         for (let next = await reader.read(); !next.done; next = await reader.read()) {
-            if (next.value && Object.keys(next.value).length > 0) {
-                scaffold = { ...scaffold, ...next.value };
-                this.pulse(SignalType.CHUNK, { correlationId, streamId, chunk: next.value });
-            }
+            scaffold = this.consumeItemChunk(next.value, scaffold, correlationId, streamId);
         }
         this.completeScaffold(scaffold, correlationId);
+    }
+
+    private consumeItemChunk(item: Item | undefined, current: ScaffoldStructure, correlationId?: string, streamId?: string): ScaffoldStructure {
+        const valid = this.sanitizeItem(item);
+        if (!valid) { return current; }
+        this.pulse(SignalType.CHUNK, { correlationId, streamId, chunk: valid });
+        return { ...current, ...valid };
+    }
+
+    private sanitizeItem(item?: Item): Item | undefined {
+        if (!item) { return undefined; }
+        const filtered = Object.entries(item).filter(([k]) => k.toLowerCase() !== 'app');
+        return filtered.length > 0 ? Object.fromEntries(filtered) : undefined;
     }
 
     private completeScaffold(scaffold: ScaffoldStructure, correlationId?: string): void {

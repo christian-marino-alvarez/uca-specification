@@ -1,9 +1,10 @@
 import { SignalType as ApiPromptSignalType } from '@uca/capability-api-prompt/types';
+import { SignalType as SseClientSignalType } from '@uca/capability-sse-client/types';
 import { SignalType } from './types.js';
 
 export const __ID__ = 'web-llm';
 
-export const DEFAULT_MODEL = 'local';
+export const DEFAULT_MODEL = 'gemini-2.5-flash';
 
 export const DEFAULT_LOCAL_PROVIDER = 'gemini-nano';
 
@@ -22,6 +23,9 @@ export const DEFAULT_SIGNALS: readonly string[] = [
     ApiPromptSignalType.READY,
     ApiPromptSignalType.STREAMED,
     ApiPromptSignalType.ERROR,
-];
+    SseClientSignalType.STREAMED,
+    SseClientSignalType.ERROR,
+    SseClientSignalType.ABORTED,
+] as const;
 
 export const __DEFAULT_SIGNALS__ = DEFAULT_SIGNALS;

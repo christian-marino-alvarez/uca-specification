@@ -6,6 +6,12 @@ import {
     type Body as ApiPromptBody,
     type PromptInput,
 } from '@uca/capability-api-prompt/types';
+import { SseClient } from '@uca/capability-sse-client';
+import {
+    SignalType as SseClientSignalType,
+    type Body as SseClientBody,
+    type StreamResult as SseStreamResult,
+} from '@uca/capability-sse-client/types';
 import {
     __ID__,
     DEFAULT_ENDPOINT,
@@ -44,35 +50,34 @@ export class WebLlm extends Uca<Body> {
         ],
     };
 
-    private abortController?: AbortController;
-
     public constructor(id: string = __ID__) {
         super(id);
     }
 
     protected override capabilities(): Cooky {
-        const disposition: Disposition<ApiPromptBody> = {
+        const promptDisposition: Disposition<ApiPromptBody> = {
             aim: { description: 'Browser on-device prompt capability', body: { id: `${this.id}:api-prompt`, silent: true, persistentSession: true } },
             reactTo: [...ApiPrompt.disposition.reactTo ?? []],
         };
-        return [[ApiPrompt, disposition]];
+        const sseDisposition: Disposition<SseClientBody> = {
+            aim: { description: SseClient.AIM, body: { id: `${this.id}:sse-client`, endpoint: DEFAULT_ENDPOINT } },
+            reactTo: [...SseClient.disposition.reactTo ?? []],
+        };
+        return [
+            [ApiPrompt, promptDisposition],
+            [SseClient, sseDisposition],
+        ];
     }
 
     protected override async react(signal: Signal): Promise<void> {
         const { property, source, value } = signal;
         switch (property) {
-            case SignalType.CREATE:
-                await this.handleCreate(value);
-                break;
-            case SignalType.STREAM:
-                await this.handleStream(value);
-                break;
-            case SignalType.DESTROY:
-                this.handleDestroy();
-                break;
-            default:
-                this.handleCapabilitySignal(property, source, value);
-                break;
+            case SignalType.CREATE: await this.handleCreate(value); break;
+            case SignalType.STREAM: await this.handleStream(value); break;
+            case SignalType.DESTROY: this.handleDestroy(); break;
+            case SseClientSignalType.STREAMED: this.handleSseStreamed(value, source); break;
+            case SseClientSignalType.ERROR: this.handleSseError(value, source); break;
+            default: this.handleCapabilitySignal(property, source, value); break;
         }
     }
 
@@ -110,7 +115,7 @@ export class WebLlm extends Uca<Body> {
             this.handleLocalStream(payload);
             return;
         }
-        await this.executeExternalStream(payload);
+        this.dispatchSseStream(payload, targetModel);
     }
 
     private handleLocalStream(payload: StreamPayload): void {
@@ -120,45 +125,26 @@ export class WebLlm extends Uca<Body> {
         this.pulse(ApiPromptSignalType.STREAM, promptPayload);
     }
 
-    private async executeExternalStream(payload: StreamPayload): Promise<void> {
-        const { correlationId, streamId } = payload;
-        const provider = this.resolveProvider('nube', payload.provider);
-        try {
-            const stream = await this.fetchExternalStream(payload);
-            this.pulse(SignalType.STREAMED, { correlationId, streamId, stream, model: 'nube', provider });
-        } catch (error) {
-            this.pulse(SignalType.ERROR, { action: 'stream', error: String(error) });
-        }
+    private dispatchSseStream(payload: StreamPayload, targetModel: string): void {
+        const provider = this.resolveProvider(targetModel, payload.provider);
+        const ssePayload = { ...payload, id: `${this.id}:sse-client`, model: targetModel, provider };
+        this.pulse(SseClientSignalType.STREAM, ssePayload);
     }
 
-    private buildFetchInit(payload: StreamPayload, signal: AbortSignal): RequestInit {
-        const { request, model = 'nube', provider = DEFAULT_NUBE_PROVIDER, imagination, schema, maxTokens } = payload;
-        const headers = { 'Content-Type': 'application/json' };
-        const body = JSON.stringify({ request, model, provider, imagination, schema, maxTokens });
-        return { method: 'POST', headers, body, signal };
+    private handleSseStreamed(value: unknown, source: string): void {
+        if (source !== `${this.id}:sse-client` && source !== 'sse-client') { return; }
+        const { correlationId, streamId, stream, model = 'nube', provider = DEFAULT_NUBE_PROVIDER } = (value ?? {}) as SseStreamResult & { model?: string; provider?: string };
+        this.pulse(SignalType.STREAMED, { correlationId, streamId, stream, model, provider });
     }
 
-    private async fetchExternalStream(payload: StreamPayload): Promise<ReadableStream<string>> {
-        const { endpoint = DEFAULT_ENDPOINT } = payload;
-        const controller = new AbortController();
-        this.abortController = controller;
-        const init = this.buildFetchInit(payload, controller.signal);
-        const response = await fetch(endpoint, init);
-        return this.createResponseStream(response);
-    }
-
-    private createResponseStream(response: Response): ReadableStream<string> {
-        const { body } = response;
-        if (!body) {
-            return new ReadableStream<string>({ start(ctrl) { ctrl.close(); } });
-        }
-        return body.pipeThrough(new TextDecoderStream());
+    private handleSseError(value: unknown, source: string): void {
+        if (source !== `${this.id}:sse-client` && source !== 'sse-client') { return; }
+        this.pulse(SignalType.ERROR, value);
     }
 
     private handleDestroy(): void {
-        this.abortController?.abort();
-        this.abortController = undefined;
         this.pulse(ApiPromptSignalType.DESTROY, { id: `${this.id}:api-prompt` });
+        this.pulse(SseClientSignalType.ABORT, { id: `${this.id}:sse-client` });
         this.pulse(SignalType.DESTROYED, { destroyed: true });
     }
 
@@ -169,14 +155,9 @@ export class WebLlm extends Uca<Body> {
                 this.pulse(SignalType.READY, { ready: true, model: 'local', provider: DEFAULT_LOCAL_PROVIDER });
                 this.pulse(SignalType.CREATED, { ready: true, model: 'local', provider: DEFAULT_LOCAL_PROVIDER });
                 break;
-            case ApiPromptSignalType.STREAMED:
-                this.handleLocalStreamed(value);
-                break;
-            case ApiPromptSignalType.ERROR:
-                this.pulse(SignalType.ERROR, value);
-                break;
-            default:
-                break;
+            case ApiPromptSignalType.STREAMED: this.handleLocalStreamed(value); break;
+            case ApiPromptSignalType.ERROR: this.pulse(SignalType.ERROR, value); break;
+            default: break;
         }
     }
 

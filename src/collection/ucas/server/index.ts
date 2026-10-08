@@ -167,7 +167,7 @@ export class Server extends Uca<Body> {
         const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
         const hasKey = typeof process !== 'undefined' && Boolean(process.env?.GEMINI_API_KEY ?? process.env?.GOOGLE_GENAI_API_KEY);
         if (isTest || !hasKey) { return; }
-        this.pulse(LlmSignalType.INFER, { request: 'Warmup', limit: 1, correlationId: 'system-warmup', thinkingBudget: 0 });
+        this.pulse(LlmSignalType.INFER, { request: 'Warmup', limit: 1, correlationId: 'system-warmup' });
     }
 
     private buildDefaultRoutes(body: Body): RouteConfig[] {
@@ -184,23 +184,23 @@ export class Server extends Uca<Body> {
 
     private async handleLlmPost(context: RequestContext): Promise<Response> {
         const { body } = context;
-        const { prompt = 'UCA reasoning request', model, provider, temperature, maxOutputTokens, schema, correlationId: bId, requestId, thinkingBudget, deliberation, conciseness } = (body ?? {}) as Record<string, unknown>;
+        const { prompt = 'UCA reasoning request', model, provider, temperature, maxOutputTokens, schema, correlationId: bId, requestId, thinkingLevel, deliberation, conciseness } = (body ?? {}) as Record<string, unknown>;
         const correlationId = String(bId ?? requestId ?? crypto.randomUUID());
-        const budget = this.resolveThinkingBudget(thinkingBudget, deliberation);
+        const level = this.resolveThinkingLevel(thinkingLevel, deliberation);
         const limit = this.resolveMaxOutputTokens(maxOutputTokens, conciseness);
         const temp = typeof temperature === 'number' ? temperature : undefined;
         const targetModel = model ? String(model) : DEFAULT_GEMINI_MODEL;
         const targetProvider = provider ? String(provider) : undefined;
-        const result = await this.requestLlmInference(String(prompt), targetModel, targetProvider, temp, limit, schema as Record<string, unknown> | undefined, correlationId, budget);
+        const result = await this.requestLlmInference(String(prompt), targetModel, targetProvider, temp, limit, schema as Record<string, unknown> | undefined, correlationId, level);
         return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
 
-    private resolveThinkingBudget(thinkingBudget: unknown, deliberation: unknown): number | undefined {
-        if (typeof thinkingBudget === 'number') { return thinkingBudget; }
+    private resolveThinkingLevel(thinkingLevel: unknown, deliberation: unknown): string | undefined {
+        if (typeof thinkingLevel === 'string') { return thinkingLevel; }
         if (typeof deliberation === 'number') {
-            return deliberation === 0 ? 0 : Math.round(deliberation * DELIBERATION_BUDGET_SCALE);
+            return deliberation > 5 ? 'high' : (deliberation > 0 ? 'low' : undefined);
         }
-        return 0;
+        return undefined;
     }
 
     private resolveMaxOutputTokens(maxOutputTokens: unknown, _conciseness: unknown): number | undefined {
@@ -208,13 +208,13 @@ export class Server extends Uca<Body> {
         return DEFAULT_MAX_OUTPUT_TOKENS;
     }
 
-    private requestLlmInference(request: string, model?: string, provider?: string, imagination?: number, limit?: number, expectations?: Record<string, unknown>, correlationId: string = crypto.randomUUID(), thinkingBudget?: number): Promise<InferResult> {
+    private requestLlmInference(request: string, model?: string, provider?: string, imagination?: number, limit?: number, expectations?: Record<string, unknown>, correlationId: string = crypto.randomUUID(), thinkingLevel?: string): Promise<InferResult> {
         return new Promise((resolve) => {
             const onInferred = (event: Event) => this.resolveInference(event, resolve, onInferred, onError, correlationId);
             const onError = (event: Event) => this.failInference(event, resolve, onInferred, onError, request, correlationId);
             this.target?.addEventListener(LlmSignalType.INFERRED, onInferred);
             this.target?.addEventListener(LlmSignalType.ERROR, onError);
-            this.pulse(LlmSignalType.INFER, { request, model, provider, imagination, limit, expectations, correlationId, thinkingBudget });
+            this.pulse(LlmSignalType.INFER, { request, model, provider, imagination, limit, expectations, correlationId, thinkingLevel });
         });
     }
 
@@ -278,16 +278,15 @@ export class Server extends Uca<Body> {
 
     private handleLlmSse(context: RequestContext): Response {
         const { query, body } = context;
-        const { prompt: qP, model: qM, provider: qPr, correlationId: qC, streamId: qS, thinkingBudget: qB } = (query ?? {}) as Record<string, string>;
-        const { prompt: bP, model: bM, provider: bPr, correlationId: bC, streamId: bS, thinkingBudget: bB, schema: bSchema } = (body ?? {}) as Record<string, unknown>;
-        const prompt = qP ?? (bP ? String(bP) : 'UCA streaming reasoning');
+        const { prompt: qP, model: qM, provider: qPr, correlationId: qC, streamId: qS, thinkingLevel: qL } = (query ?? {}) as Record<string, string>;
+        const { prompt: bP, request: bR, model: bM, provider: bPr, correlationId: bC, streamId: bS, thinkingLevel: bL, schema: bSchema } = (body ?? {}) as Record<string, unknown>;
+        const prompt = qP ?? (bP ? String(bP) : (bR ? String(bR) : 'UCA streaming reasoning'));
         const correlationId = (bC ? String(bC) : undefined) ?? (bS ? String(bS) : undefined) ?? qC ?? qS ?? crypto.randomUUID();
-        const rawBudget = bB ?? qB;
-        const budget = typeof rawBudget === 'number' ? rawBudget : (typeof rawBudget === 'string' ? Number(rawBudget) : 0);
+        const thinkingLevel = (typeof bL === 'string' ? bL : qL) ?? undefined;
         const model = qM ?? (bM ? String(bM) : undefined);
         const provider = qPr ?? (bPr ? String(bPr) : undefined);
         const schema = bSchema as Record<string, unknown> | undefined;
-        return this.createSseResponse(this.createSseReadableStream(prompt, model, provider, correlationId, budget, schema));
+        return this.createSseResponse(this.createSseReadableStream(prompt, model, provider, correlationId, thinkingLevel, schema));
     }
 
     private createSseResponse(stream: ReadableStream): Response {
@@ -295,7 +294,7 @@ export class Server extends Uca<Body> {
         return new Response(stream, { headers });
     }
 
-    private createSseReadableStream(prompt: string, model: string | undefined, provider: string | undefined, correlationId: string, thinkingBudget?: number, schema?: Record<string, unknown>): ReadableStream {
+    private createSseReadableStream(prompt: string, model: string | undefined, provider: string | undefined, correlationId: string, thinkingLevel?: string, schema?: Record<string, unknown>): ReadableStream {
         let chunkListener: ((e: Event) => void) | undefined;
         let endListener: ((e: Event) => void) | undefined;
         const state = { startTime: Date.now(), chunkCount: 0, correlationId };
@@ -303,7 +302,7 @@ export class Server extends Uca<Body> {
             const encoder = new TextEncoder();
             chunkListener = (e: Event) => this.writeSseChunk(e, controller, encoder, state);
             endListener = (e: Event) => this.finishSseStream(e, controller, encoder, state, chunkListener, endListener);
-            this.bindSseNervousEvents(controller, encoder, prompt, model, provider, correlationId, chunkListener, endListener, thinkingBudget, schema);
+            this.bindSseNervousEvents(controller, encoder, prompt, model, provider, correlationId, chunkListener, endListener, thinkingLevel, schema);
         };
         return new ReadableStream({ start, cancel: () => this.removeSseListeners(chunkListener, endListener) });
     }
@@ -322,14 +321,14 @@ export class Server extends Uca<Body> {
         correlationId: string,
         chunkListener: (event: Event) => void,
         endListener: (event: Event) => void,
-        thinkingBudget?: number,
+        thinkingLevel?: string,
         schema?: Record<string, unknown>,
     ): void {
         console.log(`⚡ [SERVER] Conectando canal SSE [${correlationId}] con LLM (${provider ?? 'default'}/${model ?? 'default'})...`);
         try { controller.enqueue(encoder.encode(`event: start\ndata: ${JSON.stringify({ status: 'connected', correlationId, prompt, model, provider })}\n\n`)); } catch { }
         this.target?.addEventListener(LlmSignalType.CHUNK, chunkListener);
         this.target?.addEventListener(LlmSignalType.STREAM_END, endListener);
-        this.pulse(LlmSignalType.STREAM, { request: prompt, model, provider, correlationId, streamId: correlationId, expectations: schema, thinkingBudget });
+        this.pulse(LlmSignalType.STREAM, { request: prompt, model, provider, correlationId, streamId: correlationId, expectations: schema, thinkingLevel });
     }
 
     private writeSseChunk(event: Event, controller: ReadableStreamDefaultController, encoder: TextEncoder, state: { startTime: number; chunkCount: number; correlationId: string }): void {
