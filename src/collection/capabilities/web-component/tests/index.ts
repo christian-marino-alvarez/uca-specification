@@ -1,331 +1,226 @@
-import { DomHarness } from '../../../../../tests/shared/dom-harness.js';
 import * as assert from 'node:assert';
+import { JSDOM } from 'jsdom';
 import { Capability } from '@uca/core/capability';
-import type { Disposition, Signal } from '@uca/core/types';
-import { type Body, type LifecycleContext, type EventContext, DataType, SignalType } from '../types.js';
-import { WebComponent, WebComponents } from '../index.js';
+import type { Signal } from '@uca/core/types';
+import { WebComponent } from '../index.js';
+import { __ID__, DEFAULT_TAG } from '../constants.js';
+import {
+    type EventContext,
+    type RemovedResult,
+    type RenderedResult,
+    type UpdatedResult,
+    DataType,
+    SignalType,
+} from '../types.js';
 
-function testWebComponent_IdentityAndPorts(): void {
+const dom = new JSDOM('<!DOCTYPE html><html><body><div id="container"></div></body></html>');
+globalThis.document = dom.window.document;
+globalThis.customElements = dom.window.customElements;
+globalThis.HTMLElement = dom.window.HTMLElement;
+globalThis.AbortController = dom.window.AbortController;
+globalThis.AbortSignal = dom.window.AbortSignal;
+
+function emitSignal(bus: EventTarget, property: string, value: unknown): void {
+    const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
+    bus.dispatchEvent(new CustomEvent(property, { detail: signal }));
+}
+
+function testWebComponent_IdentityAndDefaults(): void {
     const component = new WebComponent();
-    assert.strictEqual(component.id, 'web-component');
-    component.innervate();
-    assert.ok(component.disposition.inputs !== undefined);
-    assert.strictEqual(component.disposition.inputs.length, 3);
-    assert.strictEqual(component.disposition.inputs[0]?.type, DataType.HTML_ELEMENT);
-    assert.ok(component.disposition.outputs !== undefined);
-    assert.strictEqual(component.disposition.outputs.length, 4);
-    assert.strictEqual(component.disposition.outputs[0]?.type, DataType.EVENT_CONTEXT);
-    component.denervate();
+    assert.ok(component instanceof Capability);
+    assert.strictEqual(component.id, __ID__);
+    const { aim, inputs, outputs } = WebComponent.disposition;
+    assert.strictEqual(aim.description, WebComponent.AIM);
+    assert.strictEqual(inputs?.length, 3);
+    assert.strictEqual(outputs?.length, 5);
+    assert.strictEqual(inputs?.[0]?.type, DataType.RENDER_PAYLOAD);
 }
 
-function createComponentWithDisposition(id: string, bus: EventTarget, body: Body): WebComponents {
-    const component = new WebComponents(id);
+function testWebComponent_RenderAndMount(): void {
+    const bus = new EventTarget();
+    let renderedResult: RenderedResult | undefined;
 
-    const disposition: Disposition<Body> = { aim: { description: 'Test', body }, reactTo: ['element.rendered', 'element.updated'] };
-    component.innervate(bus, disposition);
-    return component;
-}
-
-function assertInertQueries(container: HTMLElement, bus: EventTarget): void {
-    assert.strictEqual(container.querySelector('ext-test-inert'), null);
-    const irrelevant: Signal = { source: 'test', property: 'unrelated.signal', value: {}, timestamp: 0 };
-    bus.dispatchEvent(new CustomEvent('unrelated.signal', { detail: irrelevant }));
-    assert.strictEqual(container.querySelector('ext-test-inert'), null);
-}
-
-function testWebComponent_InertUntilReaction(): void {
-    const [container, bus, component] = [DomHarness.createContainer(), new EventTarget(), new WebComponents('inert-test')];
-    const disposition: Disposition<Body> = { aim: { description: 'Inert', body: { container, tag: 'ext-test-inert' } }, reactTo: ['element.rendered'] };
-    component.innervate(bus, disposition);
-    assertInertQueries(container, bus);
-    const matching: Signal = { source: 'test', property: 'element.rendered', value: { text: 'Materialized' }, timestamp: 0 };
-    bus.dispatchEvent(new CustomEvent('element.rendered', { detail: matching }));
-    assert.notStrictEqual(container.querySelector('ext-test-inert'), null);
-    component.denervate();
-    container.remove();
-}
-
-function testWebComponent_CustomElementRegistrationAndIdentity(): void {
-    const [container, bus] = [DomHarness.createContainer(), new EventTarget()];
-    const tag = 'ext-test-identity';
-    const component = createComponentWithDisposition('ident-test', bus, { container, tag, observedAttributes: ['data-role'] });
-    const signal: Signal = { source: 'test', property: 'element.rendered', value: null, timestamp: 0 };
-    bus.dispatchEvent(new CustomEvent('element.rendered', { detail: signal }));
-    const registeredCtor = customElements.get(tag);
-    assert.ok(registeredCtor !== undefined && container.querySelector(tag) instanceof registeredCtor);
-    component.denervate();
-    container.remove();
-}
-
-function testWebComponent_RegistrationIdempotency(): void {
-    const [container, bus] = [DomHarness.createContainer(), new EventTarget()];
-    const [comp1, comp2] = [new WebComponents('c1'), new WebComponents('c2')];
-    const disposition: Disposition<Body> = { aim: { description: 'Idem', body: { container, tag: 'ext-test-idempotent' } }, reactTo: ['element.rendered'] };
-    comp1.innervate(bus, disposition);
-    comp2.innervate(bus, disposition);
-    const signal: Signal = { source: 'test', property: 'element.rendered', value: null, timestamp: 0 };
-    assert.doesNotThrow(() => bus.dispatchEvent(new CustomEvent('element.rendered', { detail: signal })));
-    comp1.denervate();
-    comp2.denervate();
-    container.remove();
-}
-
-function assertConnectedContext(captured: LifecycleContext | undefined, tag: string): void {
-    assert.strictEqual(captured?.tag, tag);
-    assert.strictEqual(captured?.id, 'connected-test');
-}
-
-function testWebComponent_NativeConnectedLifecyclePulse(): void {
-    const [container, bus, tag] = [DomHarness.createContainer(), new EventTarget(), 'ext-test-connected'];
-    const component = createComponentWithDisposition('connected-test', bus, { container, tag });
-    let captured: LifecycleContext | undefined = undefined;
-    bus.addEventListener('element.connected', (e: Event) => {
-        captured = (e as CustomEvent<Signal<LifecycleContext>>).detail.value;
+    bus.addEventListener(SignalType.RENDERED, (event: Event) => {
+        renderedResult = (event as CustomEvent<Signal>).detail?.value as RenderedResult;
     });
-    bus.dispatchEvent(new CustomEvent('element.rendered', { detail: { source: 'test', property: 'element.rendered', value: null, timestamp: 0 } }));
-    assertConnectedContext(captured, tag);
-    component.denervate();
-    container.remove();
-}
 
-function assertAttributeContext(captured: LifecycleContext | undefined): void {
-    assert.strictEqual(captured?.attribute, 'data-status');
-    assert.strictEqual(captured?.oldValue, null);
-    assert.strictEqual(captured?.newValue, 'ready');
-}
-
-function testWebComponent_NativeAttributeChangedLifecyclePulse(): void {
-    const [container, bus, tag] = [DomHarness.createContainer(), new EventTarget(), 'ext-test-attribute'];
-    const component = createComponentWithDisposition('attr-test', bus, { container, tag, observedAttributes: ['data-status'] });
-    let captured: LifecycleContext | undefined = undefined;
-    bus.addEventListener('element.attributeChanged', (e: Event) => {
-        captured = (e as CustomEvent<Signal<LifecycleContext>>).detail.value;
+    const component = new WebComponent('element-1').innervate(bus);
+    emitSignal(bus, SignalType.RENDER, {
+        elementId: 'element-1',
+        tag: 'custom-card',
+        containerElement: '#container',
+        attributes: { role: 'region', 'data-state': 'active' },
+        content: '<span>Hello UCA</span>',
     });
-    bus.dispatchEvent(new CustomEvent('element.rendered', { detail: { source: 'test', property: 'element.rendered', value: null, timestamp: 0 } }));
-    container.querySelector(tag)?.setAttribute('data-status', 'ready');
-    assertAttributeContext(captured);
+
+    assert.ok(renderedResult !== undefined);
+    assert.strictEqual(renderedResult?.elementId, 'element-1');
+    assert.strictEqual(renderedResult?.tag, 'custom-card');
+
+    const mounted = document.getElementById('element-1');
+    assert.ok(mounted !== null);
+    assert.strictEqual(mounted?.tagName.toLowerCase(), 'custom-card');
+    assert.strictEqual(mounted?.getAttribute('role'), 'region');
+    assert.strictEqual(mounted?.getAttribute('data-state'), 'active');
+    assert.strictEqual(mounted?.innerHTML, '<span>Hello UCA</span>');
+
     component.denervate();
-    container.remove();
 }
 
-function assertDisconnectedContext(captured: LifecycleContext | undefined, tag: string): void {
-    assert.strictEqual(captured?.tag, tag);
-}
+function testWebComponent_UpdateAndContent(): void {
+    const bus = new EventTarget();
+    let updatedResult: UpdatedResult | undefined;
+    let eventReceived: EventContext | undefined;
 
-function testWebComponent_NativeDisconnectedLifecyclePulse(): void {
-    const [container, bus, tag] = [DomHarness.createContainer(), new EventTarget(), 'ext-test-disconnected'];
-    const component = createComponentWithDisposition('disc-test', bus, { container, tag });
-    let captured: LifecycleContext | undefined = undefined;
-    bus.addEventListener('element.disconnected', (e: Event) => {
-        captured = (e as CustomEvent<Signal<LifecycleContext>>).detail.value;
+    bus.addEventListener(SignalType.UPDATED, (event: Event) => {
+        updatedResult = (event as CustomEvent<Signal>).detail?.value as UpdatedResult;
     });
-    bus.dispatchEvent(new CustomEvent('element.rendered', { detail: { source: 'test', property: 'element.rendered', value: null, timestamp: 0 } }));
-    container.querySelector(tag)?.remove();
-    assertDisconnectedContext(captured, tag);
-    component.denervate();
-    container.remove();
-}
-
-function testWebComponent_DenervateIsNotDomDisconnection(): void {
-    const [container, bus, tag] = [DomHarness.createContainer(), new EventTarget(), 'ext-test-denervate'];
-    const component = createComponentWithDisposition('denerv-test', bus, { container, tag });
-    let disconnectedFired = false;
-    bus.addEventListener('element.disconnected', () => { disconnectedFired = true; });
-    bus.dispatchEvent(new CustomEvent('element.rendered', { detail: { source: 'test', property: 'element.rendered', value: null, timestamp: 0 } }));
-    component.denervate();
-    assert.strictEqual(component.target, undefined);
-    assert.strictEqual(disconnectedFired, false);
-    assert.notStrictEqual(container.querySelector(tag), null);
-    container.remove();
-}
-
-function assertReinnervationPreservesElement(component: WebComponents, container: HTMLElement, tag: string, before: Element | null): void {
-    const newBus = new EventTarget();
-    component.innervate(newBus);
-    newBus.dispatchEvent(new CustomEvent('element.updated', { detail: { source: 'test', property: 'element.updated', value: { text: 'V2' }, timestamp: 0 } }));
-    const elementAfter = container.querySelector(tag);
-    assert.strictEqual(before, elementAfter);
-    assert.strictEqual(elementAfter?.textContent, 'V2');
-    component.denervate();
-}
-
-function testWebComponent_DenervatePreservesReferencesAndListeners(): void {
-    const [container, bus, tag] = [DomHarness.createContainer(), new EventTarget(), 'ext-test-preserve'];
-    const component = createComponentWithDisposition('preserve-test', bus, { container, tag });
-    bus.dispatchEvent(new CustomEvent('element.rendered', { detail: { source: 'test', property: 'element.rendered', value: { text: 'V1' }, timestamp: 0 } }));
-    const elementBefore = container.querySelector(tag);
-    component.denervate();
-    assertReinnervationPreservesElement(component, container, tag, elementBefore);
-    container.remove();
-}
-
-function testWebComponent_ResourceIsPrivate(): void {
-    const component = new WebComponents('private-test');
-    assert.strictEqual('element' in component, false);
-    assert.strictEqual((component as unknown as Record<string, unknown>).element, undefined);
-}
-
-function testWebComponent_ResourceReuseAcrossReactions(): void {
-    const [container, bus, tag] = [DomHarness.createContainer(), new EventTarget(), 'ext-test-reuse'];
-    const component = createComponentWithDisposition('reuse-test', bus, { container, tag });
-    bus.dispatchEvent(new CustomEvent('element.rendered', { detail: { source: 'test', property: 'element.rendered', value: { text: 'V1' }, timestamp: 0 } }));
-    const firstInstance = container.querySelector(tag);
-    bus.dispatchEvent(new CustomEvent('element.updated', { detail: { source: 'test', property: 'element.updated', value: { text: 'V2' }, timestamp: 0 } }));
-    assert.strictEqual(container.querySelector(tag), firstInstance);
-    assert.strictEqual(firstInstance?.textContent, 'V2');
-    component.denervate();
-    container.remove();
-}
-
-function listenContentChange(bus: EventTarget, callback: (ctx?: LifecycleContext) => void): void {
-    bus.addEventListener('element.contentChanged', (event: Event) => {
-        const detail = (event as CustomEvent<Signal<LifecycleContext>>).detail;
-        callback(detail.value);
+    bus.addEventListener(SignalType.EVENT, (event: Event) => {
+        eventReceived = (event as CustomEvent<Signal>).detail?.value as EventContext;
     });
-}
 
-function assertSlotAppended(element: Element | null, captured: unknown): void {
-    element?.appendChild(document.createTextNode(' - more text'));
-    assert.ok(captured !== undefined || element?.textContent?.includes('more text'));
-}
-
-function testWebComponents_ObservesContentMutationWithoutObserver(): void {
-    const container = DomHarness.createContainer();
-    const [component, bus] = [new WebComponents('content-test'), new EventTarget()];
-    component.innervate(bus);
-    let captured: LifecycleContext | undefined = undefined;
-    listenContentChange(bus, (ctx) => { captured = ctx; });
-    emitRenderTo(bus, 'slot-node', { text: 'Initial text', container, tag: 'ext-slot-test' });
-    assertSlotAppended(container.querySelector('#slot-node'), captured);
-    component.denervate();
-    container.remove();
-}
-
-function testWebComponent_UnobservedAttributeDoesNotTriggerLifecyclePulse(): void {
-    const [container, bus, tag] = [DomHarness.createContainer(), new EventTarget(), 'ext-test-unobserved'];
-    const component = createComponentWithDisposition('unobs-test', bus, { container, tag, observedAttributes: ['data-observed'] });
-    let pulseFired = false;
-    bus.addEventListener('element.attributeChanged', () => { pulseFired = true; });
-    bus.dispatchEvent(new CustomEvent('element.rendered', { detail: { source: 'test', property: 'element.rendered', value: null, timestamp: 0 } }));
-    container.querySelector(tag)?.setAttribute('data-unobserved', 'ignored');
-    assert.strictEqual(pulseFired, false);
-    component.denervate();
-    container.remove();
-}
-
-function testWebComponent_ObservedAttributesImmutableAcrossReactions(): void {
-    const [container, bus, tag] = [DomHarness.createContainer(), new EventTarget(), 'ext-test-obs-immutable'];
-    const component = createComponentWithDisposition('obs-immut', bus, { container, tag, observedAttributes: ['title'] });
-    bus.dispatchEvent(new CustomEvent('element.rendered', { detail: { source: 'test', property: 'element.rendered', value: { text: 'R1' }, timestamp: 0 } }));
-    const ctor = customElements.get(tag) as unknown as { observedAttributes?: string[] };
-    assert.deepStrictEqual(ctor?.observedAttributes, ['title']);
-    const signal2: Signal = { source: 'test', property: 'element.updated', value: { text: 'R2', observedAttributes: ['title', 'style'] }, timestamp: 0 };
-    bus.dispatchEvent(new CustomEvent('element.updated', { detail: signal2 }));
-    assert.deepStrictEqual(ctor?.observedAttributes, ['title']);
-    component.denervate();
-    container.remove();
-}
-
-function emitUpdate(bus: EventTarget, id: string, payload: Partial<Body> = {}): void {
-    const value = { id, ...payload };
-    const signal: Signal = { source: 'test', property: 'element.updated', value, timestamp: 0 };
-    bus.dispatchEvent(new CustomEvent('element.updated', { detail: signal }));
-}
-
-function emitRenderTo(bus: EventTarget, id: string, payload: Partial<Body> = {}): void {
-    const value = { id, ...payload };
-    const signal: Signal = { source: 'test', property: 'element.rendered', value, timestamp: 0 };
-    bus.dispatchEvent(new CustomEvent('element.rendered', { detail: signal }));
-}
-
-function assertMultiElementsInDom(container: HTMLElement, tag: string): void {
-    const el1 = container.querySelector(`${tag}#node-1`);
-    const el2 = container.querySelector(`${tag}#node-2`);
-    assert.strictEqual(el1?.textContent, 'Updated Node 1');
-    assert.strictEqual(el2?.textContent, 'Node 2');
-}
-
-function testWebComponent_GeneratesMultipleElementsInDomByUniqueId(): void {
-    const [container, bus, tag] = [DomHarness.createContainer(), new EventTarget(), 'ext-test-multi'];
-    const component = createComponentWithDisposition('multi-test', bus, { container, tag });
-    emitRenderTo(bus, 'node-1', { text: 'Node 1' });
-    emitRenderTo(bus, 'node-2', { text: 'Node 2' });
-    emitUpdate(bus, 'node-1', { text: 'Updated Node 1' });
-    assertMultiElementsInDom(container, tag);
-    component.denervate();
-    container.remove();
-}
-
-function emitRender(bus: EventTarget, text: string): void {
-    const signal: Signal = { source: 'test', property: 'element.rendered', value: { text }, timestamp: 0 };
-    bus.dispatchEvent(new CustomEvent('element.rendered', { detail: signal }));
-}
-
-function testWebComponent_DispositionResolvedAtInnervation(): void {
-    const container = DomHarness.createContainer();
-    const [component, bus] = [new WebComponent('ext-dynamic'), new EventTarget()];
-    const patterns = ['element.rendered'];
-    const disposition: Disposition<Body> = { aim: { description: 'Custom', body: { tag: 'ext-test-innervated', container } }, reactTo: patterns };
-    component.innervate(bus, disposition);
-    emitRender(bus, 'Innervated');
-    const element = container.querySelector('ext-test-innervated');
-    assert.strictEqual(element?.textContent, 'Innervated');
-    component.denervate();
-    container.remove();
-}
-
-function testWebComponent_RemoveComponentAbortsListenersAndRemovesFromDom(): void {
-    const [container, bus, tag] = [DomHarness.createContainer(), new EventTarget(), 'ext-test-remove'];
-    const removeDisposition: Disposition<Body> = { aim: { description: 'Remove', body: { container, tag } }, reactTo: ['element.rendered', 'element.updated', 'element.removed'] };
-    const component = new WebComponents('remove-test').innervate(bus, removeDisposition);
-    bus.dispatchEvent(new CustomEvent('element.rendered', { detail: { source: 'test', property: 'element.rendered', value: null, timestamp: 0 } }));
-    bus.dispatchEvent(new CustomEvent('element.removed', { detail: { source: 'test', property: 'element.removed', value: { id: 'remove-test' }, timestamp: 0 } }));
-    assert.strictEqual(container.querySelector(tag), null);
-    component.denervate();
-    container.remove();
-}
-
-function assertEventContext(captured: EventContext | undefined): void {
-    assert.strictEqual(captured?.id, 'event-test');
-    assert.strictEqual(captured?.event, 'click');
-}
-
-function testWebComponent_UserInteractionPulsesEvent(): void {
-    const [container, bus, tag] = [DomHarness.createContainer(), new EventTarget(), 'ext-test-events'];
-    const component = createComponentWithDisposition('event-test', bus, { container, tag });
-    let captured: EventContext | undefined = undefined;
-    bus.addEventListener(SignalType.EVENT, (e: Event) => {
-        captured = (e as CustomEvent<Signal<EventContext>>).detail.value;
+    const component = new WebComponent('element-2').innervate(bus);
+    emitSignal(bus, SignalType.RENDER, { elementId: 'element-2', containerElement: '#container', content: 'Init' });
+    emitSignal(bus, SignalType.UPDATE, {
+        elementId: 'element-2',
+        attributes: { title: 'Updated Title' },
+        content: '<button id="inner-btn" data-action="click-action">Go</button>',
+        events: ['click'],
     });
-    bus.dispatchEvent(new CustomEvent('element.rendered', { detail: { source: 'test', property: 'element.rendered', value: null, timestamp: 0 } }));
-    container.querySelector(tag)?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-    assertEventContext(captured);
+
+    assert.ok(updatedResult !== undefined);
+    assert.strictEqual(updatedResult?.elementId, 'element-2');
+    assert.strictEqual(updatedResult?.updated, true);
+
+    const button = document.getElementById('inner-btn');
+    button?.dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+    assert.ok(eventReceived !== undefined);
+    assert.strictEqual(eventReceived?.action, 'click-action');
+
     component.denervate();
-    container.remove();
 }
 
+function testWebComponent_EventForwarding(): void {
+    const bus = new EventTarget();
+    let capturedEvent: EventContext | undefined;
 
-function runAllWebComponentTests(): void {
-    testWebComponent_IdentityAndPorts();
-    testWebComponent_InertUntilReaction();
+    bus.addEventListener(SignalType.EVENT, (event: Event) => {
+        capturedEvent = (event as CustomEvent<Signal>).detail?.value as EventContext;
+    });
 
-    testWebComponent_CustomElementRegistrationAndIdentity();
-    testWebComponent_RegistrationIdempotency();
-    testWebComponent_NativeConnectedLifecyclePulse();
-    testWebComponent_NativeAttributeChangedLifecyclePulse();
-    testWebComponent_NativeDisconnectedLifecyclePulse();
-    testWebComponent_DenervateIsNotDomDisconnection();
-    testWebComponent_DenervatePreservesReferencesAndListeners();
-    testWebComponent_ResourceIsPrivate();
-    testWebComponent_ResourceReuseAcrossReactions();
-    testWebComponents_ObservesContentMutationWithoutObserver();
-    testWebComponent_UnobservedAttributeDoesNotTriggerLifecyclePulse();
-    testWebComponent_ObservedAttributesImmutableAcrossReactions();
-    testWebComponent_GeneratesMultipleElementsInDomByUniqueId();
-    testWebComponent_DispositionResolvedAtInnervation();
-    testWebComponent_RemoveComponentAbortsListenersAndRemovesFromDom();
-    testWebComponent_UserInteractionPulsesEvent();
-    console.log('✔ All WebComponent primitive capability lifecycle tests passed successfully.');
+    const component = new WebComponent('btn-1').innervate(bus);
+    emitSignal(bus, SignalType.RENDER, { elementId: 'btn-1', containerElement: '#container', events: ['click'] });
+
+    const button = document.getElementById('btn-1');
+    button?.dispatchEvent(new dom.window.Event('click'));
+
+    assert.ok(capturedEvent !== undefined);
+    assert.strictEqual(capturedEvent?.elementId, 'btn-1');
+    assert.strictEqual(capturedEvent?.event, 'click');
+
+    component.denervate();
 }
 
-runAllWebComponentTests();
+function testWebComponent_EventDelegation(): void {
+    const bus = new EventTarget();
+    let capturedEvent: EventContext | undefined;
+
+    bus.addEventListener(SignalType.EVENT, (event: Event) => {
+        capturedEvent = (event as CustomEvent<Signal>).detail?.value as EventContext;
+    });
+
+    const component = new WebComponent('list-1').innervate(bus);
+    emitSignal(bus, SignalType.RENDER, {
+        elementId: 'list-1',
+        containerElement: '#container',
+        content: '<button id="delete-btn" data-action="delete-item">Delete</button>',
+        events: ['click'],
+    });
+
+    const childButton = document.getElementById('delete-btn');
+    childButton?.dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+
+    assert.ok(capturedEvent !== undefined);
+    assert.strictEqual(capturedEvent?.elementId, 'delete-btn');
+    assert.strictEqual(capturedEvent?.action, 'delete-item');
+    assert.strictEqual(capturedEvent?.event, 'click');
+
+    component.denervate();
+    document.getElementById('list-1')?.remove();
+}
+
+function testWebComponent_Remove(): void {
+    const bus = new EventTarget();
+    let removedResult: RemovedResult | undefined;
+
+    bus.addEventListener(SignalType.REMOVED, (event: Event) => {
+        removedResult = (event as CustomEvent<Signal>).detail?.value as RemovedResult;
+    });
+
+    const component = new WebComponent('element-3').innervate(bus);
+    emitSignal(bus, SignalType.RENDER, { elementId: 'element-3', containerElement: '#container' });
+    assert.ok(document.getElementById('element-3') !== null);
+
+    emitSignal(bus, SignalType.REMOVE, { elementId: 'element-3' });
+    assert.ok(removedResult !== undefined);
+    assert.strictEqual(removedResult?.elementId, 'element-3');
+    assert.strictEqual(document.getElementById('element-3'), null);
+
+    component.denervate();
+}
+
+function testWebComponent_DenervateDoesNotDestroyDom(): void {
+    const bus = new EventTarget();
+    const component = new WebComponent('element-persistent').innervate(bus);
+    emitSignal(bus, SignalType.RENDER, { elementId: 'element-persistent', containerElement: '#container' });
+    assert.ok(document.getElementById('element-persistent') !== null);
+
+    component.denervate();
+    assert.ok(document.getElementById('element-persistent') !== null);
+
+    document.getElementById('element-persistent')?.remove();
+}
+
+function testWebComponent_SingleCapabilityManagingNElements(): void {
+    const bus = new EventTarget();
+    const renderedIds: string[] = [];
+
+    bus.addEventListener(SignalType.RENDERED, (event: Event) => {
+        const result = (event as CustomEvent<Signal>).detail?.value as RenderedResult;
+        if (result?.elementId) {
+            renderedIds.push(result.elementId);
+        }
+    });
+
+    const capability = new WebComponent('web-component').innervate(bus);
+
+    emitSignal(bus, SignalType.RENDER, { elementId: 'header-el', containerElement: '#container', content: 'Header' });
+    emitSignal(bus, SignalType.RENDER, { elementId: 'sidebar-el', containerElement: '#container', content: 'Sidebar' });
+    emitSignal(bus, SignalType.RENDER, { elementId: 'footer-el', containerElement: '#container', content: 'Footer' });
+
+    assert.strictEqual(renderedIds.length, 3);
+    assert.deepStrictEqual(renderedIds, ['header-el', 'sidebar-el', 'footer-el']);
+    assert.ok(document.getElementById('header-el') !== null);
+    assert.ok(document.getElementById('sidebar-el') !== null);
+    assert.ok(document.getElementById('footer-el') !== null);
+
+    capability.denervate();
+    document.getElementById('header-el')?.remove();
+    document.getElementById('sidebar-el')?.remove();
+    document.getElementById('footer-el')?.remove();
+}
+
+function runTests(): void {
+    console.log('🧪 Testing primitive native WebComponent capability...');
+    testWebComponent_IdentityAndDefaults();
+    testWebComponent_RenderAndMount();
+    testWebComponent_UpdateAndContent();
+    testWebComponent_EventForwarding();
+    testWebComponent_EventDelegation();
+    testWebComponent_Remove();
+    testWebComponent_DenervateDoesNotDestroyDom();
+    testWebComponent_SingleCapabilityManagingNElements();
+    console.log('✅ All WebComponent capability tests passed successfully!');
+}
+
+runTests();

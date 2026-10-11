@@ -38,21 +38,12 @@ export interface DispositionOptions {
 }
 
 /**
- * ParentToRelation: Declaración ontológica de relación estructural jerárquica entre UCAs.
- */
-export interface ParentToRelation {
-    readonly uca: string;
-    readonly relation: string;
-}
-
-/**
  * Disposition: Predisposición y condiciones reactivas de una Capability o UCA.
- * Define a qué estímulos reacciona (reactTo), su relación jerárquica (parentTo),
- * su aim (description y body), y los puertos formales de entrada (inputs) y salida (outputs).
+ * Define a qué estímulos reacciona (reactTo), su aim (description y body),
+ * y los puertos formales de entrada (inputs) y salida (outputs).
  */
 export interface Disposition<TBody = unknown> {
     reactTo?: string[];
-    parentTo?: ParentToRelation;
     aim: Aim<TBody>;
     readonly inputs?: readonly Port[];
     readonly outputs?: readonly Port[];

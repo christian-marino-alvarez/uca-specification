@@ -1,46 +1,49 @@
 import { Uca } from '@uca/core/uca';
-import { Capability } from '@uca/core/capability';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
 import { WebComponent } from '@uca/capability-web-component';
-import { SignalType as CapabilitySignalType } from '@uca/capability-web-component/types';
-import { __ID__ as WEB_COMPONENT_ID } from '@uca/capability-web-component/constants';
-import type { Body } from './types.js';
-import { DataType, SignalType } from './types.js';
-import { bodySchema } from './schema.js';
+import { SignalType as WebComponentSignalType } from '@uca/capability-web-component/types';
+import { Css } from '@uca/capability-css';
+import { SignalType as CssSignalType } from '@uca/capability-css/types';
+import { __ID__, DEFAULT_SIGNALS } from './constants.js';
+import { type Body, type EventContext, DataType, SignalType } from './types.js';
 
 export class Box extends Uca<Body> {
-    public static override purpose: string = 'Represent layout structural box and boundary container';
+    public static override purpose: string = 'Autonomous spatial container that groups, distributes, and visually delimits elements through dimension, layout, and appearance qualities';
 
     public static override disposition: Disposition<Body> = {
-        aim: { description: Box.purpose, body: {} },
-        inputs: [{ signal: SignalType.CREATE, type: DataType.RECORD, schema: bodySchema, description: 'Domain body contract' }],
-        reactTo: [
-            SignalType.CREATE, SignalType.UPDATE, SignalType.REMOVE,
-            CapabilitySignalType.RENDERED, CapabilitySignalType.UPDATED, CapabilitySignalType.REMOVED,
+        aim: { description: Box.purpose },
+        reactTo: [...DEFAULT_SIGNALS],
+        inputs: [
+            { signal: SignalType.RENDER, type: DataType.RENDER_PAYLOAD, description: 'Command to render the box' },
+            { signal: SignalType.UPDATE, type: DataType.UPDATE_PAYLOAD, description: 'Command to update the box' },
+            { signal: SignalType.REMOVE, type: DataType.REMOVE_PAYLOAD, description: 'Command to remove the box' },
+        ],
+        outputs: [
+            { signal: SignalType.CREATED, type: DataType.CREATED_RESULT, description: 'Box created confirmation' },
+            { signal: SignalType.UPDATED, type: DataType.UPDATED_RESULT, description: 'Box updated confirmation' },
+            { signal: SignalType.REMOVED, type: DataType.REMOVED_RESULT, description: 'Box removed confirmation' },
+            { signal: SignalType.EVENT, type: DataType.EVENT_CONTEXT, description: 'Box interaction event triggered' },
+            { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'Box error notification' },
         ],
     };
 
-    public constructor(id: string = 'box') {
+    public constructor(id: string = __ID__) {
         super(id);
     }
 
-    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
-        super.innervate(target, disposition);
-        if (disposition?.parentTo) {
-            this.disposition = { ...this.disposition, parentTo: disposition.parentTo };
-        }
-        if (disposition) {
-            this.onDispositionUpdated();
-        }
-        return this;
+    protected override capabilities(): Cooky {
+        const declarations: Cooky = [
+            [WebComponent, { aim: { description: WebComponent.AIM } }],
+            [Css, { aim: { description: Css.AIM } }],
+        ];
+        return declarations;
     }
-
 
     protected override react(signal: Signal): void {
         const { property, value } = signal;
         switch (property) {
-            case SignalType.CREATE:
-                this.handleCreate(value);
+            case SignalType.RENDER:
+                this.handleRender(value);
                 break;
             case SignalType.UPDATE:
                 this.handleUpdate(value);
@@ -48,122 +51,60 @@ export class Box extends Uca<Body> {
             case SignalType.REMOVE:
                 this.handleRemove(value);
                 break;
-            default:
-                this.handleSignal(signal);
+            case WebComponentSignalType.RENDERED:
+                this.handleComponentRendered(value);
                 break;
-        }
-    }
-
-    private handleSignal(signal: Signal): void {
-        const { property } = signal;
-        const { reactTo = [] } = this.disposition;
-        if (reactTo.includes(property) && !property.startsWith('element.')) {
-            this.handleReactiveStimulus(signal);
-            return;
-        }
-        this.handleCapabilitySignal(property);
-    }
-
-    private handleReactiveStimulus(signal: Signal): void {
-        const { property, value } = signal;
-        const payload = (value ?? {}) as { text?: string };
-        const text = payload.text ?? `⚡ ¡Estímulo nervioso recibido de ${property}!`;
-        const attributes = this.buildAttributes(WEB_COMPONENT_ID);
-        this.pulse(CapabilitySignalType.UPDATED, { id: this.id, text, attributes });
-    }
-
-    private handleCreate(value: unknown): void {
-        const payload = (value ?? {}) as { id?: string; container?: HTMLElement } & Body;
-        if (payload.id && !this.matchesId(payload.id)) { return; }
-        const targetId = payload.id ?? this.id;
-        const attributes = this.buildAttributes(WEB_COMPONENT_ID);
-        const text = payload.text ?? this.disposition.aim.body?.text;
-        this.pulse(CapabilitySignalType.RENDERED, { id: targetId, container: payload.container, text, attributes });
-    }
-
-    private handleUpdate(value: unknown): void {
-        const payload = (value ?? {}) as { id?: string; container?: HTMLElement } & Body;
-        if (payload.id && !this.matchesId(payload.id)) { return; }
-        const targetId = payload.id ?? this.id;
-        const attributes = this.buildAttributes(WEB_COMPONENT_ID);
-        const text = payload.text ?? this.disposition.aim.body?.text;
-        this.pulse(CapabilitySignalType.UPDATED, { id: targetId, container: payload.container, text, attributes });
-    }
-
-
-    private handleRemove(value: unknown): void {
-        const payload = (value ?? {}) as { id?: string };
-        const id = payload.id ?? this.id;
-        this.pulse(CapabilitySignalType.REMOVED, { id });
-    }
-
-    private handleCapabilitySignal(property: string): void {
-        const properties = this.getDomainProperties();
-        switch (property) {
-            case CapabilitySignalType.RENDERED:
-                this.pulse(SignalType.CREATED, properties);
+            case WebComponentSignalType.UPDATED:
+                this.handleComponentUpdated(value);
                 break;
-            case CapabilitySignalType.UPDATED:
-                this.pulse(SignalType.UPDATED, properties);
+            case WebComponentSignalType.REMOVED:
+                this.handleComponentRemoved(value);
                 break;
-            case CapabilitySignalType.REMOVED:
-                this.pulse(SignalType.REMOVED, properties);
+            case WebComponentSignalType.EVENT:
+                this.handleComponentEvent(value);
                 break;
             default:
                 break;
         }
     }
 
-    private getDomainProperties(): Body {
-        const { aim } = this.disposition;
-        const properties = (aim.body ?? {}) as Body;
-        return properties;
+    private handleRender(value?: unknown): void {
+        const { elementId = this.id, parentTo, containerElement, content, qualities, events } = (value ?? {}) as Body;
+        const targetContainer = containerElement ?? (parentTo?.startsWith('#') ? parentTo : parentTo ? `#${parentTo}` : undefined);
+        if (qualities) { this.pulse(CssSignalType.APPLY, { elementId, qualities }); }
+        this.pulse(WebComponentSignalType.RENDER, { elementId, containerElement: targetContainer, content, events });
     }
 
-    protected override onDispositionUpdated(): void {
-        const attributes = this.buildAttributes(WEB_COMPONENT_ID);
-        const { aim, parentTo } = this.disposition;
-        const { text } = aim.body ?? {};
-        this.pulse(CapabilitySignalType.RENDERED, { id: this.id, text, attributes, parentTo });
+    private handleUpdate(value?: unknown): void {
+        const { elementId = this.id, content, qualities, events } = (value ?? {}) as Body;
+        if (qualities) { this.pulse(CssSignalType.APPLY, { elementId, qualities }); }
+        this.pulse(WebComponentSignalType.UPDATE, { elementId, content, events });
     }
 
-    protected override capabilities(): Cooky {
-        const attributes = this.buildAttributes(WEB_COMPONENT_ID);
-        const { aim, parentTo } = this.disposition;
-        const { text } = aim.body ?? {};
-        const body = { id: this.id, text, attributes };
-        const purpose = 'Render structural box container in target presentation tree';
-        const disposition: Disposition = { aim: { description: purpose, body }, reactTo: [...this.getReactToSignals()], parentTo };
-        return [[WebComponent, disposition]];
+    private handleRemove(value?: unknown): void {
+        const { elementId = this.id } = (value ?? {}) as Body;
+        this.pulse(CssSignalType.REMOVE, { elementId });
+        this.pulse(WebComponentSignalType.REMOVE, { elementId });
     }
 
-    private getReactToSignals(): readonly string[] {
-        const reactTo = [
-            CapabilitySignalType.RENDERED,
-            CapabilitySignalType.UPDATED,
-            CapabilitySignalType.REMOVED,
-        ];
-        return reactTo;
+    private handleComponentRendered(value?: unknown): void {
+        const { elementId = this.id } = (value ?? {}) as { elementId?: string };
+        this.pulse(SignalType.CREATED, { elementId, detail: value });
     }
 
-    protected override getAttributeMapping(capabilityId?: string): Record<string, unknown> {
-        switch (capabilityId) {
-            case WEB_COMPONENT_ID:
-            default:
-                return this.getWebComponentAttributes();
-        }
+    private handleComponentUpdated(value?: unknown): void {
+        const { elementId = this.id } = (value ?? {}) as { elementId?: string };
+        this.pulse(SignalType.UPDATED, { elementId, detail: value });
     }
 
-    private getWebComponentAttributes(): Record<string, unknown> {
-        const { aim } = this.disposition;
-        const { text, role, hidden, className } = aim.body ?? {};
-        const mapping: Record<string, unknown> = {
-            'text': text,
-            'role': role,
-            'class': className,
-            'hidden': hidden ? '' : undefined,
-        };
-        return mapping;
+    private handleComponentRemoved(value?: unknown): void {
+        const { elementId = this.id } = (value ?? {}) as { elementId?: string };
+        this.pulse(SignalType.REMOVED, { elementId, detail: value });
+    }
+
+    private handleComponentEvent(value?: unknown): void {
+        const { elementId, event, action, value: eventVal, checked, detail } = (value ?? {}) as EventContext;
+        if (!elementId) { return; }
+        this.pulse(SignalType.EVENT, { elementId, event, action, value: eventVal, checked, detail });
     }
 }
-

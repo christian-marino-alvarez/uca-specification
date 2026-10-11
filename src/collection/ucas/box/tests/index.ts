@@ -1,205 +1,241 @@
-import { DomHarness } from '../../../../../tests/shared/dom-harness.js';
 import * as assert from 'node:assert';
+import { JSDOM } from 'jsdom';
 import { Uca } from '@uca/core/uca';
-import type { Disposition, Signal } from '@uca/core/types';
-import type { LifecycleContext } from '@uca/capability-web-component';
+import type { Signal } from '@uca/core/types';
 import { Box } from '../index.js';
-import type { Body } from '../types.js';
+import { type EventContext, SignalType } from '../types.js';
+import { __ID__ } from '../constants.js';
 
-function testBox_Existence(): void {
-    const box = new Box();
-    assert.ok(box instanceof Uca);
-    assert.strictEqual(document.querySelector('ext-box'), null);
-    assert.strictEqual('element' in box, false);
-    box.denervate();
-}
+const dom = new JSDOM('<!DOCTYPE html><html><head></head><body><div id="container"></div></body></html>');
+globalThis.document = dom.window.document as unknown as Document;
+globalThis.customElements = dom.window.customElements;
+globalThis.HTMLElement = dom.window.HTMLElement as unknown as typeof HTMLElement;
+globalThis.HTMLStyleElement = dom.window.HTMLStyleElement as unknown as typeof HTMLStyleElement;
+globalThis.AbortController = dom.window.AbortController;
+globalThis.AbortSignal = dom.window.AbortSignal;
 
-function testBox_InnervationDoesNotMaterializeDom(): void {
-    const box = new Box();
-    box.innervate();
-    assert.notStrictEqual(box.target, undefined);
-    assert.strictEqual(document.querySelector('ext-box'), null);
-    box.denervate();
-}
-
-function emitSignal(box: Box, property: string, value: unknown): void {
+function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
-    box.target?.dispatchEvent(new CustomEvent(property, { detail: signal }));
+    bus.dispatchEvent(new CustomEvent(property, { detail: signal }));
 }
 
-function testBox_ReactionMaterializesCustomElement(): void {
-    const container = DomHarness.createContainer();
-    const box = new Box().innervate();
-    emitSignal(box, 'element.rendered', { container, text: 'Hello Box UCA' });
-    const element = container.querySelector('ext-box');
-    assert.notStrictEqual(element, null);
-    assert.strictEqual(element?.textContent, 'Hello Box UCA');
-    box.denervate();
-    container.remove();
+function testBox_IdentityAndDefaults(): void {
+    const box = new Box();
+    assert.strictEqual(box.id, __ID__);
+    assert.strictEqual(box.purpose, Box.purpose);
+    assert.ok(box instanceof Uca);
+    assert.strictEqual(Box.disposition.inputs?.length, 3);
+    assert.strictEqual(Box.disposition.outputs?.length, 5);
 }
 
-function testBox_CustomElementIsGenuine(): void {
-    const container = DomHarness.createContainer();
-    const box = new Box().innervate();
-    emitSignal(box, 'element.rendered', { container, text: 'Genuine' });
-    const customElementCtor = customElements.get('ext-box');
-    assert.notStrictEqual(customElementCtor, undefined);
-    assert.ok(container.querySelector('ext-box') instanceof customElementCtor!);
-    box.denervate();
-    container.remove();
+function testBox_CapabilitiesCompositionInCooky(): void {
+    class TestableBox extends Box {
+        public exposeCapabilities(): ReturnType<Box['capabilities']> {
+            return this.capabilities();
+        }
+    }
+    const box = new TestableBox('test-box');
+    const capabilities = box.exposeCapabilities();
+    assert.strictEqual(capabilities.length, 2);
 }
 
-function listenConnected(box: Box, callback: (context?: LifecycleContext) => void): void {
-    box.target?.addEventListener('element.connected', (event: Event) => {
-        const detail = (event as CustomEvent<Signal<LifecycleContext>>).detail;
-        callback(detail.value);
+function testBox_RenderAndMountWithStyles(): void {
+    const bus = new EventTarget();
+    let createdReceived = false;
+
+    bus.addEventListener(SignalType.CREATED, () => {
+        createdReceived = true;
     });
-}
 
-function testBox_ReactiveLifecyclePulseIntoNervousSystem(): void {
-    const container = DomHarness.createContainer();
-    const box = new Box().innervate();
-    let captured: LifecycleContext | undefined = undefined;
-    listenConnected(box, (context) => { captured = context; });
-    emitSignal(box, 'element.rendered', { container, text: 'Lifecycle' });
-    const received = captured as LifecycleContext | undefined;
-    assert.strictEqual(received?.tag, 'ext-box');
-    assert.strictEqual(received?.id, 'box');
-    box.denervate();
-    container.remove();
-}
-
-function testBox_TwoInstancesAreIsolated(): void {
-    const [containerA, containerB] = [DomHarness.createContainer(), DomHarness.createContainer()];
-    const [boxA, boxB] = [new Box('box-a').innervate(), new Box('box-b').innervate()];
-    assert.notStrictEqual(boxA.target, boxB.target);
-    emitSignal(boxA, 'element.rendered', { container: containerA, text: 'A only' });
-    assert.notStrictEqual(containerA.querySelector('ext-box'), null);
-    assert.strictEqual(containerB.querySelector('ext-box'), null);
-    boxA.denervate();
-    boxB.denervate();
-    containerA.remove();
-    containerB.remove();
-}
-
-function assertHeaderAndBody(container: HTMLElement): void {
-    const header = container.querySelector('#box-card-header');
-    const body = container.querySelector('#box-card-body');
-    assert.strictEqual(header?.textContent, 'Updated Header');
-    assert.strictEqual(body?.textContent, 'Card Body');
-}
-
-function testBox_GeneratesMultipleBoxesByUniqueId(): void {
-    const container = DomHarness.createContainer();
-    const box = new Box().innervate();
-    emitSignal(box, 'element.rendered', { id: 'box-card-header', container, text: 'Header' });
-    emitSignal(box, 'element.rendered', { id: 'box-card-body', container, text: 'Card Body' });
-    emitSignal(box, 'element.updated', { id: 'box-card-header', text: 'Updated Header' });
-    assertHeaderAndBody(container);
-    box.denervate();
-    container.remove();
-}
-
-function testBox_RenderMaterializesContainerWithOptions(): void {
-    const container = DomHarness.createContainer();
-    const disposition: Disposition<Body> = {
-        aim: {
-            description: 'Box container',
-            body: {
-                text: 'Box inner content',
-                role: 'region',
-                className: 'card-container',
-                hidden: true,
-            },
-        },
-    };
-    const box = new Box().innervate(undefined, disposition);
-    emitSignal(box, 'element.rendered', { container });
-    const element = container.querySelector('ext-box');
-    assert.notStrictEqual(element, null);
-    assert.strictEqual(element?.getAttribute('text'), 'Box inner content');
-    assert.strictEqual(element?.getAttribute('role'), 'region');
-    assert.strictEqual(element?.getAttribute('class'), 'card-container');
-    assert.strictEqual(element?.getAttribute('hidden'), '');
-    box.denervate();
-    container.remove();
-}
-
-function testBox_PulsesDomainSignalsPassingProperties(): void {
-    const container = DomHarness.createContainer();
-    const disposition: Disposition<Body> = {
-        aim: {
-            description: 'Box with domain properties',
-            body: {
-                role: 'main',
-                className: 'layout-box',
-                hidden: false,
-            },
-        },
-    };
-    const box = new Box().innervate(undefined, disposition);
-    const captured: { property: string; value: unknown }[] = [];
-    box.target?.addEventListener('box.created', (event: Event) => {
-        captured.push({ property: 'box.created', value: (event as CustomEvent).detail?.value });
+    const box = new Box('my-card').innervate(bus);
+    emitSignal(bus, SignalType.RENDER, {
+        containerElement: '#container',
+        content: '<p>Card Content</p>',
+        qualities: { width: 'third', spacing: 'medium', surface: 'card' },
     });
-    box.target?.addEventListener('box.updated', (event: Event) => {
-        captured.push({ property: 'box.updated', value: (event as CustomEvent).detail?.value });
-    });
-    box.target?.addEventListener('box.removed', (event: Event) => {
-        captured.push({ property: 'box.removed', value: (event as CustomEvent).detail?.value });
-    });
-    emitSignal(box, 'element.rendered', { container });
-    emitSignal(box, 'element.updated', {});
-    emitSignal(box, 'element.removed', {});
-    assert.strictEqual(captured.length, 3);
-    assert.deepStrictEqual(captured[0], { property: 'box.created', value: { role: 'main', className: 'layout-box', hidden: false } });
-    assert.deepStrictEqual(captured[1], { property: 'box.updated', value: { role: 'main', className: 'layout-box', hidden: false } });
-    assert.deepStrictEqual(captured[2], { property: 'box.removed', value: { role: 'main', className: 'layout-box', hidden: false } });
+
+    assert.ok(createdReceived);
+    const element = document.getElementById('my-card');
+    assert.ok(element !== null);
+    assert.strictEqual(element?.innerHTML, '<p>Card Content</p>');
+
+    const styleElement = document.getElementById('uca-style-my-card');
+    assert.ok(styleElement !== null);
+    assert.ok(styleElement?.textContent?.includes('width: 33.333%;'));
+    assert.ok(styleElement?.textContent?.includes('padding: 1rem;'));
+
     box.denervate();
-    container.remove();
+    element?.remove();
+    styleElement?.remove();
 }
 
-function testBox_ReactsToDomainRequestSignals(): void {
-    const container = DomHarness.createContainer();
-    const disposition: Disposition<Body> = {
-        aim: {
-            description: 'Box container',
-            body: {
-                role: 'region',
-                className: 'card-view',
-                hidden: true,
-            },
-        },
-    };
-    const box = new Box().innervate(undefined, disposition);
-    const captured: { property: string; value: unknown }[] = [];
-    box.target?.addEventListener('box.created', (event: Event) => {
-        captured.push({ property: 'box.created', value: (event as CustomEvent).detail?.value });
+function testBox_UpdateAndRemove(): void {
+    const bus = new EventTarget();
+    let updatedReceived = false;
+    let removedReceived = false;
+    let capturedEvent: EventContext | undefined;
+
+    bus.addEventListener(SignalType.UPDATED, () => { updatedReceived = true; });
+    bus.addEventListener(SignalType.REMOVED, () => { removedReceived = true; });
+    bus.addEventListener(SignalType.EVENT, (event: Event) => {
+        capturedEvent = (event as CustomEvent<Signal>).detail?.value as EventContext;
     });
-    emitSignal(box, 'box.create', { container });
-    const element = container.querySelector('ext-box');
-    assert.notStrictEqual(element, null);
-    assert.strictEqual(element?.getAttribute('role'), 'region');
-    assert.strictEqual(captured.length, 1);
-    assert.deepStrictEqual(captured[0].value, { role: 'region', className: 'card-view', hidden: true });
-    emitSignal(box, 'box.remove', {});
-    assert.strictEqual(container.querySelector('ext-box'), null);
+
+    const box = new Box('box-dynamic').innervate(bus);
+    emitSignal(bus, SignalType.RENDER, {
+        containerElement: '#container',
+        content: 'Initial',
+        qualities: { spacing: 'small' },
+    });
+
+    emitSignal(bus, SignalType.UPDATE, {
+        content: '<button id="btn-dyn" data-action="action-dyn">Dynamic</button>',
+        qualities: { spacing: 'large' },
+        events: ['click'],
+    });
+
+    assert.ok(updatedReceived);
+    assert.strictEqual(document.getElementById('box-dynamic')?.innerHTML, '<button id="btn-dyn" data-action="action-dyn">Dynamic</button>');
+    assert.ok(document.getElementById('uca-style-box-dynamic')?.textContent?.includes('padding: 2rem;'));
+
+    const button = document.getElementById('btn-dyn');
+    button?.dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+    assert.ok(capturedEvent !== undefined);
+    assert.strictEqual(capturedEvent?.action, 'action-dyn');
+
+    emitSignal(bus, SignalType.REMOVE, {});
+    assert.ok(removedReceived);
+    assert.strictEqual(document.getElementById('box-dynamic'), null);
+    assert.strictEqual(document.getElementById('uca-style-box-dynamic'), null);
+
     box.denervate();
-    container.remove();
 }
 
-function runAllBoxTests(): void {
-    testBox_Existence();
-    testBox_InnervationDoesNotMaterializeDom();
-    testBox_ReactionMaterializesCustomElement();
-    testBox_CustomElementIsGenuine();
-    testBox_ReactiveLifecyclePulseIntoNervousSystem();
-    testBox_TwoInstancesAreIsolated();
-    testBox_GeneratesMultipleBoxesByUniqueId();
-    testBox_RenderMaterializesContainerWithOptions();
-    testBox_PulsesDomainSignalsPassingProperties();
-    testBox_ReactsToDomainRequestSignals();
-    console.log('✔ All Box UCA minimal architecture tests passed successfully.');
+function testBox_EventBridgeAndDelegation(): void {
+    const bus = new EventTarget();
+    let capturedEvent: EventContext | undefined;
+
+    bus.addEventListener(SignalType.EVENT, (event: Event) => {
+        capturedEvent = (event as CustomEvent<Signal>).detail?.value as EventContext;
+    });
+
+    const box = new Box('box-events').innervate(bus);
+    emitSignal(bus, SignalType.RENDER, {
+        containerElement: '#container',
+        content: '<button id="card-btn" data-action="submit-order">Buy</button>',
+        events: ['click'],
+    });
+
+    const button = document.getElementById('card-btn');
+    button?.dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+
+    assert.ok(capturedEvent !== undefined);
+    assert.strictEqual(capturedEvent?.elementId, 'card-btn');
+    assert.strictEqual(capturedEvent?.action, 'submit-order');
+    assert.strictEqual(capturedEvent?.event, 'click');
+
+    box.denervate();
+    document.getElementById('box-events')?.remove();
+    document.getElementById('uca-style-box-events')?.remove();
 }
 
-runAllBoxTests();
+function testBox_SingleUcaManagingNBoxes(): void {
+    const bus = new EventTarget();
+    let capturedEvent: EventContext | undefined;
+    bus.addEventListener(SignalType.EVENT, (event: Event) => {
+        capturedEvent = (event as CustomEvent<Signal>).detail?.value as EventContext;
+    });
+
+    const box = new Box('box-orchestrator').innervate(bus);
+    emitSignal(bus, SignalType.RENDER, {
+        elementId: 'box-header',
+        containerElement: '#container',
+        content: '<h1>Header</h1>',
+        qualities: { surface: 'card' },
+    });
+    emitSignal(bus, SignalType.RENDER, {
+        elementId: 'box-sidebar',
+        containerElement: '#container',
+        content: '<button id="btn-side" data-action="toggle">Toggle</button>',
+        events: ['click'],
+        qualities: { width: 'third' },
+    });
+    emitSignal(bus, SignalType.RENDER, {
+        elementId: 'box-footer',
+        containerElement: '#container',
+        content: '<p>Footer</p>',
+        qualities: { spacing: 'small' },
+    });
+
+    assert.ok(document.getElementById('box-header') !== null);
+    assert.ok(document.getElementById('box-sidebar') !== null);
+    assert.ok(document.getElementById('box-footer') !== null);
+    assert.ok(document.getElementById('uca-style-box-header') !== null);
+    assert.ok(document.getElementById('uca-style-box-sidebar') !== null);
+    assert.ok(document.getElementById('uca-style-box-footer') !== null);
+
+    const button = document.getElementById('btn-side');
+    button?.dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+    assert.strictEqual(capturedEvent?.elementId, 'btn-side');
+    assert.strictEqual(capturedEvent?.action, 'toggle');
+
+    emitSignal(bus, SignalType.UPDATE, {
+        elementId: 'box-footer',
+        content: '<p>Updated Footer</p>',
+    });
+    assert.strictEqual(document.getElementById('box-footer')?.innerHTML, '<p>Updated Footer</p>');
+
+    emitSignal(bus, SignalType.REMOVE, { elementId: 'box-header' });
+    assert.strictEqual(document.getElementById('box-header'), null);
+    assert.strictEqual(document.getElementById('uca-style-box-header'), null);
+    assert.ok(document.getElementById('box-sidebar') !== null);
+    assert.ok(document.getElementById('box-footer') !== null);
+
+    box.denervate();
+    document.getElementById('box-sidebar')?.remove();
+    document.getElementById('box-footer')?.remove();
+    document.getElementById('uca-style-box-sidebar')?.remove();
+    document.getElementById('uca-style-box-footer')?.remove();
+}
+
+function testBox_ParentToNesting(): void {
+    const bus = new EventTarget();
+    const box = new Box('box-nesting').innervate(bus);
+
+    emitSignal(bus, SignalType.RENDER, {
+        elementId: 'parent-box',
+        containerElement: '#container',
+        qualities: { surface: 'card' },
+    });
+
+    emitSignal(bus, SignalType.RENDER, {
+        elementId: 'child-box',
+        parentTo: 'parent-box',
+        content: '<span>Nested Child</span>',
+    });
+
+    const parent = document.getElementById('parent-box');
+    const child = document.getElementById('child-box');
+    assert.ok(parent !== null);
+    assert.ok(child !== null);
+    assert.strictEqual(parent?.contains(child), true);
+
+    box.denervate();
+    parent?.remove();
+    document.getElementById('uca-style-parent-box')?.remove();
+    document.getElementById('uca-style-child-box')?.remove();
+}
+
+function runTests(): void {
+    console.log('🧪 Testing autonomous Box UCA...');
+    testBox_IdentityAndDefaults();
+    testBox_CapabilitiesCompositionInCooky();
+    testBox_RenderAndMountWithStyles();
+    testBox_UpdateAndRemove();
+    testBox_EventBridgeAndDelegation();
+    testBox_SingleUcaManagingNBoxes();
+    testBox_ParentToNesting();
+    console.log('✅ All Box UCA tests passed successfully!');
+}
+
+runTests();

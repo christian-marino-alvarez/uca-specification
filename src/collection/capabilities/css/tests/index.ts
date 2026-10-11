@@ -1,9 +1,26 @@
 import * as assert from 'node:assert';
+import { JSDOM } from 'jsdom';
 import { Capability } from '@uca/core/capability';
 import type { Signal } from '@uca/core/types';
 import { Css } from '../index.js';
-import { SignalType, type CssRule } from '../types.js';
-import { __ID__ } from '../constants.js';
+import {
+    type AppliedResult,
+    type RemovedResult,
+    type ResolvedResult,
+    type ThemedResult,
+    SignalType,
+} from '../types.js';
+import {
+    __ID__,
+    DESIGN_TOKENS,
+    STYLE_PREFIX,
+    TOKENS_STYLE_ID,
+} from '../constants.js';
+
+const dom = new JSDOM('<!DOCTYPE html><html><head></head><body><div id="card-1"></div><div id="nav-1"></div></body></html>');
+globalThis.document = dom.window.document as unknown as Document;
+globalThis.HTMLElement = dom.window.HTMLElement as unknown as typeof HTMLElement;
+globalThis.HTMLStyleElement = dom.window.HTMLStyleElement as unknown as typeof HTMLStyleElement;
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
@@ -13,151 +30,185 @@ function emitSignal(bus: EventTarget, property: string, value: unknown): void {
 function testCss_IdentityAndDefaults(): void {
     const css = new Css();
     assert.strictEqual(css.id, __ID__);
-    assert.strictEqual(Css.AIM, 'Create and manage reusable OOCSS rules as independent style resources');
+    assert.strictEqual(Css.AIM, 'Apply a modular CSS stylesheet architecture based on W3C Design Tokens (DTCG), injecting root token definitions and scoped atomic style rules for autonomous elements');
     assert.ok(css instanceof Capability);
-    css.innervate();
-    assert.strictEqual(css.disposition.inputs?.length, 3);
-    assert.strictEqual(css.disposition.outputs?.length, 4);
+    assert.strictEqual(Css.disposition.inputs?.length, 4);
+    assert.strictEqual(Css.disposition.outputs?.length, 5);
+    assert.strictEqual(DESIGN_TOKENS.spacing.$type, 'dimension');
+    assert.strictEqual(DESIGN_TOKENS.tone.$type, 'color');
+    assert.strictEqual(DESIGN_TOKENS.elevation.$type, 'shadow');
+}
+
+function testCss_MountsTokensUponInnervationAndCleansOnDenervate(): void {
+    const bus = new EventTarget();
+    const css = new Css('css-token-test').innervate(bus);
+
+    const tokensElement = document.getElementById(TOKENS_STYLE_ID);
+    assert.ok(tokensElement !== null);
+    assert.ok(tokensElement?.textContent?.includes('--uca-spacing-medium: 1rem;'));
+    assert.ok(tokensElement?.textContent?.includes('--uca-tone-brand: #2563eb;'));
+
+    css.denervate();
+    assert.strictEqual(document.getElementById(TOKENS_STYLE_ID), null);
+}
+
+function testCss_TranslatesQualitiesDeterministically(): void {
+    const declarations = Css.translateQualities({
+        width: 'third',
+        height: 'auto',
+        spacing: 'medium',
+        surface: 'brand',
+        typeface: 'sans',
+        textSize: 'medium',
+        elevation: 'card',
+        radius: 'medium',
+        direction: 'column',
+        alignment: 'center',
+    });
+
+    assert.strictEqual(declarations['width'], DESIGN_TOKENS.dimensions.third.$value);
+    assert.strictEqual(declarations['height'], DESIGN_TOKENS.dimensions.auto.$value);
+    assert.strictEqual(declarations['padding'], DESIGN_TOKENS.spacing.medium.$value);
+    assert.strictEqual(declarations['background-color'], DESIGN_TOKENS.surface.brand.$value);
+    assert.strictEqual(declarations['font-family'], DESIGN_TOKENS.typeface.sans.$value);
+    assert.strictEqual(declarations['font-size'], DESIGN_TOKENS.textSize.medium.$value);
+    assert.strictEqual(declarations['box-shadow'], DESIGN_TOKENS.elevation.card.$value);
+    assert.strictEqual(declarations['border-radius'], DESIGN_TOKENS.radius.medium.$value);
+    assert.strictEqual(declarations['flex-direction'], DESIGN_TOKENS.direction.column.$value);
+    assert.strictEqual(declarations['align-items'], DESIGN_TOKENS.alignment.center.$value);
+}
+
+function testCss_AppliesStyleForNeighborUca(): void {
+    const bus = new EventTarget();
+    let appliedResult: AppliedResult | undefined;
+
+    bus.addEventListener(SignalType.APPLIED, (event: Event) => {
+        appliedResult = (event as CustomEvent<Signal>).detail?.value as AppliedResult;
+    });
+
+    const css = new Css('css-apply-test').innervate(bus);
+    emitSignal(bus, SignalType.APPLY, {
+        elementId: 'card-1',
+        qualities: { width: 'third', spacing: 'medium', tone: 'surface' },
+    });
+
+    assert.ok(appliedResult !== undefined);
+    assert.strictEqual(appliedResult?.elementId, 'card-1');
+    assert.strictEqual(appliedResult?.declarations['padding'], '1rem');
+
+    const styleElement = document.getElementById(`${STYLE_PREFIX}card-1`);
+    assert.ok(styleElement !== null);
+    assert.ok(styleElement?.textContent?.includes('#card-1 {'));
+    assert.ok(styleElement?.textContent?.includes('padding: 1rem;'));
+
+    css.denervate();
+    styleElement?.remove();
+}
+
+function testCss_ResolvesStyleOnDemand(): void {
+    const bus = new EventTarget();
+    let resolvedResult: ResolvedResult | undefined;
+
+    bus.addEventListener(SignalType.RESOLVED, (event: Event) => {
+        resolvedResult = (event as CustomEvent<Signal>).detail?.value as ResolvedResult;
+    });
+
+    const css = new Css('css-resolve-test').innervate(bus);
+    emitSignal(bus, SignalType.RESOLVE, {
+        elementId: 'btn-1',
+        qualities: { tone: 'brand', radius: 'full' },
+    });
+
+    assert.ok(resolvedResult !== undefined);
+    assert.strictEqual(resolvedResult?.elementId, 'btn-1');
+    assert.strictEqual(resolvedResult?.declarations['background-color'], '#2563eb');
+    assert.strictEqual(resolvedResult?.declarations['border-radius'], '9999px');
+    assert.ok(resolvedResult?.cssText.includes('#btn-1 {'));
+
     css.denervate();
 }
 
-function testCss_CreatesOocssRuleAndPulsesCreated(): void {
+function testCss_UpdatesThemeTokensWithDtcgFormat(): void {
     const bus = new EventTarget();
-    const css = new Css('css-create-test').innervate(bus);
-    let capturedRule: CssRule | undefined;
+    let themedResult: ThemedResult | undefined;
 
-    bus.addEventListener(SignalType.CREATED, (event: Event) => {
-        capturedRule = (event as CustomEvent<Signal<CssRule>>).detail.value;
+    bus.addEventListener(SignalType.THEMED, (event: Event) => {
+        themedResult = (event as CustomEvent<Signal>).detail?.value as ThemedResult;
     });
 
-    const stackRule: CssRule = {
-        selector: '.stack',
-        declarations: {
-            display: 'flex',
-            'flex-direction': 'column',
+    const css = new Css('css-theme-test').innervate(bus);
+    emitSignal(bus, SignalType.THEME, {
+        tokens: {
+            tone: {
+                $type: 'color',
+                brand: { $value: '#ff0000', $description: 'Theme brand red' },
+                surface: { $value: '#000000', $description: 'Theme surface black' },
+            },
         },
-    };
+    });
 
-    emitSignal(bus, SignalType.CREATE, stackRule);
+    assert.ok(themedResult !== undefined);
+    assert.strictEqual(themedResult?.updated, true);
 
-    assert.ok(capturedRule !== undefined);
-    assert.strictEqual(capturedRule.selector, '.stack');
-    assert.strictEqual(capturedRule.declarations['display'], 'flex');
-
-    const rules = css.getRules();
-    assert.strictEqual(rules.length, 1);
-    assert.ok(rules[0]?.includes('.stack'));
-    assert.ok(rules[0]?.includes('flex-direction: column'));
+    const tokensElement = document.getElementById(TOKENS_STYLE_ID);
+    assert.ok(tokensElement?.textContent?.includes('--uca-tone-brand: #ff0000;'));
+    assert.ok(tokensElement?.textContent?.includes('--uca-tone-surface: #000000;'));
 
     css.denervate();
 }
 
-function testCss_UpdatesExistingRuleAndPulsesUpdated(): void {
+function testCss_RemovesElementStyle(): void {
     const bus = new EventTarget();
-    const css = new Css('css-update-test').innervate(bus);
-    let updatedRule: CssRule | undefined;
-
-    bus.addEventListener(SignalType.UPDATED, (event: Event) => {
-        updatedRule = (event as CustomEvent<Signal<CssRule>>).detail.value;
-    });
-
-    emitSignal(bus, SignalType.CREATE, {
-        selector: '.surface',
-        declarations: { background: '#ffffff' },
-    });
-
-    emitSignal(bus, SignalType.UPDATE, {
-        selector: '.surface',
-        declarations: { background: '#0f172a', color: '#ffffff' },
-    });
-
-    assert.ok(updatedRule !== undefined);
-    assert.strictEqual(updatedRule.declarations['background'], '#0f172a');
-    assert.strictEqual(updatedRule.declarations['color'], '#ffffff');
-
-    const rules = css.getRules();
-    assert.strictEqual(rules.length, 1);
-    assert.ok(rules[0]?.includes('#0f172a'));
-
-    css.denervate();
-}
-
-function testCss_RemovesRuleAndPulsesRemoved(): void {
-    const bus = new EventTarget();
-    const css = new Css('css-remove-test').innervate(bus);
-    let removedSelector: string | undefined;
+    let removedResult: RemovedResult | undefined;
 
     bus.addEventListener(SignalType.REMOVED, (event: Event) => {
-        removedSelector = (event as CustomEvent<Signal<string>>).detail.value;
+        removedResult = (event as CustomEvent<Signal>).detail?.value as RemovedResult;
     });
 
-    emitSignal(bus, SignalType.CREATE, {
-        selector: '.temporary',
-        declarations: { opacity: '0.5' },
+    const css = new Css('css-remove-test').innervate(bus);
+    emitSignal(bus, SignalType.APPLY, {
+        elementId: 'nav-1',
+        qualities: { height: 'screen' },
     });
-    assert.strictEqual(css.getRules().length, 1);
+    assert.ok(document.getElementById(`${STYLE_PREFIX}nav-1`) !== null);
 
-    emitSignal(bus, SignalType.REMOVE, '.temporary');
-
-    assert.strictEqual(removedSelector, '.temporary');
-    assert.strictEqual(css.getRules().length, 0);
+    emitSignal(bus, SignalType.REMOVE, { elementId: 'nav-1' });
+    assert.ok(removedResult !== undefined);
+    assert.strictEqual(removedResult?.elementId, 'nav-1');
+    assert.strictEqual(document.getElementById(`${STYLE_PREFIX}nav-1`), null);
 
     css.denervate();
 }
 
-function testCss_ManagesMultipleOocssRulesInSingleInstance(): void {
+function testCss_MultipleAutonomousNeighborUcas(): void {
     const bus = new EventTarget();
-    const css = new Css('css-multi-test').innervate(bus);
+    const css = new Css('css-neighbors-test').innervate(bus);
 
-    const rulesToCreate: CssRule[] = [
-        { selector: '.box', declarations: { display: 'flex' } },
-        { selector: '.stack', declarations: { 'flex-direction': 'column' } },
-        { selector: '.surface', declarations: { background: 'var(--surface)' } },
-        { selector: '.rounded', declarations: { 'border-radius': '0.5rem' } },
-        { selector: '.gap-medium', declarations: { gap: '1rem' } },
-    ];
+    emitSignal(bus, SignalType.APPLY, { elementId: 'header-el', qualities: { width: 'full', spacing: 'small' } });
+    emitSignal(bus, SignalType.APPLY, { elementId: 'sidebar-el', qualities: { width: 'quarter', spacing: 'medium' } });
+    emitSignal(bus, SignalType.APPLY, { elementId: 'footer-el', qualities: { width: 'full', tone: 'dark' } });
 
-    for (const rule of rulesToCreate) {
-        emitSignal(bus, SignalType.CREATE, rule);
-    }
+    assert.ok(document.getElementById(`${STYLE_PREFIX}header-el`) !== null);
+    assert.ok(document.getElementById(`${STYLE_PREFIX}sidebar-el`) !== null);
+    assert.ok(document.getElementById(`${STYLE_PREFIX}footer-el`) !== null);
 
-    const rules = css.getRules();
-    assert.strictEqual(rules.length, 5);
-
+    document.getElementById(`${STYLE_PREFIX}header-el`)?.remove();
+    document.getElementById(`${STYLE_PREFIX}sidebar-el`)?.remove();
+    document.getElementById(`${STYLE_PREFIX}footer-el`)?.remove();
     css.denervate();
 }
 
-function testCss_DenervatePreservesCssResourcesAndReinnervateReuses(): void {
-    const bus1 = new EventTarget();
-    const css = new Css('css-lifecycle-test').innervate(bus1);
-
-    emitSignal(bus1, SignalType.CREATE, {
-        selector: '.persistent-stack',
-        declarations: { display: 'flex' },
-    });
-    assert.strictEqual(css.getRules().length, 1);
-
-    // Denervate does not destroy stylesheet rules
-    css.denervate();
-    assert.strictEqual(css.getRules().length, 1);
-
-    // Reinnervate on new bus reuses existing resource
-    const bus2 = new EventTarget();
-    css.innervate(bus2);
-    assert.strictEqual(css.getRules().length, 1);
-    assert.ok(css.getRules()[0]?.includes('.persistent-stack'));
-
-    css.denervate();
-}
-
-function runAllCssTests(): void {
+function runTests(): void {
+    console.log('🧪 Testing autonomous peer qualities Css capability (W3C DTCG)...');
     testCss_IdentityAndDefaults();
-    testCss_CreatesOocssRuleAndPulsesCreated();
-    testCss_UpdatesExistingRuleAndPulsesUpdated();
-    testCss_RemovesRuleAndPulsesRemoved();
-    testCss_ManagesMultipleOocssRulesInSingleInstance();
-    testCss_DenervatePreservesCssResourcesAndReinnervateReuses();
-    console.log('✔ All Css capability minimal architecture tests passed successfully.');
+    testCss_MountsTokensUponInnervationAndCleansOnDenervate();
+    testCss_TranslatesQualitiesDeterministically();
+    testCss_AppliesStyleForNeighborUca();
+    testCss_ResolvesStyleOnDemand();
+    testCss_UpdatesThemeTokensWithDtcgFormat();
+    testCss_RemovesElementStyle();
+    testCss_MultipleAutonomousNeighborUcas();
+    console.log('✅ All Css capability tests passed successfully!');
 }
 
-runAllCssTests();
+runTests();

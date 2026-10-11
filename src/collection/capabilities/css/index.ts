@@ -1,250 +1,220 @@
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
-import { __ID__, __DEFAULT_SIGNALS__ } from './constants.js';
 import {
+    __ID__,
+    DEFAULT_SIGNALS,
+    DESIGN_TOKENS,
+    STYLE_PREFIX,
+    TOKENS_STYLE_ID,
+} from './constants.js';
+import {
+    type ApplyPayload,
     type Body,
-    type CssRule,
-    type SheetAdapter,
+    type Qualities,
+    type RemovePayload,
+    type ResolvePayload,
+    type ThemePayload,
     DataType,
     SignalType,
 } from './types.js';
 
 export class Css extends Capability<Body> {
-    public static readonly AIM: string = 'Create and manage reusable OOCSS rules as independent style resources';
+    public static readonly AIM: string = 'Apply a modular CSS stylesheet architecture based on W3C Design Tokens (DTCG), injecting root token definitions and scoped atomic style rules for autonomous elements';
 
     public static override disposition: Disposition<Body> = {
-        aim: { description: Css.AIM, body: {} },
-        reactTo: [...__DEFAULT_SIGNALS__],
+        aim: { description: Css.AIM },
+        reactTo: [...DEFAULT_SIGNALS],
         inputs: [
-                { signal: SignalType.CREATE, type: DataType.CSS_RULE, description: 'Create new reusable CSS rule' },
-                { signal: SignalType.UPDATE, type: DataType.CSS_RULE, description: 'Update existing CSS rule declarations' },
-                { signal: SignalType.REMOVE, type: DataType.STRING, description: 'Remove CSS rule by selector' },
-            ],
-            outputs: [
-                { signal: SignalType.CREATED, type: DataType.CSS_RULE, description: 'Notification that CSS rule was created' },
-                { signal: SignalType.UPDATED, type: DataType.CSS_RULE, description: 'Notification that CSS rule was updated' },
-                { signal: SignalType.REMOVED, type: DataType.STRING, description: 'Notification that CSS rule was removed' },
-                { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'CSS operation error' },
-            ],
+            { signal: SignalType.APPLY, type: DataType.APPLY_PAYLOAD, description: 'Apply autonomous qualities for element' },
+            { signal: SignalType.RESOLVE, type: DataType.RESOLVE_PAYLOAD, description: 'Resolve domain qualities to CSS declarations' },
+            { signal: SignalType.THEME, type: DataType.THEME_PAYLOAD, description: 'Update design tokens theme' },
+            { signal: SignalType.REMOVE, type: DataType.REMOVE_PAYLOAD, description: 'Remove element style rule' },
+        ],
+        outputs: [
+            { signal: SignalType.APPLIED, type: DataType.APPLIED_RESULT, description: 'Style rule applied confirmation' },
+            { signal: SignalType.RESOLVED, type: DataType.RESOLVED_RESULT, description: 'Qualities resolved with css declarations' },
+            { signal: SignalType.THEMED, type: DataType.THEMED_RESULT, description: 'Design tokens theme updated confirmation' },
+            { signal: SignalType.REMOVED, type: DataType.REMOVED_RESULT, description: 'Style rule removed confirmation' },
+            { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'CSS operation error notification' },
+        ],
     };
 
-    private sheet?: SheetAdapter;
-    private readonly ruleIndexes: Map<string, number>;
+    public static translateQualities(qualities: Qualities): Record<string, string> {
+        const { width, height, spacing, surface, tone, typeface, textSize, elevation, radius, direction, alignment, custom } = qualities;
+        return {
+            ...Css.resolveDimensions(width, height),
+            ...Css.resolveVisuals(spacing, surface, tone, elevation, radius),
+            ...Css.resolveTypography(typeface, textSize),
+            ...Css.resolveLayout(direction, alignment),
+            ...(custom ?? {}),
+        };
+    }
+
+    public static formatSelector(elementId: string): string {
+        return elementId.includes(':') ? `[id="${elementId}"]` : `#${elementId}`;
+    }
+
+    public static formatCssRule(selector: string, declarations: Record<string, string>): string {
+        const rules = Object.entries(declarations).map(([k, v]) => `${k}: ${v};`).join(' ');
+        return `${selector} { ${rules} }`;
+    }
+
+    public static generateTokensCss(tokens: Record<string, Record<string, unknown>>): string {
+        const lines: string[] = [];
+        for (const [category, group] of Object.entries(tokens)) {
+            for (const [name, token] of Object.entries(group)) {
+                if (name.startsWith('$')) { continue; }
+                const val = typeof token === 'object' && token && '$value' in token ? (token as { $value: string }).$value : token;
+                lines.push(`--uca-${category}-${name}: ${val};`);
+            }
+        }
+        const mediaRules = '@media (max-width: 768px) { #app { flex-direction: column !important; flex-wrap: nowrap !important; overflow-y: auto !important; height: 100vh !important; } ext-uca { width: 100% !important; flex-basis: auto !important; flex-grow: 0 !important; flex-shrink: 0 !important; height: auto !important; min-height: 80px !important; } }';
+        const baseRules = `body { margin: 0; padding: 0; background: #0a0d14; color: #e2e8f0; font-family: var(--uca-typeface-sans, system-ui, sans-serif); height: 100vh; overflow: hidden; } #app { width: 100vw; height: 100vh; display: flex; flex-direction: row; flex-wrap: wrap; background: #0a0d14; overflow: hidden; } ext-uca { display: block; box-sizing: border-box; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08); background: #0e121a; } ${mediaRules}`;
+        return `:root { ${lines.join(' ')} } ${baseRules}`;
+    }
+
+    private static resolveTokenValue(group: Record<string, unknown>, key?: string): string | undefined {
+        if (!key) { return undefined; }
+        const entry = group[key] as { $value?: string } | string | undefined;
+        return typeof entry === 'object' && entry ? entry.$value ?? key : entry ?? key;
+    }
+
+    private static resolvePanelHeight(width?: string, height?: string, fallback?: string): string | undefined {
+        const isPanel = height === 'full' || height === 'screen' || (width === 'auto' && (!height || height === 'auto'));
+        return isPanel ? 'calc(100vh - 32px)' : fallback;
+    }
+
+    private static resolveDimensions(width?: string, height?: string): Record<string, string> {
+        const resolvedWidth = Css.resolveTokenValue(DESIGN_TOKENS.dimensions, width);
+        const resolvedHeight = Css.resolveTokenValue(DESIGN_TOKENS.dimensions, height);
+        const panelHeight = Css.resolvePanelHeight(width, height, resolvedHeight);
+        const isFlexGrow = width === 'auto' || width === 'two-thirds' || width === 'wide' || (width === 'full' && height === 'full');
+        return {
+            ...(resolvedWidth && { width: resolvedWidth, 'flex-basis': width === 'auto' ? '0' : resolvedWidth }),
+            ...(panelHeight && { height: panelHeight }),
+            ...(width === 'narrow' && { 'flex-shrink': '0', 'flex-grow': '0' }),
+            ...(isFlexGrow && { 'flex-grow': '1', 'flex-shrink': '1', 'min-width': '0' }),
+            ...(width === 'full' && height !== 'full' && { 'flex-grow': '0', 'flex-shrink': '0', 'min-height': '32px' }),
+        };
+    }
+
+    private static resolveVisuals(spacing?: string, surface?: string, tone?: string, elevation?: string, radius?: string): Record<string, string> {
+        const pad = Css.resolveTokenValue(DESIGN_TOKENS.spacing, spacing);
+        const bg = Css.resolveTokenValue(DESIGN_TOKENS.surface, surface) ?? Css.resolveTokenValue(DESIGN_TOKENS.tone, tone);
+        const shadow = Css.resolveTokenValue(DESIGN_TOKENS.elevation, elevation);
+        const rad = Css.resolveTokenValue(DESIGN_TOKENS.radius, radius);
+        return {
+            ...(pad && { padding: pad }),
+            ...(bg && { 'background-color': bg }),
+            ...(shadow && { 'box-shadow': shadow }),
+            ...(rad && { 'border-radius': rad }),
+        };
+    }
+
+    private static resolveTypography(typeface?: string, textSize?: string): Record<string, string> {
+        const font = Css.resolveTokenValue(DESIGN_TOKENS.typeface, typeface);
+        const size = Css.resolveTokenValue(DESIGN_TOKENS.textSize, textSize);
+        return {
+            ...(font && { 'font-family': font }),
+            ...(size && { 'font-size': size }),
+        };
+    }
+
+    private static resolveLayout(direction?: string, alignment?: string): Record<string, string> {
+        const dir = Css.resolveTokenValue(DESIGN_TOKENS.direction, direction);
+        const align = Css.resolveTokenValue(DESIGN_TOKENS.alignment, alignment);
+        return {
+            ...(dir && { 'flex-direction': dir }),
+            ...(align && { 'align-items': align }),
+        };
+    }
+
+    private static mountStyleElement(id: string, cssText: string): void {
+        if (typeof document === 'undefined') { return; }
+        const head = document.head ?? document.documentElement;
+        let style = document.getElementById(id) as HTMLStyleElement | null;
+        if (!style) {
+            style = document.createElement('style');
+            style.id = id;
+            head.appendChild(style);
+        }
+        style.textContent = cssText;
+    }
+
+    private static removeStyleElement(id: string): void {
+        if (typeof document === 'undefined') { return; }
+        document.getElementById(id)?.remove();
+    }
 
     public constructor(id: string = __ID__) {
         super(id);
-        this.ruleIndexes = new Map();
     }
-
 
     public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
         super.innervate(target, disposition);
-        this.ensureStyleSheet();
+        const { aim } = this.disposition;
+        const tokens = aim.body?.tokens ?? DESIGN_TOKENS;
+        Css.mountStyleElement(TOKENS_STYLE_ID, Css.generateTokensCss(tokens));
+        this.pulse(SignalType.THEMED, { updated: true });
         return this;
     }
 
     public override denervate(): void {
+        Css.removeStyleElement(TOKENS_STYLE_ID);
         super.denervate();
     }
 
     protected override react(signal: Signal): void {
         const { property, value } = signal;
         switch (property) {
-            case SignalType.CREATE:
-                this.handleCreate(value);
+            case SignalType.APPLY:
+                this.handleApply(value);
                 break;
-            case SignalType.UPDATE:
-                this.handleUpdate(value);
+            case SignalType.RESOLVE:
+                this.handleResolve(value);
+                break;
+            case SignalType.THEME:
+                this.handleTheme(value);
                 break;
             case SignalType.REMOVE:
                 this.handleRemove(value);
                 break;
             default:
-                this.handleDynamicSignal(property, value);
                 break;
         }
     }
 
-    public getRules(): readonly string[] {
-        const sheet = this.ensureStyleSheet();
-        const { length } = sheet.cssRules;
-        const rules: string[] = [];
-        for (let i = 0; i < length; i++) {
-            const rule = sheet.cssRules[i];
-            if (rule?.cssText) { rules.push(rule.cssText); }
-        }
-        return rules;
+    private handleApply(value?: unknown): void {
+        const { elementId, qualities } = (value ?? {}) as ApplyPayload;
+        if (!elementId || !qualities) { return; }
+        const declarations = Css.translateQualities(qualities);
+        const selector = Css.formatSelector(elementId);
+        const cssText = Css.formatCssRule(selector, declarations);
+        Css.mountStyleElement(`${STYLE_PREFIX}${elementId}`, cssText);
+        this.pulse(SignalType.APPLIED, { elementId, declarations });
     }
 
-    private handleDynamicSignal(property: string, value: unknown): void {
-        if (typeof value === 'string') {
-            this.handleRemove(value);
-        } else if (value && typeof value === 'object' && 'selector' in value) {
-            this.handleCreateOrUpdate(value as CssRule);
-        }
+    private handleResolve(value?: unknown): void {
+        const { elementId, qualities } = (value ?? {}) as ResolvePayload;
+        if (!qualities) { return; }
+        const declarations = Css.translateQualities(qualities);
+        const selector = elementId ? Css.formatSelector(elementId) : ':root';
+        const cssText = Css.formatCssRule(selector, declarations);
+        this.pulse(SignalType.RESOLVED, { elementId, declarations, cssText });
     }
 
-    private handleCreateOrUpdate(rule: CssRule): void {
-        const { selector } = rule;
-        if (this.ruleIndexes.has(selector)) {
-            this.handleUpdate(rule);
-        } else {
-            this.handleCreate(rule);
-        }
+    private handleTheme(value?: unknown): void {
+        const { tokens } = (value ?? {}) as ThemePayload;
+        if (!tokens) { return; }
+        const cssText = Css.generateTokensCss(tokens);
+        Css.mountStyleElement(TOKENS_STYLE_ID, cssText);
+        this.pulse(SignalType.THEMED, { updated: true });
     }
 
-    private handleCreate(value: unknown): void {
-        if (typeof value === 'string') {
-            if (this.id !== 'css' && !this.id.endsWith(':app')) { return; }
-            this.insertCssText(value);
-            return;
-        }
-        const payload = this.extractPayload<CssRule & { cssText?: string }>(value);
-        if (payload?.cssText) {
-            this.insertCssText(payload.cssText);
-            return;
-        }
-        if (!payload?.selector || !payload.declarations) { return; }
-        this.insertRule(payload);
-    }
-
-    private insertCssText(cssText: string): void {
-        if (typeof document !== 'undefined') {
-            let style = document.querySelector<HTMLStyleElement>(`style[data-uca-capability="${this.id}"]`);
-            if (!style) {
-                style = document.createElement('style');
-                style.setAttribute('data-uca-capability', this.id);
-                document.head.appendChild(style);
-            }
-            if (style.textContent?.trim() !== cssText.trim()) {
-                style.textContent = cssText;
-            }
-        }
-        this.pulse(SignalType.CREATED, { id: this.id, selector: ':root', declarations: { cssText } });
-    }
-
-    private insertRule(rule: CssRule): void {
-        const ruleText = this.formatRuleText(rule);
-        this.appendRuleToDom(ruleText);
-        try {
-            const sheet = this.ensureStyleSheet();
-            const index = sheet.insertRule(ruleText, sheet.cssRules?.length ?? 0);
-            this.ruleIndexes.set(rule.selector, index);
-            this.pulse(SignalType.CREATED, rule);
-        } catch { this.pulse(SignalType.CREATED, rule); }
-    }
-
-    private appendRuleToDom(ruleText: string): void {
-        if (typeof document !== 'undefined') {
-            const styleElement = document.querySelector<HTMLStyleElement>(`style[data-uca-capability="${this.id}"]`);
-            if (styleElement) {
-                styleElement.appendChild(document.createTextNode(`${ruleText}\n`));
-            }
-        }
-    }
-
-    private handleUpdate(value: unknown): void {
-        const rule = this.extractPayload<CssRule>(value);
-        if (!rule?.selector || !rule.declarations) { return; }
-        const currentIndex = this.ruleIndexes.get(rule.selector);
-        if (currentIndex === undefined) { return; }
-        const ruleText = this.formatRuleText(rule);
-        try {
-            const sheet = this.ensureStyleSheet();
-            sheet.deleteRule(currentIndex);
-            const newIndex = sheet.insertRule(ruleText, currentIndex);
-            this.ruleIndexes.set(rule.selector, newIndex);
-            this.rebuildDomText();
-            this.pulse(SignalType.UPDATED, rule);
-        } catch (error) { this.pulse(SignalType.ERROR, error); }
-    }
-
-    private handleRemove(value: unknown): void {
-        const selector = typeof value === 'string' ? value : (value as { selector?: string })?.selector;
-        if (!selector) { return; }
-        const currentIndex = this.ruleIndexes.get(selector);
-        if (currentIndex === undefined) { return; }
-        try {
-            const sheet = this.ensureStyleSheet();
-            sheet.deleteRule(currentIndex);
-            this.ruleIndexes.delete(selector);
-            this.rebuildIndexPositions();
-            this.rebuildDomText();
-            this.pulse(SignalType.REMOVED, selector);
-        } catch (error) { this.pulse(SignalType.ERROR, error); }
-    }
-
-    private rebuildDomText(): void {
-        if (typeof document !== 'undefined') {
-            const styleElement = document.querySelector<HTMLStyleElement>(`style[data-uca-capability="${this.id}"]`);
-            if (styleElement) {
-                const rules = this.getRules();
-                styleElement.textContent = rules.length ? `${rules.join('\n')}\n` : '';
-            }
-        }
-    }
-
-    private rebuildIndexPositions(): void {
-        const sheet = this.ensureStyleSheet();
-        this.ruleIndexes.clear();
-        for (let i = 0; i < sheet.cssRules.length; i++) {
-            const rule = sheet.cssRules[i];
-            const selector = rule?.selectorText ?? this.extractSelectorFromRuleText(rule?.cssText);
-            if (selector) { this.ruleIndexes.set(selector, i); }
-        }
-    }
-
-    private extractSelectorFromRuleText(cssText?: string): string | undefined {
-        if (!cssText) { return undefined; }
-        const braceIndex = cssText.indexOf('{');
-        return braceIndex !== -1 ? cssText.slice(0, braceIndex).trim() : undefined;
-    }
-
-    private formatRuleText(rule: CssRule): string {
-        const { selector, declarations } = rule;
-        const entries = Object.entries(declarations);
-        const body = entries.map(([prop, val]) => `${prop}: ${val};`).join(' ');
-        return `${selector} { ${body} }`;
-    }
-
-    private ensureStyleSheet(): SheetAdapter {
-        if (!this.sheet) {
-            const { aim } = this.disposition;
-            const { sheetAdapter } = aim.body ?? {};
-            this.sheet = sheetAdapter ?? this.createDefaultStyleSheet();
-        }
-        return this.sheet;
-    }
-
-    private createDefaultStyleSheet(): SheetAdapter {
-        if (typeof document !== 'undefined' && document.createElement) {
-            let styleElement = document.querySelector<HTMLStyleElement>(`style[data-uca-capability="${this.id}"]`);
-            if (!styleElement) {
-                styleElement = document.createElement('style');
-                styleElement.setAttribute('data-uca-capability', this.id);
-                document.head.appendChild(styleElement);
-            }
-            return (styleElement.sheet as unknown as SheetAdapter) ?? this.createFallbackMemorySheet();
-        }
-        return this.createFallbackMemorySheet();
-    }
-
-    private createFallbackMemorySheet(): SheetAdapter {
-        const store: { cssText: string; selectorText?: string }[] = [];
-        return {
-            insertRule: (ruleText: string, index = store.length) => {
-                const selector = this.extractSelectorFromRuleText(ruleText);
-                store.splice(index, 0, { cssText: ruleText, selectorText: selector });
-                return index;
-            },
-            deleteRule: (index: number) => { store.splice(index, 1); },
-            get cssRules() {
-                const rulesObj: any = { length: store.length };
-                store.forEach((r, idx) => { rulesObj[idx] = r; });
-                return rulesObj;
-            },
-        };
+    private handleRemove(value?: unknown): void {
+        const { elementId } = (value ?? {}) as RemovePayload;
+        if (!elementId) { return; }
+        Css.removeStyleElement(`${STYLE_PREFIX}${elementId}`);
+        this.pulse(SignalType.REMOVED, { elementId, removed: true });
     }
 }
-
-

@@ -1,7 +1,7 @@
 {
   "name": "@uca/capability-web-component",
   "version": "0.1.0",
-  "description": "UCA WebComponent presentation capability",
+  "description": "Primitive native Custom Element capability for Light DOM interaction and rendering",
   "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",
@@ -30,22 +30,16 @@
       "types": "./constants.d.ts",
       "import": "./constants.js",
       "default": "./constants.ts"
-    },
-    "./helpers": {
-      "types": "./helpers.d.ts",
-      "import": "./helpers.js",
-      "default": "./helpers.ts"
-    },
-    "./helpers.js": {
-      "types": "./helpers.d.ts",
-      "import": "./helpers.js",
-      "default": "./helpers.ts"
     }
   },
   "dependencies": {
     "@uca/core": "^0.1.0"
   },
+  "devDependencies": {
+    "@types/jsdom": "^21.1.7",
+    "jsdom": "^28.1.0"
+  },
   "scripts": {
-    "test": "tsx tests/index.ts && tsx tests/helpers.ts && tsx tests/constants.ts"
+    "test": "tsx tests/index.ts"
   }
 }

@@ -50,16 +50,20 @@ export class SseClient extends Capability<Body> {
 
     private async handleStream(value?: unknown): Promise<void> {
         const payload = (value ?? {}) as StreamPayload;
-        const { correlationId, streamId } = payload;
+        const { correlationId } = payload;
         try {
-            const rawStream = await this.executeFetch(payload);
-            const [streamForListener, streamForChunks] = rawStream.tee();
-            this.pulse(SignalType.STREAMED, { correlationId, streamId, stream: streamForListener });
-            void this.consumeStream(streamForChunks, correlationId);
+            await this.initiateStream(payload);
         } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            this.pulse(SignalType.ERROR, { correlationId, error: message });
+            this.handleStreamError(error, correlationId);
         }
+    }
+
+    private async initiateStream(payload: StreamPayload): Promise<void> {
+        const { correlationId, streamId } = payload;
+        const rawStream = await this.executeFetch(payload);
+        const [streamForListener, streamForChunks] = rawStream.tee();
+        this.pulse(SignalType.STREAMED, { correlationId, streamId, stream: streamForListener });
+        void this.consumeStream(streamForChunks, correlationId);
     }
 
     private async executeFetch(payload: StreamPayload): Promise<ReadableStream<string>> {
@@ -132,13 +136,31 @@ export class SseClient extends Capability<Body> {
     }
 
     private async consumeStream(stream: ReadableStream<string>, correlationId?: string): Promise<void> {
-        const reader = stream.getReader();
+        try {
+            await this.readChunks(stream.getReader(), correlationId);
+            this.pulse(SignalType.END, { correlationId });
+        } catch (error) {
+            this.handleStreamError(error, correlationId);
+        }
+    }
+
+    private async readChunks(reader: ReadableStreamDefaultReader<string>, correlationId?: string): Promise<void> {
         while (true) {
             const { done, value } = await reader.read();
             if (done) { break; }
             this.pulse(SignalType.CHUNK, { correlationId, chunk: value });
         }
-        this.pulse(SignalType.END, { correlationId });
+    }
+
+    private handleStreamError(error: unknown, correlationId?: string): void {
+        if (this.isAbortError(error)) { return; }
+        const message = error instanceof Error ? error.message : String(error);
+        this.pulse(SignalType.ERROR, { correlationId, error: message });
+    }
+
+    private isAbortError(error: unknown): boolean {
+        const { message = '', name = '' } = (error ?? {}) as { message?: string; name?: string };
+        return name === 'AbortError' || message.includes('aborted');
     }
 
     private handleAbort(value?: unknown): void {

@@ -1,255 +1,134 @@
 import * as assert from 'node:assert';
 import { Uca } from '@uca/core/uca';
-import type { Signal } from '@uca/core/types';
-import { SignalType as CssSignalType } from '@uca/capability-css/types';
-import { SignalType as ScaffoldSignalType } from '@uca/scaffold/types';
-import { SignalType as ThemeCssSignalType, type CssRule, type ThemeResult } from '@uca/theme-css/types';
 import { App } from '../index.js';
-import { DEFAULT_CONTEXT, DEFAULT_MODEL, DEFAULT_THEME_MODEL, DEFAULT_PROVIDER, DEFAULT_PURPOSE } from '../constants.js';
-import { SignalType } from '../types.js';
+import { __ID__ } from '../constants.js';
+import { Composer } from '@uca/composer';
+import { Builder } from '@uca/builder';
+import { Browser } from '@uca/capability-browser';
+import { SignalType as BrowserSignalType } from '@uca/capability-browser/types';
+import { type Cooky, type Signal, DispositionSignal } from '@uca/core/types';
+import { SignalType as ComposerSignalType } from '@uca/composer/types';
+import { SignalType as SseSignalType } from '@uca/capability-sse-client/types';
 
-function emitSignal(app: App, property: string, value?: unknown): void {
-    const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
-    app.target?.dispatchEvent(new CustomEvent(property, { detail: signal }));
+class Probe extends App {
+    public declarations(): Cooky {
+        return this.capabilities();
+    }
 }
 
-function testApp_IdentityAndPurpose(): void {
+function testApp_IdentityAndDefaults(): void {
     const app = new App();
     assert.ok(app instanceof Uca);
-    assert.strictEqual(app.id, 'app');
-    assert.strictEqual(app.purpose, DEFAULT_PURPOSE);
-    assert.strictEqual(app.context, DEFAULT_CONTEXT);
-    app.denervate();
+    assert.strictEqual(app.id, __ID__);
+    assert.strictEqual(app.purpose, App.purpose);
+    const { aim } = App.disposition;
+    assert.strictEqual(aim.description, App.purpose);
 }
 
-function testApp_ContextProvisioningToScaffold(): void {
-    const app = new App().innervate();
-    let capturedScaffoldPayload: { request?: string; context?: string; model?: string; provider?: string } | undefined;
-
-    app.target?.addEventListener(ScaffoldSignalType.STREAM, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal<{ request: string; context: string; model: string; provider: string }>>;
-        capturedScaffoldPayload = detail.value;
-    });
-
-    emitSignal(app, SignalType.START);
-    assert.notStrictEqual(capturedScaffoldPayload, undefined);
-    assert.strictEqual(capturedScaffoldPayload?.request, DEFAULT_PURPOSE);
-    assert.strictEqual(capturedScaffoldPayload?.context, DEFAULT_CONTEXT);
-    assert.strictEqual(capturedScaffoldPayload?.model, DEFAULT_MODEL);
-    assert.strictEqual(capturedScaffoldPayload?.provider, DEFAULT_PROVIDER);
-
-    app.denervate();
+function testApp_CapabilitiesComposition(): void {
+    const app = new Probe();
+    const declarations = app.declarations();
+    assert.strictEqual(declarations.length, 3);
+    const [[FirstImpl, { aim: firstAim }], [SecondImpl, { aim: secondAim }], [ThirdImpl, { aim: thirdAim }]] = declarations;
+    assert.strictEqual(FirstImpl, Composer);
+    assert.strictEqual(SecondImpl, Builder);
+    assert.strictEqual(ThirdImpl, Browser);
+    assert.deepStrictEqual(firstAim.body, { id: 'app:composer', request: App.purpose, context: app.context, parentTo: 'app', composition: undefined });
+    assert.deepStrictEqual(secondAim.body, { id: 'app:builder', parentTo: 'app' });
+    assert.deepStrictEqual(thirdAim.body, { id: 'app:browser' });
 }
 
-function testApp_ContextProvisioningToTheme(): void {
-    const app = new App().innervate();
-    let capturedThemePayload: { request?: string; context?: string; model?: string; provider?: string } | undefined;
+function testApp_Context(): void {
+    const app = new App();
+    const { context } = app;
+    assert.ok(typeof context === 'string');
+    assert.ok(context.includes('Cursor'));
+    assert.ok(context.includes('Antigravity'));
+}
 
-    app.target?.addEventListener(ThemeCssSignalType.CREATE, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal<{ request: string; context: string; model: string; provider: string }>>;
-        capturedThemePayload = detail.value;
-    });
+function testApp_InnervationAndDenervation(): void {
+    const bus = new EventTarget();
+    let updateFired = false;
+    bus.addEventListener(ComposerSignalType.UPDATE, () => { updateFired = true; });
 
-    emitSignal(app, SignalType.START);
-    assert.notStrictEqual(capturedThemePayload, undefined);
-    assert.strictEqual(capturedThemePayload?.request, DEFAULT_PURPOSE);
-    assert.strictEqual(capturedThemePayload?.model, DEFAULT_THEME_MODEL);
-    assert.strictEqual(capturedThemePayload?.model, 'gemini-3.5-flash-lite');
+    const app = new App('custom-app').innervate(bus);
+    assert.strictEqual(app.id, 'custom-app');
+    assert.strictEqual(app.target, bus);
+    assert.ok(updateFired, 'innervate should automatically trigger composition');
 
     app.denervate();
+    assert.strictEqual(app.target, undefined);
 }
 
-function testApp_InjectsBaseThemeOnStart(): void {
-    const app = new App().innervate();
-    const createdRules: unknown[] = [];
-    app.target?.addEventListener(CssSignalType.CREATE, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal<unknown>>;
-        createdRules.push(detail.value);
-    });
-    emitSignal(app, SignalType.START);
-    assert.ok(createdRules.length >= 4);
-    app.denervate();
+function emit(bus: EventTarget, property: string, value: unknown, source: string): void {
+    const detail: Signal = { source, property, value, timestamp: Date.now() };
+    bus.dispatchEvent(new CustomEvent(property, { detail }));
 }
 
-function testApp_BarrierHoldsScaffold(): void {
-    const app = new App().innervate();
-    let receivedChunk: unknown;
-    app.target?.addEventListener(SignalType.CHUNK, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal<{ chunk: unknown }>>;
-        receivedChunk = detail.value.chunk;
-    });
-    const mockChunk = { boxHeader: { purpose: 'Header', parentTo: 'app' } };
-    emitSignal(app, ScaffoldSignalType.CHUNK, { chunk: mockChunk });
-    assert.strictEqual(receivedChunk, undefined);
-    app.denervate();
+async function testApp_TriggersComposition(): Promise<void> {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response('data: [DONE]\n\n');
+    try {
+        const bus = new EventTarget();
+        const requests: string[] = [];
+        bus.addEventListener(SseSignalType.STREAM, (event) => {
+            const { detail: { value: { request } } } = event as CustomEvent<Signal<{ request: string }>>;
+            requests.push(request);
+        });
+        const app = new App().innervate(bus);
+        assert.ok(requests.length >= 1);
+        assert.match(requests[0], /Cursor/);
+
+        const countBeforeUpdate = requests.length;
+        emit(bus, DispositionSignal.UPDATE, { id: 'app', disposition: { aim: { body: { context: 'Mobile' } } } }, 'client');
+        await Promise.resolve();
+        assert.strictEqual(requests.length, countBeforeUpdate + 1);
+        assert.match(requests[requests.length - 1], /Mobile/);
+        app.denervate();
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
 }
 
-function testApp_BarrierFlushesOnTheme(): void {
-    const app = new App().innervate();
-    let receivedChunk: unknown;
-    app.target?.addEventListener(SignalType.CHUNK, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal<{ chunk: unknown }>>;
-        receivedChunk = detail.value.chunk;
-    });
-    const mockChunk = { boxHeader: { purpose: 'Header', parentTo: 'app' } };
-    emitSignal(app, ScaffoldSignalType.CHUNK, { chunk: mockChunk });
-    emitSignal(app, ThemeCssSignalType.CREATED, { correlationId: 't1', rules: [] } satisfies ThemeResult);
-    assert.deepStrictEqual(receivedChunk, mockChunk);
-    app.denervate();
+async function testApp_PropagatesDetected(): Promise<void> {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response('data: [DONE]\n\n');
+    try {
+        const bus = new EventTarget();
+        let updatedContext: string | undefined;
+        bus.addEventListener(DispositionSignal.UPDATE, (event) => {
+            const { detail: { value } } = event as CustomEvent<Signal<{ id: string; disposition: { aim: { body: { context: string } } } }>>;
+            if (value?.id === 'app:composer') {
+                updatedContext = value.disposition.aim.body.context;
+            }
+        });
+        const app = new App().innervate(bus);
+        const mockBrowserContext = {
+            viewport: { width: 375, height: 812 },
+            screen: { width: 375, height: 812, availWidth: 375, availHeight: 812, colorDepth: 24, pixelRatio: 3, orientation: 'portrait-primary' },
+            browser: { type: 'Safari', userAgent: 'Mobile', language: 'es', platform: 'iOS', touch: true, maxTouchPoints: 5, colorScheme: 'dark' as const, reducedMotion: false, online: true },
+        };
+        emit(bus, BrowserSignalType.DETECTED, mockBrowserContext, 'app:browser');
+        await Promise.resolve();
+        assert.ok(updatedContext?.includes('Viewport 375x812'));
+        assert.ok(updatedContext?.includes('Orientación portrait-primary'));
+        assert.ok(updatedContext?.includes('Plataforma iOS'));
+        app.denervate();
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
 }
 
-function testApp_ThemeAndCssIntegration(): void {
-    const app = new App().innervate();
-    const createdCssRules: unknown[] = [];
-    let capturedThemeResult: unknown;
-
-    app.target?.addEventListener(CssSignalType.CREATE, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal<unknown>>;
-        createdCssRules.push(detail.value);
-    });
-    app.target?.addEventListener(SignalType.THEME_CREATED, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal<unknown>>;
-        capturedThemeResult = detail.value;
-    });
-
-    const mockRules: CssRule[] = [
-        { selector: ':root', declarations: { '--bg-color': '#111' } },
-        { selector: '.box', declarations: { padding: '1rem' } },
-    ];
-    emitSignal(app, ThemeCssSignalType.CREATED, { correlationId: 'theme-1', rules: mockRules } satisfies ThemeResult);
-
-    assert.strictEqual(createdCssRules.length, 2);
-    assert.deepStrictEqual(createdCssRules, mockRules);
-    assert.ok(capturedThemeResult);
-    app.denervate();
+async function runTests(): Promise<void> {
+    console.log('🧪 Testing App UCA (reactive composition root)...');
+    testApp_IdentityAndDefaults();
+    testApp_Context();
+    testApp_CapabilitiesComposition();
+    testApp_InnervationAndDenervation();
+    await testApp_TriggersComposition();
+    await testApp_PropagatesDetected();
+    console.log('✅ All App UCA tests passed successfully!');
 }
 
-import { SignalType as ComposerSignalType, type ComposePayload, type ComposedResult } from '@uca/composer/types';
-
-function testApp_PassesParentContextToComposer(): void {
-    const app = new App().innervate();
-    const capturedPayloads: ComposePayload[] = [];
-
-    app.target?.addEventListener(ComposerSignalType.COMPOSE, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal<ComposePayload>>;
-        capturedPayloads.push(detail.value);
-    });
-
-    emitSignal(app, ThemeCssSignalType.CREATED, { correlationId: 't1', rules: [] } satisfies ThemeResult);
-
-    const chunk1 = {
-        mainContainer: { purpose: 'Main layout box container', parentTo: 'app' },
-    };
-    emitSignal(app, ScaffoldSignalType.CHUNK, { chunk: chunk1 });
-
-    assert.strictEqual(capturedPayloads.length, 1);
-    assert.strictEqual(capturedPayloads[0].targetUca, 'mainContainer');
-    assert.strictEqual(capturedPayloads[0].parentTo, 'app');
-    assert.strictEqual(capturedPayloads[0].parentContext, DEFAULT_CONTEXT);
-
-    const chunk2 = {
-        headerNav: { purpose: 'Top navigation bar', parentTo: 'mainContainer' },
-    };
-    emitSignal(app, ScaffoldSignalType.CHUNK, { chunk: chunk2 });
-
-    assert.strictEqual(capturedPayloads.length, 2);
-    assert.strictEqual(capturedPayloads[1].targetUca, 'headerNav');
-    assert.strictEqual(capturedPayloads[1].parentTo, 'mainContainer');
-    assert.strictEqual(capturedPayloads[1].parentContext, 'Main layout box container');
-
-    app.denervate();
-}
-
-function testApp_MountsComposedNodes(): void {
-    const app = new App().innervate();
-    let capturedComposed: ComposedResult | undefined;
-
-    app.target?.addEventListener(SignalType.COMPOSED, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal<ComposedResult>>;
-        capturedComposed = detail.value;
-    });
-
-    const mockComposed: ComposedResult = {
-        targetUca: 'mainContainer',
-        nodes: [
-            { id: 'container-box', uca: 'box', parentTo: 'app', body: { className: 'p-4' }, purpose: 'Layout box' },
-            { id: 'btn-action', uca: 'action', parentTo: 'container-box', body: { label: 'Click me' }, purpose: 'Action button' },
-        ],
-    };
-    emitSignal(app, ComposerSignalType.COMPOSED, mockComposed);
-
-    assert.notStrictEqual(capturedComposed, undefined);
-    assert.strictEqual(capturedComposed?.targetUca, 'mainContainer');
-    assert.strictEqual(capturedComposed?.nodes.length, 2);
-
-    app.denervate();
-}
-
-async function testApp_StreamPipelineAndThemeGate(): Promise<void> {
-    const app = new App().innervate();
-    const composedList: ComposedResult[] = [];
-
-    app.target?.addEventListener(SignalType.COMPOSED, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal<ComposedResult>>;
-        composedList.push(detail.value);
-    });
-
-    let forwardStreamPayload: unknown;
-    app.target?.addEventListener(ComposerSignalType.STREAM, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal<unknown>>;
-        forwardStreamPayload = detail.value;
-    });
-
-    emitSignal(app, SignalType.START);
-
-    const mockScaffoldStream = new ReadableStream({
-        start(controller) {
-            controller.enqueue({ hero: { purpose: 'Hero banner', parentTo: 'app' } });
-            controller.close();
-        },
-    });
-    emitSignal(app, ScaffoldSignalType.STREAMED, { stream: mockScaffoldStream, correlationId: 'scaff-1' });
-
-    assert.notStrictEqual(forwardStreamPayload, undefined);
-
-    let streamController: ReadableStreamDefaultController<ComposedResult>;
-    const mockComposerStream = new ReadableStream<ComposedResult>({
-        start(controller) { streamController = controller; },
-    });
-    emitSignal(app, ComposerSignalType.STREAMED, { stream: mockComposerStream, correlationId: 'comp-1' });
-
-    streamController!.enqueue({
-        targetUca: 'hero',
-        nodes: [{ id: 'hero-box', uca: 'box', parentTo: 'app', body: { className: 'hero' }, purpose: 'Hero' }],
-        rules: [],
-    });
-
-    await new Promise((resolve) => setTimeout(resolve, 30));
-    assert.strictEqual(composedList.length, 0);
-
-    emitSignal(app, ThemeCssSignalType.CREATED, { correlationId: 't1', rules: [] } satisfies ThemeResult);
-
-    await new Promise((resolve) => setTimeout(resolve, 30));
-    assert.strictEqual(composedList.length, 1);
-    assert.strictEqual(composedList[0].targetUca, 'hero');
-
-    streamController!.close();
-    app.denervate();
-}
-
-async function runAllTests(): Promise<void> {
-    testApp_IdentityAndPurpose();
-    testApp_ContextProvisioningToScaffold();
-    testApp_ContextProvisioningToTheme();
-    testApp_InjectsBaseThemeOnStart();
-    testApp_BarrierHoldsScaffold();
-    testApp_BarrierFlushesOnTheme();
-    testApp_ThemeAndCssIntegration();
-    testApp_PassesParentContextToComposer();
-    testApp_MountsComposedNodes();
-    await testApp_StreamPipelineAndThemeGate();
-    console.log('✅ App UCA with Scaffold, ThemeCss, Barrier, Composer, and stream gate tests passed successfully');
-}
-
-void runAllTests();
+void runTests();
 

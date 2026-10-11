@@ -50,6 +50,7 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         const signals = [...new Set([...reactTo, ...controlSignals])];
         super.innervate(activeTarget, { ...incoming, reactTo: signals });
         this.innervateCapabilities(activeTarget);
+        this.onDispositionUpdated();
         return this;
     }
 
@@ -132,7 +133,6 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         this.pulse(StorageSignal.SET, { key: this.id, value: this.disposition });
         const updatedPayload: DispositionUpdatedPayload<TBody> = { id: this.id, disposition: this.disposition };
         this.pulse(DispositionSignal.UPDATED, updatedPayload);
-        this.onDispositionUpdated();
     }
 
     private handleDispositionGet(): void {
@@ -171,14 +171,13 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
     }
 
     private resolveChildDisposition(disposition: Disposition): Disposition {
-        const { aim, parentTo } = disposition;
+        const { aim } = disposition;
         const currentBody = (aim?.body ?? {}) as Record<string, unknown>;
         const inherited = this.resolveInheritedContext();
         const context = currentBody.context ?? inherited;
         const body = { context, ...currentBody };
         const resolvedAim = { ...aim, body };
-        const resolvedParentTo = parentTo ?? { uca: this.id, relation: 'contains' };
-        return { ...disposition, aim: resolvedAim, parentTo: resolvedParentTo };
+        return { ...disposition, aim: resolvedAim };
     }
 
     private innervateCapabilities(activeTarget: EventTarget): void {

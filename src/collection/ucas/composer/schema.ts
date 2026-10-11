@@ -1,62 +1,68 @@
 import { z } from 'zod';
 
-export const templateNodeSchema = z.object({
-    id: z.string().describe('Unique instance identifier for the component'),
-    uca: z.enum(['box', 'action', 'input', 'list', 'picture', 'toggle', 'dropdown']).describe('Target UCA primitive type'),
-    parentTo: z.string().describe('Parent UCA or container id in the hierarchy'),
-    body: z.record(z.string(), z.unknown()).describe('Disposition body properties such as className, label, text, items'),
-    purpose: z.string().optional().describe('Teleological purpose of this specific component node'),
+export const dimensionValueSchema = z.union([
+    z.string().min(1),
+    z.number().transform((num) => `${Math.round(num <= 1 ? num * 100 : num)}%`),
+]);
+
+export const dimensionsSchema = z.object({
+    width: dimensionValueSchema.describe('Relative or semantic width within host (e.g. full, half, third, 100%, 0.5)'),
+    height: dimensionValueSchema.describe('Relative or semantic height within host (e.g. full, auto, screen, 5%, 0.05)'),
+}).strict();
+
+export const nodeSchema = z.object({
+    purpose: z.string().min(1).describe('Ontological responsibility of this immediate child UCA'),
+    context: z.string().min(1).describe('Operating context delegated to this child'),
+    dimensions: dimensionsSchema,
+    parentTo: z.string().min(1).describe('Identifier of the existing host UCA'),
+}).strict();
+
+export const flatNodeSchema = z.object({
+    id: z.string().min(1).describe('Child identity'),
+    purpose: z.string().min(1).describe('Ontological responsibility of this immediate child UCA'),
+    context: z.string().min(1).describe('Operating context delegated to this child'),
+    dimensions: dimensionsSchema,
+    parentTo: z.string().min(1).describe('Identifier of the existing host UCA'),
+}).strict();
+
+export const keyedItemSchema = z.record(z.string().min(1), nodeSchema);
+export const flatItemSchema = flatNodeSchema.transform((node) => {
+    const { id, ...rest } = node;
+    return { [id]: rest };
 });
 
-export const customCssRuleSchema = z.object({
-    selector: z.string().describe('CSS selector for specific component styling'),
-    declarations: z.record(z.string(), z.string()).describe('CSS property value declarations'),
-});
+export const itemSchema = z.union([keyedItemSchema, flatItemSchema]);
+export const structureSchema = keyedItemSchema;
 
-export const composePayloadSchema = z.object({
-    targetUca: z.string().describe('Scaffold UCA id to compose'),
-    purpose: z.string().describe('Ontological purpose defined in scaffold'),
-    parentTo: z.string().describe('Structural parent UCA id'),
-    parentContext: z.string().optional().describe('Ontological context or purpose of the parent UCA'),
-    themeClasses: z.array(z.string()).optional().describe('List of available OOCSS skin and typography classes'),
-    model: z.string().optional().default('gemini-3.5-flash-lite'),
-    provider: z.string().optional().default('gemini'),
-    correlationId: z.string().optional(),
-});
-
-export const composedResultSchema = z.object({
-    targetUca: z.string().describe('Scaffold UCA id that was composed'),
-    nodes: z.array(templateNodeSchema).describe('Composed hierarchy of web and logic UCAs'),
-    rules: z.array(customCssRuleSchema).optional().describe('Optional custom CSS rules created by composer'),
-    correlationId: z.string().optional(),
-});
-
-export const composeStreamPayloadSchema = z.object({
-    stream: z.custom<ReadableStream<unknown>>((v) => v instanceof ReadableStream, {
-        message: 'Expected ReadableStream instance',
-    }).describe('ReadableStream of Scaffold items'),
-    parentContext: z.string().optional().describe('Parent or host UCA context'),
-    themeClasses: z.array(z.string()).optional(),
-    model: z.string().optional().default('gemini-3.5-flash-lite'),
-    provider: z.string().optional().default('gemini'),
-    correlationId: z.string().optional(),
-});
-
-export const composeStreamResultSchema = z.object({
-    stream: z.custom<ReadableStream<ComposedResult>>((v) => v instanceof ReadableStream, {
-        message: 'Expected ReadableStream instance',
-    }).describe('ReadableStream of ComposedResult items'),
-    correlationId: z.string().optional(),
-});
+export function schemaForParent(parentTo: string) {
+    const boundNode = nodeSchema.extend({ parentTo: z.literal(parentTo) });
+    const boundKeyed = z.record(z.string().min(1).refine((id) => id !== parentTo), boundNode);
+    const boundFlat = flatNodeSchema.extend({ parentTo: z.literal(parentTo) }).transform((node) => {
+        const { id, ...rest } = node;
+        return { [id]: rest };
+    });
+    return z.union([boundKeyed, boundFlat]);
+}
 
 export const bodySchema = z.object({
-    context: z.string().optional().describe('Composition aesthetic and functional context'),
+    id: z.string().optional(),
+    request: z.string().optional().describe('Purpose to satisfy through immediate children'),
+    context: z.string().optional(),
+    parentTo: z.string().optional(),
+    composition: structureSchema.optional().describe('Current complete composition, replaced on recomposition'),
+    correlationId: z.string().optional(),
+    streamId: z.string().optional(),
 });
 
-export type TemplateNode = z.infer<typeof templateNodeSchema>;
-export type CustomCssRule = z.infer<typeof customCssRuleSchema>;
-export type ComposePayload = z.infer<typeof composePayloadSchema>;
-export type ComposedResult = z.infer<typeof composedResultSchema>;
-export type ComposeStreamPayload = z.infer<typeof composeStreamPayloadSchema>;
-export type ComposeStreamResult = z.infer<typeof composeStreamResultSchema>;
+export const createPayloadSchema = bodySchema.extend({
+    model: z.enum(['local', 'nube']).optional(),
+    provider: z.string().optional(),
+    imagination: z.number().min(0).max(10).optional(),
+});
+
+export type Dimensions = z.infer<typeof dimensionsSchema>;
 export type Body = z.infer<typeof bodySchema>;
+export type Node = z.infer<typeof nodeSchema>;
+export type Item = z.infer<typeof itemSchema>;
+export type Structure = z.infer<typeof structureSchema>;
+export type CreatePayload = z.infer<typeof createPayloadSchema>;

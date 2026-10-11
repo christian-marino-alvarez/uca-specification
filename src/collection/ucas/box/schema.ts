@@ -1,13 +1,28 @@
 import { z } from 'zod';
 
+export const qualitiesSchema = z.object({
+    width: z.string().optional(),
+    height: z.string().optional(),
+    spacing: z.string().optional(),
+    surface: z.string().optional(),
+    tone: z.string().optional(),
+    typeface: z.string().optional(),
+    textSize: z.string().optional(),
+    elevation: z.string().optional(),
+    radius: z.string().optional(),
+    direction: z.string().optional(),
+    alignment: z.string().optional(),
+    custom: z.record(z.string(), z.string()).optional(),
+}).optional();
+
 export const bodySchema = z.object({
-    id: z.string().optional(),
-    text: z.string().optional(),
-    role: z.string().optional(),
-    hidden: z.boolean().optional(),
-    className: z.string().optional(),
+    elementId: z.string().optional(),
+    parentTo: z.string().optional(),
+    content: z.string().optional(),
+    containerElement: z.string().optional(),
+    qualities: qualitiesSchema,
+    events: z.array(z.string()).optional(),
 });
 
-export type BodySchema = z.infer<typeof bodySchema>;
-
-export const emittedSignals = ['updated'] as const;
+export type Qualities = z.infer<typeof qualitiesSchema>;
+export type Body = z.infer<typeof bodySchema>;

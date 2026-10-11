@@ -36,7 +36,8 @@ export class Browser extends Capability<Body> {
         ],
     };
 
-    private resizeListener?: () => void;
+    private mediaQueries: MediaQueryList[] = [];
+    private mediaListener?: () => void;
 
     public constructor(id: string = __ID__) {
         super(id);
@@ -67,17 +68,22 @@ export class Browser extends Capability<Body> {
     }
 
     private bindWindowListeners(): void {
-        if (typeof window === 'undefined' || this.resizeListener) { return; }
-        this.resizeListener = () => this.pulse(SignalType.CHANGED, this.captureContext());
-        window.addEventListener('resize', this.resizeListener);
-        window.addEventListener('orientationchange', this.resizeListener);
+        if (typeof window === 'undefined' || !window.matchMedia || this.mediaListener) { return; }
+        this.mediaListener = () => this.pulse(SignalType.CHANGED, this.captureContext());
+        const queries = ['(max-width: 768px)', '(orientation: portrait)', '(prefers-color-scheme: dark)'];
+        this.mediaQueries = queries.map((query) => window.matchMedia(query));
+        for (const mediaQuery of this.mediaQueries) {
+            mediaQuery.addEventListener('change', this.mediaListener);
+        }
     }
 
     private unbindWindowListeners(): void {
-        if (typeof window === 'undefined' || !this.resizeListener) { return; }
-        window.removeEventListener('resize', this.resizeListener);
-        window.removeEventListener('orientationchange', this.resizeListener);
-        this.resizeListener = undefined;
+        if (!this.mediaListener) { return; }
+        for (const mediaQuery of this.mediaQueries) {
+            mediaQuery.removeEventListener('change', this.mediaListener);
+        }
+        this.mediaQueries = [];
+        this.mediaListener = undefined;
     }
 
     private captureContext(): BrowserContext {

@@ -77,12 +77,12 @@ export class StreamTransformer extends Capability<Body> {
     }
 
     private parseNext(text: string): { parsed?: Record<string, unknown>; nextIndex: number } | undefined {
-        const trimmed = text.trimStart();
+        const trimmed = text.replace(/^(\s*(```[a-z]*|,)\s*)+/i, '').trimStart();
+        const offset = text.length - trimmed.length;
         if (trimmed.startsWith('{')) {
-            const start = text.indexOf('{');
-            const end = this.findBraceEnd(text, start);
+            const end = this.findBraceEnd(trimmed, 0);
             if (end !== -1) {
-                return this.tryParseObject(text.slice(start, end), end);
+                return this.tryParseObject(trimmed.slice(0, end), offset + end);
             }
         }
         return this.parseInnerEntry(text);
@@ -130,7 +130,8 @@ export class StreamTransformer extends Capability<Body> {
         if (Object.keys(candidate).length === 0) { return; }
         const validation = schema ? schema.safeParse(candidate) : { success: true, data: candidate };
         if (!validation.success) {
-            console.warn('⚠️ [stream-transformer] Chunk rejected by schema:', candidate);
+            const issues = 'error' in validation ? validation.error.issues : undefined;
+            console.warn('⚠️ [stream-transformer] Chunk rejected by schema:', candidate, issues);
             return;
         }
         this.dispatchValidated(validation.data as Record<string, unknown>, controller);

@@ -31,13 +31,12 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
     }
 
     public static buildDisposition<T>(current: Disposition<T>, incoming?: Partial<Disposition<T>>): Disposition<T> {
-        const { aim: incomingAim, reactTo: incomingReactTo, inputs, outputs, parentTo: incomingParentTo } = incoming ?? {};
+        const { aim: incomingAim, reactTo: incomingReactTo, inputs, outputs } = incoming ?? {};
         const aim = Capability.mergeAim(current?.aim, incomingAim);
         const reactTo = Capability.mergeReactTo(current?.reactTo, incomingReactTo);
         const activeInputs = inputs ?? current?.inputs;
         const activeOutputs = outputs ?? current?.outputs;
-        const parentTo = incomingParentTo ?? current?.parentTo;
-        return { aim, reactTo, inputs: activeInputs, outputs: activeOutputs, ...(parentTo && { parentTo }) };
+        return { aim, reactTo, inputs: activeInputs, outputs: activeOutputs };
     }
 
     public static extractPayload<T = unknown>(value: unknown): T | undefined {

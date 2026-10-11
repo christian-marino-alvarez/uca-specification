@@ -1,7 +1,7 @@
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import { GoogleGenAI } from '@google/genai';
-import { __ID__, __DEFAULT_SIGNALS__, DEFAULT_MODEL, DEFAULT_THINKING_LEVEL, THINKING_LEVEL_MODEL_PREFIX } from './constants.js';
+import { __ID__, __DEFAULT_SIGNALS__, DEFAULT_MODEL, DEFAULT_THINKING_BUDGET, DEFAULT_THINKING_LEVEL, THINKING_LEVEL_MODEL_PREFIX } from './constants.js';
 import {
     type Body,
     type ConnectionConfig,
@@ -162,7 +162,8 @@ export class Gemini extends Capability<Body> {
         const body = (aim.body ?? {}) as Body;
         const model = payload.model ?? body.model ?? DEFAULT_MODEL;
         const thinkingLevel = payload.thinkingLevel ?? body.thinkingLevel;
-        const thinkingConfig = this.resolveThinkingConfig(model, thinkingLevel);
+        const thinkingBudget = payload.thinkingBudget ?? body.thinkingBudget;
+        const thinkingConfig = this.resolveThinkingConfig(model, thinkingLevel, thinkingBudget);
         const config = this.buildConfig(payload, body, model, thinkingConfig);
         return { model, config };
     }
@@ -177,12 +178,15 @@ export class Gemini extends Capability<Body> {
         return { ...(systemInstruction && { systemInstruction }), ...(responseMimeType && { responseMimeType }), ...(schema && { responseJsonSchema: schema }), ...(thinkingConfig && { thinkingConfig }), ...(temperature !== undefined && { temperature }), ...(maxOutputTokens !== undefined && { maxOutputTokens }) };
     }
 
-    private resolveThinkingConfig(model: string, thinkingLevel?: ThinkingLevel): Record<string, unknown> | undefined {
+    private resolveThinkingConfig(model: string, thinkingLevel?: ThinkingLevel, thinkingBudget?: number): Record<string, unknown> | undefined {
         if (model.includes('lite')) { return undefined; }
+        if (thinkingBudget !== undefined) {
+            return { thinkingBudget };
+        }
         if (model.startsWith(THINKING_LEVEL_MODEL_PREFIX)) {
             return { thinkingLevel: thinkingLevel ?? DEFAULT_THINKING_LEVEL };
         }
-        return thinkingLevel ? { thinkingLevel } : undefined;
+        return thinkingLevel ? { thinkingLevel } : { thinkingBudget: DEFAULT_THINKING_BUDGET };
     }
 
     private formatResult(response: { text?: string; usageMetadata?: unknown }, prompt: string, model: string, correlationId?: string): GenerateResult {

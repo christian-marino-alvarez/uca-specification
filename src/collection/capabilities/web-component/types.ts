@@ -1,74 +1,73 @@
-import type { Disposition } from '@uca/core/types';
-
 export enum SignalType {
+    RENDER = 'component.render',
+    UPDATE = 'component.update',
+    REMOVE = 'component.remove',
+    RENDERED = 'component.rendered',
+    UPDATED = 'component.updated',
+    REMOVED = 'component.removed',
     EVENT = 'component.event',
-    RENDERED = 'element.rendered',
-    UPDATED = 'element.updated',
-    REMOVED = 'element.removed',
-    CONNECTED = 'element.connected',
-    DISCONNECTED = 'element.disconnected',
-    ATTRIBUTE_CHANGED = 'element.attributeChanged',
-    CONTENT_CHANGED = 'element.contentChanged',
-    TAG_CHANGED = 'element.tagChanged',
-}
-
-export enum LifecycleEventType {
-    CONNECTED = 'lifecycle.connected',
-    DISCONNECTED = 'lifecycle.disconnected',
-    ATTRIBUTE_CHANGED = 'lifecycle.attributeChanged',
-    CONTENT_CHANGED = 'lifecycle.contentChanged',
-    TAG_CHANGED = 'lifecycle.tagChanged',
+    ERROR = 'component.error',
 }
 
 export enum DataType {
-    HTML_ELEMENT = 'HTMLElement',
-    RECORD = 'Record<string, unknown>',
-    VOID = 'void',
+    BODY = 'Body',
+    RENDER_PAYLOAD = 'RenderPayload',
+    UPDATE_PAYLOAD = 'UpdatePayload',
+    REMOVE_PAYLOAD = 'RemovePayload',
+    RENDERED_RESULT = 'RenderedResult',
+    UPDATED_RESULT = 'UpdatedResult',
+    REMOVED_RESULT = 'RemovedResult',
     EVENT_CONTEXT = 'EventContext',
-    LIFECYCLE_CONTEXT = 'LifecycleContext',
+    UNKNOWN = 'unknown',
 }
 
 export interface Body {
-    readonly id?: string;
-    readonly tag?: string;
-    readonly observedAttributes?: readonly string[];
-    readonly attributes?: Readonly<Record<string, string>>;
-    readonly text?: string;
-    readonly container?: HTMLElement;
-    readonly parentTo?: Disposition['parentTo'];
-}
-
-export interface Config<TBody = Body> {
-    readonly id?: string;
-    readonly reactTo?: readonly string[];
-    readonly body?: TBody;
-    readonly disposition?: Disposition<TBody>;
-    readonly target?: EventTarget;
-    readonly container?: HTMLElement;
-    readonly tag?: string;
-    readonly observedAttributes?: readonly string[];
-}
-
-export interface LifecycleContext {
-    readonly id: string;
-    readonly tag?: string;
-    readonly attribute?: string;
-    readonly oldValue?: string | null;
-    readonly newValue?: string | null;
+    readonly attributes?: Record<string, string>;
     readonly content?: string;
-    readonly oldTag?: string;
-    readonly newTag?: string;
+    readonly events?: readonly string[];
 }
 
-export interface ReactiveCustomElementConstructor extends CustomElementConstructor {
-    readonly observedAttributes?: readonly string[];
+export interface RenderPayload {
+    readonly elementId?: string;
+    readonly tag?: string;
+    readonly containerElement?: string;
+    readonly attributes?: Record<string, string>;
+    readonly content?: string;
+    readonly events?: readonly string[];
+}
+
+export interface UpdatePayload {
+    readonly elementId?: string;
+    readonly attributes?: Record<string, string>;
+    readonly content?: string;
+    readonly events?: readonly string[];
+}
+
+export interface RemovePayload {
+    readonly elementId?: string;
+}
+
+export interface RenderedResult {
+    readonly elementId: string;
+    readonly tag: string;
+}
+
+export interface UpdatedResult {
+    readonly elementId: string;
+    readonly updated: boolean;
+}
+
+export interface RemovedResult {
+    readonly elementId: string;
+    readonly removed: boolean;
 }
 
 export interface EventContext {
-    readonly id: string;
+    readonly elementId: string;
+    readonly rootElementId?: string;
     readonly event: string;
+    readonly action?: string;
     readonly value?: unknown;
     readonly checked?: boolean;
     readonly detail?: unknown;
 }
-

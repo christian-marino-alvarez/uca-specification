@@ -1,115 +1,71 @@
-import { strict as assert } from 'node:assert';
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { DispositionSignal, type Signal } from '@uca/core/types';
+import { SignalType as SseSignalType } from '@uca/capability-sse-client/types';
 import { Composer } from '../index.js';
-import { SignalType, type ComposedResult } from '../types.js';
-import { __ID__, DEFAULT_PURPOSE } from '../constants.js';
+import { SignalType, type StreamResult } from '../types.js';
+import { CHILDREN, DISPOSITION } from './constants.js';
 
-function createMockStream(content: string): ReadableStream<string> {
-    return new ReadableStream<string>({
-        start(controller) {
-            controller.enqueue(content);
-            controller.close();
-        },
-    });
+function emit(bus: EventTarget, property: string, value: unknown, source = 'client'): void {
+    const detail: Signal = { source, property, value, timestamp: Date.now() };
+    bus.dispatchEvent(new CustomEvent(property, { detail }));
 }
 
-function testComposer_Initialization(): void {
-    const composer = new Composer();
-    assert.equal(composer.id, __ID__);
-    assert.equal(Composer.purpose, DEFAULT_PURPOSE);
-    const { aim } = Composer.disposition;
-    assert.equal(aim.description, DEFAULT_PURPOSE);
+function receive<Value>(bus: EventTarget, property: string): Promise<Value> {
+    return new Promise((resolve) => bus.addEventListener(property, (event) => {
+        const { detail: { value } } = event as CustomEvent<Signal<Value>>;
+        resolve(value);
+    }, { once: true }));
 }
 
-function assertComposedResult(result: ComposedResult, customCssRules: unknown[]): void {
-    assert.equal(result.targetUca, 'panelExplorer');
-    assert.equal(result.nodes.length, 2);
-    assert.equal(result.nodes[0]?.uca, 'box');
-    assert.equal(result.nodes[1]?.uca, 'action');
-    assert.equal(customCssRules.length, 1);
+function response(value: unknown): Response {
+    return new Response(`data: ${JSON.stringify({ text: JSON.stringify(value) })}\n\ndata: [DONE]\n\n`);
 }
 
-async function testComposer_StreamedReaction(): Promise<void> {
+async function readAll(stream: ReadableStream<Record<string, unknown>>): Promise<Record<string, unknown>> {
+    const reader = stream.getReader();
+    let accumulated: Record<string, unknown> = {};
+    for (let { done, value } = await reader.read(); !done; { done, value } = await reader.read()) {
+        accumulated = { ...accumulated, ...value };
+    }
+    return accumulated;
+}
+
+await test('Composer streams validated immediate children with domain context and dimensions', async (context) => {
+    context.mock.method(globalThis, 'fetch', async () => response(CHILDREN));
     const bus = new EventTarget();
-    const composer = new Composer();
-    composer.innervate(bus);
-    let composedResult: ComposedResult | undefined;
-    const customCssRules: unknown[] = [];
-    bus.addEventListener(SignalType.COMPOSED, (event: Event) => {
-        const { detail } = event as CustomEvent;
-        composedResult = detail?.value as ComposedResult;
-    });
-    bus.addEventListener('css.create', (event: Event) => {
-        const { detail } = event as CustomEvent;
-        customCssRules.push(detail?.value);
-    });
-    const mockContent = JSON.stringify({
-        nodes: [
-            { id: 'boxCard', uca: 'box', parentTo: 'panelExplorer', body: { className: 'uca-skin-surface' } },
-            { id: 'btnSubmit', uca: 'action', parentTo: 'boxCard', body: { label: 'Ejecutar', className: 'uca-component-button' } },
-        ],
-        rules: [
-            { selector: '.custom-highlight', declarations: { 'border-color': '#00ff88' } },
-        ],
-    });
-    const stream = createMockStream(mockContent);
-    bus.dispatchEvent(new CustomEvent('web-llm.streamed', {
-        detail: { source: 'test', property: 'web-llm.streamed', value: { correlationId: 'c-1', stream, targetUca: 'panelExplorer' } },
-    }));
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    assert.ok(composedResult);
-    assertComposedResult(composedResult, customCssRules);
-}
+    const streamed = receive<StreamResult>(bus, SignalType.STREAMED);
+    const composer = new Composer().innervate(bus, { aim: { description: 'Explain UCA', body: { ...DISPOSITION.aim.body, correlationId: 'first' } } });
+    context.after(() => composer.denervate());
+    const { stream, correlationId } = await streamed;
+    const children = await readAll(stream);
+    assert.deepEqual(children, CHILDREN);
+    assert.equal(correlationId, 'first');
+});
 
-async function testComposer_PipedStreamReaction(): Promise<void> {
+await test('Disposition changes request a fresh composition with the new operating context', async (context) => {
+    context.mock.method(globalThis, 'fetch', async () => response({ navigation: CHILDREN.navigation }));
     const bus = new EventTarget();
-    const composer = new Composer();
-    composer.innervate(bus);
+    const composer = new Composer().innervate(bus, DISPOSITION);
+    context.after(() => composer.denervate());
+    const requested = receive<{ request: string }>(bus, SseSignalType.STREAM);
+    const streamed = receive<StreamResult>(bus, SignalType.STREAMED);
+    emit(bus, DispositionSignal.UPDATE, { id: 'composer', disposition: { aim: { body: { context: 'Mobile reader' } } } });
+    const { request } = await requested;
+    assert.match(request, /Mobile reader/);
+    const { stream } = await streamed;
+    const children = await readAll(stream);
+    assert.deepEqual(children, { navigation: CHILDREN.navigation });
+});
 
-    let outputStream: ReadableStream<ComposedResult> | undefined;
-    bus.addEventListener(SignalType.STREAMED, (event: Event) => {
-        const { detail } = event as CustomEvent;
-        outputStream = detail?.value?.stream;
-    });
+await test('handleTransformed ignores transformed streams lacking a correlationId', async (context) => {
+    const bus = new EventTarget();
+    let streamedEmitted = false;
+    bus.addEventListener(SignalType.STREAMED, () => { streamedEmitted = true; });
+    const composer = new Composer().innervate(bus);
+    context.after(() => composer.denervate());
+    emit(bus, 'stream-transformer.transformed', { stream: new ReadableStream() });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(streamedEmitted, false);
+});
 
-    const mockContent = JSON.stringify({
-        nodes: [{ id: 'boxCard', uca: 'box', parentTo: 'app', body: {} }],
-        rules: [],
-    });
-
-    bus.addEventListener('web-llm.stream', (event: Event) => {
-        const { detail } = event as CustomEvent;
-        const { correlationId, targetUca } = detail?.value ?? {};
-        const stream = createMockStream(mockContent);
-        bus.dispatchEvent(new CustomEvent('web-llm.streamed', {
-            detail: { source: 'test', property: 'web-llm.streamed', value: { correlationId, stream, targetUca } },
-        }));
-    });
-
-    const inputStream = new ReadableStream({
-        start(controller) {
-            controller.enqueue({ container: { purpose: 'Main box', parentTo: 'app' } });
-            controller.close();
-        },
-    });
-
-    bus.dispatchEvent(new CustomEvent(SignalType.STREAM, {
-        detail: { source: 'test', property: SignalType.STREAM, value: { stream: inputStream } },
-    }));
-
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    assert.ok(outputStream instanceof ReadableStream);
-    const reader = outputStream.getReader();
-    const { value: firstResult } = await reader.read();
-    assert.ok(firstResult);
-    assert.equal(firstResult?.targetUca, 'container');
-    assert.equal(firstResult?.nodes.length, 1);
-}
-
-async function runTests(): Promise<void> {
-    testComposer_Initialization();
-    await testComposer_StreamedReaction();
-    await testComposer_PipedStreamReaction();
-    console.log('✅ Composer UCA tests passed successfully');
-}
-
-runTests();

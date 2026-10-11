@@ -1,7 +1,7 @@
 {
   "name": "@uca/composer",
   "version": "0.1.0",
-  "description": "Composer UCA synthesizing fractal templates and logic for emergent UCAs using web primitives and CSS capability",
+  "description": "Reactive immediate child composition with delegated purposes, contexts and spatial dimensions",
   "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",
@@ -43,12 +43,12 @@
     }
   },
   "dependencies": {
-    "@uca/capability-css": "^0.1.0",
+    "@uca/capability-sse-client": "^0.1.0",
+    "@uca/capability-stream-transformer": "^0.1.0",
     "@uca/core": "^0.1.0",
-    "@uca/web-llm": "^0.1.0",
     "zod": "^4.6.5"
   },
   "scripts": {
-    "test": "tsx tests/index.ts"
+    "test": "tsx --test tests/index.ts tests/schema.ts"
   }
 }

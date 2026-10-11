@@ -181,6 +181,30 @@ async function assertSanitizedStream(result: TransformResult | undefined, transf
     transformer.denervate();
 }
 
+async function testStreamTransformer_ParsesMarkdownFencedNdjson(): Promise<void> {
+    const bus = new EventTarget();
+    let result: TransformResult | undefined;
+    bus.addEventListener(SignalType.TRANSFORMED, (event: Event) => {
+        result = (event as CustomEvent<Signal>).detail?.value as TransformResult;
+    });
+    const transformer = new StreamTransformer().innervate(bus);
+    const textStream = createTextStream([
+        '```json\n{"id": "app:bar", "purpose": "Bar"}\n```\n',
+        '```json\n{"id": "app:nav", "purpose": "Nav"}\n```',
+    ]);
+    emitSignal(bus, SignalType.TRANSFORM, { correlationId: 'c-fence', stream: textStream });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.ok(result !== undefined);
+    const reader = result.stream.getReader();
+    const { value: first } = await reader.read();
+    assert.deepStrictEqual(first, { id: 'app:bar', purpose: 'Bar' });
+    const { value: second } = await reader.read();
+    assert.deepStrictEqual(second, { id: 'app:nav', purpose: 'Nav' });
+    const { done } = await reader.read();
+    assert.strictEqual(done, true);
+    transformer.denervate();
+}
+
 async function runTests(): Promise<void> {
     console.log('🧪 Testing StreamTransformer Capability (text stream -> object stream)...');
     testStreamTransformer_IdentityAndDefaults();
@@ -189,6 +213,7 @@ async function runTests(): Promise<void> {
     await testStreamTransformer_TransformWithSchemaValidation();
     await testStreamTransformer_TransformWrappedOuterObject();
     await testStreamTransformer_IgnoresStandaloneMetadata();
+    await testStreamTransformer_ParsesMarkdownFencedNdjson();
     console.log('✅ All StreamTransformer Capability tests passed successfully!');
 }
 

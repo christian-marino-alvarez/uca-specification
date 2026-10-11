@@ -600,7 +600,6 @@ function assertChildPropagation(parent: Uca): Uca {
     const child = (parent as unknown as { registry: Map<string, Uca> }).registry.get('child-1');
     assert.ok(child !== undefined);
     assert.strictEqual(child?.context, 'Parent master purpose');
-    assert.deepStrictEqual(child?.disposition.parentTo, { uca: 'parent-1', relation: 'contains' });
     return child!;
 }
 
@@ -608,10 +607,9 @@ function assertGrandchildPropagation(child: Uca): void {
     const grandchild = (child as unknown as { registry: Map<string, Uca> }).registry.get('grandchild-1');
     assert.ok(grandchild !== undefined);
     assert.strictEqual(grandchild?.context, 'Parent master purpose → Child purpose');
-    assert.deepStrictEqual(grandchild?.disposition.parentTo, { uca: 'child-1', relation: 'contains' });
 }
 
-async function testCore_UcaContextAndParentToPropagation(): Promise<void> {
+async function testCore_UcaContextPropagation(): Promise<void> {
     class GrandchildProbe extends Uca { public static override purpose = 'Grandchild purpose'; }
     class ChildProbe extends Uca {
         public static override purpose = 'Child purpose';
@@ -646,7 +644,7 @@ async function runAllTests(): Promise<void> {
     await testCore_UcaDispositionUpdateAndStorage();
     await testCore_UcaRespondsToDispositionGetWithProvide();
     await testCore_UcaMatchesIdIsolation();
-    await testCore_UcaContextAndParentToPropagation();
+    await testCore_UcaContextPropagation();
     console.log('✔ All 18 Core UCA lifecycle, Cooky, attribute mapping, context and storage tests passed successfully.');
 }
 
