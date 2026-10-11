@@ -8,9 +8,7 @@
   "scripts": {
     "test": "tsx tests/index.ts && tsx tests/uca.ts && tsx tests/capability.ts"
   },
-  "dependencies": {
-    "@uca/capability-local-storage": "^0.1.0"
-  },
+
   "exports": {
     ".": {
       "types": "./index.d.ts",

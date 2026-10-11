@@ -45,6 +45,7 @@ export interface DispositionOptions {
 export interface Disposition<TBody = unknown> {
     reactTo?: string[];
     aim: Aim<TBody>;
+    readonly limits?: Record<string, unknown>;
     readonly inputs?: readonly Port[];
     readonly outputs?: readonly Port[];
 }
@@ -53,9 +54,9 @@ export interface Disposition<TBody = unknown> {
  * DispositionSignal: Señales nerviosas ontológicas para actualización reactiva de la disposición.
  */
 export enum DispositionSignal {
-    UPDATE = 'disposition.update',
+    UPDATE = 'UPDATE',
     UPDATED = 'disposition.updated',
-    GET = 'disposition.get',
+    GET = 'GET',
     PROVIDE = 'disposition.provide',
 }
 
@@ -74,14 +75,6 @@ export enum StorageSignal {
 export type StorageSignalType = StorageSignal;
 
 /**
- * DispositionUpdatePayload: Contrato para actualización reactiva de la disposición.
- */
-export interface DispositionUpdatePayload<TBody = unknown> {
-    readonly id: string;
-    readonly disposition: Partial<Disposition<TBody>>;
-}
-
-/**
  * DispositionUpdatedPayload: Contrato emitido tras la actualización reactiva de la disposición.
  */
 export interface DispositionUpdatedPayload<TBody = unknown> {
@@ -93,10 +86,11 @@ export interface DispositionUpdatedPayload<TBody = unknown> {
  * DispositionProvidePayload: Contrato emitido por una UCA al responder a una petición disposition.get.
  */
 export interface DispositionProvidePayload<TBody = unknown> {
-    readonly ucaId: string;
-    readonly prefix: string;
-    readonly purpose: string;
+    readonly id: string;
     readonly disposition: Disposition<TBody>;
+    readonly ucaId?: string;
+    readonly prefix?: string;
+    readonly purpose?: string;
     readonly ucaConstructor?: CapabilityConstructor;
 }
 
@@ -105,9 +99,11 @@ export interface DispositionProvidePayload<TBody = unknown> {
  */
 export interface ICapability<TBody = unknown> {
     readonly id: string;
+    readonly updateEvent: string;
+    readonly getEvent: string;
     readonly disposition: Disposition<TBody>;
     readonly target?: EventTarget;
-    innervate(target?: EventTarget, disposition?: Disposition<TBody>): this;
+    innervate(target?: EventTarget): this;
     denervate(): void;
 }
 

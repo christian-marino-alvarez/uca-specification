@@ -1,5 +1,3 @@
-import { SignalType } from './types.js';
-
 export const __ID__ = 'css';
 
 export const TOKENS_STYLE_ID = 'uca-tokens';
@@ -91,10 +89,3 @@ export const DESIGN_TOKENS = {
         between: { $value: 'space-between', $description: 'Distribute items with space between' },
     },
 } as const;
-
-export const DEFAULT_SIGNALS: readonly SignalType[] = [
-    SignalType.APPLY,
-    SignalType.RESOLVE,
-    SignalType.THEME,
-    SignalType.REMOVE,
-] as const;

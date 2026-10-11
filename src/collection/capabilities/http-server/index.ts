@@ -5,7 +5,6 @@ import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import {
     __ID__,
-    __DEFAULT_SIGNALS__,
     AIM,
     DEFAULT_HOSTNAME,
     DEFAULT_PORT,
@@ -28,7 +27,12 @@ export class HttpServer extends Capability<Body> {
 
     public static override disposition: Disposition<Body> = {
         aim: { description: AIM, body: {} },
-        reactTo: [...__DEFAULT_SIGNALS__],
+        reactTo: [
+            SignalType.LISTEN,
+            SignalType.CLOSE,
+            SignalType.ROUTE,
+            SignalType.RESPOND,
+        ],
         inputs: [
             { signal: SignalType.LISTEN, type: DataType.LISTEN_CONFIG, description: 'Start HTTP server listening' },
             { signal: SignalType.CLOSE, type: DataType.VOID, description: 'Stop HTTP server' },
@@ -56,11 +60,10 @@ export class HttpServer extends Capability<Body> {
         this.setupDispatcher();
     }
 
-    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
-        super.innervate(target, disposition);
+    protected override onDispositionUpdated(event: Event): void {
+        super.onDispositionUpdated(event);
         this.configureInitialRoutes();
         this.evaluateAutoStart();
-        return this;
     }
 
     public override denervate(): void {

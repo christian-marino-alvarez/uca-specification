@@ -53,6 +53,12 @@ function uninstallMockBrowserLanguageModel(): void {
     delete (globalThis as unknown as { LanguageModel?: unknown }).LanguageModel;
 }
 
+function activateApiPrompt(model: ApiPrompt, bus: EventTarget, disposition = ApiPrompt.disposition): ApiPrompt {
+    model.innervate(bus);
+    emitSignal(bus, model.updateEvent, disposition);
+    return model;
+}
+
 function testApiPrompt_IdentityAndDefaults(): void {
     const model = new ApiPrompt();
     assert.ok(model instanceof Capability);
@@ -81,7 +87,7 @@ async function testApiPrompt_AvailabilityContract(): Promise<void> {
     });
 
     installMockBrowserLanguageModel();
-    const model = new ApiPrompt().innervate(bus);
+    const model = activateApiPrompt(new ApiPrompt(), bus);
     const contract: AvailabilityOptions = {
         expectedInputs: [{ type: 'text', languages: ['en', 'es'] }],
         expectedOutputs: [{ type: 'text', languages: ['es'] }],
@@ -110,7 +116,7 @@ async function testApiPrompt_DownloadAndCreateFlow(): Promise<void> {
     });
 
     installMockBrowserLanguageModel();
-    const model = new ApiPrompt().innervate(bus);
+    const model = activateApiPrompt(new ApiPrompt(), bus);
     emitSignal(bus, SignalType.CREATE, { systemPrompt: 'You are helpful' });
     await new Promise((resolve) => setTimeout(resolve, 20));
 
@@ -133,7 +139,7 @@ async function testApiPrompt_StreamReturnsReadableStreamDirectly(): Promise<void
     });
 
     installMockBrowserLanguageModel();
-    const model = new ApiPrompt().innervate(bus);
+    const model = activateApiPrompt(new ApiPrompt(), bus);
     emitSignal(bus, SignalType.STREAM, { correlationId: 'c-stream', streamId: 's-42', prompt: 'Hola mundo' });
     await new Promise((resolve) => setTimeout(resolve, 20));
 
@@ -163,7 +169,7 @@ async function testApiPrompt_PromptExecution(): Promise<void> {
     });
 
     installMockBrowserLanguageModel();
-    const model = new ApiPrompt().innervate(bus);
+    const model = activateApiPrompt(new ApiPrompt(), bus);
     emitSignal(bus, SignalType.PROMPT, { correlationId: 'c-prompt', prompt: 'Test prompt' });
     await new Promise((resolve) => setTimeout(resolve, 20));
 
@@ -184,7 +190,7 @@ async function testApiPrompt_MultimodalPromptExecution(): Promise<void> {
     });
 
     installMockBrowserLanguageModel();
-    const model = new ApiPrompt().innervate(bus);
+    const model = activateApiPrompt(new ApiPrompt(), bus);
     const multimodalPrompt = [
         {
             role: 'user',
@@ -219,7 +225,7 @@ async function testApiPrompt_ErrorInNonBrowserEnvironment(): Promise<void> {
     });
 
     uninstallMockBrowserLanguageModel();
-    const model = new ApiPrompt().innervate(bus);
+    const model = activateApiPrompt(new ApiPrompt(), bus);
     emitSignal(bus, SignalType.STREAM, { correlationId: 'c-err', prompt: 'test' });
     await new Promise((resolve) => setTimeout(resolve, 20));
 
@@ -237,7 +243,7 @@ async function testApiPrompt_DestroyContract(): Promise<void> {
         destroyed = true;
     });
 
-    const model = new ApiPrompt().innervate(bus);
+    const model = activateApiPrompt(new ApiPrompt(), bus);
     emitSignal(bus, SignalType.DESTROY, {});
     await new Promise((resolve) => setTimeout(resolve, 20));
 
@@ -256,8 +262,10 @@ async function testApiPrompt_PersistentSessionContract(): Promise<void> {
         destroyedResult = destroyed;
     });
 
-    const model = new ApiPrompt();
-    model.innervate(bus, { aim: { description: 'test', body: { persistentSession: true, autoLoad: true } }, reactTo: [] });
+    const model = activateApiPrompt(new ApiPrompt(), bus, {
+        ...ApiPrompt.disposition,
+        aim: { description: 'test', body: { persistentSession: true, autoLoad: true } },
+    });
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     emitSignal(bus, SignalType.DESTROY, {});

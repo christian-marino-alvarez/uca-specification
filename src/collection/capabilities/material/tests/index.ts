@@ -11,6 +11,12 @@ function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     bus.dispatchEvent(new CustomEvent(property, { detail: signal }));
 }
 
+function activateMaterial(material: Material, bus: EventTarget): Material {
+    material.innervate(bus);
+    emitSignal(bus, material.updateEvent, Material.disposition);
+    return material;
+}
+
 function testMaterial_IdentityAndPorts(): void {
     const material = new Material();
     assert.strictEqual(material.id, __ID__);
@@ -29,7 +35,7 @@ function testMaterial_InnervationInjectsDefaultTokens(): void {
         captured = (event as CustomEvent<Signal<AppliedResult>>).detail.value;
     });
 
-    const material = new Material('material-test').innervate(bus);
+    const material = activateMaterial(new Material('material-test'), bus);
     assert.ok(captured !== undefined);
     assert.strictEqual(captured.theme, 'light');
     assert.strictEqual(captured.tokens['--md-sys-shape-corner-full'], '9999px');
@@ -48,7 +54,7 @@ function testMaterial_AppliesDarkThemeOnSignal(): void {
         captured = (event as CustomEvent<Signal<AppliedResult>>).detail.value;
     });
 
-    const material = new Material('material-theme-test').innervate(bus);
+    const material = activateMaterial(new Material('material-theme-test'), bus);
     emitSignal(bus, SignalType.THEME, 'dark');
 
     assert.ok(captured !== undefined);
@@ -68,7 +74,7 @@ function testMaterial_AppliesCustomSeedColor(): void {
         captured = (event as CustomEvent<Signal<AppliedResult>>).detail.value;
     });
 
-    const material = new Material('material-seed-test').innervate(bus);
+    const material = activateMaterial(new Material('material-seed-test'), bus);
     const payload: ApplyPayload = { seedColor: '#ff0055' };
     emitSignal(bus, SignalType.APPLY, payload);
 
@@ -83,7 +89,7 @@ function testMaterial_AppliesCustomSeedColor(): void {
 
 function testMaterial_DenervationRemovesStyleElement(): void {
     const bus = new EventTarget();
-    const material = new Material('material-cleanup-test').innervate(bus);
+    const material = activateMaterial(new Material('material-cleanup-test'), bus);
     assert.ok(document.getElementById(STYLE_ELEMENT_ID) !== null);
 
     material.denervate();

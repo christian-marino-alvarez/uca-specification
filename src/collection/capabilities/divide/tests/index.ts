@@ -25,6 +25,7 @@ function testDivide_IdentityAndDefaults(): void {
 function testDivide_CalculatesResultAndRest(): void {
     const bus = new EventTarget();
     const divide = new Divide('divide-test').innervate(bus);
+    emitSignal(bus, divide.updateEvent, Divide.disposition);
     let outcome: Outcome | undefined = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
         outcome = (event as CustomEvent<Signal<Outcome>>).detail.value;
@@ -45,6 +46,7 @@ function testDivide_CalculatesResultAndRest(): void {
 function testDivide_DivisionByZeroDoesNotPulse(): void {
     const bus = new EventTarget();
     const divide = new Divide('divide-zero').innervate(bus);
+    emitSignal(bus, divide.updateEvent, Divide.disposition);
     let called = false;
     bus.addEventListener(SignalType.EVALUATED, () => {
         called = true;
@@ -59,7 +61,8 @@ function testDivide_DivisionByZeroDoesNotPulse(): void {
 function testDivide_UsesFallbackDispositionAimBody(): void {
     const bus = new EventTarget();
     const disposition: Disposition<Body> = { aim: { description: 'Divide fallback', body: { operands: [100, 25] as const } }, reactTo: [SignalType.EVALUATE] };
-    const divide = new Divide('divide-fallback').innervate(bus, disposition);
+    const divide = new Divide('divide-fallback').innervate(bus);
+    emitSignal(bus, divide.updateEvent, disposition);
     let outcome: Outcome | undefined = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
         outcome = (event as CustomEvent<Signal<Outcome>>).detail.value;
@@ -75,7 +78,8 @@ function testDivide_DynamicReactiveComposition(): void {
     const bus = new EventTarget();
     // Capability B: Divide configured dynamically to reactTo custom signal 'producer.computed'
     const dynamicDisposition: Disposition<Body> = { aim: { description: 'Dynamic division', body: {} }, reactTo: ['producer.computed'] };
-    const divide = new Divide('divide-dynamic').innervate(bus, dynamicDisposition);
+    const divide = new Divide('divide-dynamic').innervate(bus);
+    emitSignal(bus, divide.updateEvent, dynamicDisposition);
     let outcome: Outcome | undefined = undefined;
 
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {

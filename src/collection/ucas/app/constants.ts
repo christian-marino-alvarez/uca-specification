@@ -1,6 +1,4 @@
 import { DataType, SignalType } from './types.js';
-import { SignalType as ComposerSignalType } from '@uca/composer/types';
-import { SignalType as BrowserSignalType } from '@uca/capability-browser/types';
 
 export const __ID__ = 'app';
 
@@ -9,13 +7,6 @@ export const DEFAULT_CONTEXT = [
     'Disposición espacial elegante en modo oscuro con barra de actividad vertical estrecha, panel lateral de navegación de conceptos ontológicos, área central de trabajo para la explicación interactiva y barra/consola inferior de estado y señales.',
     'Diseño profesional, limpio y directo, sin secciones sobredimensionadas ni decoraciones superfluas.',
 ].join(' ');
-
-export const DEFAULT_SIGNALS: readonly string[] = [
-    ComposerSignalType.STREAMED,
-    ComposerSignalType.ERROR,
-    BrowserSignalType.DETECTED,
-    BrowserSignalType.CHANGED,
-] as const;
 
 export const INPUTS = [] as const;
 export const OUTPUTS = [

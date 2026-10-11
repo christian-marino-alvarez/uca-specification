@@ -24,6 +24,7 @@ function testGemini_IdentityAndDefaults(): void {
 function testGemini_ConnectSignal(): void {
     const bus = new EventTarget();
     const gemini = new Gemini('gemini-conn').innervate(bus);
+    emitSignal(bus, gemini.updateEvent, Gemini.disposition);
     let connected = false;
 
     bus.addEventListener(SignalType.CONNECTED, () => {
@@ -50,7 +51,8 @@ async function testGemini_GenerateWithMockClient(): Promise<void> {
         aim: { description: Gemini.AIM, body: { client: mockClient } },
         reactTo: [SignalType.CONNECT, SignalType.GENERATE],
     };
-    const gemini = new Gemini('gemini-gen').innervate(bus, disposition);
+    const gemini = new Gemini('gemini-gen').innervate(bus);
+    emitSignal(bus, gemini.updateEvent, disposition);
     let capturedResult: GenerateResult | undefined;
 
     bus.addEventListener(SignalType.GENERATED, (event: Event) => {
@@ -87,7 +89,8 @@ async function testGemini_GenerateHandlesError(): Promise<void> {
         aim: { description: Gemini.AIM, body: { client: failingClient } },
         reactTo: [SignalType.CONNECT, SignalType.GENERATE],
     };
-    const gemini = new Gemini('gemini-err').innervate(bus, disposition);
+    const gemini = new Gemini('gemini-err').innervate(bus);
+    emitSignal(bus, gemini.updateEvent, disposition);
     let errorCaptured: unknown;
 
     bus.addEventListener(SignalType.ERROR, (event: Event) => {

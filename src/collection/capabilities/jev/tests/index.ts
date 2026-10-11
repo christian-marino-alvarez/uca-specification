@@ -24,6 +24,7 @@ function testJev_IdentityAndDefaults(): void {
 function testJev_ConnectSignal(): void {
     const bus = new EventTarget();
     const jev = new Jev('jev-conn').innervate(bus);
+    emitSignal(bus, jev.updateEvent, Jev.disposition);
     let connected = false;
 
     bus.addEventListener(SignalType.CONNECTED, () => {
@@ -45,7 +46,8 @@ async function testJev_InferWithMockClient(): Promise<void> {
     } as unknown as TypeSafeClient;
 
     const disposition: Disposition<Body> = { aim: { description: Jev.AIM, body: { client: mockClient } }, reactTo: [SignalType.CONNECT, SignalType.INFER] };
-    const jev = new Jev('jev-infer').innervate(bus, disposition);
+    const jev = new Jev('jev-infer').innervate(bus);
+    emitSignal(bus, jev.updateEvent, disposition);
     let capturedResult: InferResult | undefined;
 
     bus.addEventListener(SignalType.INFERRED, (event: Event) => {
@@ -75,7 +77,8 @@ async function testJev_InferHandlesError(): Promise<void> {
     } as unknown as TypeSafeClient;
 
     const disposition: Disposition<Body> = { aim: { description: Jev.AIM, body: { client: failingClient } }, reactTo: [SignalType.CONNECT, SignalType.INFER] };
-    const jev = new Jev('jev-err').innervate(bus, disposition);
+    const jev = new Jev('jev-err').innervate(bus);
+    emitSignal(bus, jev.updateEvent, disposition);
     let errorCaptured: unknown;
 
     bus.addEventListener(SignalType.ERROR, (event: Event) => {

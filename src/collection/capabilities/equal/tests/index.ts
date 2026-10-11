@@ -24,6 +24,7 @@ function testEqual_IdentityAndDefaults(): void {
 function testEqual_EvaluatesDirectArrayOperandsReturningBoolean(): void {
     const bus = new EventTarget();
     const equal = new Equal('equal-test').innervate(bus);
+    emitSignal(bus, equal.updateEvent, Equal.disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
         result = (event as CustomEvent<Signal<boolean>>).detail.value;
@@ -38,6 +39,7 @@ function testEqual_EvaluatesDirectArrayOperandsReturningBoolean(): void {
 function testEqual_EvaluatesPayloadObjectOperands(): void {
     const bus = new EventTarget();
     const equal = new Equal().innervate(bus);
+    emitSignal(bus, equal.updateEvent, Equal.disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
         result = (event as CustomEvent<Signal<boolean>>).detail.value;
@@ -52,7 +54,8 @@ function testEqual_EvaluatesPayloadObjectOperands(): void {
 function testEqual_FallbackToDispositionOperands(): void {
     const bus = new EventTarget();
     const disposition: Disposition<Body> = { aim: { description: 'Equality check', body: { operands: [42, 42] as const } }, reactTo: [SignalType.EVALUATE] };
-    const equal = new Equal().innervate(bus, disposition);
+    const equal = new Equal().innervate(bus);
+    emitSignal(bus, equal.updateEvent, disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
         result = (event as CustomEvent<Signal<boolean>>).detail.value;

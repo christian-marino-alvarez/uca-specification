@@ -1,14 +1,14 @@
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import { type Body, type Operands, type Outcome, DataType, SignalType } from './types.js';
-import { __ID__, __DEFAULT_SIGNALS__ } from './constants.js';
+import { __ID__ } from './constants.js';
 
 export class Divide extends Capability<Body> {
     public static readonly AIM: string = 'Divide dividend by divisor and pulse outcome with result and rest';
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Divide.AIM, body: {} },
-        reactTo: [...__DEFAULT_SIGNALS__],
+        reactTo: [SignalType.EVALUATE],
         inputs: [{ signal: SignalType.EVALUATE, type: DataType.OPERANDS, description: 'Operands [dividend, divisor]' }],
         outputs: [{ signal: SignalType.EVALUATED, type: DataType.OUTCOME, description: 'Outcome { result, rest }' }],
     };

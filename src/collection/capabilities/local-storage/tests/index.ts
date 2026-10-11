@@ -11,6 +11,12 @@ function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     bus.dispatchEvent(new CustomEvent(property, { detail: signal }));
 }
 
+function activateLocalStorage(bus: EventTarget, cap: LocalStorage, disposition?: Disposition<Body>): LocalStorage {
+    cap.innervate(bus);
+    emitSignal(bus, cap.updateEvent, disposition ?? LocalStorage.disposition);
+    return cap;
+}
+
 function testLocalStorage_IdentityAndDefaults(): void {
     const storageCap = new LocalStorage();
     assert.strictEqual(storageCap.id, __ID__);
@@ -27,7 +33,7 @@ function testLocalStorage_IdentityAndDefaults(): void {
 
 function testLocalStorage_SetAndGet(): void {
     const bus = new EventTarget();
-    const storageCap = new LocalStorage('test-storage').innervate(bus);
+    const storageCap = activateLocalStorage(bus, new LocalStorage('test-storage'));
     let capturedSaved: StoredItem | undefined;
     let capturedRetrieved: StoredItem | undefined;
 
@@ -49,7 +55,7 @@ function testLocalStorage_SetAndGet(): void {
 
 function testLocalStorage_GetMissingKeyReturnsNull(): void {
     const bus = new EventTarget();
-    const storageCap = new LocalStorage('test-storage').innervate(bus);
+    const storageCap = activateLocalStorage(bus, new LocalStorage('test-storage'));
     let capturedRetrieved: StoredItem | undefined;
 
     bus.addEventListener(SignalType.RETRIEVED, (event: Event) => {
@@ -64,7 +70,7 @@ function testLocalStorage_GetMissingKeyReturnsNull(): void {
 
 function testLocalStorage_RemoveItem(): void {
     const bus = new EventTarget();
-    const storageCap = new LocalStorage('test-storage').innervate(bus);
+    const storageCap = activateLocalStorage(bus, new LocalStorage('test-storage'));
     let capturedRemoved: { key: string } | undefined;
     let capturedRetrieved: StoredItem | undefined;
 
@@ -87,7 +93,7 @@ function testLocalStorage_RemoveItem(): void {
 
 function testLocalStorage_Clear(): void {
     const bus = new EventTarget();
-    const storageCap = new LocalStorage('test-storage').innervate(bus);
+    const storageCap = activateLocalStorage(bus, new LocalStorage('test-storage'));
     let clearedCalled = false;
     let capturedRetrieved: StoredItem | undefined;
 
@@ -114,7 +120,7 @@ function testLocalStorage_PrefixSupport(): void {
         aim: { description: 'Prefixed storage', body: { prefix: 'app:v1:' } },
         reactTo: [...LocalStorage.disposition.reactTo ?? []],
     };
-    const storageCap = new LocalStorage('prefixed-storage').innervate(bus, disposition);
+    const storageCap = activateLocalStorage(bus, new LocalStorage('prefixed-storage'), disposition);
     let capturedRetrieved: StoredItem | undefined;
 
     bus.addEventListener(SignalType.RETRIEVED, (event: Event) => {
@@ -132,7 +138,7 @@ function testLocalStorage_PrefixSupport(): void {
 
 function testLocalStorage_ErrorWhenMissingKey(): void {
     const bus = new EventTarget();
-    const storageCap = new LocalStorage('error-storage').innervate(bus);
+    const storageCap = activateLocalStorage(bus, new LocalStorage('error-storage'));
     let capturedError: StorageError | undefined;
 
     bus.addEventListener(SignalType.ERROR, (event: Event) => {

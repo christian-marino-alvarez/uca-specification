@@ -21,6 +21,7 @@ function testGreaterThan_IdentityAndDefaults(): void {
 function testGreaterThan_EvaluatesDirectArrayOperands(): void {
     const bus = new EventTarget();
     const gt = new GreaterThan('gt-test').innervate(bus);
+    emitSignal(bus, gt.updateEvent, GreaterThan.disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
         result = (event as CustomEvent<Signal<boolean>>).detail.value;
@@ -41,6 +42,7 @@ function testGreaterThan_EvaluatesDirectArrayOperands(): void {
 function testGreaterThan_EvaluatesObjectPayload(): void {
     const bus = new EventTarget();
     const gt = new GreaterThan('gt-obj').innervate(bus);
+    emitSignal(bus, gt.updateEvent, GreaterThan.disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
         result = (event as CustomEvent<Signal<boolean>>).detail.value;
@@ -55,7 +57,8 @@ function testGreaterThan_EvaluatesObjectPayload(): void {
 function testGreaterThan_UsesFallbackDispositionAimBody(): void {
     const bus = new EventTarget();
     const disposition: Disposition<Body> = { aim: { description: 'Compare with fallback', body: { operands: [20, 10] as const } }, reactTo: [SignalType.EVALUATE] };
-    const gt = new GreaterThan('gt-fallback').innervate(bus, disposition);
+    const gt = new GreaterThan('gt-fallback').innervate(bus);
+    emitSignal(bus, gt.updateEvent, disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
         result = (event as CustomEvent<Signal<boolean>>).detail.value;

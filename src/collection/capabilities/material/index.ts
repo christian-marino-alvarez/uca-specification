@@ -2,7 +2,6 @@ import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import {
     __ID__,
-    __DEFAULT_SIGNALS__,
     AIM,
     DARK_TOKENS,
     DEFAULT_THEME,
@@ -25,7 +24,10 @@ export class Material extends Capability<Body> {
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Material.AIM, body: {} },
-        reactTo: [...__DEFAULT_SIGNALS__],
+        reactTo: [
+            SignalType.APPLY,
+            SignalType.THEME,
+        ],
         inputs: [
             { signal: SignalType.APPLY, type: DataType.APPLY_PAYLOAD, description: 'Apply M3 tokens and color roles' },
             { signal: SignalType.THEME, type: DataType.THEME_MODE, description: 'Switch active theme mode' },
@@ -39,10 +41,9 @@ export class Material extends Capability<Body> {
         super(id);
     }
 
-    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
-        super.innervate(target, disposition);
+    protected override onDispositionUpdated(event: Event): void {
+        super.onDispositionUpdated(event);
         this.synchronizeTokens();
-        return this;
     }
 
     public override denervate(): void {

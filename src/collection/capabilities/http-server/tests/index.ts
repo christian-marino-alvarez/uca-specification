@@ -25,31 +25,39 @@ async function testHttpServerCapability(): Promise<void> {
         receivedRequests.push(value as RequestContext);
     });
 
-    server.innervate(target, {
-        aim: {
-            description: HttpServer.AIM,
-            body: {
-                port: 39123,
-                hostname: '127.0.0.1',
-                routes: [
-                    {
-                        method: 'GET',
-                        path: '/health',
-                        response: { status: 200, body: { status: 'healthy' } },
+    server.innervate(target);
+    target.dispatchEvent(new CustomEvent(server.updateEvent, {
+        detail: {
+            source: 'test',
+            property: server.updateEvent,
+            value: {
+                aim: {
+                    description: HttpServer.AIM,
+                    body: {
+                        port: 39123,
+                        hostname: '127.0.0.1',
+                        routes: [
+                            {
+                                method: 'GET',
+                                path: '/health',
+                                response: { status: 200, body: { status: 'healthy' } },
+                            },
+                            {
+                                method: 'POST',
+                                path: '/echo',
+                                handler: (context: RequestContext) => ({
+                                    status: 201,
+                                    body: { received: context.body },
+                                }),
+                            },
+                        ],
                     },
-                    {
-                        method: 'POST',
-                        path: '/echo',
-                        handler: (context: RequestContext) => ({
-                            status: 201,
-                            body: { received: context.body },
-                        }),
-                    },
-                ],
+                },
+                reactTo: [SignalType.LISTEN, SignalType.CLOSE, SignalType.ROUTE, SignalType.RESPOND],
             },
+            timestamp: Date.now(),
         },
-        reactTo: [SignalType.LISTEN, SignalType.CLOSE, SignalType.ROUTE, SignalType.RESPOND],
-    });
+    }));
 
     target.dispatchEvent(new CustomEvent(SignalType.LISTEN, {
         detail: {

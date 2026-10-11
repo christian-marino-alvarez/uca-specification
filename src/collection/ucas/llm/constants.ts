@@ -4,23 +4,3 @@ export const DEFAULT_INSTRUCTION = 'Eres el motor cognitivo de Extensio UCA. Com
 export const DEFAULT_PROVIDER = 'gemini';
 export const DEFAULT_OPENAI_MODEL = 'gpt-4o';
 export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
-
-export const DEFAULT_SIGNALS: readonly string[] = [
-    'llm.infer',
-    'llm.stream',
-    'llm.connect',
-    'gemini.connected',
-    'gemini.generated',
-    'gemini.chunk',
-    'gemini.stream-end',
-    'gemini.error',
-    'openai.connected',
-    'openai.generated',
-    'openai.chunk',
-    'openai.stream-end',
-    'openai.error',
-] as const;
-
-export const __DEFAULT_SIGNALS__ = DEFAULT_SIGNALS;
-
-

@@ -1,5 +1,3 @@
-import { SignalType } from './types.js';
-
 export const __ID__ = 'browser';
 export const AIM = 'Detect and stream reactive browser, viewport, and screen environment context';
 
@@ -31,8 +29,3 @@ export const DEFAULT_CONTEXT = {
     screen: DEFAULT_SCREEN,
     browser: DEFAULT_BROWSER,
 } as const;
-
-export const DEFAULT_SIGNALS: readonly SignalType[] = [
-    SignalType.READ,
-    SignalType.DESTROY,
-];

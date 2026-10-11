@@ -16,6 +16,9 @@ function testSseClientAbort(): void {
     const bus = new EventTarget();
     const client = new SseClient();
     client.innervate(bus);
+    bus.dispatchEvent(new CustomEvent(client.updateEvent, {
+        detail: { source: 'test', property: client.updateEvent, value: SseClient.disposition, timestamp: Date.now() },
+    }));
     let aborted = false;
     bus.addEventListener(SignalType.ABORTED, () => {
         aborted = true;

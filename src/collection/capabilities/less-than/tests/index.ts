@@ -21,6 +21,7 @@ function testLessThan_IdentityAndDefaults(): void {
 function testLessThan_EvaluatesDirectArrayOperands(): void {
     const bus = new EventTarget();
     const lt = new LessThan('lt-test').innervate(bus);
+    emitSignal(bus, lt.updateEvent, LessThan.disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
         result = (event as CustomEvent<Signal<boolean>>).detail.value;
@@ -41,6 +42,7 @@ function testLessThan_EvaluatesDirectArrayOperands(): void {
 function testLessThan_EvaluatesObjectPayload(): void {
     const bus = new EventTarget();
     const lt = new LessThan('lt-obj').innervate(bus);
+    emitSignal(bus, lt.updateEvent, LessThan.disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
         result = (event as CustomEvent<Signal<boolean>>).detail.value;
@@ -55,7 +57,8 @@ function testLessThan_EvaluatesObjectPayload(): void {
 function testLessThan_UsesFallbackDispositionAimBody(): void {
     const bus = new EventTarget();
     const disposition: Disposition<Body> = { aim: { description: 'Compare with fallback', body: { operands: [5, 15] as const } }, reactTo: [SignalType.EVALUATE] };
-    const lt = new LessThan('lt-fallback').innervate(bus, disposition);
+    const lt = new LessThan('lt-fallback').innervate(bus);
+    emitSignal(bus, lt.updateEvent, disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
         result = (event as CustomEvent<Signal<boolean>>).detail.value;

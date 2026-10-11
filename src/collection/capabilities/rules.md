@@ -72,8 +72,8 @@ Una **Capability** representa una habilidad funcional o mecánica pura, terminal
 9. **Replicación Espejo de Ficheros en `tests/` (Sin Sufijo `.test`)**:
    * Toda prueba dentro del subdominio de una capability debe replicar exactamente el nombre del archivo de producción que valida, sin añadir sufijos redundantes.
    * Para `index.ts`, su suite debe denominarse estrictamente `tests/index.ts`. Para módulos auxiliares como `helpers.ts`, `tests/helpers.ts`.
-10. **Nomenclatura Semántica de Señales en `innervate()` (`defaultSignals`)**:
-    * Las listas de señales a las que una Capability se predispone a reaccionar por defecto deben nombrarse conceptualmente como señales (`defaultSignals`), no como patrones abstractos (`defaultPatterns`). Son estímulos nerviosos concretos tipados con `SignalType`.
+10. **Definición de Señales Reactivas en `disposition.reactTo`**:
+    * Las señales a las que una Capability se predispone a reaccionar se declaran directamente en el array `reactTo` de su objeto estático `disposition` utilizando el enumerado formal `SignalType`. Queda prohibido el uso de constantes independientes (`DEFAULT_SIGNALS` o `__DEFAULT_SIGNALS__`). Las entidades o UCAs que compongan la Capability consumen estas señales directamente desde `<CapabilityClass>.disposition.reactTo`.
 11. **Emisión Unificada de Eventos de Interacción (`component.event`)**:
     * Para evitar proliferación de canales nerviosos y simplificar la escucha por parte de las UCAs, los eventos de interacción y del entorno (como `click`, `input`, `change`) se emiten a través de una **única propiedad de señal**: `SignalType.EVENT` (`'component.event'`).
     * El tipo concreto de evento y sus datos se encapsulan en el payload (`EventContext`: `{ id, event: string, value?: unknown, checked?: boolean, detail?: unknown }`).
@@ -89,7 +89,7 @@ Una **Capability** representa una habilidad funcional o mecánica pura, terminal
       ```typescript
       public static override disposition: Disposition<Body> = {
           aim: { description: <Clase>.AIM },
-          reactTo: [...__DEFAULT_SIGNALS__],
+          reactTo: [SignalType.EVALUATE],
           inputs: [{ signal: SignalType.EVALUATE, type: DataType.OPERANDS, description: 'Operands [a, b]' }],
           outputs: [{ signal: SignalType.EVALUATED, type: DataType.BOOLEAN, description: 'Evaluation result' }],
       };

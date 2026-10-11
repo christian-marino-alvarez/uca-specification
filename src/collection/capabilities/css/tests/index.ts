@@ -27,6 +27,12 @@ function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     bus.dispatchEvent(new CustomEvent(property, { detail: signal }));
 }
 
+function activateCss(css: Css, bus: EventTarget): Css {
+    css.innervate(bus);
+    emitSignal(bus, css.updateEvent, Css.disposition);
+    return css;
+}
+
 function testCss_IdentityAndDefaults(): void {
     const css = new Css();
     assert.strictEqual(css.id, __ID__);
@@ -41,7 +47,7 @@ function testCss_IdentityAndDefaults(): void {
 
 function testCss_MountsTokensUponInnervationAndCleansOnDenervate(): void {
     const bus = new EventTarget();
-    const css = new Css('css-token-test').innervate(bus);
+    const css = activateCss(new Css('css-token-test'), bus);
 
     const tokensElement = document.getElementById(TOKENS_STYLE_ID);
     assert.ok(tokensElement !== null);
@@ -86,7 +92,7 @@ function testCss_AppliesStyleForNeighborUca(): void {
         appliedResult = (event as CustomEvent<Signal>).detail?.value as AppliedResult;
     });
 
-    const css = new Css('css-apply-test').innervate(bus);
+    const css = activateCss(new Css('css-apply-test'), bus);
     emitSignal(bus, SignalType.APPLY, {
         elementId: 'card-1',
         qualities: { width: 'third', spacing: 'medium', tone: 'surface' },
@@ -113,7 +119,7 @@ function testCss_ResolvesStyleOnDemand(): void {
         resolvedResult = (event as CustomEvent<Signal>).detail?.value as ResolvedResult;
     });
 
-    const css = new Css('css-resolve-test').innervate(bus);
+    const css = activateCss(new Css('css-resolve-test'), bus);
     emitSignal(bus, SignalType.RESOLVE, {
         elementId: 'btn-1',
         qualities: { tone: 'brand', radius: 'full' },
@@ -136,7 +142,7 @@ function testCss_UpdatesThemeTokensWithDtcgFormat(): void {
         themedResult = (event as CustomEvent<Signal>).detail?.value as ThemedResult;
     });
 
-    const css = new Css('css-theme-test').innervate(bus);
+    const css = activateCss(new Css('css-theme-test'), bus);
     emitSignal(bus, SignalType.THEME, {
         tokens: {
             tone: {
@@ -165,7 +171,7 @@ function testCss_RemovesElementStyle(): void {
         removedResult = (event as CustomEvent<Signal>).detail?.value as RemovedResult;
     });
 
-    const css = new Css('css-remove-test').innervate(bus);
+    const css = activateCss(new Css('css-remove-test'), bus);
     emitSignal(bus, SignalType.APPLY, {
         elementId: 'nav-1',
         qualities: { height: 'screen' },
@@ -182,7 +188,7 @@ function testCss_RemovesElementStyle(): void {
 
 function testCss_MultipleAutonomousNeighborUcas(): void {
     const bus = new EventTarget();
-    const css = new Css('css-neighbors-test').innervate(bus);
+    const css = activateCss(new Css('css-neighbors-test'), bus);
 
     emitSignal(bus, SignalType.APPLY, { elementId: 'header-el', qualities: { width: 'full', spacing: 'small' } });
     emitSignal(bus, SignalType.APPLY, { elementId: 'sidebar-el', qualities: { width: 'quarter', spacing: 'medium' } });

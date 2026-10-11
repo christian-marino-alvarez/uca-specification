@@ -1,7 +1,7 @@
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import { GoogleGenAI } from '@google/genai';
-import { __ID__, __DEFAULT_SIGNALS__, DEFAULT_MODEL, DEFAULT_THINKING_BUDGET, DEFAULT_THINKING_LEVEL, THINKING_LEVEL_MODEL_PREFIX } from './constants.js';
+import { __ID__, DEFAULT_MODEL, DEFAULT_THINKING_BUDGET, DEFAULT_THINKING_LEVEL, THINKING_LEVEL_MODEL_PREFIX } from './constants.js';
 import {
     type Body,
     type ConnectionConfig,
@@ -17,7 +17,11 @@ export class Gemini extends Capability<Body> {
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Gemini.AIM, body: {} },
-        reactTo: [...__DEFAULT_SIGNALS__],
+        reactTo: [
+            SignalType.CONNECT,
+            SignalType.GENERATE,
+            SignalType.STREAM,
+        ],
         inputs: [
             { signal: SignalType.CONNECT, type: DataType.CONNECTION_CONFIG, description: 'Configure Gemini API connection' },
             { signal: SignalType.GENERATE, type: DataType.GENERATE_PAYLOAD, description: 'Generate cognitive text or structured JSON' },
@@ -134,7 +138,8 @@ export class Gemini extends Capability<Body> {
         const { aim } = this.disposition;
         const current = aim.body ?? {};
         const connection = payload ?? current.connection;
-        this.disposition = { ...this.disposition, aim: { ...aim, body: { ...current, connection } } };
+        const updatedDisposition = { ...this.disposition, aim: { ...aim, body: { ...current, connection } } };
+        this.pulse(Capability.updateEvent(this.id), updatedDisposition);
         this.pulse(SignalType.CONNECTED, { status: 'ready', connection });
     }
 

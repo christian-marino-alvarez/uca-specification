@@ -30,6 +30,10 @@ if (countEvents() !== 0) {
     throw new Error(`Innervation must be purely topological and must not emit detected events, got ${countEvents()}`);
 }
 
+target.dispatchEvent(new CustomEvent(capability.updateEvent, {
+    detail: { source: 'test', property: capability.updateEvent, value: Browser.disposition, timestamp: Date.now() },
+}));
+
 target.dispatchEvent(new CustomEvent(SignalType.READ, {
     detail: { source: 'test', property: SignalType.READ, value: undefined, timestamp: Date.now() },
 }));

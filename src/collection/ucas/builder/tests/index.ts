@@ -2,6 +2,7 @@ import * as assert from 'node:assert';
 import { JSDOM } from 'jsdom';
 import { Uca } from '@uca/core/uca';
 import type { Signal } from '@uca/core/types';
+import { Capability } from '@uca/core/capability';
 import { Builder } from '../index.js';
 import { SignalType } from '../types.js';
 import { __ID__ } from '../constants.js';
@@ -30,8 +31,8 @@ function testBuilder_IdentityAndDefaults(): void {
 
 function testBuilder_CapabilitiesInCooky(): void {
     class TestableBuilder extends Builder {
-        public exposeCapabilities(): ReturnType<Builder['capabilities']> {
-            return this.capabilities();
+        public exposeCapabilities(): ReturnType<Builder['catalog']> {
+            return this.catalog();
         }
     }
     const builder = new TestableBuilder('test-builder');
@@ -48,6 +49,7 @@ function testBuilder_BuildAndRenderBox(): void {
     bus.addEventListener(SignalType.CREATED, () => { createdReceived = true; });
 
     const builder = new Builder('my-builder').innervate(bus);
+    emitSignal(bus, Capability.updateEvent('my-builder'), Builder.disposition);
     emitSignal(bus, SignalType.BUILD, {
         elementId: 'nav-boundary',
         parentTo: 'app',
@@ -74,6 +76,7 @@ function testBuilder_BuildAndRenderBox(): void {
 async function testBuilder_EvolutionaryStreamReconciliation(): Promise<void> {
     const bus = new EventTarget();
     const builder = new Builder('evo-builder').innervate(bus);
+    emitSignal(bus, Capability.updateEvent('evo-builder'), Builder.disposition);
 
     const stream1 = new ReadableStream({
         start(controller) {
@@ -141,6 +144,7 @@ function testBuilder_UpdateAndRemove(): void {
     bus.addEventListener(SignalType.REMOVED, () => { removedReceived = true; });
 
     const builder = new Builder('layout-builder').innervate(bus);
+    emitSignal(bus, Capability.updateEvent('layout-builder'), Builder.disposition);
     emitSignal(bus, SignalType.BUILD, { elementId: 'content-area', parentTo: 'app', content: 'Initial' });
     emitSignal(bus, SignalType.UPDATE, { elementId: 'content-area', content: 'Updated' });
     assert.ok(updatedReceived);
@@ -158,6 +162,7 @@ function testBuilder_UpdateAndRemove(): void {
 function testBuilder_ContentSanitization(): void {
     const bus = new EventTarget();
     const builder = new Builder('safe-builder').innervate(bus);
+    emitSignal(bus, Capability.updateEvent('safe-builder'), Builder.disposition);
     emitSignal(bus, SignalType.BUILD, {
         elementId: 'safe-panel',
         parentTo: 'app',
@@ -179,6 +184,7 @@ async function testBuilder_StreamErrorHandling(): Promise<void> {
         errorReceived = value?.error;
     });
     const builder = new Builder('err-builder').innervate(bus);
+    emitSignal(bus, Capability.updateEvent('err-builder'), Builder.disposition);
     const brokenStream = new ReadableStream({
         start(controller) {
             controller.error(new Error('Network pipe broke'));

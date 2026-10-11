@@ -21,6 +21,7 @@ function testContains_IdentityAndDefaults(): void {
 function testContains_StringSubstring(): void {
     const bus = new EventTarget();
     const contains = new Contains('contains-str').innervate(bus);
+    emitSignal(bus, contains.updateEvent, Contains.disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
         result = (event as CustomEvent<Signal<boolean>>).detail.value;
@@ -38,6 +39,7 @@ function testContains_StringSubstring(): void {
 function testContains_ArrayItem(): void {
     const bus = new EventTarget();
     const contains = new Contains('contains-arr').innervate(bus);
+    emitSignal(bus, contains.updateEvent, Contains.disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
         result = (event as CustomEvent<Signal<boolean>>).detail.value;
@@ -55,7 +57,8 @@ function testContains_ArrayItem(): void {
 function testContains_UsesFallbackDispositionAimBody(): void {
     const bus = new EventTarget();
     const disposition: Disposition<Body> = { aim: { description: 'Contains fallback', body: { operands: ['universe', 'verse'] as const } }, reactTo: [SignalType.EVALUATE] };
-    const contains = new Contains('contains-fallback').innervate(bus, disposition);
+    const contains = new Contains('contains-fallback').innervate(bus);
+    emitSignal(bus, contains.updateEvent, disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
         result = (event as CustomEvent<Signal<boolean>>).detail.value;

@@ -5,7 +5,6 @@ import {
     AIM,
     DEFAULT_BROWSER,
     DEFAULT_SCREEN,
-    DEFAULT_SIGNALS,
     DEFAULT_VIEWPORT,
 } from './constants.js';
 import {
@@ -24,7 +23,10 @@ export class Browser extends Capability<Body> {
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Browser.AIM, body: {} },
-        reactTo: [...DEFAULT_SIGNALS],
+        reactTo: [
+            SignalType.READ,
+            SignalType.DESTROY,
+        ],
         inputs: [
             { signal: SignalType.READ, type: DataType.VOID, description: 'Request fresh browser context capture' },
             { signal: SignalType.DESTROY, type: DataType.VOID, description: 'Unbind window listeners and destroy session' },

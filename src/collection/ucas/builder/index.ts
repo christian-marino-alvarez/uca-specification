@@ -2,7 +2,7 @@ import { Uca } from '@uca/core/uca';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
 import { Box } from '@uca/box';
 import { SignalType as BoxSignalType } from '@uca/box/types';
-import { __ID__, DEFAULT_SIGNALS, INPUTS, OUTPUTS } from './constants.js';
+import { __ID__, INPUTS, OUTPUTS } from './constants.js';
 import { type Body, type BuildPayload, type StreamPayload, SignalType } from './types.js';
 
 export class Builder extends Uca<Body> {
@@ -10,7 +10,18 @@ export class Builder extends Uca<Body> {
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Builder.purpose },
-        reactTo: [...DEFAULT_SIGNALS],
+        reactTo: [
+            SignalType.BUILD,
+            SignalType.STREAM,
+            SignalType.UPDATE,
+            SignalType.REMOVE,
+            SignalType.RESET,
+            BoxSignalType.CREATED,
+            BoxSignalType.UPDATED,
+            BoxSignalType.REMOVED,
+            BoxSignalType.ERROR,
+            ...Box.disposition.reactTo ?? [],
+        ],
         inputs: INPUTS,
         outputs: OUTPUTS,
     };
@@ -27,7 +38,7 @@ export class Builder extends Uca<Body> {
         super.denervate();
     }
 
-    protected override capabilities(): Cooky {
+    protected override catalog(): Cooky {
         const { reactTo } = Box.disposition;
         const body = { id: `${this.id}:box` };
         return [

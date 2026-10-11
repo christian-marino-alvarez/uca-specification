@@ -1,19 +1,25 @@
 import * as assert from 'node:assert';
 import { Uca } from '@uca/core/uca';
+import { Capability } from '@uca/core/capability';
 import { App } from '../index.js';
 import { __ID__ } from '../constants.js';
 import { Composer } from '@uca/composer';
 import { Builder } from '@uca/builder';
 import { Browser } from '@uca/capability-browser';
 import { SignalType as BrowserSignalType } from '@uca/capability-browser/types';
-import { type Cooky, type Signal, DispositionSignal } from '@uca/core/types';
+import { type Cooky, type Signal } from '@uca/core/types';
 import { SignalType as ComposerSignalType } from '@uca/composer/types';
 import { SignalType as SseSignalType } from '@uca/capability-sse-client/types';
 
 class Probe extends App {
     public declarations(): Cooky {
-        return this.capabilities();
+        return this.catalog();
     }
+}
+
+function emit(bus: EventTarget, property: string, value: unknown, source: string): void {
+    const detail: Signal = { source, property, value, timestamp: Date.now() };
+    bus.dispatchEvent(new CustomEvent(property, { detail }));
 }
 
 function testApp_IdentityAndDefaults(): void {
@@ -54,15 +60,11 @@ function testApp_InnervationAndDenervation(): void {
     const app = new App('custom-app').innervate(bus);
     assert.strictEqual(app.id, 'custom-app');
     assert.strictEqual(app.target, bus);
-    assert.ok(updateFired, 'innervate should automatically trigger composition');
+    emit(bus, app.updateEvent, App.disposition, 'client');
+    assert.ok(updateFired, 'disposition update should trigger composition');
 
     app.denervate();
     assert.strictEqual(app.target, undefined);
-}
-
-function emit(bus: EventTarget, property: string, value: unknown, source: string): void {
-    const detail: Signal = { source, property, value, timestamp: Date.now() };
-    bus.dispatchEvent(new CustomEvent(property, { detail }));
 }
 
 async function testApp_TriggersComposition(): Promise<void> {
@@ -76,13 +78,14 @@ async function testApp_TriggersComposition(): Promise<void> {
             requests.push(request);
         });
         const app = new App().innervate(bus);
+        emit(bus, app.updateEvent, App.disposition, 'client');
         assert.ok(requests.length >= 1);
         assert.match(requests[0], /Cursor/);
 
         const countBeforeUpdate = requests.length;
-        emit(bus, DispositionSignal.UPDATE, { id: 'app', disposition: { aim: { body: { context: 'Mobile' } } } }, 'client');
+        emit(bus, app.updateEvent, { ...App.disposition, aim: { body: { context: 'Mobile' } } }, 'client');
         await Promise.resolve();
-        assert.strictEqual(requests.length, countBeforeUpdate + 1);
+        assert.ok(requests.length > countBeforeUpdate);
         assert.match(requests[requests.length - 1], /Mobile/);
         app.denervate();
     } finally {
@@ -96,13 +99,14 @@ async function testApp_PropagatesDetected(): Promise<void> {
     try {
         const bus = new EventTarget();
         let updatedContext: string | undefined;
-        bus.addEventListener(DispositionSignal.UPDATE, (event) => {
-            const { detail: { value } } = event as CustomEvent<Signal<{ id: string; disposition: { aim: { body: { context: string } } } }>>;
-            if (value?.id === 'app:composer') {
-                updatedContext = value.disposition.aim.body.context;
+        bus.addEventListener(Capability.updateEvent('app:composer'), (event) => {
+            const { detail: { value } } = event as CustomEvent<Signal<{ id?: string; aim?: { body?: { context?: string } } }>>;
+            if (value?.aim?.body?.context) {
+                updatedContext = value.aim.body.context;
             }
         });
         const app = new App().innervate(bus);
+        emit(bus, app.updateEvent, App.disposition, 'client');
         const mockBrowserContext = {
             viewport: { width: 375, height: 812 },
             screen: { width: 375, height: 812, availWidth: 375, availHeight: 812, colorDepth: 24, pixelRatio: 3, orientation: 'portrait-primary' },

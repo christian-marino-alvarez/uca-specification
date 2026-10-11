@@ -25,6 +25,12 @@ function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     bus.dispatchEvent(new CustomEvent(property, { detail: signal }));
 }
 
+function activateComponent(component: WebComponent, bus: EventTarget): WebComponent {
+    component.innervate(bus);
+    emitSignal(bus, component.updateEvent, WebComponent.disposition);
+    return component;
+}
+
 function testWebComponent_IdentityAndDefaults(): void {
     const component = new WebComponent();
     assert.ok(component instanceof Capability);
@@ -44,7 +50,7 @@ function testWebComponent_RenderAndMount(): void {
         renderedResult = (event as CustomEvent<Signal>).detail?.value as RenderedResult;
     });
 
-    const component = new WebComponent('element-1').innervate(bus);
+    const component = activateComponent(new WebComponent('element-1'), bus);
     emitSignal(bus, SignalType.RENDER, {
         elementId: 'element-1',
         tag: 'custom-card',
@@ -79,7 +85,7 @@ function testWebComponent_UpdateAndContent(): void {
         eventReceived = (event as CustomEvent<Signal>).detail?.value as EventContext;
     });
 
-    const component = new WebComponent('element-2').innervate(bus);
+    const component = activateComponent(new WebComponent('element-2'), bus);
     emitSignal(bus, SignalType.RENDER, { elementId: 'element-2', containerElement: '#container', content: 'Init' });
     emitSignal(bus, SignalType.UPDATE, {
         elementId: 'element-2',
@@ -108,7 +114,7 @@ function testWebComponent_EventForwarding(): void {
         capturedEvent = (event as CustomEvent<Signal>).detail?.value as EventContext;
     });
 
-    const component = new WebComponent('btn-1').innervate(bus);
+    const component = activateComponent(new WebComponent('btn-1'), bus);
     emitSignal(bus, SignalType.RENDER, { elementId: 'btn-1', containerElement: '#container', events: ['click'] });
 
     const button = document.getElementById('btn-1');
@@ -129,7 +135,7 @@ function testWebComponent_EventDelegation(): void {
         capturedEvent = (event as CustomEvent<Signal>).detail?.value as EventContext;
     });
 
-    const component = new WebComponent('list-1').innervate(bus);
+    const component = activateComponent(new WebComponent('list-1'), bus);
     emitSignal(bus, SignalType.RENDER, {
         elementId: 'list-1',
         containerElement: '#container',
@@ -157,7 +163,7 @@ function testWebComponent_Remove(): void {
         removedResult = (event as CustomEvent<Signal>).detail?.value as RemovedResult;
     });
 
-    const component = new WebComponent('element-3').innervate(bus);
+    const component = activateComponent(new WebComponent('element-3'), bus);
     emitSignal(bus, SignalType.RENDER, { elementId: 'element-3', containerElement: '#container' });
     assert.ok(document.getElementById('element-3') !== null);
 
@@ -171,7 +177,7 @@ function testWebComponent_Remove(): void {
 
 function testWebComponent_DenervateDoesNotDestroyDom(): void {
     const bus = new EventTarget();
-    const component = new WebComponent('element-persistent').innervate(bus);
+    const component = activateComponent(new WebComponent('element-persistent'), bus);
     emitSignal(bus, SignalType.RENDER, { elementId: 'element-persistent', containerElement: '#container' });
     assert.ok(document.getElementById('element-persistent') !== null);
 
@@ -192,7 +198,7 @@ function testWebComponent_SingleCapabilityManagingNElements(): void {
         }
     });
 
-    const capability = new WebComponent('web-component').innervate(bus);
+    const capability = activateComponent(new WebComponent('web-component'), bus);
 
     emitSignal(bus, SignalType.RENDER, { elementId: 'header-el', containerElement: '#container', content: 'Header' });
     emitSignal(bus, SignalType.RENDER, { elementId: 'sidebar-el', containerElement: '#container', content: 'Sidebar' });

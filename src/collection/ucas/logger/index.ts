@@ -1,7 +1,7 @@
 import { Uca } from '@uca/core/uca';
 import { Capability } from '@uca/core/capability';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
-import { __ID__, __DEFAULT_SIGNALS__ } from './constants.js';
+import { __ID__ } from './constants.js';
 import { type Body, type LogEntry, DataType, SignalType } from './types.js';
 
 export class Logger extends Uca<Body> {
@@ -9,7 +9,7 @@ export class Logger extends Uca<Body> {
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Logger.purpose, body: {} },
-        reactTo: [...__DEFAULT_SIGNALS__],
+        reactTo: ['*'],
         inputs: [
             { signal: '*', type: DataType.SIGNAL, description: 'All bus signals to observe and log' },
         ],
@@ -26,7 +26,7 @@ export class Logger extends Uca<Body> {
         return true;
     }
 
-    protected override capabilities(): Cooky {
+    protected override catalog(): Cooky {
         return [];
     }
 

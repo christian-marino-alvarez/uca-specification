@@ -3,7 +3,6 @@ import type { Disposition, Signal } from '@uca/core/types';
 import {
     __ID__,
     DEFAULT_EVENTS,
-    DEFAULT_SIGNALS,
     DEFAULT_TAG,
 } from './constants.js';
 import {
@@ -21,7 +20,11 @@ export class WebComponent extends Capability<Body> {
 
     public static override disposition: Disposition<Body> = {
         aim: { description: WebComponent.AIM },
-        reactTo: [...DEFAULT_SIGNALS],
+        reactTo: [
+            SignalType.RENDER,
+            SignalType.UPDATE,
+            SignalType.REMOVE,
+        ],
         inputs: [
             { signal: SignalType.RENDER, type: DataType.RENDER_PAYLOAD, description: 'Render element in Light DOM' },
             { signal: SignalType.UPDATE, type: DataType.UPDATE_PAYLOAD, description: 'Update element attributes and content' },

@@ -2,7 +2,6 @@ import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import {
     __ID__,
-    DEFAULT_SIGNALS,
     DESIGN_TOKENS,
     STYLE_PREFIX,
     TOKENS_STYLE_ID,
@@ -23,7 +22,12 @@ export class Css extends Capability<Body> {
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Css.AIM },
-        reactTo: [...DEFAULT_SIGNALS],
+        reactTo: [
+            SignalType.APPLY,
+            SignalType.RESOLVE,
+            SignalType.THEME,
+            SignalType.REMOVE,
+        ],
         inputs: [
             { signal: SignalType.APPLY, type: DataType.APPLY_PAYLOAD, description: 'Apply autonomous qualities for element' },
             { signal: SignalType.RESOLVE, type: DataType.RESOLVE_PAYLOAD, description: 'Resolve domain qualities to CSS declarations' },
@@ -150,13 +154,12 @@ export class Css extends Capability<Body> {
         super(id);
     }
 
-    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
-        super.innervate(target, disposition);
+    protected override onDispositionUpdated(event: Event): void {
+        super.onDispositionUpdated(event);
         const { aim } = this.disposition;
         const tokens = aim.body?.tokens ?? DESIGN_TOKENS;
         Css.mountStyleElement(TOKENS_STYLE_ID, Css.generateTokensCss(tokens));
         this.pulse(SignalType.THEMED, { updated: true });
-        return this;
     }
 
     public override denervate(): void {

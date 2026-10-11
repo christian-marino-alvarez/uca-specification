@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { DispositionSignal, type Signal } from '@uca/core/types';
+import type { Signal } from '@uca/core/types';
 import { SignalType as SseSignalType } from '@uca/capability-sse-client/types';
 import { Composer } from '../index.js';
 import { SignalType, type StreamResult } from '../types.js';
@@ -35,7 +35,8 @@ await test('Composer streams validated immediate children with domain context an
     context.mock.method(globalThis, 'fetch', async () => response(CHILDREN));
     const bus = new EventTarget();
     const streamed = receive<StreamResult>(bus, SignalType.STREAMED);
-    const composer = new Composer().innervate(bus, { aim: { description: 'Explain UCA', body: { ...DISPOSITION.aim.body, correlationId: 'first' } } });
+    const composer = new Composer().innervate(bus);
+    emit(bus, composer.updateEvent, { ...Composer.disposition, aim: { description: 'Explain UCA', body: { ...DISPOSITION.aim.body, correlationId: 'first' } } });
     context.after(() => composer.denervate());
     const { stream, correlationId } = await streamed;
     const children = await readAll(stream);
@@ -46,11 +47,12 @@ await test('Composer streams validated immediate children with domain context an
 await test('Disposition changes request a fresh composition with the new operating context', async (context) => {
     context.mock.method(globalThis, 'fetch', async () => response({ navigation: CHILDREN.navigation }));
     const bus = new EventTarget();
-    const composer = new Composer().innervate(bus, DISPOSITION);
+    const composer = new Composer().innervate(bus);
+    emit(bus, composer.updateEvent, { ...Composer.disposition, ...DISPOSITION });
     context.after(() => composer.denervate());
     const requested = receive<{ request: string }>(bus, SseSignalType.STREAM);
     const streamed = receive<StreamResult>(bus, SignalType.STREAMED);
-    emit(bus, DispositionSignal.UPDATE, { id: 'composer', disposition: { aim: { body: { context: 'Mobile reader' } } } });
+    emit(bus, composer.updateEvent, { ...Composer.disposition, aim: { body: { context: 'Mobile reader' } } });
     const { request } = await requested;
     assert.match(request, /Mobile reader/);
     const { stream } = await streamed;
@@ -63,6 +65,7 @@ await test('handleTransformed ignores transformed streams lacking a correlationI
     let streamedEmitted = false;
     bus.addEventListener(SignalType.STREAMED, () => { streamedEmitted = true; });
     const composer = new Composer().innervate(bus);
+    emit(bus, composer.updateEvent, Composer.disposition);
     context.after(() => composer.denervate());
     emit(bus, 'stream-transformer.transformed', { stream: new ReadableStream() });
     await new Promise((resolve) => setTimeout(resolve, 10));

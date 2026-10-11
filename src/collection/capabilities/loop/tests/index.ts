@@ -28,6 +28,7 @@ function testLoop_IdentityAndDefaults(): void {
 function testLoop_IteratesOverArrayItemsDirectly(): void {
     const bus = new EventTarget();
     const loop = new Loop('loop-test').innervate(bus);
+    emitSignal(bus, loop.updateEvent, Loop.disposition);
     const iterations: IterationContext<string>[] = [];
     let completed = false;
 
@@ -65,6 +66,7 @@ function testLoop_IteratesOverArrayItemsDirectly(): void {
 function testLoop_IteratesWithCountPayload(): void {
     const bus = new EventTarget();
     const loop = new Loop('loop-count').innervate(bus);
+    emitSignal(bus, loop.updateEvent, Loop.disposition);
     const iterations: IterationContext<number>[] = [];
     let completedTotal = 0;
 
@@ -91,7 +93,8 @@ function testLoop_IteratesWithCountPayload(): void {
 function testLoop_UsesFallbackDispositionAimBody(): void {
     const bus = new EventTarget();
     const disposition: Disposition<Body> = { aim: { description: 'Loop fallback items', body: { items: ['alpha', 'beta'] } }, reactTo: [SignalType.START] };
-    const loop = new Loop('loop-fallback').innervate(bus, disposition);
+    const loop = new Loop('loop-fallback').innervate(bus);
+    emitSignal(bus, loop.updateEvent, disposition);
     const iterations: IterationContext<string>[] = [];
 
     bus.addEventListener(SignalType.ITERATION, (event: Event) => {

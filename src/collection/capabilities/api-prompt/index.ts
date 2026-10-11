@@ -7,7 +7,6 @@ import {
     DEFAULT_EXPECTED_INPUTS,
     DEFAULT_EXPECTED_OUTPUTS,
     DEFAULT_PERSISTENT_SESSION,
-    DEFAULT_SIGNALS,
     DEFAULT_TEMPERATURE,
     DEFAULT_TOP_K,
     DEFAULT_WARMUP_PROMPT,
@@ -34,7 +33,13 @@ export class ApiPrompt extends Capability<Body> {
 
     public static override disposition: Disposition<Body> = {
         aim: { description: ApiPrompt.AIM, body: {} },
-        reactTo: [...DEFAULT_SIGNALS],
+        reactTo: [
+            SignalType.CHECK,
+            SignalType.CREATE,
+            SignalType.PROMPT,
+            SignalType.STREAM,
+            SignalType.DESTROY,
+        ],
         inputs: [
             { signal: SignalType.CHECK, type: DataType.RECORD, description: 'Check browser prompt capability availability' },
             { signal: SignalType.CREATE, type: DataType.RECORD, description: 'Initialize or download browser language model session' },
@@ -109,10 +114,9 @@ export class ApiPrompt extends Capability<Body> {
         super(id);
     }
 
-    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
-        super.innervate(target, disposition);
+    protected override onDispositionUpdated(event: Event): void {
+        super.onDispositionUpdated(event);
         this.preloadSession();
-        return this;
     }
 
     public override denervate(): void {

@@ -81,10 +81,3 @@ export const TYPOGRAPHY_TOKENS: Readonly<Record<string, string>> = {
     '--md-sys-typescale-font': '"Open Sans", "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     '--font-google': '"Open Sans", "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
 };
-
-export const DEFAULT_SIGNALS: readonly string[] = [
-    SignalType.APPLY,
-    SignalType.THEME,
-] as const;
-
-export const __DEFAULT_SIGNALS__ = DEFAULT_SIGNALS;

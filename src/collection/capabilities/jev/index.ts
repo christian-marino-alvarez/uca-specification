@@ -1,7 +1,7 @@
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import { TypeSafeClient, noul } from '@typesafe-ai/sdk';
-import { __ID__, __DEFAULT_SIGNALS__, DEFAULT_MODEL } from './constants.js';
+import { __ID__, DEFAULT_MODEL } from './constants.js';
 import {
     type Body,
     type ConnectionConfig,
@@ -16,7 +16,10 @@ export class Jev extends Capability<Body> {
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Jev.AIM, body: {} },
-        reactTo: [...__DEFAULT_SIGNALS__],
+        reactTo: [
+            SignalType.CONNECT,
+            SignalType.INFER,
+        ],
         inputs: [
                 { signal: SignalType.CONNECT, type: DataType.CONNECTION_CONFIG, description: 'Configure Jev engine parameters' },
                 { signal: SignalType.INFER, type: DataType.INFER_PAYLOAD, description: 'Run system-one inference over state and questions' },
@@ -51,7 +54,8 @@ export class Jev extends Capability<Body> {
         const { aim } = this.disposition;
         const current = aim.body ?? {};
         const connection = payload ?? current.connection;
-        this.disposition = { ...this.disposition, aim: { ...aim, body: { ...current, connection } } };
+        const updatedDisposition = { ...this.disposition, aim: { ...aim, body: { ...current, connection } } };
+        this.pulse(Capability.updateEvent(this.id), updatedDisposition);
         this.pulse(SignalType.CONNECTED, { status: 'ready', connection });
     }
 

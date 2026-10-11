@@ -2,6 +2,7 @@ import * as assert from 'node:assert';
 import { JSDOM } from 'jsdom';
 import { Uca } from '@uca/core/uca';
 import type { Signal } from '@uca/core/types';
+import { Capability } from '@uca/core/capability';
 import { Box } from '../index.js';
 import { type EventContext, SignalType } from '../types.js';
 import { __ID__ } from '../constants.js';
@@ -30,8 +31,8 @@ function testBox_IdentityAndDefaults(): void {
 
 function testBox_CapabilitiesCompositionInCooky(): void {
     class TestableBox extends Box {
-        public exposeCapabilities(): ReturnType<Box['capabilities']> {
-            return this.capabilities();
+        public exposeCapabilities(): ReturnType<Box['catalog']> {
+            return this.catalog();
         }
     }
     const box = new TestableBox('test-box');
@@ -48,6 +49,7 @@ function testBox_RenderAndMountWithStyles(): void {
     });
 
     const box = new Box('my-card').innervate(bus);
+    emitSignal(bus, Capability.updateEvent('my-card'), Box.disposition);
     emitSignal(bus, SignalType.RENDER, {
         containerElement: '#container',
         content: '<p>Card Content</p>',
@@ -82,6 +84,7 @@ function testBox_UpdateAndRemove(): void {
     });
 
     const box = new Box('box-dynamic').innervate(bus);
+    emitSignal(bus, Capability.updateEvent('box-dynamic'), Box.disposition);
     emitSignal(bus, SignalType.RENDER, {
         containerElement: '#container',
         content: 'Initial',
@@ -120,6 +123,7 @@ function testBox_EventBridgeAndDelegation(): void {
     });
 
     const box = new Box('box-events').innervate(bus);
+    emitSignal(bus, Capability.updateEvent('box-events'), Box.disposition);
     emitSignal(bus, SignalType.RENDER, {
         containerElement: '#container',
         content: '<button id="card-btn" data-action="submit-order">Buy</button>',
@@ -147,6 +151,7 @@ function testBox_SingleUcaManagingNBoxes(): void {
     });
 
     const box = new Box('box-orchestrator').innervate(bus);
+    emitSignal(bus, Capability.updateEvent('box-orchestrator'), Box.disposition);
     emitSignal(bus, SignalType.RENDER, {
         elementId: 'box-header',
         containerElement: '#container',
@@ -201,6 +206,7 @@ function testBox_SingleUcaManagingNBoxes(): void {
 function testBox_ParentToNesting(): void {
     const bus = new EventTarget();
     const box = new Box('box-nesting').innervate(bus);
+    emitSignal(bus, Capability.updateEvent('box-nesting'), Box.disposition);
 
     emitSignal(bus, SignalType.RENDER, {
         elementId: 'parent-box',

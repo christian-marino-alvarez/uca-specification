@@ -24,6 +24,7 @@ function testOpenai_IdentityAndDefaults(): void {
 function testOpenai_ConnectSignal(): void {
     const bus = new EventTarget();
     const openai = new Openai('openai-conn').innervate(bus);
+    emitSignal(bus, openai.updateEvent, Openai.disposition);
     let connected = false;
 
     bus.addEventListener(SignalType.CONNECTED, () => {
@@ -52,7 +53,8 @@ async function testOpenai_GenerateWithMockClient(): Promise<void> {
         aim: { description: Openai.AIM, body: { client: mockClient } },
         reactTo: [SignalType.CONNECT, SignalType.GENERATE],
     };
-    const openai = new Openai('openai-gen').innervate(bus, disposition);
+    const openai = new Openai('openai-gen').innervate(bus);
+    emitSignal(bus, openai.updateEvent, disposition);
     let capturedResult: GenerateResult | undefined;
 
     bus.addEventListener(SignalType.GENERATED, (event: Event) => {
@@ -91,7 +93,8 @@ async function testOpenai_GenerateHandlesError(): Promise<void> {
         aim: { description: Openai.AIM, body: { client: failingClient } },
         reactTo: [SignalType.CONNECT, SignalType.GENERATE],
     };
-    const openai = new Openai('openai-err').innervate(bus, disposition);
+    const openai = new Openai('openai-err').innervate(bus);
+    emitSignal(bus, openai.updateEvent, disposition);
     let errorCaptured: unknown;
 
     bus.addEventListener(SignalType.ERROR, (event: Event) => {

@@ -12,6 +12,12 @@ function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     bus.dispatchEvent(new CustomEvent(property, { detail: signal }));
 }
 
+function activateLlm(llm: Llm, bus: EventTarget, disposition = Llm.disposition): Llm {
+    llm.innervate(bus);
+    emitSignal(bus, llm.updateEvent, disposition);
+    return llm;
+}
+
 function testLlm_IdentityAndDefaults(): void {
     const llm = new Llm();
     assert.strictEqual(llm.id, __ID__);
@@ -28,7 +34,7 @@ function testLlm_IdentityAndDefaults(): void {
 
 function testLlm_TransducesInferToGeminiGenerateByDefault(): void {
     const bus = new EventTarget();
-    const llm = new Llm('llm-test').innervate(bus);
+    const llm = activateLlm(new Llm('llm-test'), bus);
     let geminiPayload: unknown = undefined;
 
     bus.addEventListener(GeminiSignalType.GENERATE, (event: Event) => {
@@ -49,7 +55,7 @@ function testLlm_TransducesInferToGeminiGenerateByDefault(): void {
 
 function testLlm_TransducesInferToOpenaiGenerateWhenRequested(): void {
     const bus = new EventTarget();
-    const llm = new Llm('llm-test').innervate(bus);
+    const llm = activateLlm(new Llm('llm-test'), bus);
     let openaiPayload: unknown = undefined;
 
     bus.addEventListener(OpenaiSignalType.GENERATE, (event: Event) => {
@@ -72,7 +78,7 @@ function testLlm_TransducesInferToOpenaiGenerateWhenRequested(): void {
 
 function testLlm_TransducesOpenaiGeneratedToLlmInferred(): void {
     const bus = new EventTarget();
-    const llm = new Llm('llm-test').innervate(bus);
+    const llm = activateLlm(new Llm('llm-test'), bus);
     let generatedResult: unknown = undefined;
 
     bus.addEventListener(SignalType.INFERRED, (event: Event) => {
@@ -96,7 +102,7 @@ function testLlm_TransducesOpenaiGeneratedToLlmInferred(): void {
 
 function testLlm_TransducesConnectAndConnected(): void {
     const bus = new EventTarget();
-    const llm = new Llm('llm-test').innervate(bus);
+    const llm = activateLlm(new Llm('llm-test'), bus);
     let geminiConfig: unknown = undefined;
     let openaiConfig: unknown = undefined;
     let connectedStatus: unknown = undefined;
@@ -125,7 +131,7 @@ function testLlm_TransducesConnectAndConnected(): void {
 
 function testLlm_TransducesErrors(): void {
     const bus = new EventTarget();
-    const llm = new Llm('llm-test').innervate(bus);
+    const llm = activateLlm(new Llm('llm-test'), bus);
     let errorReceived: unknown = undefined;
 
     bus.addEventListener(SignalType.ERROR, (event: Event) => {

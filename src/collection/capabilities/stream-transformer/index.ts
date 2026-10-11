@@ -1,7 +1,7 @@
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import type { z } from 'zod';
-import { __ID__, AIM, DEFAULT_SIGNALS } from './constants.js';
+import { __ID__, AIM } from './constants.js';
 import {
     type Body,
     type TransformPayload,
@@ -15,7 +15,9 @@ export class StreamTransformer extends Capability<Body> {
 
     public static override disposition: Disposition<Body> = {
         aim: { description: StreamTransformer.AIM, body: {} },
-        reactTo: [...DEFAULT_SIGNALS],
+        reactTo: [
+            SignalType.TRANSFORM,
+        ],
         inputs: [
             { signal: SignalType.TRANSFORM, type: DataType.TRANSFORM_PAYLOAD, description: 'Transform text stream to object stream' },
         ],

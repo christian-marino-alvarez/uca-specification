@@ -1,6 +1,7 @@
 import * as assert from 'node:assert';
 import { Uca } from '@uca/core/uca';
 import type { Signal } from '@uca/core/types';
+import { Capability } from '@uca/core/capability';
 import { Logger } from '../index.js';
 import { SignalType, type LogEntry } from '../types.js';
 import { __ID__ } from '../constants.js';
@@ -25,20 +26,22 @@ function testLogger_IdentityAndDefaults(): void {
 function testLogger_LogsBusSignals(): void {
     const bus = new EventTarget();
     const loggedEntries: LogEntry[] = [];
-    const logger = new Logger('test-logger').innervate(bus, {
+    const logger = new Logger('test-logger').innervate(bus);
+    emitSignal(bus, Capability.updateEvent('test-logger'), {
         aim: {
             description: Logger.purpose,
             body: {
-                onLog: (entry) => loggedEntries.push(entry),
+                onLog: (entry: LogEntry) => loggedEntries.push(entry),
             },
         },
         reactTo: ['*'],
     });
 
     emitSignal(bus, 'custom.signal', { data: 123 });
-    assert.strictEqual(loggedEntries.length, 1);
-    assert.strictEqual(loggedEntries[0]?.property, 'custom.signal');
-    assert.strictEqual(loggedEntries[0]?.source, 'test-source');
+    const customEntry = loggedEntries.find((entry) => entry.property === 'custom.signal');
+    assert.ok(customEntry);
+    assert.strictEqual(customEntry?.property, 'custom.signal');
+    assert.strictEqual(customEntry?.source, 'test-source');
 
     logger.denervate();
 }

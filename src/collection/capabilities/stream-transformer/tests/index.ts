@@ -15,6 +15,12 @@ function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     bus.dispatchEvent(new CustomEvent(property, { detail: signal }));
 }
 
+function activateTransformer(transformer: StreamTransformer, bus: EventTarget): StreamTransformer {
+    transformer.innervate(bus);
+    emitSignal(bus, transformer.updateEvent, StreamTransformer.disposition);
+    return transformer;
+}
+
 function createTextStream(chunks: string[]): ReadableStream<string> {
     return new ReadableStream<string>({
         start(controller) {
@@ -54,7 +60,7 @@ async function testStreamTransformer_TransformToObjects(): Promise<void> {
         result = (event as CustomEvent<Signal>).detail?.value as TransformResult;
     });
 
-    const transformer = new StreamTransformer().innervate(bus);
+    const transformer = activateTransformer(new StreamTransformer(), bus);
     const textStream = createTextStream([
         '{"box": {"aim": {"description": "card"}}}',
         '\n{"action": {"aim": {"description": "button"}}}',
@@ -97,7 +103,7 @@ async function testStreamTransformer_TransformWithSchemaValidation(): Promise<vo
         ucaName: z.record(z.string(), z.unknown()),
     });
 
-    const transformer = new StreamTransformer().innervate(bus);
+    const transformer = activateTransformer(new StreamTransformer(), bus);
     const textStream = createTextStream([
         '{"ucaName": {"label": "valid"}}',
         '\n{"ignoredName": {"label": "invalid"}}',
@@ -134,7 +140,7 @@ async function testStreamTransformer_TransformWrappedOuterObject(): Promise<void
         result = (event as CustomEvent<Signal>).detail?.value as TransformResult;
     });
 
-    const transformer = new StreamTransformer().innervate(bus);
+    const transformer = activateTransformer(new StreamTransformer(), bus);
     const textStream = createTextStream([
         '{\n  "HeaderNav": { "purpose": "Nav", "parentTo": null },\n',
         '  "HeroBanner": { "purpose": "Hero", "parentTo": null }\n}',
@@ -163,7 +169,7 @@ async function testStreamTransformer_IgnoresStandaloneMetadata(): Promise<void> 
     bus.addEventListener(SignalType.TRANSFORMED, (event: Event) => {
         result = (event as CustomEvent<Signal>).detail?.value as TransformResult;
     });
-    const transformer = new StreamTransformer().innervate(bus);
+    const transformer = activateTransformer(new StreamTransformer(), bus);
     const textStream = createTextStream(['{"parentTo": "header"}\n', '{"brandLogo": {"purpose": "Brand", "parentTo": "header"}}\n']);
     const schema = z.record(z.string(), z.object({ purpose: z.string(), parentTo: z.string() }));
     emitSignal(bus, SignalType.TRANSFORM, { correlationId: 'c-meta', stream: textStream, schema });
@@ -187,7 +193,7 @@ async function testStreamTransformer_ParsesMarkdownFencedNdjson(): Promise<void>
     bus.addEventListener(SignalType.TRANSFORMED, (event: Event) => {
         result = (event as CustomEvent<Signal>).detail?.value as TransformResult;
     });
-    const transformer = new StreamTransformer().innervate(bus);
+    const transformer = activateTransformer(new StreamTransformer(), bus);
     const textStream = createTextStream([
         '```json\n{"id": "app:bar", "purpose": "Bar"}\n```\n',
         '```json\n{"id": "app:nav", "purpose": "Nav"}\n```',

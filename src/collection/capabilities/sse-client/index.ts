@@ -4,7 +4,6 @@ import {
     __ID__,
     AIM,
     DEFAULT_ENDPOINT,
-    DEFAULT_SIGNALS,
 } from './constants.js';
 import {
     type Body,
@@ -19,7 +18,10 @@ export class SseClient extends Capability<Body> {
 
     public static override disposition: Disposition<Body> = {
         aim: { description: AIM, body: { endpoint: DEFAULT_ENDPOINT } },
-        reactTo: [...DEFAULT_SIGNALS],
+        reactTo: [
+            SignalType.STREAM,
+            SignalType.ABORT,
+        ],
         inputs: [
             { signal: SignalType.STREAM, type: DataType.STREAM_PAYLOAD, description: 'Open SSE stream' },
             { signal: SignalType.ABORT, type: DataType.VOID, description: 'Abort active SSE streams' },

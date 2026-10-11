@@ -4,7 +4,7 @@ import { WebComponent } from '@uca/capability-web-component';
 import { SignalType as WebComponentSignalType } from '@uca/capability-web-component/types';
 import { Css } from '@uca/capability-css';
 import { SignalType as CssSignalType } from '@uca/capability-css/types';
-import { __ID__, DEFAULT_SIGNALS } from './constants.js';
+import { __ID__ } from './constants.js';
 import { type Body, type EventContext, DataType, SignalType } from './types.js';
 
 export class Box extends Uca<Body> {
@@ -12,7 +12,17 @@ export class Box extends Uca<Body> {
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Box.purpose },
-        reactTo: [...DEFAULT_SIGNALS],
+        reactTo: [
+            SignalType.RENDER,
+            SignalType.UPDATE,
+            SignalType.REMOVE,
+            WebComponentSignalType.RENDERED,
+            WebComponentSignalType.UPDATED,
+            WebComponentSignalType.REMOVED,
+            WebComponentSignalType.EVENT,
+            ...WebComponent.disposition.reactTo ?? [],
+            ...Css.disposition.reactTo ?? [],
+        ],
         inputs: [
             { signal: SignalType.RENDER, type: DataType.RENDER_PAYLOAD, description: 'Command to render the box' },
             { signal: SignalType.UPDATE, type: DataType.UPDATE_PAYLOAD, description: 'Command to update the box' },
@@ -31,10 +41,10 @@ export class Box extends Uca<Body> {
         super(id);
     }
 
-    protected override capabilities(): Cooky {
+    protected override catalog(): Cooky {
         const declarations: Cooky = [
-            [WebComponent, { aim: { description: WebComponent.AIM } }],
-            [Css, { aim: { description: Css.AIM } }],
+            [WebComponent, { aim: { description: WebComponent.AIM }, reactTo: [...WebComponent.disposition.reactTo ?? []] }],
+            [Css, { aim: { description: Css.AIM }, reactTo: [...Css.disposition.reactTo ?? []] }],
         ];
         return declarations;
     }

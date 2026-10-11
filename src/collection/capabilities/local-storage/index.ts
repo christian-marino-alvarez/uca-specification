@@ -1,6 +1,6 @@
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
-import { __ID__, AIM, DEFAULT_PREFIX, DEFAULT_SIGNALS } from './constants.js';
+import { __ID__, AIM, DEFAULT_PREFIX } from './constants.js';
 import {
     type Body,
     type ItemPayload,
@@ -16,7 +16,12 @@ export class LocalStorage extends Capability<Body> {
 
     public static override disposition: Disposition<Body> = {
         aim: { description: LocalStorage.AIM, body: {} },
-        reactTo: [...DEFAULT_SIGNALS],
+        reactTo: [
+            SignalType.SET,
+            SignalType.GET,
+            SignalType.REMOVE,
+            SignalType.CLEAR,
+        ],
         inputs: [
             { signal: SignalType.SET, type: DataType.ITEM_PAYLOAD, description: 'Store a key-value string item in localStorage' },
             { signal: SignalType.GET, type: DataType.KEY_PAYLOAD, description: 'Retrieve a string item by key from localStorage' },

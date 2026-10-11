@@ -1,42 +1,29 @@
-import type {
-    Aim,
-    Disposition,
-    ICapability,
-    Signal,
+import {
+    DispositionSignal,
+    type Disposition,
+    type DispositionProvidePayload,
+    type DispositionUpdatedPayload,
+    type ICapability,
+    type Signal,
 } from './types.js';
 
-export abstract class Capability<TBody = unknown> implements ICapability<TBody> {
+export abstract class Capability<TBody = unknown> implements ICapability<TBody>, EventListenerObject {
     public static disposition: Disposition<unknown> = {
         aim: { description: 'Default' },
-        reactTo: [],
     };
 
-    private static mergeAim<T>(current?: Aim<T>, incoming?: Aim<T>): Aim<T> {
-        const description = incoming?.description ?? current?.description ?? '';
-        const currentBody = current?.body ?? {};
-        const incomingBody = incoming?.body ?? {};
-        const hasBody = current?.body !== undefined || incoming?.body !== undefined;
-        const body = hasBody ? { ...currentBody, ...incomingBody } as T : undefined;
-        return body !== undefined ? { description, body } : { description };
+    public static updateEvent(id: string): string {
+        return `Disposition-${id}::${DispositionSignal.UPDATE}`;
     }
 
-    private static mergeReactTo(current?: readonly string[], incoming?: readonly string[]): string[] {
-        if (!incoming?.length) {
-            return current?.length ? [...current] : [];
-        }
-        if (!current?.length) {
-            return [...incoming];
-        }
-        return [...new Set([...current, ...incoming])];
+    public static getEvent(id: string): string {
+        return `Disposition-${id}::${DispositionSignal.GET}`;
     }
 
-    public static buildDisposition<T>(current: Disposition<T>, incoming?: Partial<Disposition<T>>): Disposition<T> {
-        const { aim: incomingAim, reactTo: incomingReactTo, inputs, outputs } = incoming ?? {};
-        const aim = Capability.mergeAim(current?.aim, incomingAim);
-        const reactTo = Capability.mergeReactTo(current?.reactTo, incomingReactTo);
-        const activeInputs = inputs ?? current?.inputs;
-        const activeOutputs = outputs ?? current?.outputs;
-        return { aim, reactTo, inputs: activeInputs, outputs: activeOutputs };
+    public static readPayload<T = unknown>(event: Event): T | undefined {
+        const { detail } = event as CustomEvent<Signal<T> | undefined>;
+        const { value } = detail ?? {};
+        return value;
     }
 
     public static extractPayload<T = unknown>(value: unknown): T | undefined {
@@ -50,44 +37,91 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
 
     public readonly id: string;
     public target?: EventTarget;
+    public readonly updateEvent: string;
+    public readonly getEvent: string;
     private _disposition: Disposition<TBody>;
-    private boundPatterns: string[];
-    private readonly eventListener: (event: Event) => void;
 
     public constructor(id: string) {
         this.id = id;
-        this._disposition = (this.constructor as typeof Capability).disposition as Disposition<TBody>;
-        this.boundPatterns = [];
-        this.eventListener = (event: Event) => this.handleEvent(event);
+        this.updateEvent = Capability.updateEvent(id);
+        this.getEvent = Capability.getEvent(id);
+        this._disposition = this.initialDisposition();
     }
 
-    public innervate(
-        target?: EventTarget,
-        disposition: Disposition<TBody> = (this.constructor as typeof Capability).disposition as Disposition<TBody>,
-    ): this {
-        this.disconnectReceptors();
-        if (target) {
-            this.target = target;
-        }
-        const incoming = disposition ?? (this.constructor as typeof Capability).disposition as Disposition<TBody>;
-        this._disposition = Capability.buildDisposition(this._disposition, incoming);
-        this.connectReceptors();
+    public innervate(target?: EventTarget): this {
+        const activeTarget = target ?? this.target ?? new EventTarget();
+        this.denervate();
+        this.target = activeTarget;
+        this.target.addEventListener(this.updateEvent, this);
+        this.target.addEventListener(this.getEvent, this);
         return this;
     }
 
     public denervate(): void {
         this.disconnectReceptors();
+        this.target?.removeEventListener(this.updateEvent, this);
+        this.target?.removeEventListener(this.getEvent, this);
         this.target = undefined;
+        this._disposition = this.initialDisposition();
+    }
+
+    private initialDisposition(): Disposition<TBody> {
+        const { aim, inputs, outputs, limits } = (this.constructor as typeof Capability).disposition;
+        return { aim, inputs, outputs, limits } as Disposition<TBody>;
     }
 
     protected abstract react(signal: Signal): void | Promise<void>;
+
+    public handleEvent(event: Event): void {
+        switch (event.type) {
+            case this.updateEvent:
+                this.handleDispositionUpdate(event);
+                break;
+            case this.getEvent:
+                this.handleDispositionGet(event);
+                break;
+            default:
+                this.handleSignal(event);
+        }
+    }
 
     public get disposition(): Disposition<TBody> {
         return this._disposition;
     }
 
-    public set disposition(value: Disposition<TBody>) {
+    protected set disposition(value: Disposition<TBody>) {
         this._disposition = value;
+    }
+
+    protected onDispositionUpdated(_event: Event): void {
+        const { id, disposition } = this;
+        const payload: DispositionUpdatedPayload<TBody> = { id, disposition };
+        this.pulse(DispositionSignal.UPDATED, payload);
+    }
+
+    protected handleDispositionGet(_event: Event): void {
+        const { id, disposition } = this;
+        const payload: DispositionProvidePayload<TBody> = { id, disposition };
+        this.pulse(DispositionSignal.PROVIDE, payload);
+    }
+
+    protected receptors(): string[] {
+        const { reactTo = [] } = this.disposition;
+        return [...reactTo];
+    }
+
+    protected connectReceptors(): void {
+        const { target } = this;
+        for (const pattern of this.receptors()) {
+            target?.addEventListener(pattern, this);
+        }
+    }
+
+    protected disconnectReceptors(): void {
+        const { target } = this;
+        for (const pattern of this.receptors()) {
+            target?.removeEventListener(pattern, this);
+        }
     }
 
     protected pulse(property: string, value: unknown): Signal | undefined {
@@ -106,37 +140,8 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
         return payload;
     }
 
-    private connectReceptors(): void {
-        const { reactTo = [] } = this.disposition;
-        this.boundPatterns = [...reactTo];
-        for (const pattern of this.boundPatterns) {
-            this.target?.addEventListener(pattern, this.eventListener);
-        }
-    }
-
-    private disconnectReceptors(): void {
-        if (this.target) {
-            for (const pattern of this.boundPatterns) {
-                this.target.removeEventListener(pattern, this.eventListener);
-            }
-        }
-        this.boundPatterns = [];
-    }
-
     protected matchesId(id?: string): boolean {
         return this.id === id;
-    }
-
-    private handleEvent(event: Event): void {
-        const customEvent = event as CustomEvent<Signal>;
-        const { detail: signal } = customEvent;
-        if (!signal) { return; }
-        const payload = Capability.extractPayload<Record<string, unknown>>(signal.value);
-        const { id } = (payload ?? {}) as { id?: unknown };
-        if (typeof id === 'string' && !this.matchesId(id)) {
-            return;
-        }
-        void this.executeReaction(signal);
     }
 
     protected async executeReaction(signal: Signal): Promise<void> {
@@ -145,5 +150,42 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody> 
         } catch (error) {
             this.pulse('error', error);
         }
+    }
+
+    private handleDispositionUpdate(event: Event): void {
+        const disposition = Capability.readPayload<Disposition<TBody>>(event);
+        if (!disposition) { return; }
+        const hasChanged = this.isDispositionChanged(this.disposition, disposition);
+        if (!hasChanged) { return; }
+        this.disconnectReceptors();
+        this.disposition = disposition;
+        this.connectReceptors();
+        this.onDispositionUpdated(event);
+    }
+
+    private isDispositionChanged(current: unknown, incoming: unknown): boolean {
+        const normalizedCurrent = JSON.stringify(this.normalizeKeys(current));
+        const normalizedIncoming = JSON.stringify(this.normalizeKeys(incoming));
+        return normalizedCurrent !== normalizedIncoming;
+    }
+
+    private normalizeKeys(value: unknown): unknown {
+        if (value === null || typeof value !== 'object') { return value; }
+        if (Array.isArray(value)) { return value.map((item) => this.normalizeKeys(item)); }
+        const record = value as Record<string, unknown>;
+        const sorted = Object.keys(record).sort();
+        return Object.fromEntries(sorted.map((key) => [key, this.normalizeKeys(record[key])]));
+    }
+
+    private handleSignal(event: Event): void {
+        const { detail: signal } = event as CustomEvent<Signal | undefined>;
+        if (!signal) { return; }
+        const { value } = signal;
+        const payload = Capability.extractPayload<Record<string, unknown>>(value);
+        const { id } = (payload ?? {}) as { id?: unknown };
+        if (id && !this.matchesId(String(id))) {
+            return;
+        }
+        void this.executeReaction(signal);
     }
 }

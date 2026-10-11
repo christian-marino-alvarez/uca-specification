@@ -14,16 +14,6 @@ export const DEFAULT_EXPECTED_OUTPUTS: readonly ExpectedOutput[] = [
     { type: 'text', languages: ['en'] },
 ];
 
-export const DEFAULT_SIGNALS: readonly string[] = [
-    SignalType.CHECK,
-    SignalType.CREATE,
-    SignalType.PROMPT,
-    SignalType.STREAM,
-    SignalType.DESTROY,
-];
-
-export const __DEFAULT_SIGNALS__ = DEFAULT_SIGNALS;
-
 export const DEFAULT_PERSISTENT_SESSION = false;
 
 export const DEFAULT_AUTO_LOAD = false;

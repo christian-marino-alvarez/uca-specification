@@ -1,20 +1,7 @@
 import type { Port } from '@uca/core/types';
-import { SignalType as BoxSignalType } from '@uca/box/types';
 import { DataType, SignalType } from './types.js';
 
 export const __ID__ = 'builder';
-
-export const DEFAULT_SIGNALS: readonly string[] = [
-    SignalType.BUILD,
-    SignalType.STREAM,
-    SignalType.UPDATE,
-    SignalType.REMOVE,
-    SignalType.RESET,
-    BoxSignalType.CREATED,
-    BoxSignalType.UPDATED,
-    BoxSignalType.REMOVED,
-    BoxSignalType.ERROR,
-] as const;
 
 export const INPUTS: readonly Port[] = [
     { signal: SignalType.BUILD, type: DataType.BUILD_PAYLOAD, description: 'Command to build and visually delimit spatial boundaries' },

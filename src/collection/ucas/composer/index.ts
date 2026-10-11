@@ -4,7 +4,7 @@ import { SseClient } from '@uca/capability-sse-client';
 import { SignalType as SseSignalType, type StreamResult as TextStreamResult } from '@uca/capability-sse-client/types';
 import { StreamTransformer } from '@uca/capability-stream-transformer';
 import { SignalType as TransformerSignalType } from '@uca/capability-stream-transformer/types';
-import { __ID__, DEFAULT_PARENT, DEFAULT_GOAL, DEFAULT_IMAGINATION, DEFAULT_SIGNALS, OUTPUT_FORMAT, RESTRICTIONS, INPUTS, OUTPUTS } from './constants.js';
+import { __ID__, DEFAULT_PARENT, DEFAULT_GOAL, DEFAULT_IMAGINATION, OUTPUT_FORMAT, RESTRICTIONS, INPUTS, OUTPUTS } from './constants.js';
 import { createPayloadSchema, itemSchema, schemaForParent } from './schema.js';
 import { type Body, type CreatePayload, type StreamResult, type ErrorResult, SignalType } from './types.js';
 
@@ -12,7 +12,18 @@ export class Composer extends Uca<Body> {
     public static override purpose: string = 'Determine and revise the immediate child UCAs of a web UCA, delegating a purpose, operating context and spatial dimensions to each child so the host purpose is satisfied in its current context';
     public static override disposition: Disposition<Body> = {
         aim: { description: Composer.purpose, body: {} },
-        reactTo: [...DEFAULT_SIGNALS],
+        reactTo: [
+            SignalType.CREATE,
+            SignalType.UPDATE,
+            SignalType.STREAM,
+            SignalType.DESTROY,
+            SseSignalType.STREAMED,
+            SseSignalType.ERROR,
+            TransformerSignalType.TRANSFORMED,
+            TransformerSignalType.ERROR,
+            ...SseClient.disposition.reactTo ?? [],
+            ...StreamTransformer.disposition.reactTo ?? [],
+        ],
         inputs: INPUTS,
         outputs: OUTPUTS,
     };
@@ -40,7 +51,7 @@ export class Composer extends Uca<Body> {
         }
     }
 
-    protected override capabilities(): Cooky {
+    protected override catalog(): Cooky {
         const { reactTo: sseSignals } = SseClient.disposition;
         const { reactTo: transformerSignals } = StreamTransformer.disposition;
         const { AIM: transportAim } = SseClient;
@@ -51,8 +62,16 @@ export class Composer extends Uca<Body> {
         ];
     }
 
-    protected override onDispositionUpdated(): void {
+    protected override onDispositionUpdated(event: Event): void {
+        super.onDispositionUpdated(event);
+        this.logLimits();
         this.pulse(SignalType.UPDATE, { id: this.id });
+    }
+
+    private logLimits(): void {
+        const { limits } = this.disposition;
+        if (!limits) { return; }
+        console.log('%c🎯 [Composer] Composición sujeta a límites de pantalla:', 'color: #a855f7; font-weight: bold;', limits);
     }
 
     private handleCreate(value: unknown): void {
@@ -74,9 +93,9 @@ export class Composer extends Uca<Body> {
     private reasoningPayload(payload: CreatePayload): CreatePayload {
         const { request = DEFAULT_GOAL, context, parentTo = DEFAULT_PARENT, composition, model, provider, imagination = DEFAULT_IMAGINATION, correlationId = `${this.id}:${Date.now()}`, streamId } = createPayloadSchema.parse(payload);
         const { purpose, disposition } = this;
-        const { aim: { body: { parentTo: host = DEFAULT_PARENT } = {} } } = disposition;
+        const { aim: { body: { parentTo: host = DEFAULT_PARENT } = {} }, limits } = disposition;
         if (parentTo !== host) { throw new Error('Configure the host through the composition disposition'); }
-        const requestText = JSON.stringify({ purpose, disposition, host: { purpose: request, context, id: parentTo }, composition, output: OUTPUT_FORMAT, constraints: RESTRICTIONS });
+        const requestText = JSON.stringify({ purpose, disposition, host: { purpose: request, context, id: parentTo }, limits, composition, output: OUTPUT_FORMAT, constraints: RESTRICTIONS });
         return { id: `${this.id}:sse-client`, request: requestText, model, provider, imagination, correlationId, streamId };
     }
 

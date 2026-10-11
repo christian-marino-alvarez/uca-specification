@@ -102,6 +102,14 @@ import { Server } from '@uca/server';
 
 const server = new Server();
 server.innervate();
+server.target?.dispatchEvent(new CustomEvent(server.updateEvent, {
+    detail: {
+        source: 'boot',
+        property: server.updateEvent,
+        value: Server.disposition,
+        timestamp: Date.now(),
+    },
+}));
 
 console.log('\\n🛑 Presiona [Ctrl + C] para detener el servidor\\n');
 

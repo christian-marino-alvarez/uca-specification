@@ -27,10 +27,8 @@ import {
     DEFAULT_DIST_DIR,
     DEFAULT_HOSTNAME,
     DEFAULT_PORT,
-    DEFAULT_SIGNALS,
     DEFAULT_WEB_DIR,
     DEFAULT_MAX_OUTPUT_TOKENS,
-    DELIBERATION_BUDGET_SCALE,
 } from './constants.js';
 import {
     type Body,
@@ -47,7 +45,21 @@ export class Server extends Uca<Body> {
             description: Server.purpose,
             body: { port: DEFAULT_PORT, hostname: DEFAULT_HOSTNAME, autoStart: DEFAULT_AUTO_START },
         },
-        reactTo: [...DEFAULT_SIGNALS],
+        reactTo: [
+            SignalType.START,
+            SignalType.STOP,
+            SignalType.ROUTE,
+            SignalType.RESPOND,
+            HttpServerSignalType.LISTENING,
+            HttpServerSignalType.CLOSED,
+            HttpServerSignalType.REQUEST,
+            HttpServerSignalType.ERROR,
+            LlmSignalType.INFERRED,
+            LlmSignalType.CHUNK,
+            LlmSignalType.STREAM_END,
+            ...HttpServer.disposition.reactTo ?? [],
+            ...Llm.disposition.reactTo ?? [],
+        ],
         inputs: [
             { signal: SignalType.START, type: DataType.START_CONFIG, description: 'Start HTTP server' },
             { signal: SignalType.STOP, type: DataType.VOID, description: 'Stop HTTP server' },
@@ -66,23 +78,7 @@ export class Server extends Uca<Body> {
         super(id);
     }
 
-    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
-        const base = disposition ?? Server.disposition;
-        const { reactTo = [] } = base;
-        const internalSignals = [
-            HttpServerSignalType.LISTENING,
-            HttpServerSignalType.CLOSED,
-            HttpServerSignalType.REQUEST,
-            HttpServerSignalType.ERROR,
-            LlmSignalType.INFERRED,
-            LlmSignalType.CHUNK,
-            LlmSignalType.STREAM_END,
-        ];
-        const signals = [...new Set([...reactTo, ...internalSignals])];
-        return super.innervate(target, { ...base, reactTo: signals });
-    }
-
-    protected override capabilities(): Cooky {
+    protected override catalog(): Cooky {
         const { aim } = this.disposition;
         const body = (aim.body ?? {}) as Body;
         const allRoutes = [...(body.routes ?? []), ...this.buildDefaultRoutes(body)];

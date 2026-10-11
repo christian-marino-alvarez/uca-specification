@@ -5,7 +5,6 @@ import {
     type CapabilityConstructor,
     type Cooky,
     DispositionSignal,
-    StorageSignal,
     Uca,
     type Disposition,
     type DispositionProvidePayload,
@@ -13,6 +12,15 @@ import {
     type Signal,
 } from '../index.js';
 
+function updateDisposition(bus: EventTarget, id: string, disposition: Disposition): void {
+    const signal: Signal = {
+        source: 'test',
+        property: Capability.updateEvent(id),
+        value: disposition,
+        timestamp: Date.now(),
+    };
+    bus.dispatchEvent(new CustomEvent(Capability.updateEvent(id), { detail: signal }));
+}
 
 class MoveCapability extends Capability {
     constructor(id = 'move') {
@@ -47,14 +55,9 @@ class VehicleUca extends Uca {
         super(id);
     }
 
-    public override innervate(target?: EventTarget, disposition?: Disposition): this {
-        const active = disposition ?? { aim: { description: this.purpose }, reactTo: ['move', 'consume'] };
-        return super.innervate(target, active);
-    }
-
-    protected override capabilities(): Cooky {
-        const moveDisp: Disposition = { aim: { description: 'Mover vehículo' }, reactTo: ['start'] };
-        const consumeDisp: Disposition = { aim: { description: 'Consumir combustible' }, reactTo: ['start'] };
+    protected override catalog(): Cooky {
+        const moveDisp: Disposition = { aim: { description: 'Mover vehículo', body: { id: 'move' } }, reactTo: ['start'] };
+        const consumeDisp: Disposition = { aim: { description: 'Consumir combustible', body: { id: 'consume' } }, reactTo: ['start'] };
         const declarations: Cooky = [
             [MoveCapability, moveDisp],
             [ConsumeCapability, consumeDisp],
@@ -95,13 +98,8 @@ class DuplicateNameUca extends Uca {
         super(id);
     }
 
-    public override innervate(target?: EventTarget): this {
-        const disposition: Disposition = { aim: { description: this.purpose }, reactTo: ['counter.increment'] };
-        return super.innervate(target, disposition);
-    }
-
-    protected override capabilities(): Cooky {
-        const disp: Disposition = { aim: { description: 'Contar pulsos' }, reactTo: ['tick'] };
+    protected override catalog(): Cooky {
+        const disp: Disposition = { aim: { description: 'Contar pulsos', body: { id: 'counter' } }, reactTo: ['tick'] };
         const declarations: Cooky = [[CounterCapability, disp]];
         return declarations;
     }
@@ -124,8 +122,9 @@ const waitForDelay = async (duration = 30): Promise<void> => {
 
 // 1. Declaración de Capabilities mediante Cooky
 async function testDeclaration_CookyMapping(): Promise<void> {
-    const vehicle = new VehicleUca('decl-v');
-    vehicle.innervate();
+    const bus = new EventTarget();
+    const vehicle = new VehicleUca('decl-v').innervate(bus);
+    updateDisposition(bus, 'decl-v', { aim: { description: 'Transportar' }, reactTo: ['start', 'move', 'consume'] });
     const moveCap = (vehicle as unknown as { registry: Map<string, ICapability> }).registry.get('move');
     const consumeCap = (vehicle as unknown as { registry: Map<string, ICapability> }).registry.get('consume');
     assert.ok(moveCap instanceof MoveCapability);
@@ -136,7 +135,9 @@ async function testDeclaration_CookyMapping(): Promise<void> {
 
 // 2. Lifecycle: innervate conecta capabilities declaradas
 async function testLifecycle_InnervateConnects(): Promise<void> {
-    const vehicle = new VehicleUca('v1').innervate();
+    const bus = new EventTarget();
+    const vehicle = new VehicleUca('v1').innervate(bus);
+    updateDisposition(bus, 'v1', { aim: { description: 'Transportar' }, reactTo: ['start', 'move', 'consume'] });
     vehicle.startTrip(6);
     await waitForDelay();
     assert.strictEqual(vehicle.moved, true);
@@ -146,8 +147,11 @@ async function testLifecycle_InnervateConnects(): Promise<void> {
 
 // 3. Lifecycle: re-innervate no deja instancias huérfanas
 async function testLifecycle_ReinnervateNoOrphans(): Promise<void> {
-    const vehicle = new VehicleUca('v-re').innervate();
-    vehicle.innervate();
+    const bus = new EventTarget();
+    const vehicle = new VehicleUca('v-re').innervate(bus);
+    updateDisposition(bus, 'v-re', { aim: { description: 'Transportar' }, reactTo: ['start', 'move', 'consume'] });
+    vehicle.innervate(bus);
+    updateDisposition(bus, 'v-re', { aim: { description: 'Transportar' }, reactTo: ['start', 'move', 'consume'] });
     vehicle.startTrip(4);
     await waitForDelay();
     assert.strictEqual(vehicle.fuel, 4);
@@ -156,7 +160,9 @@ async function testLifecycle_ReinnervateNoOrphans(): Promise<void> {
 
 // 4. Lifecycle: denervate desconecta todas las capabilities
 async function testLifecycle_DenervateDisconnects(): Promise<void> {
-    const uca = new DuplicateNameUca('d1').innervate();
+    const bus = new EventTarget();
+    const uca = new DuplicateNameUca('d1').innervate(bus);
+    updateDisposition(bus, 'd1', { aim: { description: 'Contador' }, reactTo: ['tick', 'counter.increment'] });
     uca.sendTick();
     await waitForDelay();
     assert.strictEqual(uca.count, 1);
@@ -198,8 +204,8 @@ class EngineUca extends Uca {
         super(id);
     }
 
-    protected override capabilities(): Cooky {
-        const disp: Disposition = { aim: { description: 'Chispa' }, reactTo: ['ignite'] };
+    protected override catalog(): Cooky {
+        const disp: Disposition = { aim: { description: 'Chispa', body: { id: 'spark-plug' } }, reactTo: ['ignite'] };
         const declarations: Cooky = [[SparkCapability, disp]];
         return declarations;
     }
@@ -224,7 +230,7 @@ class MultiButtonUca extends Uca {
         super(id);
     }
 
-    protected override capabilities(): Cooky {
+    protected override catalog(): Cooky {
         const dispA: Disposition = { aim: { description: 'Start', body: { id: 'btn-start' } }, reactTo: ['button.click'] };
         const dispB: Disposition = { aim: { description: 'Submit', body: { id: 'btn-submit' } }, reactTo: ['button.click'] };
         const dispC: Disposition = { aim: { description: 'Cancel', body: { id: 'btn-cancel' } }, reactTo: ['button.click'] };
@@ -244,7 +250,7 @@ class EmptyUca extends Uca {
         super(id);
     }
 
-    protected override capabilities(): Cooky {
+    protected override catalog(): Cooky {
         const declarations: Cooky = [];
         return declarations;
     }
@@ -257,9 +263,9 @@ class ShipUca extends Uca {
         super(id);
     }
 
-    protected override capabilities(): Cooky {
-        const engineDisp: Disposition = { aim: { description: 'Motor' }, reactTo: ['ignite'] };
-        const dashboardDisp: Disposition = { aim: { description: 'Dashboard' }, reactTo: ['spark'] };
+    protected override catalog(): Cooky {
+        const engineDisp: Disposition = { aim: { description: 'Motor', body: { id: 'engine-core' } }, reactTo: ['ignite'] };
+        const dashboardDisp: Disposition = { aim: { description: 'Dashboard', body: { id: 'dashboard' } }, reactTo: ['spark'] };
         const declarations: Cooky = [
             [EngineUca as unknown as CapabilityConstructor, engineDisp],
             [DashboardCapability, dashboardDisp],
@@ -268,29 +274,37 @@ class ShipUca extends Uca {
     }
 
     public get dashboard(): DashboardCapability | undefined {
-        return this.capability('dashboard') as DashboardCapability | undefined;
+        return this.getCapability('dashboard') as DashboardCapability | undefined;
     }
 
     public get engine(): EngineUca | undefined {
-        return this.capability('engine-core') as EngineUca | undefined;
+        return this.getCapability('engine-core') as EngineUca | undefined;
     }
 }
 
-// 5. Fractalidad: UCA hija comparte nervous target y denervate en cascada
+// 5. Fractalidad: UCA hija comparte nervous target y desactivación por reactTo
 async function testFractality_NestedUcaHierarchy(): Promise<void> {
-    const ship = new ShipUca().innervate();
-    ship.target?.dispatchEvent(new CustomEvent('ignite', { detail: { value: 1 } }));
+    const bus = new EventTarget();
+    const ship = new ShipUca('ship-1').innervate(bus);
+    updateDisposition(bus, 'ship-1', { aim: { description: 'Nave' }, reactTo: ['ignite', 'spark'] });
+    const igniteSignal: Signal = { source: 'test', property: 'ignite', value: 1, timestamp: Date.now() };
+    ship.target?.dispatchEvent(new CustomEvent('ignite', { detail: igniteSignal }));
     await waitForDelay();
     assert.strictEqual(ship.dashboard?.sparkDetected, true);
+    updateDisposition(bus, 'ship-1', { aim: { description: 'Nave' }, reactTo: [] });
+    assert.strictEqual(ship.engine?.target, undefined);
     ship.denervate();
     assert.strictEqual(ship.target, undefined);
-    assert.strictEqual(ship.engine?.target, undefined);
 }
 
 // 6. Aislamiento entre UCAs diferentes
 async function testInterUcaIsolation(): Promise<void> {
-    const v1 = new VehicleUca('v1').innervate();
-    const v2 = new VehicleUca('v2').innervate();
+    const bus1 = new EventTarget();
+    const bus2 = new EventTarget();
+    const v1 = new VehicleUca('v1').innervate(bus1);
+    const v2 = new VehicleUca('v2').innervate(bus2);
+    updateDisposition(bus1, 'v1', { aim: { description: 'Transportar' }, reactTo: ['start', 'move', 'consume'] });
+    updateDisposition(bus2, 'v2', { aim: { description: 'Transportar' }, reactTo: ['start', 'move', 'consume'] });
     v1.startTrip(5);
     await waitForDelay();
     assert.strictEqual(v1.moved, true);
@@ -299,12 +313,13 @@ async function testInterUcaIsolation(): Promise<void> {
     v2.denervate();
 }
 
-// 11. Declaración: UCA vacía contiene capability default (local-storage)
+// 7. Declaración: UCA vacía contiene registry vacío
 async function testDeclaration_EmptyUca(): Promise<void> {
-    const uca = new EmptyUca().innervate();
+    const bus = new EventTarget();
+    const uca = new EmptyUca('empty-uca').innervate(bus);
+    updateDisposition(bus, 'empty-uca', { aim: { description: 'Vacia' }, reactTo: [] });
     const registry = (uca as unknown as { registry: Map<string, ICapability> }).registry;
-    assert.strictEqual(registry.size, 1);
-    assert.strictEqual(registry.has('local-storage'), true);
+    assert.strictEqual(registry.size, 0);
     assert.ok(uca.target instanceof EventTarget);
     uca.denervate();
     assert.strictEqual(uca.target, undefined);
@@ -319,34 +334,38 @@ function assertRepeatedReactions(registry: Map<string, ICapability>): void {
     assert.strictEqual(btnCancel.clicked, true);
 }
 
-// 12. Declaración: Clases repetidas producen instancias independientes
+// 8. Declaración: Clases repetidas producen instancias independientes
 async function testDeclaration_RepeatedCapabilityClasses(): Promise<void> {
-    const uca = new MultiButtonUca().innervate();
+    const bus = new EventTarget();
+    const uca = new MultiButtonUca('multi-btn').innervate(bus);
+    updateDisposition(bus, 'multi-btn', { aim: { description: 'Botones' }, reactTo: ['button.click'] });
     const registry = (uca as unknown as { registry: Map<string, ICapability> }).registry;
     const signalDetail = { source: 'test', property: 'button.click', value: null };
     uca.target?.dispatchEvent(new CustomEvent('button.click', { detail: signalDetail }));
     await waitForDelay();
     assertRepeatedReactions(registry);
-    uca.denervate();
-    assert.strictEqual(registry.size, 4);
+    updateDisposition(bus, 'multi-btn', { aim: { description: 'Botones' }, reactTo: [] });
+    assert.strictEqual(registry.size, 3);
     assert.strictEqual(registry.get('btn-start')?.target, undefined);
+    uca.denervate();
 }
 
-// 13. Declaración: Core preserva el orden declarativo
+// 9. Declaración: Core preserva el orden declarativo
 async function testDeclaration_OrderPreserved(): Promise<void> {
-    const uca = new MultiButtonUca().innervate();
+    const bus = new EventTarget();
+    const uca = new MultiButtonUca('multi-btn').innervate(bus);
+    updateDisposition(bus, 'multi-btn', { aim: { description: 'Botones' }, reactTo: ['button.click'] });
     const registry = (uca as unknown as { registry: Map<string, ICapability> }).registry;
     const keys = Array.from(registry.keys());
-    assert.deepStrictEqual(keys, ['local-storage', 'btn-start', 'btn-submit', 'btn-cancel']);
+    assert.deepStrictEqual(keys, ['btn-start', 'btn-submit', 'btn-cancel']);
     uca.denervate();
 }
 
 class ProbeCapability extends Capability {
     public reactCount = 0;
 
-    constructor(id: string, reactTo: string[]) {
+    constructor(id: string) {
         super(id);
-        this.disposition = { aim: { description: `Probe ${this.id}` }, reactTo: [...reactTo] };
     }
 
     protected override react(): void {
@@ -354,10 +373,10 @@ class ProbeCapability extends Capability {
     }
 }
 
-// 14. Lifecycle: Instanciación e inervación no implican reacción
+// 10. Lifecycle: Instanciación e inervación no implican reacción sin actualización de disposición
 async function testLifecycle_ExistenceAndConnectivityDoNotReact(): Promise<void> {
     const target = new EventTarget();
-    const probe = new ProbeCapability('probe-1', ['match.signal']);
+    const probe = new ProbeCapability('probe-1');
     assert.strictEqual(probe.reactCount, 0);
     probe.innervate(target);
     assert.strictEqual(probe.reactCount, 0);
@@ -368,11 +387,12 @@ async function testLifecycle_ExistenceAndConnectivityDoNotReact(): Promise<void>
     probe.denervate();
 }
 
-// 15. Lifecycle: Señal coincidente dispara reacción
+// 11. Lifecycle: Señal coincidente dispara reacción tras UPDATE
 async function testLifecycle_MatchingSignalTriggersReaction(): Promise<void> {
     const target = new EventTarget();
-    const probe = new ProbeCapability('probe-match', ['match.signal']);
+    const probe = new ProbeCapability('probe-match');
     probe.innervate(target);
+    updateDisposition(target, 'probe-match', { aim: { description: 'Probe' }, reactTo: ['match.signal'] });
     const matchDetail = { source: 't', property: 'match.signal', value: null };
     target.dispatchEvent(new CustomEvent('match.signal', { detail: matchDetail }));
     await waitForDelay();
@@ -386,12 +406,15 @@ function verifyProbeCounts(probeA: ProbeCapability, probeB: ProbeCapability, pro
     assert.strictEqual(probeC.reactCount, 0);
 }
 
-// 16. Lifecycle: Múltiples capabilities inervadas solo reaccionan las relevantes
+// 12. Lifecycle: Múltiples capabilities inervadas solo reaccionan las relevantes
 async function testLifecycle_MultipleInnervatedSelectiveReaction(): Promise<void> {
     const target = new EventTarget();
-    const probeA = new ProbeCapability('probe-a', ['signal.a']).innervate(target) as ProbeCapability;
-    const probeB = new ProbeCapability('probe-b', ['signal.b']).innervate(target) as ProbeCapability;
-    const probeC = new ProbeCapability('probe-c', ['signal.c']).innervate(target) as ProbeCapability;
+    const probeA = new ProbeCapability('probe-a').innervate(target) as ProbeCapability;
+    const probeB = new ProbeCapability('probe-b').innervate(target) as ProbeCapability;
+    const probeC = new ProbeCapability('probe-c').innervate(target) as ProbeCapability;
+    updateDisposition(target, 'probe-a', { aim: { description: 'A' }, reactTo: ['signal.a'] });
+    updateDisposition(target, 'probe-b', { aim: { description: 'B' }, reactTo: ['signal.b'] });
+    updateDisposition(target, 'probe-c', { aim: { description: 'C' }, reactTo: ['signal.c'] });
     const bDetail = { source: 't', property: 'signal.b', value: null };
     target.dispatchEvent(new CustomEvent('signal.b', { detail: bDetail }));
     await waitForDelay();
@@ -402,7 +425,6 @@ async function testLifecycle_MultipleInnervatedSelectiveReaction(): Promise<void
 }
 
 class PrivateButtonCapability extends Capability {
-    public static override disposition: Disposition = { aim: { description: 'Boton Privado' }, reactTo: ['button.render'] };
     private domElement: HTMLElement | null = null;
     private readonly container: HTMLElement;
 
@@ -431,24 +453,17 @@ class PrivateButtonCapability extends Capability {
     }
 }
 
-function assertNoDomResource(container: HTMLElement, button: PrivateButtonCapability, target: EventTarget): void {
-    assert.strictEqual(container.querySelector('button'), null);
-    button.innervate(target);
-    assert.strictEqual(container.querySelector('button'), null);
-}
-
-function assertMatchingSignalRenders(container: HTMLElement, target: EventTarget): void {
-    const renderDetail = { source: 't', property: 'button.render', value: null };
-    target.dispatchEvent(new CustomEvent('button.render', { detail: renderDetail }));
-}
-
-// 17. HTML Acceptance: Construcción e inervación no crean recurso DOM; solo la reacción lo materializa
+// 13. HTML Acceptance: Construcción e inervación no crean recurso DOM; solo la reacción lo materializa
 async function testHtmlAcceptance_ReactionMaterializesDomResource(): Promise<void> {
     const container = document.createElement('div');
     const button = new PrivateButtonCapability(container);
     const target = new EventTarget();
-    assertNoDomResource(container, button, target);
-    assertMatchingSignalRenders(container, target);
+    assert.strictEqual(container.querySelector('button'), null);
+    button.innervate(target);
+    updateDisposition(target, 'private-btn', { aim: { description: 'Boton' }, reactTo: ['button.render'] });
+    assert.strictEqual(container.querySelector('button'), null);
+    const renderDetail = { source: 't', property: 'button.render', value: null };
+    target.dispatchEvent(new CustomEvent('button.render', { detail: renderDetail }));
     await waitForDelay();
     const rendered = container.querySelector('button');
     assert.strictEqual(rendered?.textContent, 'Click me');
@@ -456,43 +471,23 @@ async function testHtmlAcceptance_ReactionMaterializesDomResource(): Promise<voi
     assert.strictEqual(container.querySelector('button'), null);
 }
 
-class MultiCapabilityUca extends Uca<{ role?: string; label?: string; hidden?: boolean }> {
-    public static override purpose = 'Multi-capability testing';
+// 14. Activación y desactivación dinámica de capabilities según reactTo
+async function testCore_DynamicCapabilityActivationDeactivation(): Promise<void> {
+    const bus = new EventTarget();
+    const vehicle = new VehicleUca('dyn-v').innervate(bus);
+    const registry = (vehicle as unknown as { registry: Map<string, ICapability> }).registry;
 
-    constructor(id = 'multi') {
-        super(id);
-    }
+    // Activar capabilities con reactTo: ['start']
+    updateDisposition(bus, 'dyn-v', { aim: { description: 'V' }, reactTo: ['start'] });
+    assert.strictEqual(registry.get('move')?.target !== undefined, true);
+    assert.strictEqual(registry.get('consume')?.target !== undefined, true);
 
-    public override innervate(target?: EventTarget): this {
-        const disposition: Disposition<{ role?: string; label?: string; hidden?: boolean }> = {
-            aim: { description: this.purpose, body: { role: 'region', label: 'header', hidden: true } },
-            reactTo: [],
-        };
-        return super.innervate(target, disposition);
-    }
+    // Desactivar todas con reactTo: []
+    updateDisposition(bus, 'dyn-v', { aim: { description: 'V' }, reactTo: [] });
+    assert.strictEqual(registry.get('move')?.target, undefined);
+    assert.strictEqual(registry.get('consume')?.target, undefined);
 
-    public getAttributesFor(capabilityId?: string): Record<string, string> {
-        return this.buildAttributes(capabilityId);
-    }
-
-    protected override getAttributeMapping(capabilityId?: string): Record<string, unknown> {
-        const { aim } = this.disposition;
-        const { role, label, hidden } = aim.body ?? {};
-        if (capabilityId === 'canvas') {
-            return { 'role': role, 'aria-label': label };
-        }
-        return { 'role': role, 'class': label, 'hidden': hidden ? '' : undefined };
-    }
-}
-
-// 18. BuildAttributes: Distingue atributos según el capabilityId
-async function testCore_BuildAttributesDistinguishesCapabilities(): Promise<void> {
-    const uca = new MultiCapabilityUca().innervate();
-    const webComponentAttributes = uca.getAttributesFor('web-component');
-    assert.deepStrictEqual(webComponentAttributes, { role: 'region', class: 'header', hidden: '' });
-    const canvasAttributes = uca.getAttributesFor('canvas');
-    assert.deepStrictEqual(canvasAttributes, { role: 'region', 'aria-label': 'header' });
-    uca.denervate();
+    vehicle.denervate();
 }
 
 class SimpleProbeUca extends Uca {
@@ -502,50 +497,27 @@ class SimpleProbeUca extends Uca {
     }
 }
 
-async function testCore_UcaDispositionUpdateAndStorage(): Promise<void> {
+// 15. Actualización de disposición y pulso UPDATED
+async function testCore_UcaDispositionUpdate(): Promise<void> {
     const bus = new EventTarget();
-    const probe = new SimpleProbeUca('uca-target').innervate(bus, {
-        aim: { description: 'Initial probe' },
-        reactTo: ['init.signal'],
-    });
+    const probe = new SimpleProbeUca('uca-target').innervate(bus);
 
     let updatedPayload: unknown;
-    let storagePayload: unknown;
-
     bus.addEventListener(DispositionSignal.UPDATED, (event: Event) => {
         const customEvent = event as CustomEvent<Signal>;
         updatedPayload = customEvent.detail.value;
     });
 
-    bus.addEventListener(StorageSignal.SET, (event: Event) => {
-        const customEvent = event as CustomEvent<Signal>;
-        storagePayload = customEvent.detail.value;
-    });
-
-    const updateSignal: Signal = {
-        source: 'composer',
-        property: DispositionSignal.UPDATE,
-        value: {
-            id: 'uca-target',
-            disposition: { reactTo: ['updated.signal'], aim: { description: 'Updated probe' } },
-        },
-        timestamp: Date.now(),
-    };
-    bus.dispatchEvent(new CustomEvent(DispositionSignal.UPDATE, { detail: updateSignal }));
+    updateDisposition(bus, 'uca-target', { reactTo: ['updated.signal'], aim: { description: 'Updated probe' } });
 
     assert.ok(updatedPayload);
-    assert.ok(storagePayload);
-    assert.strictEqual((storagePayload as { key: string }).key, 'uca-target');
     assert.strictEqual(probe.disposition.aim.description, 'Updated probe');
     assert.ok(probe.disposition.reactTo?.includes('updated.signal'));
-
-    const storedValue = globalThis.localStorage.getItem('uca-target');
-    assert.ok(storedValue);
-    assert.ok(storedValue.includes('Updated probe'));
 
     probe.denervate();
 }
 
+// 16. Respuesta a GET con PROVIDE
 async function testCore_UcaRespondsToDispositionGetWithProvide(): Promise<void> {
     const bus = new EventTarget();
     class CardUca extends Uca {
@@ -564,11 +536,11 @@ async function testCore_UcaRespondsToDispositionGetWithProvide(): Promise<void> 
 
     const getSignal: Signal = {
         source: 'view-composer',
-        property: DispositionSignal.GET,
+        property: Capability.getEvent('card:user-profile'),
         value: {},
         timestamp: Date.now(),
     };
-    bus.dispatchEvent(new CustomEvent(DispositionSignal.GET, { detail: getSignal }));
+    bus.dispatchEvent(new CustomEvent(Capability.getEvent('card:user-profile'), { detail: getSignal }));
 
     assert.ok(capturedProvide);
     assert.strictEqual(capturedProvide?.ucaId, 'card:user-profile');
@@ -578,6 +550,7 @@ async function testCore_UcaRespondsToDispositionGetWithProvide(): Promise<void> 
     card.denervate();
 }
 
+// 17. Aislamiento de matchesId
 async function testCore_UcaMatchesIdIsolation(): Promise<void> {
     class ProbeUca extends Uca {
         public checkMatch(targetId?: string): boolean {
@@ -609,18 +582,20 @@ function assertGrandchildPropagation(child: Uca): void {
     assert.strictEqual(grandchild?.context, 'Parent master purpose → Child purpose');
 }
 
+// 18. Propagación de contexto
 async function testCore_UcaContextPropagation(): Promise<void> {
+    const bus = new EventTarget();
     class GrandchildProbe extends Uca { public static override purpose = 'Grandchild purpose'; }
     class ChildProbe extends Uca {
         public static override purpose = 'Child purpose';
-        protected override capabilities(): Cooky { return [[GrandchildProbe, { aim: { description: GrandchildProbe.purpose, body: { id: 'grandchild-1' } } }]]; }
+        protected override catalog(): Cooky { return [[GrandchildProbe, { aim: { description: GrandchildProbe.purpose, body: { id: 'grandchild-1' } }, reactTo: ['grandchild.signal'] }]]; }
     }
     class ParentProbe extends Uca {
         public static override purpose = 'Parent master purpose';
-        protected override capabilities(): Cooky { return [[ChildProbe, { aim: { description: ChildProbe.purpose, body: { id: 'child-1' } } }]]; }
+        protected override catalog(): Cooky { return [[ChildProbe, { aim: { description: ChildProbe.purpose, body: { id: 'child-1' } }, reactTo: ['child.signal', 'grandchild.signal'] }]]; }
     }
-    const parent = new ParentProbe('parent-1');
-    parent.innervate();
+    const parent = new ParentProbe('parent-1').innervate(bus);
+    updateDisposition(bus, 'parent-1', { aim: { description: 'Parent master purpose' }, reactTo: ['child.signal', 'grandchild.signal'] });
     const child = assertChildPropagation(parent);
     assertGrandchildPropagation(child);
     parent.denervate();
@@ -640,12 +615,12 @@ async function runAllTests(): Promise<void> {
     await testLifecycle_MatchingSignalTriggersReaction();
     await testLifecycle_MultipleInnervatedSelectiveReaction();
     await testHtmlAcceptance_ReactionMaterializesDomResource();
-    await testCore_BuildAttributesDistinguishesCapabilities();
-    await testCore_UcaDispositionUpdateAndStorage();
+    await testCore_DynamicCapabilityActivationDeactivation();
+    await testCore_UcaDispositionUpdate();
     await testCore_UcaRespondsToDispositionGetWithProvide();
     await testCore_UcaMatchesIdIsolation();
     await testCore_UcaContextPropagation();
-    console.log('✔ All 18 Core UCA lifecycle, Cooky, attribute mapping, context and storage tests passed successfully.');
+    console.log('✔ All 18 Core UCA lifecycle, Cooky, dynamic activation, context and isolation tests passed successfully.');
 }
 
 runAllTests().catch((error: unknown) => {

@@ -21,6 +21,7 @@ function testMultiply_IdentityAndDefaults(): void {
 function testMultiply_CalculatesProduct(): void {
     const bus = new EventTarget();
     const multiply = new Multiply('multiply-test').innervate(bus);
+    emitSignal(bus, multiply.updateEvent, Multiply.disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
         result = (event as CustomEvent<Signal<number>>).detail.value;
@@ -38,7 +39,8 @@ function testMultiply_CalculatesProduct(): void {
 function testMultiply_UsesFallbackDispositionAimBody(): void {
     const bus = new EventTarget();
     const disposition: Disposition<Body> = { aim: { description: 'Multiply fallback', body: { operands: [8, 9] as const } }, reactTo: [SignalType.EVALUATE] };
-    const multiply = new Multiply('multiply-fallback').innervate(bus, disposition);
+    const multiply = new Multiply('multiply-fallback').innervate(bus);
+    emitSignal(bus, multiply.updateEvent, disposition);
     let result: unknown = undefined;
     bus.addEventListener(SignalType.EVALUATED, (event: Event) => {
         result = (event as CustomEvent<Signal<number>>).detail.value;

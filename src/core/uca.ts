@@ -1,35 +1,32 @@
 import {
     DispositionSignal,
-    StorageSignal,
     type CapabilityConstructor,
     type Cooky,
     type Disposition,
     type DispositionProvidePayload,
-    type DispositionUpdatedPayload,
-    type DispositionUpdatePayload,
     type ICapability,
     type Signal,
 } from './types.js';
 import { Capability } from './capability.js';
-import { LocalStorage } from '@uca/capability-local-storage';
 
 /**
  * Uca: Abstracción ontológica fundamental del sistema.
  * Se constituye exclusivamente de Purpose, Capabilities y Disposition.
  * Hereda de Capability, poseyendo su propio target de eventos e integrabilidad fractal.
+ * Su catalog declara las capacidades posibles; su reactTo determina cuáles están activas.
  */
 export abstract class Uca<TBody = unknown> extends Capability<TBody> {
     public static purpose: string = 'Universal Cognitive Agent';
 
-    public readonly id: string;
-    public override target?: EventTarget;
-    private readonly registry: Map<string, ICapability>;
+    public readonly registry: Map<string, ICapability>;
 
     public constructor(id: string) {
         super(id);
-        this.id = id;
-        this.target = new EventTarget();
         this.registry = new Map();
+    }
+
+    protected override react(_signal: Signal): void | Promise<void> {
+        return;
     }
 
     public get purpose(): string {
@@ -42,77 +39,29 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         return context;
     }
 
-    public override innervate(target?: EventTarget, disposition?: Disposition<TBody>): this {
-        const activeTarget = target || this.target || new EventTarget();
-        const incoming = disposition ?? this.disposition;
-        const { reactTo = [] } = incoming;
-        const controlSignals = [DispositionSignal.UPDATE, DispositionSignal.GET];
-        const signals = [...new Set([...reactTo, ...controlSignals])];
-        super.innervate(activeTarget, { ...incoming, reactTo: signals });
-        this.innervateCapabilities(activeTarget);
-        this.onDispositionUpdated();
-        return this;
+    protected override onDispositionUpdated(event: Event): void {
+        this.syncCatalog();
+        super.onDispositionUpdated(event);
     }
 
-    public override denervate(): void {
-        super.denervate();
-        for (const capability of this.registry.values()) {
-            capability.denervate();
-        }
+    protected override handleDispositionGet(_event: Event): void {
+        const { id, disposition, purpose } = this;
+        const [prefix] = id.split(':');
+        const ucaConstructor = this.constructor as CapabilityConstructor;
+        const payload: DispositionProvidePayload<TBody> = {
+            id, ucaId: id, prefix: prefix ?? id, purpose, disposition, ucaConstructor,
+        };
+        this.pulse(DispositionSignal.PROVIDE, payload);
     }
 
-    protected override async executeReaction(signal: Signal): Promise<void> {
-        const { property } = signal;
-        if (property === DispositionSignal.UPDATE) {
-            this.handleDispositionUpdate(signal);
-            return;
-        }
-        if (property === DispositionSignal.GET) {
-            this.handleDispositionGet();
-            return;
-        }
-        await super.executeReaction(signal);
-    }
-
-    protected override react(_signal: Signal): void | Promise<void> {
-        return;
-    }
-
-    protected defaultCapabilities(): Cooky {
-        const body = { id: 'local-storage', ownerId: this.id };
-        const disposition: Disposition = { aim: { description: LocalStorage.AIM, body }, reactTo: [...LocalStorage.disposition.reactTo ?? []] };
-        return [[LocalStorage, disposition]];
-    }
-
-    protected capabilities(): Cooky {
+    protected catalog(): Cooky {
         const declarations: Cooky = [];
         return declarations;
     }
 
-    protected buildAttributes(capabilityId?: string): Record<string, string> {
-        const mapping = this.getAttributeMapping(capabilityId);
-        const attributes: Record<string, string> = {};
-        for (const [attributeName, rawValue] of Object.entries(mapping)) {
-            if (rawValue !== undefined) {
-                attributes[attributeName] = String(rawValue);
-            }
-        }
-        return attributes;
-    }
-
-    protected getAttributeMapping(_capabilityId?: string): Record<string, unknown> {
-        const mapping: Record<string, unknown> = {};
-        return mapping;
-    }
-
-    protected capability(id: string): ICapability | undefined {
+    protected getCapability(id: string): ICapability | undefined {
         const result = this.registry.get(id);
         return result;
-    }
-
-    protected hasCapability(id: string): boolean {
-        const exists = this.registry.has(id);
-        return exists;
     }
 
     protected override matchesId(id?: string): boolean {
@@ -121,72 +70,39 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         return matches;
     }
 
-    protected onDispositionUpdated(): void {}
-
-    private handleDispositionUpdate(signal: Signal): void {
-        const payload = signal.value as DispositionUpdatePayload<TBody> | undefined;
-        const { id, disposition } = payload ?? {};
-        if (id !== this.id || !disposition) {
-            return;
+    private syncCatalog(): void {
+        for (const [Factory, declared] of this.catalog()) {
+            this.syncCatalogEntry(Factory, declared);
         }
-        this.innervate(undefined, disposition as Disposition<TBody>);
-        this.pulse(StorageSignal.SET, { key: this.id, value: this.disposition });
-        const updatedPayload: DispositionUpdatedPayload<TBody> = { id: this.id, disposition: this.disposition };
-        this.pulse(DispositionSignal.UPDATED, updatedPayload);
     }
 
-    private handleDispositionGet(): void {
-        const prefix = this.id.includes(':') ? this.id.split(':')[0] : this.id;
-        const payload: DispositionProvidePayload<TBody> = {
-            ucaId: this.id,
-            prefix: prefix ?? this.id,
-            purpose: this.purpose,
-            disposition: this.disposition,
-            ucaConstructor: this.constructor as CapabilityConstructor,
-        };
-        this.pulse(DispositionSignal.PROVIDE, payload);
+    private syncCatalogEntry(Factory: CapabilityConstructor, declared: Disposition): void {
+        const { reactTo = [] } = this.disposition;
+        const { reactTo: signals = [], aim } = declared;
+        const { id } = (aim.body ?? {}) as { id?: string };
+        const isActive = signals.some((signal) => reactTo.includes(signal));
+        if (!isActive) { return void this.getCapability(id ?? '')?.denervate(); }
+        const capability = this.getCapability(id ?? '') ?? this.registerCapability(Factory, id);
+        this.connectCapability(capability, declared);
     }
 
-    private createCapability(CapabilityClass: CapabilityConstructor, disposition: Disposition): ICapability {
-        const { aim } = disposition;
-        const { id: bodyId } = (aim.body as { id?: string } | undefined) ?? {};
-        const Factory = CapabilityClass as unknown as new (id?: string) => ICapability;
-        const instance = bodyId !== undefined ? new Factory(bodyId) : new Factory();
-        this.registry.set(instance.id, instance);
-        return instance;
+    private registerCapability(Factory: CapabilityConstructor, id?: string): ICapability {
+        const created = new (Factory as unknown as new (id?: string) => ICapability)(id);
+        this.registry.set(created.id, created);
+        return created;
     }
 
-    private getCapabilityId(CapabilityClass: CapabilityConstructor, disposition: Disposition): string | undefined {
-        const { aim } = disposition;
-        const { id: bodyId } = (aim.body as { id?: string } | undefined) ?? {};
-        const staticId = (CapabilityClass as unknown as { __ID__?: string }).__ID__;
-        return bodyId ?? staticId;
-    }
-
-    private resolveInheritedContext(): string | undefined {
-        if (this.context && this.purpose) {
-            return `${this.context} → ${this.purpose}`;
+    private connectCapability(capability: ICapability, declared: Disposition): void {
+        if (!capability.target) {
+            capability.innervate(this.target);
         }
-        return this.context ?? this.purpose;
+        this.updateCapability(capability, declared);
     }
 
-    private resolveChildDisposition(disposition: Disposition): Disposition {
-        const { aim } = disposition;
-        const currentBody = (aim?.body ?? {}) as Record<string, unknown>;
-        const inherited = this.resolveInheritedContext();
-        const context = currentBody.context ?? inherited;
-        const body = { context, ...currentBody };
-        const resolvedAim = { ...aim, body };
-        return { ...disposition, aim: resolvedAim };
-    }
-
-    private innervateCapabilities(activeTarget: EventTarget): void {
-        const declarations = [...this.defaultCapabilities(), ...this.capabilities()];
-        for (const [CapabilityClass, capabilityDisposition] of declarations) {
-            const resolvedDisposition = this.resolveChildDisposition(capabilityDisposition);
-            const capabilityId = this.getCapabilityId(CapabilityClass, resolvedDisposition);
-            const capability = (capabilityId ? this.registry.get(capabilityId) : undefined) ?? this.createCapability(CapabilityClass, resolvedDisposition);
-            capability.innervate(activeTarget, resolvedDisposition);
-        }
+    private updateCapability(capability: ICapability, declared: Disposition): void {
+        const context = this.context ? `${this.context} → ${this.purpose}` : this.purpose;
+        const { aim } = declared;
+        const disposition = { ...declared, aim: { ...aim, body: { context, ...(aim.body as object) } } };
+        this.pulse(capability.updateEvent, disposition);
     }
 }

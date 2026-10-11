@@ -3,7 +3,13 @@ import type { Signal } from '@uca/core/types';
 import { Server } from '../index.js';
 import { SignalType, type RequestContext, type StartedStatus } from '../types.js';
 
+function emitSignal(bus: EventTarget, property: string, value: unknown): void {
+    const signal: Signal = { source: 'test-client', property, value, timestamp: Date.now() };
+    bus.dispatchEvent(new CustomEvent(property, { detail: signal }));
+}
+
 async function testServerUca(): Promise<void> {
+    const bus = new EventTarget();
     const server = new Server('api-server');
     assert.equal(server.id, 'api-server');
     assert.equal(server.purpose, Server.purpose);
@@ -13,7 +19,7 @@ async function testServerUca(): Promise<void> {
     let requestCount = 0;
     let activeUrl = '';
 
-    server.target?.addEventListener(SignalType.STARTED, (event: Event) => {
+    bus.addEventListener(SignalType.STARTED, (event: Event) => {
         const customEvent = event as CustomEvent<Signal>;
         const { value } = customEvent.detail;
         startedReceived = true;
@@ -22,11 +28,11 @@ async function testServerUca(): Promise<void> {
         activeUrl = url;
     });
 
-    server.target?.addEventListener(SignalType.STOPPED, () => {
+    bus.addEventListener(SignalType.STOPPED, () => {
         stoppedReceived = true;
     });
 
-    server.target?.addEventListener(SignalType.REQUEST, (event: Event) => {
+    bus.addEventListener(SignalType.REQUEST, (event: Event) => {
         const customEvent = event as CustomEvent<Signal>;
         const { value } = customEvent.detail;
         const requestContext = value as RequestContext;
@@ -36,7 +42,8 @@ async function testServerUca(): Promise<void> {
         }
     });
 
-    server.innervate(undefined, {
+    server.innervate(bus);
+    emitSignal(bus, server.updateEvent, {
         aim: {
             description: Server.purpose,
             body: {
@@ -63,14 +70,7 @@ async function testServerUca(): Promise<void> {
     });
 
     // Start server via domain signal
-    server.target?.dispatchEvent(new CustomEvent(SignalType.START, {
-        detail: {
-            source: 'test-client',
-            property: SignalType.START,
-            value: { port: 39124, hostname: '127.0.0.1' },
-            timestamp: Date.now(),
-        },
-    }));
+    emitSignal(bus, SignalType.START, { port: 39124, hostname: '127.0.0.1' });
 
     await new Promise((resolve) => setTimeout(resolve, 150));
     assert.equal(startedReceived, true, 'Server should emit STARTED signal');
@@ -95,18 +95,11 @@ async function testServerUca(): Promise<void> {
     assert.equal(name, 'Ada Lovelace');
 
     // Test dynamic route addition via ROUTE signal
-    server.target?.dispatchEvent(new CustomEvent(SignalType.ROUTE, {
-        detail: {
-            source: 'test-client',
-            property: SignalType.ROUTE,
-            value: {
-                method: 'GET',
-                path: '/api/dynamic',
-                response: { status: 200, body: { dynamic: true } },
-            },
-            timestamp: Date.now(),
-        },
-    }));
+    emitSignal(bus, SignalType.ROUTE, {
+        method: 'GET',
+        path: '/api/dynamic',
+        response: { status: 200, body: { dynamic: true } },
+    });
 
     await new Promise((resolve) => setTimeout(resolve, 50));
     const dynamicResponse = await fetch(`${activeUrl}/api/dynamic`);
@@ -116,14 +109,7 @@ async function testServerUca(): Promise<void> {
     assert.equal(dynamic, true);
 
     // Stop server via STOP signal
-    server.target?.dispatchEvent(new CustomEvent(SignalType.STOP, {
-        detail: {
-            source: 'test-client',
-            property: SignalType.STOP,
-            value: undefined,
-            timestamp: Date.now(),
-        },
-    }));
+    emitSignal(bus, SignalType.STOP, undefined);
 
     await new Promise((resolve) => setTimeout(resolve, 50));
     assert.equal(stoppedReceived, true, 'Server should emit STOPPED signal');

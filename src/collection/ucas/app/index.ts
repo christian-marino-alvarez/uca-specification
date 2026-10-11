@@ -1,12 +1,13 @@
 import { Uca } from '@uca/core/uca';
-import { DispositionSignal, type Cooky, type Disposition, type Signal } from '@uca/core/types';
+import { Capability } from '@uca/core/capability';
+import { type Cooky, type Disposition, type Signal } from '@uca/core/types';
 import { Composer } from '@uca/composer';
 import { SignalType as ComposerSignalType } from '@uca/composer/types';
 import { Builder } from '@uca/builder';
 import { SignalType as BuilderSignalType } from '@uca/builder/types';
 import { Browser } from '@uca/capability-browser';
 import { SignalType as BrowserSignalType, type BrowserContext } from '@uca/capability-browser/types';
-import { __ID__, DEFAULT_CONTEXT, DEFAULT_SIGNALS, INPUTS, OUTPUTS } from './constants.js';
+import { __ID__, DEFAULT_CONTEXT, INPUTS, OUTPUTS } from './constants.js';
 import { type Body, SignalType } from './types.js';
 
 export class App extends Uca<Body> {
@@ -14,7 +15,15 @@ export class App extends Uca<Body> {
 
     public static override disposition: Disposition<Body> = {
         aim: { description: App.purpose, body: { context: DEFAULT_CONTEXT } },
-        reactTo: [...DEFAULT_SIGNALS],
+        reactTo: [
+            ComposerSignalType.STREAMED,
+            ComposerSignalType.ERROR,
+            BrowserSignalType.DETECTED,
+            BrowserSignalType.CHANGED,
+            ...Composer.disposition.reactTo ?? [],
+            ...Builder.disposition.reactTo ?? [],
+            ...Browser.disposition.reactTo ?? [],
+        ],
         inputs: INPUTS,
         outputs: OUTPUTS,
     };
@@ -23,8 +32,8 @@ export class App extends Uca<Body> {
         super(id);
     }
 
-    protected override capabilities(): Cooky {
-        const { aim } = this.disposition;
+    protected override catalog(): Cooky {
+        const { aim, limits } = this.disposition;
         const { description, body: { context, composition } = {} } = aim;
         const { reactTo: composerReactTo } = Composer.disposition;
         const { reactTo: builderReactTo } = Builder.disposition;
@@ -33,13 +42,14 @@ export class App extends Uca<Body> {
         const builderBody = { id: `${this.id}:builder`, parentTo: this.id };
         const browserBody = { id: `${this.id}:browser` };
         return [
-            [Composer, { aim: { description, body: composerBody }, reactTo: composerReactTo }],
+            [Composer, { aim: { description, body: composerBody }, reactTo: composerReactTo, ...(limits && { limits }) }],
             [Builder, { aim: { description: Builder.purpose, body: builderBody }, reactTo: builderReactTo }],
             [Browser, { aim: { description: Browser.AIM, body: browserBody }, reactTo: browserReactTo }],
         ];
     }
 
-    protected override onDispositionUpdated(): void {
+    protected override onDispositionUpdated(event: Event): void {
+        super.onDispositionUpdated(event);
         this.pulse(BrowserSignalType.READ, {});
     }
 
@@ -55,13 +65,39 @@ export class App extends Uca<Body> {
     }
 
     private handleBrowserDetected(value: unknown): void {
-        const context = this.formatContext(value as BrowserContext);
-        this.pulse(DispositionSignal.UPDATE, { id: `${this.id}:composer`, disposition: { aim: { body: { context } } } });
+        const browserContext = value as BrowserContext;
+        const limits = this.resolveLimits(browserContext);
+        const context = this.formatContext(browserContext);
+        this.updateComposer(context, limits);
     }
 
     private handleBrowserChanged(value: unknown): void {
-        const context = this.formatContext(value as BrowserContext);
-        this.pulse(DispositionSignal.UPDATE, { id: `${this.id}:composer`, disposition: { aim: { body: { context } } } });
+        const browserContext = value as BrowserContext;
+        const limits = this.resolveLimits(browserContext);
+        const context = this.formatContext(browserContext);
+        this.updateComposer(context, limits);
+    }
+
+    private resolveLimits(browserContext: BrowserContext): Record<string, unknown> {
+        const { viewport, screen, browser } = browserContext ?? {};
+        const { width = 1920, height = 1080 } = viewport ?? {};
+        const { orientation = 'landscape' } = screen ?? {};
+        const { platform = 'desktop' } = browser ?? {};
+        return { width, height, orientation, platform, viewport: { width, height } };
+    }
+
+    private updateComposer(context: string, limits?: Record<string, unknown>): void {
+        const { aim } = this.disposition;
+        const { description, body: { composition } = {} } = aim;
+        const { reactTo } = Composer.disposition;
+        const body = { id: `${this.id}:composer`, request: this.purpose, context, parentTo: this.id, composition };
+        this.logLimits(limits);
+        this.pulse(Capability.updateEvent(`${this.id}:composer`), { aim: { description, body }, reactTo, ...(limits && { limits }) });
+    }
+
+    private logLimits(limits?: Record<string, unknown>): void {
+        if (!limits) { return; }
+        console.log('%c📐 [App -> Composer] Límites de pantalla detectados por Browser:', 'color: #38bdf8; font-weight: bold;', limits);
     }
 
     private formatContext(browserContext: BrowserContext): string {

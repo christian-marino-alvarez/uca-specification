@@ -7,10 +7,8 @@ import { SignalType as OpenaiSignalType, type Body as OpenaiBody } from '@uca/ca
 import {
     __ID__,
     DEFAULT_GEMINI_MODEL,
-    DEFAULT_INSTRUCTION,
     DEFAULT_OPENAI_MODEL,
     DEFAULT_PROVIDER,
-    DEFAULT_SIGNALS,
 } from './constants.js';
 import {
     type Body,
@@ -27,7 +25,23 @@ export class Llm extends Uca<Body> {
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Llm.purpose, body: {} },
-        reactTo: [...DEFAULT_SIGNALS],
+        reactTo: [
+            SignalType.INFER,
+            SignalType.STREAM,
+            SignalType.CONNECT,
+            GeminiSignalType.CONNECTED,
+            GeminiSignalType.GENERATED,
+            GeminiSignalType.CHUNK,
+            GeminiSignalType.STREAM_END,
+            GeminiSignalType.ERROR,
+            OpenaiSignalType.CONNECTED,
+            OpenaiSignalType.GENERATED,
+            OpenaiSignalType.CHUNK,
+            OpenaiSignalType.STREAM_END,
+            OpenaiSignalType.ERROR,
+            ...Gemini.disposition.reactTo ?? [],
+            ...Openai.disposition.reactTo ?? [],
+        ],
         inputs: [
             { signal: SignalType.INFER, type: DataType.INFER_PAYLOAD, description: 'Request reasoning inference or text generation' },
             { signal: SignalType.STREAM, type: DataType.INFER_PAYLOAD, description: 'Request streaming reasoning tokens' },
@@ -46,26 +60,7 @@ export class Llm extends Uca<Body> {
         super(id);
     }
 
-    public override innervate(target?: EventTarget, disposition?: Disposition<Body>): this {
-        const base = disposition ?? Llm.disposition;
-        const { reactTo = [] } = base;
-        const internalSignals = [
-            GeminiSignalType.GENERATED,
-            GeminiSignalType.CHUNK,
-            GeminiSignalType.STREAM_END,
-            GeminiSignalType.CONNECTED,
-            GeminiSignalType.ERROR,
-            OpenaiSignalType.GENERATED,
-            OpenaiSignalType.CHUNK,
-            OpenaiSignalType.STREAM_END,
-            OpenaiSignalType.CONNECTED,
-            OpenaiSignalType.ERROR,
-        ];
-        const signals = [...new Set([...reactTo, ...internalSignals])];
-        return super.innervate(target, { ...base, reactTo: signals });
-    }
-
-    protected override capabilities(): Cooky {
+    protected override catalog(): Cooky {
         const { aim } = this.disposition;
         const { connection, model } = (aim.body ?? {}) as Body;
         return [

@@ -1,14 +1,18 @@
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import { type Body, type IterationContext, DataType, SignalType } from './types.js';
-import { __ID__, __DEFAULT_SIGNALS__ } from './constants.js';
+import { __ID__ } from './constants.js';
 
 export class Loop extends Capability<Body> {
     public static readonly AIM: string = 'Iterate sequentially over items or count';
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Loop.AIM, body: {} },
-        reactTo: [...__DEFAULT_SIGNALS__],
+        reactTo: [
+            SignalType.START,
+            SignalType.STOP,
+            SignalType.NEXT,
+        ],
         inputs: [
                 { signal: SignalType.START, type: DataType.LOOP_OPTIONS, description: 'LoopOptions { items, count, step }' },
                 { signal: SignalType.STOP, type: DataType.VOID, description: 'Stop ongoing loop' },
