@@ -4,6 +4,10 @@ import { execSync } from 'node:child_process';
 import { builtinModules } from 'node:module';
 import * as esbuild from 'esbuild';
 
+try {
+    process.loadEnvFile?.();
+} catch {}
+
 const ROOT = path.resolve(import.meta.dirname, '..');
 const DIST = path.join(ROOT, 'dist');
 const WEB_DIST = path.join(DIST, 'web');
@@ -44,7 +48,7 @@ function buildImportMapEntry(workspace: string): Record<string, string> {
     for (const [exportKey, exportValue] of Object.entries(pkgExports)) {
         const resolved = (exportValue as Record<string, string>)?.import;
         if (!resolved) { continue; }
-        const resolvedFile = resolved.replace(/^\.\//, '');
+        const resolvedFile = resolved.replace(/^\.\//, '').replace(/\.ts$/, '.js');
         const specifier = exportKey === '.' ? name : `${name}/${exportKey.replace(/^\.\//, '')}`;
         entries[specifier] = `./${distRelative}/${resolvedFile}`;
     }
@@ -55,6 +59,9 @@ function generateImportMap(): string {
     const workspaces = resolveWorkspaces();
     const imports: Record<string, string> = {
         'zod': './vendor/zod.js',
+        '@google/genai': './vendor/google-genai.js',
+        'openai': './vendor/openai.js',
+        '@typesafe-ai/sdk': './vendor/typesafe-ai-sdk.js',
     };
     for (const workspace of workspaces) {
         Object.assign(imports, buildImportMapEntry(workspace));
@@ -65,17 +72,30 @@ function generateImportMap(): string {
 async function bundleVendorLibraries(): Promise<void> {
     const vendorDir = path.join(WEB_DIST, 'vendor');
     fs.mkdirSync(vendorDir, { recursive: true });
+    await Promise.all([
+        buildVendor(vendorDir, 'zod', 'zod.js'),
+        buildVendor(vendorDir, '@google/genai', 'google-genai.js'),
+        buildVendor(vendorDir, 'openai', 'openai.js'),
+        buildVendor(vendorDir, '@typesafe-ai/sdk', 'typesafe-ai-sdk.js'),
+    ]);
+}
+
+async function buildVendor(dir: string, entry: string, outfile: string): Promise<void> {
     await esbuild.build({
-        entryPoints: ['zod'],
-        outfile: path.join(vendorDir, 'zod.js'),
+        entryPoints: [entry],
+        outfile: path.join(dir, outfile),
         format: 'esm',
         bundle: true,
         platform: 'browser',
         target: 'es2022',
+        define: { 'process.env': '{}' },
     });
 }
 
 async function transpileEntry(): Promise<void> {
+    const geminiKey = process.env.GEMINI_API_KEY ?? '';
+    const openaiKey = process.env.OPENAI_API_KEY ?? '';
+    const jevKey = process.env.JEV_API_KEY ?? '';
     await esbuild.build({
         entryPoints: [path.join(CLI, 'entry.ts')],
         outfile: path.join(WEB_DIST, 'app.js'),
@@ -84,12 +104,22 @@ async function transpileEntry(): Promise<void> {
         packages: 'external',
         platform: 'browser',
         target: 'es2022',
+        define: {
+            'process.env.GEMINI_API_KEY': JSON.stringify(geminiKey),
+            'process.env.OPENAI_API_KEY': JSON.stringify(openaiKey),
+            'process.env.JEV_API_KEY': JSON.stringify(jevKey),
+        },
     });
 }
 
 function buildHtml(importMap: string): void {
     const template = fs.readFileSync(path.join(CLI, 'index.html'), 'utf-8');
-    const html = template.replace('{{IMPORT_MAP}}', importMap);
+    const geminiKey = process.env.GEMINI_API_KEY ?? '';
+    const openaiKey = process.env.OPENAI_API_KEY ?? '';
+    const html = template
+        .replace('{{IMPORT_MAP}}', importMap)
+        .replace(/{{GEMINI_API_KEY}}/g, geminiKey)
+        .replace(/{{OPENAI_API_KEY}}/g, openaiKey);
     fs.writeFileSync(path.join(WEB_DIST, 'index.html'), html);
 }
 

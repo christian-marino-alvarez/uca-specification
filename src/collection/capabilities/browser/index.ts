@@ -24,16 +24,16 @@ export class Browser extends Capability<Body> {
     public static override disposition: Disposition<Body> = {
         aim: { description: Browser.AIM, body: {} },
         reactTo: [
-            SignalType.READ,
+            SignalType.DETECT,
             SignalType.DESTROY,
         ],
         inputs: [
-            { signal: SignalType.READ, type: DataType.VOID, description: 'Request fresh browser context capture' },
+            { signal: SignalType.DETECT, type: DataType.VOID, description: 'Request fresh browser context capture' },
             { signal: SignalType.DESTROY, type: DataType.VOID, description: 'Unbind window listeners and destroy session' },
         ],
         outputs: [
-            { signal: SignalType.DETECTED, type: DataType.RECORD, description: 'Initial or requested browser context' },
-            { signal: SignalType.CHANGED, type: DataType.RECORD, description: 'Updated browser context upon resize or orientation change' },
+            { signal: SignalType.DETECTED, type: DataType.CONTEXT, description: 'Initial or requested browser context' },
+            { signal: SignalType.CHANGED, type: DataType.CONTEXT, description: 'Updated browser context upon resize or orientation change' },
             { signal: SignalType.DESTROYED, type: DataType.RECORD, description: 'Confirmation that window listeners are destroyed' },
         ],
     };
@@ -45,11 +45,16 @@ export class Browser extends Capability<Body> {
         super(id);
     }
 
+    public override denervate(): void {
+        this.unbindWindowListeners();
+        super.denervate();
+    }
+
     protected override react(signal: Signal): void {
         const { property } = signal;
         switch (property) {
-            case SignalType.READ:
-                this.handleRead();
+            case SignalType.DETECT:
+                this.handleDetect();
                 break;
             case SignalType.DESTROY:
                 this.handleDestroy();
@@ -59,7 +64,7 @@ export class Browser extends Capability<Body> {
         }
     }
 
-    private handleRead(): void {
+    private handleDetect(): void {
         this.bindWindowListeners();
         this.pulse(SignalType.DETECTED, this.captureContext());
     }
@@ -70,10 +75,11 @@ export class Browser extends Capability<Body> {
     }
 
     private bindWindowListeners(): void {
-        if (typeof window === 'undefined' || !window.matchMedia || this.mediaListener) { return; }
+        if (typeof window === 'undefined' || this.mediaListener) { return; }
         this.mediaListener = () => this.pulse(SignalType.CHANGED, this.captureContext());
-        const queries = ['(max-width: 768px)', '(orientation: portrait)', '(prefers-color-scheme: dark)'];
-        this.mediaQueries = queries.map((query) => window.matchMedia(query));
+        window.addEventListener('resize', this.mediaListener);
+        const queries = ['(orientation: portrait)', '(prefers-color-scheme: dark)'];
+        this.mediaQueries = queries.map((query) => window.matchMedia?.(query)).filter(Boolean) as MediaQueryList[];
         for (const mediaQuery of this.mediaQueries) {
             mediaQuery.addEventListener('change', this.mediaListener);
         }
@@ -81,6 +87,7 @@ export class Browser extends Capability<Body> {
 
     private unbindWindowListeners(): void {
         if (!this.mediaListener) { return; }
+        if (typeof window !== 'undefined') { window.removeEventListener('resize', this.mediaListener); }
         for (const mediaQuery of this.mediaQueries) {
             mediaQuery.removeEventListener('change', this.mediaListener);
         }
@@ -112,27 +119,39 @@ export class Browser extends Capability<Body> {
     private captureNavigator(): NavigatorContext {
         if (typeof navigator === 'undefined') { return DEFAULT_BROWSER; }
         const { userAgent, language, maxTouchPoints = 0, onLine = true } = navigator;
-        const isDark = typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches;
-        const reducedMotion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        const colorScheme = this.resolveThemePreference();
+        const reducedMotion = this.resolveReducedMotion();
         const type = this.detectBrowserType(userAgent);
         const platform = this.resolvePlatform();
-        return { type, userAgent, language, platform, touch: maxTouchPoints > 0, maxTouchPoints, colorScheme: isDark ? 'dark' : 'light', reducedMotion: Boolean(reducedMotion), online: onLine };
+        return { type, userAgent, language, platform, touch: maxTouchPoints > 0, maxTouchPoints, colorScheme, reducedMotion, online: onLine };
+    }
+
+    private resolveThemePreference(): 'dark' | 'light' {
+        if (typeof window === 'undefined' || !window.matchMedia) { return 'light'; }
+        const { matches } = window.matchMedia('(prefers-color-scheme: dark)');
+        return matches ? 'dark' : 'light';
+    }
+
+    private resolveReducedMotion(): boolean {
+        if (typeof window === 'undefined' || !window.matchMedia) { return false; }
+        const { matches } = window.matchMedia('(prefers-reduced-motion: reduce)');
+        return matches;
     }
 
     private resolvePlatform(): string {
-        const clientData = (navigator as unknown as { userAgentData?: { platform?: string } }).userAgentData;
-        const { platform: clientPlatform } = clientData ?? {};
-        const { platform: legacyPlatform } = navigator as unknown as { platform?: string };
+        const nav = navigator as unknown as { userAgentData?: { platform?: string }; platform?: string };
+        const { userAgentData, platform: legacyPlatform } = nav ?? {};
+        const { platform: clientPlatform } = userAgentData ?? {};
         return clientPlatform || legacyPlatform || 'unknown';
     }
 
     private detectBrowserType(userAgent: string): string {
         const lower = userAgent.toLowerCase();
-        if (lower.includes('edg/')) { return 'Edge'; }
-        if (lower.includes('chrome') && !lower.includes('edg')) { return 'Chrome'; }
-        if (lower.includes('safari') && !lower.includes('chrome')) { return 'Safari'; }
-        if (lower.includes('firefox')) { return 'Firefox'; }
-        if (lower.includes('opera') || lower.includes('opr/')) { return 'Opera'; }
-        return 'Unknown';
+        const signatures: [string, string][] = [
+            ['edg/', 'Edge'], ['opera', 'Opera'], ['opr/', 'Opera'],
+            ['chrome', 'Chrome'], ['safari', 'Safari'], ['firefox', 'Firefox'],
+        ];
+        const matched = signatures.find(([key]) => lower.includes(key));
+        return matched ? matched[1] : 'Unknown';
     }
 }

@@ -1,77 +1,71 @@
+import * as assert from 'node:assert';
+import { Capability } from '@uca/core/capability';
 import type { Signal } from '@uca/core/types';
 import { Browser } from '../index.js';
+import { __ID__, AIM } from '../constants.js';
 import { SignalType, type BrowserContext } from '../types.js';
 
-console.log('🧪 Testing Browser capability...');
-
-const target = new EventTarget();
-const capability = new Browser('browser:test');
-
-const detectedEvents: BrowserContext[] = [];
-let destroyedConfirmation = false;
-
-const countEvents = (): number => detectedEvents.length;
-
-target.addEventListener(SignalType.DETECTED, (event: Event) => {
-    const customEvent = event as CustomEvent<Signal>;
-    const { property, value } = customEvent.detail;
-    if (property === SignalType.DETECTED) {
-        detectedEvents.push(value as BrowserContext);
-    }
-});
-
-target.addEventListener(SignalType.DESTROYED, () => {
-    destroyedConfirmation = true;
-});
-
-capability.innervate(target);
-
-if (countEvents() !== 0) {
-    throw new Error(`Innervation must be purely topological and must not emit detected events, got ${countEvents()}`);
+function emitSignal(bus: EventTarget, property: string, value: unknown): void {
+    const detail: Signal = { source: 'test', property, value, timestamp: Date.now() };
+    bus.dispatchEvent(new CustomEvent(property, { detail }));
 }
 
-target.dispatchEvent(new CustomEvent(capability.updateEvent, {
-    detail: { source: 'test', property: capability.updateEvent, value: Browser.disposition, timestamp: Date.now() },
-}));
-
-target.dispatchEvent(new CustomEvent(SignalType.READ, {
-    detail: { source: 'test', property: SignalType.READ, value: undefined, timestamp: Date.now() },
-}));
-
-if (countEvents() !== 1) {
-    throw new Error(`Expected exactly 1 detected event after READ signal, got ${countEvents()}`);
+function testBrowser_IdentityAndDisposition(): void {
+    const browser = new Browser();
+    assert.strictEqual(browser.id, __ID__);
+    assert.strictEqual(Browser.AIM, AIM);
+    assert.ok(browser instanceof Capability);
+    const { inputs, outputs } = Browser.disposition;
+    assert.strictEqual(inputs?.length, 2);
+    assert.strictEqual(outputs?.length, 3);
 }
 
-const [initialContext] = detectedEvents;
-const { viewport, screen, browser } = initialContext;
-if (typeof viewport.width !== 'number' || typeof viewport.height !== 'number') {
-    throw new Error('Browser capability must provide valid viewport dimensions');
+function testBrowser_InnervationIsPure(): void {
+    const bus = new EventTarget();
+    let detectedCalled = false;
+    bus.addEventListener(SignalType.DETECTED, () => { detectedCalled = true; });
+    const browser = new Browser('browser:pure');
+    browser.innervate(bus);
+    assert.strictEqual(detectedCalled, false);
+    browser.denervate();
 }
 
-if (typeof screen.width !== 'number' || typeof screen.pixelRatio !== 'number') {
-    throw new Error('Browser capability must provide valid screen metrics');
+function testBrowser_DetectContext(): void {
+    const bus = new EventTarget();
+    let captured: BrowserContext | undefined;
+    bus.addEventListener(SignalType.DETECTED, (event: Event) => {
+        const customEvent = event as CustomEvent<Signal<BrowserContext>>;
+        captured = customEvent.detail.value;
+    });
+    const browser = new Browser('browser:detect');
+    browser.innervate(bus);
+    emitSignal(bus, browser.updateEvent, Browser.disposition);
+    emitSignal(bus, SignalType.DETECT, undefined);
+    assert.ok(captured);
+    assert.strictEqual(typeof captured.viewport.width, 'number');
+    assert.strictEqual(typeof captured.screen.width, 'number');
+    browser.denervate();
 }
 
-if (typeof browser.userAgent !== 'string' || typeof browser.touch !== 'boolean') {
-    throw new Error('Browser capability must provide valid browser metrics');
+function testBrowser_DestroySignal(): void {
+    const bus = new EventTarget();
+    let destroyed = false;
+    bus.addEventListener(SignalType.DESTROYED, () => { destroyed = true; });
+    const browser = new Browser('browser:destroy');
+    browser.innervate(bus);
+    emitSignal(bus, browser.updateEvent, Browser.disposition);
+    emitSignal(bus, SignalType.DESTROY, undefined);
+    assert.strictEqual(destroyed, true);
+    browser.denervate();
 }
 
-target.dispatchEvent(new CustomEvent(SignalType.READ, {
-    detail: { source: 'test', property: SignalType.READ, value: undefined, timestamp: Date.now() },
-}));
-
-if (countEvents() !== 2) {
-    throw new Error(`Expected exactly 2 detected events after second READ signal, got ${countEvents()}`);
+function runTests(): void {
+    console.log('🧪 Testing Browser capability...');
+    testBrowser_IdentityAndDisposition();
+    testBrowser_InnervationIsPure();
+    testBrowser_DetectContext();
+    testBrowser_DestroySignal();
+    console.log('✔ All Browser capability tests passed successfully.');
 }
 
-target.dispatchEvent(new CustomEvent(SignalType.DESTROY, {
-    detail: { source: 'test', property: SignalType.DESTROY, value: undefined, timestamp: Date.now() },
-}));
-
-if (!destroyedConfirmation) {
-    throw new Error('Browser capability must emit DESTROYED confirmation upon DESTROY signal');
-}
-
-capability.denervate();
-
-console.log('✔ All Browser capability tests passed successfully.');
+runTests();

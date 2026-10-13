@@ -29,6 +29,13 @@ El dominio `src/core` contiene **única y exclusivamente las primitivas ontológ
      * Toda comunicación nerviosa viaja como `Signal` estructurada a través de un `EventTarget`.
 4. **Declaratividad Cooky**:
    * La relación entre una `Uca` y sus capacidades intrínsecas se define mediante tuplas declarativas `[CapabilityConstructor, Disposition]`.
+5. **Ciclo de Vida Idempotente de la Disposición y Sincronización del Catálogo**:
+   * **Propagación reactiva**: La disposición se actualiza mediante eventos dirigidos `Capability.updateEvent(id)`.
+   * **Idempotencia**: `handleDispositionUpdate` verifica si hubo un cambio real comparando las estructuras con normalización recursiva de claves (`isDispositionChanged` / `normalizeKeys`). Si no hay cambio, la ejecución se detiene sin coste ni reconexión.
+   * **Reconexión y Catálogo**: Si la disposición cambia efectivamente, se desconectan y reconectan los receptores, actualizándose `this.disposition`, y se invoca `onDispositionUpdated(event)`.
+   * **Sincronización en `Uca`**: En `Uca.onDispositionUpdated()`, se ejecuta `syncCatalog()`, activando/inervando dinámicamente o silenciando/denervando capacidades según `disposition.reactTo`.
+6. **Validación Previa Obligatoria de Core**:
+   * Antes de cualquier implementación, refactorización o creación en cualquier dominio del repositorio, es **estrictamente obligatorio validar la integridad de Core** ejecutando `npm run test:core`.
 
 ---
 

@@ -1,37 +1,25 @@
-import type { Body, Item } from './schema.js';
-export type { Body, Dimensions, Node, Item, Structure, CreatePayload } from './schema.js';
+import type { Body, Dimensions, Layout, Section, Style } from './schema.js';
+
+export { type Body, type Dimensions, type Layout, type Section, type Style } from './schema.js';
+
+export interface Limits {
+    readonly width?: number;
+    readonly height?: number;
+    readonly orientation?: string;
+    readonly [key: string]: unknown;
+}
 
 export enum SignalType {
-    CREATE = 'composer.create',
-    UPDATE = 'composer.update',
-    CREATED = 'composer.created',
-    STREAM = 'composer.stream',
-    STREAMED = 'composer.streamed',
+    COMPOSE = 'composer.compose',
+    COMPOSED = 'composer.composed',
     CHUNK = 'composer.chunk',
-    DESTROY = 'composer.destroy',
-    DESTROYED = 'composer.destroyed',
+    STREAM_END = 'composer.stream-end',
     ERROR = 'composer.error',
 }
 
 export enum DataType {
-    PAYLOAD = 'payload',
-    RESULT = 'result',
-    STREAM = 'stream',
-    VOID = 'void',
+    BODY = 'Body',
+    COMPOSE_PAYLOAD = 'ComposePayload',
+    LAYOUT_RESULT = 'LayoutResult',
     UNKNOWN = 'unknown',
-}
-
-export interface StreamResult {
-    readonly correlationId?: string;
-    readonly streamId?: string;
-    readonly stream: ReadableStream<Item>;
-}
-
-export interface CreatedResult extends Body {
-    readonly correlationId?: string;
-}
-
-export interface ErrorResult {
-    readonly error: string;
-    readonly correlationId?: string;
 }

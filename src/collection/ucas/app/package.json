@@ -1,7 +1,7 @@
 {
   "name": "@uca/app",
   "version": "0.1.0",
-  "description": "Website de la arquitectura UCA cuyo propósito es explicar de forma demostrable la propia UCA, siendo la propia web una aplicación UCA",
+  "description": "Autonomous application orchestrator that captures environmental viewport dimensions and coordinates application context",
   "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",
@@ -43,7 +43,6 @@
     }
   },
   "dependencies": {
-    "@uca/builder": "^0.1.0",
     "@uca/capability-browser": "^0.1.0",
     "@uca/composer": "^0.1.0",
     "@uca/core": "^0.1.0",

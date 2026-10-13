@@ -1,74 +1,159 @@
-import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import assert from 'node:assert';
+import { Uca } from '@uca/core/uca';
+import { Llm } from '@uca/llm';
+import { SignalType as LlmSignalType, type InferPayload, type Body as LlmBody } from '@uca/llm/types';
+import { StreamTransformer } from '@uca/capability-stream-transformer';
+import {
+    SignalType as TransformerSignalType,
+    type TransformPayload,
+} from '@uca/capability-stream-transformer/types';
 import type { Signal } from '@uca/core/types';
-import { SignalType as SseSignalType } from '@uca/capability-sse-client/types';
 import { Composer } from '../index.js';
-import { SignalType, type StreamResult } from '../types.js';
-import { CHILDREN, DISPOSITION } from './constants.js';
+import { __ID__, DEFAULT_CATALOG, DEFAULT_CONTEXT, DEFAULT_MODEL, DEFAULT_PROVIDER, DEFAULT_REQUEST } from '../constants.js';
+import { bodySchema } from '../schema.js';
+import { DataType, SignalType } from '../types.js';
 
-function emit(bus: EventTarget, property: string, value: unknown, source = 'client'): void {
-    const detail: Signal = { source, property, value, timestamp: Date.now() };
+class TestableComposer extends Composer {
+    public exposeCatalog(): ReturnType<Composer['catalog']> {
+        return this.catalog();
+    }
+}
+
+function emitSignal(bus: EventTarget, property: string, value: unknown): void {
+    const detail = { source: 'test', property, value, timestamp: Date.now() };
     bus.dispatchEvent(new CustomEvent(property, { detail }));
 }
 
-function receive<Value>(bus: EventTarget, property: string): Promise<Value> {
-    return new Promise((resolve) => bus.addEventListener(property, (event) => {
-        const { detail: { value } } = event as CustomEvent<Signal<Value>>;
-        resolve(value);
-    }, { once: true }));
+function testComposer_Identity(): void {
+    const composer = new Composer();
+    assert.strictEqual(composer.id, __ID__);
+    assert.strictEqual(composer.purpose, Composer.purpose);
+    assert.ok(composer instanceof Uca);
 }
 
-function response(value: unknown): Response {
-    return new Response(`data: ${JSON.stringify({ text: JSON.stringify(value) })}\n\ndata: [DONE]\n\n`);
+function testComposer_Disposition(): void {
+    const { aim, inputs, outputs } = Composer.disposition;
+    const { body } = aim;
+    assert.strictEqual(body?.request, DEFAULT_REQUEST);
+    assert.strictEqual(body?.context, DEFAULT_CONTEXT);
+    assert.deepStrictEqual(body?.catalog, [...DEFAULT_CATALOG]);
+    assert.strictEqual(inputs?.[0].signal, SignalType.COMPOSE);
+    assert.strictEqual(outputs?.[0].signal, SignalType.COMPOSED);
 }
 
-async function readAll(stream: ReadableStream<Record<string, unknown>>): Promise<Record<string, unknown>> {
-    const reader = stream.getReader();
-    let accumulated: Record<string, unknown> = {};
-    for (let { done, value } = await reader.read(); !done; { done, value } = await reader.read()) {
-        accumulated = { ...accumulated, ...value };
-    }
-    return accumulated;
+function testComposer_SchemaValidation(): void {
+    const valid = {
+        request: 'Build navbar',
+        context: 'Web',
+        catalog: ['Box'],
+        layout: {
+            'main-header': {
+                purpose: 'Header navigation',
+                context: 'Top bar',
+                parentTo: 'app',
+                dimensions: { width: 'full', height: 'auto' },
+                style: { surface: 'card', spacing: 'medium' },
+            },
+        },
+    };
+    const parsed = bodySchema.parse(valid);
+    assert.strictEqual(parsed.request, 'Build navbar');
+    assert.ok(parsed.layout?.['main-header']);
+    assert.strictEqual(parsed.layout?.['main-header']?.parentTo, 'app');
 }
 
-await test('Composer streams validated immediate children with domain context and dimensions', async (context) => {
-    context.mock.method(globalThis, 'fetch', async () => response(CHILDREN));
-    const bus = new EventTarget();
-    const streamed = receive<StreamResult>(bus, SignalType.STREAMED);
-    const composer = new Composer().innervate(bus);
-    emit(bus, composer.updateEvent, { ...Composer.disposition, aim: { description: 'Explain UCA', body: { ...DISPOSITION.aim.body, correlationId: 'first' } } });
-    context.after(() => composer.denervate());
-    const { stream, correlationId } = await streamed;
-    const children = await readAll(stream);
-    assert.deepEqual(children, CHILDREN);
-    assert.equal(correlationId, 'first');
-});
+function testComposer_CapabilitiesInCooky(): void {
+    const composer = new TestableComposer('custom-composer');
+    const catalog = composer.exposeCatalog();
+    assert.strictEqual(catalog.length, 2);
+    const [LlmClass, llmDisposition] = catalog[0];
+    const { aim: llmAim } = llmDisposition;
+    const { model, provider } = (llmAim.body ?? {}) as LlmBody;
+    assert.strictEqual(LlmClass, Llm);
+    assert.strictEqual(model, DEFAULT_MODEL);
+    assert.strictEqual(provider, DEFAULT_PROVIDER);
+    const [TransformerClass] = catalog[1];
+    assert.strictEqual(TransformerClass, StreamTransformer);
+}
 
-await test('Disposition changes request a fresh composition with the new operating context', async (context) => {
-    context.mock.method(globalThis, 'fetch', async () => response({ navigation: CHILDREN.navigation }));
+function testComposer_TriggersLlmStreamOnCompose(): void {
     const bus = new EventTarget();
-    const composer = new Composer().innervate(bus);
-    emit(bus, composer.updateEvent, { ...Composer.disposition, ...DISPOSITION });
-    context.after(() => composer.denervate());
-    const requested = receive<{ request: string }>(bus, SseSignalType.STREAM);
-    const streamed = receive<StreamResult>(bus, SignalType.STREAMED);
-    emit(bus, composer.updateEvent, { ...Composer.disposition, aim: { body: { context: 'Mobile reader' } } });
-    const { request } = await requested;
-    assert.match(request, /Mobile reader/);
-    const { stream } = await streamed;
-    const children = await readAll(stream);
-    assert.deepEqual(children, { navigation: CHILDREN.navigation });
-});
+    let streamReceived: InferPayload | undefined;
+    bus.addEventListener(LlmSignalType.STREAM, (event) => {
+        const { detail } = event as CustomEvent<Signal<InferPayload>>;
+        streamReceived = detail?.value;
+    });
+    const composer = new Composer('my-composer').innervate(bus);
+    emitSignal(bus, composer.updateEvent, Composer.disposition);
+    emitSignal(bus, SignalType.COMPOSE, { request: 'Center button and text' });
+    assert.ok(streamReceived);
+    assert.strictEqual(streamReceived.model, DEFAULT_MODEL);
+    assert.ok(streamReceived.expectations);
+    assert.ok(streamReceived.request.includes('Center button and text'));
+    composer.denervate();
+}
 
-await test('handleTransformed ignores transformed streams lacking a correlationId', async (context) => {
+function testComposer_StreamsThroughTransformer(): void {
     const bus = new EventTarget();
-    let streamedEmitted = false;
-    bus.addEventListener(SignalType.STREAMED, () => { streamedEmitted = true; });
-    const composer = new Composer().innervate(bus);
-    emit(bus, composer.updateEvent, Composer.disposition);
-    context.after(() => composer.denervate());
-    emit(bus, 'stream-transformer.transformed', { stream: new ReadableStream() });
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    assert.equal(streamedEmitted, false);
-});
+    let transformPayload: TransformPayload | undefined;
+    bus.addEventListener(TransformerSignalType.TRANSFORM, (event) => {
+        const { detail } = event as CustomEvent<Signal<TransformPayload>>;
+        transformPayload = detail?.value;
+    });
+    const composer = new Composer('stream-test-composer').innervate(bus);
+    emitSignal(bus, composer.updateEvent, Composer.disposition);
+    emitSignal(bus, SignalType.COMPOSE, { request: 'Hero section' });
+    assert.ok(transformPayload);
+    assert.ok(transformPayload.stream instanceof ReadableStream);
+    assert.strictEqual(transformPayload.correlationId, 'stream-test-composer');
+    composer.denervate();
+}
 
+function testComposer_EmitsComposedOnLlmResult(): void {
+    const bus = new EventTarget();
+    let composedPayload: unknown;
+    bus.addEventListener(SignalType.COMPOSED, (event) => {
+        const { detail } = event as CustomEvent<Signal<{ layout: unknown }>>;
+        composedPayload = detail?.value?.layout;
+    });
+    const composer = new Composer('layout-composer').innervate(bus);
+    emitSignal(bus, composer.updateEvent, Composer.disposition);
+    emitSignal(bus, LlmSignalType.INFERRED, { data: { root: 'Box', children: [] } });
+    assert.deepStrictEqual(composedPayload, { root: 'Box', children: [] });
+    composer.denervate();
+}
+
+function testComposer_StreamChunksDoNotPolluteBus(): void {
+    const bus = new EventTarget();
+    const chunks: string[] = [];
+    let streamEndEmitted = false;
+    bus.addEventListener(SignalType.CHUNK, (event) => {
+        const { detail } = event as CustomEvent<Signal<{ text: string }>>;
+        if (detail?.value?.text) { chunks.push(detail.value.text); }
+    });
+    bus.addEventListener(SignalType.STREAM_END, () => {
+        streamEndEmitted = true;
+    });
+    const composer = new Composer('stream-composer').innervate(bus);
+    emitSignal(bus, composer.updateEvent, Composer.disposition);
+    emitSignal(bus, LlmSignalType.CHUNK, { text: '{"box":' });
+    emitSignal(bus, LlmSignalType.STREAM_END, {});
+    assert.strictEqual(chunks.length, 0);
+    assert.strictEqual(streamEndEmitted, false);
+    composer.denervate();
+}
+
+function runTests(): void {
+    console.log('🧪 Testing Composer UCA (autonomous layout composer)...');
+    testComposer_Identity();
+    testComposer_Disposition();
+    testComposer_SchemaValidation();
+    testComposer_CapabilitiesInCooky();
+    testComposer_TriggersLlmStreamOnCompose();
+    testComposer_StreamsThroughTransformer();
+    testComposer_EmitsComposedOnLlmResult();
+    testComposer_StreamChunksDoNotPolluteBus();
+    console.log('✅ All Composer UCA tests passed successfully!');
+}
+
+runTests();

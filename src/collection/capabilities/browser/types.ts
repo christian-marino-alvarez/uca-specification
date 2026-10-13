@@ -1,5 +1,5 @@
 export enum SignalType {
-    READ = 'browser.read',
+    DETECT = 'browser.detect',
     DETECTED = 'browser.detected',
     CHANGED = 'browser.changed',
     DESTROY = 'browser.destroy',
@@ -9,6 +9,7 @@ export enum SignalType {
 export enum DataType {
     VOID = 'void',
     RECORD = 'record',
+    CONTEXT = 'BrowserContext',
 }
 
 export interface ViewportContext {

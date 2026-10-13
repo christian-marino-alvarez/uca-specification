@@ -3,4 +3,4 @@ export const DEFAULT_INSTRUCTION = 'Eres el motor cognitivo de Extensio UCA. Com
 
 export const DEFAULT_PROVIDER = 'gemini';
 export const DEFAULT_OPENAI_MODEL = 'gpt-4o';
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';

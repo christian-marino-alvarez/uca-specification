@@ -2,6 +2,7 @@ import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import {
     __ID__,
+    CSS_TOKENS_SUMMARY,
     DESIGN_TOKENS,
     STYLE_PREFIX,
     TOKENS_STYLE_ID,
@@ -9,9 +10,11 @@ import {
 import {
     type ApplyPayload,
     type Body,
+    type MountPayload,
     type Qualities,
     type RemovePayload,
     type ResolvePayload,
+    type SchemaPayload,
     type ThemePayload,
     DataType,
     SignalType,
@@ -21,24 +24,30 @@ export class Css extends Capability<Body> {
     public static readonly AIM: string = 'Apply a modular CSS stylesheet architecture based on W3C Design Tokens (DTCG), injecting root token definitions and scoped atomic style rules for autonomous elements';
 
     public static override disposition: Disposition<Body> = {
-        aim: { description: Css.AIM },
+        aim: { description: Css.AIM, body: { tokens: DESIGN_TOKENS } },
         reactTo: [
             SignalType.APPLY,
             SignalType.RESOLVE,
             SignalType.THEME,
             SignalType.REMOVE,
+            SignalType.MOUNT,
+            SignalType.SCHEMA,
         ],
         inputs: [
             { signal: SignalType.APPLY, type: DataType.APPLY_PAYLOAD, description: 'Apply autonomous qualities for element' },
             { signal: SignalType.RESOLVE, type: DataType.RESOLVE_PAYLOAD, description: 'Resolve domain qualities to CSS declarations' },
             { signal: SignalType.THEME, type: DataType.THEME_PAYLOAD, description: 'Update design tokens theme' },
             { signal: SignalType.REMOVE, type: DataType.REMOVE_PAYLOAD, description: 'Remove element style rule' },
+            { signal: SignalType.MOUNT, type: DataType.MOUNT_PAYLOAD, description: 'Mount root design token stylesheet' },
+            { signal: SignalType.SCHEMA, type: DataType.SCHEMA_PAYLOAD, description: 'Query design tokens schema and summary' },
         ],
         outputs: [
             { signal: SignalType.APPLIED, type: DataType.APPLIED_RESULT, description: 'Style rule applied confirmation' },
             { signal: SignalType.RESOLVED, type: DataType.RESOLVED_RESULT, description: 'Qualities resolved with css declarations' },
             { signal: SignalType.THEMED, type: DataType.THEMED_RESULT, description: 'Design tokens theme updated confirmation' },
             { signal: SignalType.REMOVED, type: DataType.REMOVED_RESULT, description: 'Style rule removed confirmation' },
+            { signal: SignalType.MOUNTED, type: DataType.MOUNTED_RESULT, description: 'Root design tokens stylesheet mounted confirmation' },
+            { signal: SignalType.SCHEMA_RESOLVED, type: DataType.SCHEMA_RESOLVED_RESULT, description: 'Design tokens schema and summary resolved' },
             { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'CSS operation error notification' },
         ],
     };
@@ -154,19 +163,6 @@ export class Css extends Capability<Body> {
         super(id);
     }
 
-    protected override onDispositionUpdated(event: Event): void {
-        super.onDispositionUpdated(event);
-        const { aim } = this.disposition;
-        const tokens = aim.body?.tokens ?? DESIGN_TOKENS;
-        Css.mountStyleElement(TOKENS_STYLE_ID, Css.generateTokensCss(tokens));
-        this.pulse(SignalType.THEMED, { updated: true });
-    }
-
-    public override denervate(): void {
-        Css.removeStyleElement(TOKENS_STYLE_ID);
-        super.denervate();
-    }
-
     protected override react(signal: Signal): void {
         const { property, value } = signal;
         switch (property) {
@@ -179,6 +175,12 @@ export class Css extends Capability<Body> {
             case SignalType.THEME:
                 this.handleTheme(value);
                 break;
+            case SignalType.MOUNT:
+                this.handleMount(value);
+                break;
+            case SignalType.SCHEMA:
+                this.handleSchema(value);
+                break;
             case SignalType.REMOVE:
                 this.handleRemove(value);
                 break;
@@ -187,9 +189,34 @@ export class Css extends Capability<Body> {
         }
     }
 
+    private handleSchema(value?: unknown): void {
+        const { format } = (value ?? {}) as SchemaPayload;
+        const { aim } = this.disposition;
+        const tokens = aim.body?.tokens ?? DESIGN_TOKENS;
+        const summary = CSS_TOKENS_SUMMARY;
+        this.pulse(SignalType.SCHEMA_RESOLVED, { tokens, summary });
+    }
+
+    private ensureTokensMounted(): void {
+        if (typeof document === 'undefined') { return; }
+        if (document.getElementById(TOKENS_STYLE_ID)) { return; }
+        const { aim } = this.disposition;
+        const tokens = aim.body?.tokens ?? DESIGN_TOKENS;
+        Css.mountStyleElement(TOKENS_STYLE_ID, Css.generateTokensCss(tokens));
+    }
+
+    private handleMount(value?: unknown): void {
+        const { tokens } = (value ?? {}) as MountPayload;
+        const { aim } = this.disposition;
+        const target = tokens ?? aim.body?.tokens ?? DESIGN_TOKENS;
+        Css.mountStyleElement(TOKENS_STYLE_ID, Css.generateTokensCss(target));
+        this.pulse(SignalType.MOUNTED, { mounted: true });
+    }
+
     private handleApply(value?: unknown): void {
         const { elementId, qualities } = (value ?? {}) as ApplyPayload;
         if (!elementId || !qualities) { return; }
+        this.ensureTokensMounted();
         const declarations = Css.translateQualities(qualities);
         const selector = Css.formatSelector(elementId);
         const cssText = Css.formatCssRule(selector, declarations);

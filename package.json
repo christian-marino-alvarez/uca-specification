@@ -30,6 +30,7 @@
     "serve": "tsx dist/server.js",
     "start": "npm run kill:server && npm run build:app && npm run serve",
     "test": "npm test --workspaces --if-present",
+    "test:core": "npm test -w src/core",
     "typecheck": "tsc --noEmit"
   },
   "repository": {

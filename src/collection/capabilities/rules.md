@@ -37,6 +37,8 @@ Una **Capability** representa una habilidad funcional o mecánica pura, terminal
    * Las Capabilities **no deben almacenar propiedades de dominio como variables de estado de instancia** (`this.value`, `this.items`, etc.).
    * Son procesadores mecánicos reactivos: reciben los estímulos a través de su `react(signal: Signal)` o leen la configuración del receptor desde `this.disposition.aim.body`.
    * Los constructores son puramente identitarios (`constructor(id: string = '<default>')`) y no aceptan objetos de opciones o valores de dominio.
+7. **Revisión y Validación Obligatoria del Core**:
+   * Antes de cualquier creación o modificación de una Capability, el agente **DEBE revisar la estructura y flow del Core** (`src/core/capability.ts`) y validar su integridad ejecutando `npm run test:core`.
 
 ---
 
@@ -131,8 +133,8 @@ Cada capability constituye su propio subdominio dentro de `src/collection/capabi
      ```
 7. **Añadir Script y Validar**:
    * Registrar o verificar el script en `package.json` (`npm run test:capabilities`).
-   * Ejecutar y validar:
+   * Ejecutar y validar (verificando Core antes y después):
      ```bash
-     npm test && npm run typecheck
+     npm run test:core && npm test && npm run typecheck
      ```
 

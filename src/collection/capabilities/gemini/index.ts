@@ -74,21 +74,19 @@ export class Gemini extends Capability<Body> {
     private async executeStream(client: GoogleGenAI, payload: GeneratePayload, correlationId?: string): Promise<void> {
         const { prompt } = payload;
         const { model, config } = this.resolveGenerationConfig(payload);
-        const state = { start: Date.now(), first: true };
-        console.log(`⏳ [GEMINI API] [${correlationId ?? 'stream'}] [t=0ms] Iniciando petición generateContentStream con prompt de ${prompt.length} caracteres y config:`, JSON.stringify(config, null, 2));
+        const state = { start: Date.now(), first: true, fullText: '' };
         const stream = await client.models.generateContentStream({ model, contents: prompt, config });
-        console.log(`✅ [GEMINI API] [${correlationId ?? 'stream'}] [t=+${Date.now() - state.start}ms] Promesa de stream resuelta. Esperando primer chunk...`);
         for await (const chunk of stream) { this.handleStreamChunk(chunk, state, prompt, model, correlationId); }
-        console.log(`🏁 [GEMINI API] [${correlationId ?? 'stream'}] [t=+${Date.now() - state.start}ms] Stream completado.`);
         this.pulse(SignalType.STREAM_END, { prompt, model, correlationId, streamId: correlationId });
+        this.pulse(SignalType.GENERATED, this.formatResult({ text: state.fullText }, prompt, model, correlationId));
     }
 
-    private handleStreamChunk(chunk: { text?: string }, state: { start: number; first: boolean }, prompt: string, model: string, correlationId?: string): void {
+    private handleStreamChunk(chunk: { text?: string }, state: { start: number; first: boolean; fullText: string }, prompt: string, model: string, correlationId?: string): void {
         const text = chunk.text ?? '';
         if (!text) { return; }
+        state.fullText += text;
         if (state.first) {
             state.first = false;
-            console.log(`⚡ [GEMINI API] [${correlationId ?? 'stream'}] [t=+${Date.now() - state.start}ms] ¡Primer token recibido!`);
         }
         this.pulse(SignalType.CHUNK, { text, prompt, model, correlationId, streamId: correlationId });
     }
@@ -146,6 +144,7 @@ export class Gemini extends Capability<Body> {
     private async handleGenerate(value: unknown): Promise<void> {
         const payload = this.extractPayload<GeneratePayload>(value);
         if (!payload) { return; }
+        const { correlationId } = payload;
         try {
             const client = this.resolveClient();
             const result = await this.executeGeneration(client, payload);

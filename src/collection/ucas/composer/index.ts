@@ -1,132 +1,218 @@
+import { z } from 'zod';
 import { Uca } from '@uca/core/uca';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
-import { SseClient } from '@uca/capability-sse-client';
-import { SignalType as SseSignalType, type StreamResult as TextStreamResult } from '@uca/capability-sse-client/types';
+import { Llm } from '@uca/llm';
+import { SignalType as LlmSignalType, type ChunkResult, type InferResult } from '@uca/llm/types';
 import { StreamTransformer } from '@uca/capability-stream-transformer';
-import { SignalType as TransformerSignalType } from '@uca/capability-stream-transformer/types';
-import { __ID__, DEFAULT_PARENT, DEFAULT_GOAL, DEFAULT_IMAGINATION, OUTPUT_FORMAT, RESTRICTIONS, INPUTS, OUTPUTS } from './constants.js';
-import { createPayloadSchema, itemSchema, schemaForParent } from './schema.js';
-import { type Body, type CreatePayload, type StreamResult, type ErrorResult, SignalType } from './types.js';
+import {
+    SignalType as TransformerSignalType,
+    type TransformResult,
+} from '@uca/capability-stream-transformer/types';
+import {
+    __ID__,
+    CSS_TOKENS_SUMMARY,
+    DEFAULT_CATALOG,
+    DEFAULT_CONTEXT,
+    DEFAULT_MODEL,
+    DEFAULT_PARENT,
+    DEFAULT_PROVIDER,
+    DEFAULT_PURPOSE,
+    DEFAULT_REQUEST,
+    REPRESENTATION_AREAS_DIRECTIVE,
+} from './constants.js';
+import { layoutSchema } from './schema.js';
+import { type Body, type Limits, DataType, SignalType } from './types.js';
 
 export class Composer extends Uca<Body> {
-    public static override purpose: string = 'Determine and revise the immediate child UCAs of a web UCA, delegating a purpose, operating context and spatial dimensions to each child so the host purpose is satisfied in its current context';
+    public static override purpose: string = DEFAULT_PURPOSE;
+
     public static override disposition: Disposition<Body> = {
-        aim: { description: Composer.purpose, body: {} },
+        aim: {
+            description: Composer.purpose,
+            body: {
+                request: DEFAULT_REQUEST,
+                context: DEFAULT_CONTEXT,
+                catalog: [...DEFAULT_CATALOG],
+                parentTo: DEFAULT_PARENT,
+            },
+        },
         reactTo: [
-            SignalType.CREATE,
-            SignalType.UPDATE,
-            SignalType.STREAM,
-            SignalType.DESTROY,
-            SseSignalType.STREAMED,
-            SseSignalType.ERROR,
+            SignalType.COMPOSE,
+            LlmSignalType.INFER,
+            LlmSignalType.STREAM,
+            LlmSignalType.INFERRED,
+            LlmSignalType.CHUNK,
+            LlmSignalType.STREAM_END,
+            LlmSignalType.ERROR,
             TransformerSignalType.TRANSFORMED,
             TransformerSignalType.ERROR,
-            ...SseClient.disposition.reactTo ?? [],
+            ...Llm.disposition.reactTo ?? [],
             ...StreamTransformer.disposition.reactTo ?? [],
         ],
-        inputs: INPUTS,
-        outputs: OUTPUTS,
+        inputs: [
+            { signal: SignalType.COMPOSE, type: DataType.BODY, description: 'Request layout composition' },
+        ],
+        outputs: [
+            { signal: SignalType.COMPOSED, type: DataType.LAYOUT_RESULT, description: 'Emits structured layout composition' },
+            { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'Emits composition error' },
+        ],
     };
+
+    private streamController?: ReadableStreamDefaultController<string>;
 
     public constructor(id: string = __ID__) {
         super(id);
     }
 
+    public override denervate(): void {
+        this.streamController?.close();
+        this.streamController = undefined;
+        super.denervate();
+    }
+
     protected override react(signal: Signal): void {
-        const { property, source, value } = signal;
-        try {
-            switch (property) {
-                case SignalType.CREATE: this.handleCreate(value); break;
-                case SignalType.UPDATE: this.handleUpdate(value); break;
-                case SignalType.STREAM: this.handleStream(value); break;
-                case SignalType.DESTROY: this.handleDestroy(); break;
-                case SseSignalType.STREAMED: this.handleSseStreamed(value, source); break;
-                case TransformerSignalType.TRANSFORMED: this.handleTransformed(value); break;
-                case SseSignalType.ERROR: this.handleSseError(value, source); break;
-                case TransformerSignalType.ERROR: this.handleTransformerError(value, source); break;
-                default: break;
-            }
-        } catch (error) {
-            this.pulse(SignalType.ERROR, { error: String(error) });
+        const { property } = signal;
+        switch (property) {
+            case SignalType.COMPOSE:
+                this.handleCompose(signal);
+                break;
+            case LlmSignalType.INFERRED:
+                this.handleLlmInferred(signal);
+                break;
+            case LlmSignalType.CHUNK:
+                this.handleLlmChunk(signal);
+                break;
+            case LlmSignalType.STREAM_END:
+                this.handleLlmStreamEnd();
+                break;
+            case LlmSignalType.ERROR:
+                this.handleLlmError(signal);
+                break;
+            case TransformerSignalType.TRANSFORMED:
+                this.handleTransformerTransformed(signal);
+                break;
+            case TransformerSignalType.ERROR:
+                this.handleTransformerError(signal);
+                break;
+            default:
+                break;
         }
     }
 
     protected override catalog(): Cooky {
-        const { reactTo: sseSignals } = SseClient.disposition;
-        const { reactTo: transformerSignals } = StreamTransformer.disposition;
-        const { AIM: transportAim } = SseClient;
-        const { AIM: transformationAim } = StreamTransformer;
         return [
-            [SseClient, { aim: { description: transportAim, body: { id: `${this.id}:sse-client` } }, reactTo: sseSignals }],
-            [StreamTransformer, { aim: { description: transformationAim, body: { id: `${this.id}:stream-transformer`, schema: itemSchema } }, reactTo: transformerSignals }],
+            ...this.buildLlmCooky(),
+            ...this.buildStreamTransformerCooky(),
         ];
     }
 
-    protected override onDispositionUpdated(event: Event): void {
-        super.onDispositionUpdated(event);
-        this.logLimits();
-        this.pulse(SignalType.UPDATE, { id: this.id });
+    private buildLlmCooky(): Cooky {
+        const { id } = this;
+        const body = { id: `${id}:llm`, provider: DEFAULT_PROVIDER, model: DEFAULT_MODEL };
+        const aim = { description: 'Reasoning model for layout composition', body };
+        const reactTo = [...Llm.disposition.reactTo ?? []];
+        return [[Llm, { aim, reactTo }]];
     }
 
-    private logLimits(): void {
-        const { limits } = this.disposition;
-        if (!limits) { return; }
-        console.log('%c🎯 [Composer] Composición sujeta a límites de pantalla:', 'color: #a855f7; font-weight: bold;', limits);
+    private buildStreamTransformerCooky(): Cooky {
+        const { id } = this;
+        const body = { id: `${id}:stream-transformer`, schema: layoutSchema };
+        const aim = { description: StreamTransformer.AIM, body };
+        const reactTo = [...StreamTransformer.disposition.reactTo ?? []];
+        return [[StreamTransformer, { aim, reactTo }]];
     }
 
-    private handleCreate(value: unknown): void {
-        const { aim: { body } } = this.disposition;
-        this.pulse(SseSignalType.STREAM, this.reasoningPayload({ ...body, ...(value as CreatePayload) }));
+    private handleCompose(signal: Signal): void {
+        const { value } = signal;
+        const payload = this.extractPayload<Partial<Body>>(value) ?? {};
+        const { aim, limits } = this.disposition;
+        const { request: initialRequest = DEFAULT_REQUEST, context: initialContext = DEFAULT_CONTEXT, catalog: availableUcas = DEFAULT_CATALOG, parentTo = DEFAULT_PARENT } = aim.body ?? {};
+        const prompt = this.buildPrompt(payload.request ?? initialRequest, payload.context ?? initialContext, [...availableUcas], limits, payload.parentTo ?? parentTo);
+        const expectations = z.toJSONSchema(layoutSchema) as Record<string, unknown>;
+        this.startStreamTransformation();
+        console.log(`[${this.id}] 💬 Comunicando con LLM (${DEFAULT_PROVIDER}:${DEFAULT_MODEL})...`);
+        this.pulse(LlmSignalType.STREAM, { provider: DEFAULT_PROVIDER, model: DEFAULT_MODEL, request: prompt, expectations, correlationId: this.id });
     }
 
-    private handleUpdate(value: unknown): void {
-        const { aim: { body } } = this.disposition;
-        this.pulse(SseSignalType.ABORT, { id: `${this.id}:sse-client` });
-        this.pulse(SseSignalType.STREAM, this.reasoningPayload({ ...body, ...(value as CreatePayload) }));
+    private startStreamTransformation(): void {
+        const stream = new ReadableStream<string>({
+            start: (controller) => { this.streamController = controller; },
+        });
+        const payload = { correlationId: this.id, stream, schema: layoutSchema };
+        this.pulse(TransformerSignalType.TRANSFORM, payload);
     }
 
-    private handleStream(value: unknown): void {
-        const { aim: { body } } = this.disposition;
-        this.pulse(SseSignalType.STREAM, this.reasoningPayload({ ...body, ...(value as CreatePayload) }));
+    private handleLlmInferred(signal: Signal): void {
+        const { value } = signal;
+        const result = this.extractPayload<InferResult>(value);
+        const { response, data, correlationId } = result ?? {};
+        if (correlationId && !this.matchesId(correlationId)) { return; }
+        this.pulse(SignalType.COMPOSED, { layout: data ?? response });
     }
 
-    private reasoningPayload(payload: CreatePayload): CreatePayload {
-        const { request = DEFAULT_GOAL, context, parentTo = DEFAULT_PARENT, composition, model, provider, imagination = DEFAULT_IMAGINATION, correlationId = `${this.id}:${Date.now()}`, streamId } = createPayloadSchema.parse(payload);
-        const { purpose, disposition } = this;
-        const { aim: { body: { parentTo: host = DEFAULT_PARENT } = {} }, limits } = disposition;
-        if (parentTo !== host) { throw new Error('Configure the host through the composition disposition'); }
-        const requestText = JSON.stringify({ purpose, disposition, host: { purpose: request, context, id: parentTo }, limits, composition, output: OUTPUT_FORMAT, constraints: RESTRICTIONS });
-        return { id: `${this.id}:sse-client`, request: requestText, model, provider, imagination, correlationId, streamId };
+    private handleLlmChunk(signal: Signal): void {
+        const { value } = signal;
+        const chunk = this.extractPayload<ChunkResult>(value);
+        const { text } = chunk ?? {};
+        if (text) {
+            this.streamController?.enqueue(text);
+        }
     }
 
-    private handleSseStreamed(value: unknown, source: string): void {
-        if (source !== `${this.id}:sse-client`) { return; }
-        const { correlationId, streamId, stream } = value as TextStreamResult;
-        const { aim: { body: { parentTo = DEFAULT_PARENT } = {} } } = this.disposition;
-        this.pulse(TransformerSignalType.TRANSFORM, { id: `${this.id}:stream-transformer`, correlationId, streamId, stream, schema: schemaForParent(parentTo) });
+    private handleLlmStreamEnd(): void {
+        this.streamController?.close();
+        this.streamController = undefined;
     }
 
-    private handleTransformed(value: unknown): void {
-        const { correlationId, streamId, stream } = (value ?? {}) as StreamResult;
-        if (!correlationId) { return; }
-        this.pulse(SignalType.STREAMED, { correlationId, streamId, stream });
+    private handleLlmError(signal: Signal): void {
+        const { value } = signal;
+        const payload = (value ?? {}) as { correlationId?: string };
+        const correlationId = payload?.correlationId;
+        if (!correlationId || (!this.matchesId(correlationId) && !correlationId.includes(this.id))) { return; }
+        console.error(`[${this.id}] 🚨 Composition error:`, value);
+        this.pulse(SignalType.ERROR, value);
     }
 
-    private handleDestroy(): void {
-        this.pulse(SseSignalType.ABORT, { id: `${this.id}:sse-client` });
-        this.pulse(SignalType.DESTROYED, { destroyed: true });
+    private handleTransformerTransformed(signal: Signal): void {
+        const { value } = signal;
+        const { stream } = (value ?? {}) as TransformResult;
+        if (!stream) { return; }
+        const writable = this.createLoggingWritableStream();
+        void stream.pipeTo(writable);
     }
 
-    private handleSseError(value: unknown, source: string): void {
-        if (source !== `${this.id}:sse-client`) { return; }
-        const { error, correlationId } = value as ErrorResult;
-        if (typeof error === 'string' && error.toLowerCase().includes('aborted')) { return; }
-        this.pulse(SignalType.ERROR, { error, correlationId });
+    private createLoggingWritableStream(): WritableStream<Record<string, unknown>> {
+        const { id } = this;
+        return new WritableStream<Record<string, unknown>>({
+            write: (chunk) => {
+                const unpacked = this.unpackChunk(chunk);
+                console.log(`[${id}] 🧩 Chunk final:`, unpacked);
+                this.pulse(SignalType.CHUNK, unpacked);
+            },
+        });
     }
 
-    private handleTransformerError(value: unknown, source: string): void {
-        if (source !== `${this.id}:stream-transformer`) { return; }
-        const { error, correlationId } = value as ErrorResult;
-        this.pulse(SignalType.ERROR, { error, correlationId });
+    private unpackChunk(chunk: Record<string, unknown>): Record<string, unknown> {
+        const [entry] = Object.entries(chunk);
+        if (!entry) { return chunk; }
+        const [elementId, value] = entry;
+        if (typeof value === 'object' && value !== null) {
+            return { elementId, ...(value as Record<string, unknown>) };
+        }
+        return chunk;
+    }
+
+    private handleTransformerError(signal: Signal): void {
+        const { value } = signal;
+        console.error(`[${this.id}] 🚨 Stream transformer error:`, value);
+        this.pulse(SignalType.ERROR, value);
+    }
+
+    private buildPrompt(request: string, context: string, catalog: string[], limits?: Limits, parentTo: string = DEFAULT_PARENT): string {
+        const { width = 1440, height = 900, orientation = 'landscape-primary' } = limits ?? {};
+        const availableUcas = catalog.join(', ');
+        const hostMeta = `Host parentTo: ${parentTo}. Context: ${context}. Limits: ${width}x${height} (${orientation}). Available UCAs: ${availableUcas}.`;
+        const prompt = `${hostMeta} ${REPRESENTATION_AREAS_DIRECTIVE} ${CSS_TOKENS_SUMMARY} Request: ${request}.`;
+        return prompt;
     }
 }

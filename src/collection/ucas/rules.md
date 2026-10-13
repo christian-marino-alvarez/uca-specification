@@ -25,10 +25,10 @@ Una **UCA** (Unidad Cognitiva Autónoma) es la unidad primaria de comportamiento
    * Toda UCA debe declarar su propósito existencial en una propiedad estática: `public static override purpose: string = '...';`.
    * El getter `this.purpose` de la instancia resuelve dinámicamente el propósito de la clase (`(this.constructor as typeof Uca).purpose`).
    * En el constructor identitario se delega limpiamente: `super(id)`.
-3. **Declaración Fractal de Capacidades mediante `Cooky`**:
-   * La UCA debe declarar sus capacidades intrínsecas sobrescribiendo el método:
+3. **Declaración Fractal de Capacidades mediante `Cooky` en `catalog()`**:
+   * La UCA debe declarar sus capacidades intrínsecas sobrescribiendo el método `catalog()`:
      ```typescript
-     protected override capabilities(): Cooky {
+     protected override catalog(): Cooky {
          const capabilityId = `${this.id}:sub-capability`;
          const body = { id: capabilityId, ... };
          const disposition: Disposition<Body> = {
@@ -39,7 +39,7 @@ Una **UCA** (Unidad Cognitiva Autónoma) es la unidad primaria de comportamiento
          return cooky;
      }
      ```
-   * Al inervarse la UCA (`innervate()`), estas capacidades son instanciadas, configuradas e inervadas automáticamente a su `target` nervioso.
+   * Al actualizarse o inervarse la UCA, `syncCatalog()` sincroniza, conecta y actualiza dinámicamente estas capacidades.
 4. **Prohibición de Redundancia de Dominio en Nombres de Ficheros**:
    * Queda estrictamente prohibido usar el sufijo `.uca.ts` o prefijos equivalentes.
    * El nombre del archivo debe ser únicamente el sustantivo en kebab-case:
@@ -61,6 +61,8 @@ Una **UCA** (Unidad Cognitiva Autónoma) es la unidad primaria de comportamiento
    * Una UCA **no almacena estado de dominio ni propiedades en variables privadas de instancia** (`this.value`, `this.items`, etc.).
    * Las UCAs son entidades de orquestación y transducción cognitiva: **reaccionan dinámicamente a cambios de propiedades** transmitidas mediante señales (`Signal`) en su sistema nervioso (`target`) o configuradas a través de su disposición (`disposition.aim.body`).
    * Si una UCA necesita proyectar atributos iniciales hacia sus capacidades constitutivas (`Cooky`), debe extraerlos directamente de su propia disposición (`const { ... } = this.disposition.aim.body ?? {};`).
+7. **Revisión y Validación Obligatoria del Core**:
+   * Antes de cualquier creación o modificación de una UCA, el agente **DEBE revisar minuciosamente la estructura interna y el flujo reactivo del Core** (`src/core/uca.ts`, `src/core/types.ts`) y validar la integridad del núcleo ejecutando `npm run test:core`.
 
 ---
 
@@ -116,8 +118,8 @@ Una **UCA** (Unidad Cognitiva Autónoma) es la unidad primaria de comportamiento
      1. **Señales de Dominio Propio / Inter-UCA (`SignalType`)**: Comandos y estímulos intencionales o semánticos (`CREATE`, `UPDATE`, `REMOVE`, `SUBMIT`, `SELECT`, etc.).
      2. **Señales de Capacidad Terminal (`CapabilitySignalType`)**: Eventos técnicos de ciclo de vida de capacidades constitutivas (`RENDERED`, `UPDATED`, `REMOVED`).
    * **Prohibición de Colisión o Mezcla en `react()`**: En el `switch-case` de `react(signal)`, las señales de dominio se gestionan en sus ramas dedicadas y las señales técnicas de capacidad se delegan a un método handler especializado (ej. `handleCapabilitySignal(property)`).
-10. **Nomenclatura Semántica de Señales en `innervate()` (`defaultSignals`)**:
-    * Las listas de señales a las que una UCA se predispone a reaccionar por defecto deben nombrarse conceptualmente como señales (`defaultSignals`), no como patrones abstractos (`defaultPatterns`). Son señales nerviosas explícitas (`Signal`), no patrones de coincidencia difusos.
+10. **Declaración de Señales Reactivas en `disposition.reactTo`**:
+    * Las señales nerviosas a las que la UCA reacciona se declaran formalmente en su propiedad estática `disposition.reactTo` utilizando enums formales (`SignalType`). Queda terminantemente prohibido el uso de variables o constantes auxiliares como `DEFAULT_SIGNALS` o `defaultSignals`.
 11. **Propiedad Estática de Propósito (`public static override purpose`)**:
     * Para maximizar mantenibilidad, legibilidad e introspección, el propósito de la UCA debe residir en una propiedad estática: `public static override purpose: string = '...';`, ubicada en la primera posición de la clase por encima del constructor.
     * La clase base `Uca` expone un getter `public get purpose(): string` que resuelve dinámicamente el propósito de la clase, y el constructor identitario delega limpiamente con `super(id)`.
@@ -154,6 +156,13 @@ Una **UCA** (Unidad Cognitiva Autónoma) es la unidad primaria de comportamiento
     * Los tipos TypeScript se infieren directamente de Zod (`export type Body = z.infer<typeof bodySchema>`), erradicando interfaces `interface Body` redactadas manualmente sin validación.
     * El fichero `types.ts` actúa como fachada re-exportando los tipos derivados de `schema.ts` junto a los enumerados de señales (`SignalType`) y tipos de datos (`DataType`).
     * La validación de los datos en tiempo de ejecución se delega en la capability primitiva `@uca/capability-schema`.
+20. **Evaluación Consciente en `onDispositionUpdated` (Prohibición de Regeneración Ciega)**:
+    * Al sobrescribir `onDispositionUpdated(event: Event)`, es obligatorio invocar `super.onDispositionUpdated(event)` para permitir la sincronización del catálogo (`syncCatalog`).
+    * **Prohibición de Regeneraciones Ciegas**: Queda estrictamente prohibido emitir de forma refleja pulsos como `this.pulse(SignalType.UPDATE)` o abortar e invocar LLMs/redes ante cualquier actualización de disposición.
+    * La UCA debe **discriminar la naturaleza del cambio** antes de actuar:
+      * **Cambio Semántico** (`aim.body.request`, `aim.body.context`): Modificación del propósito o contexto de negocio; justifica reevaluación cognitiva (`ADAPT` o `RECOMPOSE`).
+      * **Cambio Ambiental** (`limits`): Variación de viewport o pantalla; si la composición vigente utiliza dimensiones relativas (%) o tokens semánticos compatibles, la estrategia debe ser **`KEEP`** (no llamar al LLM).
+      * **Continuidad Estructural** (`aim.body.composition`): La composición vigente confirmada suministrada por el anfitrión para permitir reconciliación incremental.
 
 ---
 
@@ -175,7 +184,7 @@ Para añadir una nueva UCA al catálogo, cada UCA constituye su propio subdomini
    * En `types.ts`, re-exportar `Body` de `./schema.js` y declarar `SignalType` y `DataType`.
 3. **Implementar la Clase UCA (`index.ts`)**:
    * Crear el archivo `src/collection/ucas/<nombre>/index.ts`.
-   * Extender `Uca<Body>`, declarar `purpose` inline en la clase (`public static override purpose: string = '...'`) y componer `capabilities(): Cooky`.
+   * Extender `Uca<Body>`, declarar `purpose` inline en la clase (`public static override purpose: string = '...'`) y componer `catalog(): Cooky`.
    * **`index.ts` exporta exclusivamente la clase**. Queda estrictamente prohibido re-exportar `types`, `constants` o `schema` al pie del fichero. Cada recurso se consume a través de los subpaths de `package.json` (`./types`, `./constants`, `./schema`).
 4. **Crear Suite de Pruebas Espejo en su Subdominio (`tests/index.ts`)**:
    * Crear `src/collection/ucas/<nombre>/tests/index.ts` replicando exactamente el nombre del archivo testeado (`index.ts`) sin sufijo `.test`.
@@ -187,7 +196,7 @@ Para añadir una nueva UCA al catálogo, cada UCA constituye su propio subdomini
      ```
 6. **Añadir Script y Validar**:
    * Añadir el comando de prueba en `package.json` (`"test:<nombre>"` e integrarlo en `"test"`).
-   * Ejecutar y validar:
+   * Ejecutar y validar (verificando Core antes y después):
      ```bash
-     npm test && npm run typecheck
+     npm run test:core && npm test && npm run typecheck
      ```

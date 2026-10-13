@@ -38,24 +38,54 @@ function testCss_IdentityAndDefaults(): void {
     assert.strictEqual(css.id, __ID__);
     assert.strictEqual(Css.AIM, 'Apply a modular CSS stylesheet architecture based on W3C Design Tokens (DTCG), injecting root token definitions and scoped atomic style rules for autonomous elements');
     assert.ok(css instanceof Capability);
-    assert.strictEqual(Css.disposition.inputs?.length, 4);
-    assert.strictEqual(Css.disposition.outputs?.length, 5);
+    assert.strictEqual(Css.disposition.inputs?.length, 6);
+    assert.strictEqual(Css.disposition.outputs?.length, 7);
     assert.strictEqual(DESIGN_TOKENS.spacing.$type, 'dimension');
     assert.strictEqual(DESIGN_TOKENS.tone.$type, 'color');
     assert.strictEqual(DESIGN_TOKENS.elevation.$type, 'shadow');
+    assert.deepStrictEqual(Css.disposition.aim.body?.tokens, DESIGN_TOKENS);
 }
 
-function testCss_MountsTokensUponInnervationAndCleansOnDenervate(): void {
+function testCss_ResolvesSchemaOnDemand(): void {
+    const bus = new EventTarget();
+    let schemaResult: { tokens: unknown; summary: string } | undefined;
+
+    bus.addEventListener(SignalType.SCHEMA_RESOLVED, (event: Event) => {
+        schemaResult = (event as CustomEvent<Signal>).detail?.value as { tokens: unknown; summary: string };
+    });
+
+    const css = activateCss(new Css('css-schema-test'), bus);
+    emitSignal(bus, SignalType.SCHEMA, {});
+
+    assert.ok(schemaResult !== undefined);
+    assert.ok(schemaResult?.tokens !== undefined);
+    assert.ok(schemaResult?.summary.includes('Design tokens:'));
+    assert.strictEqual(document.getElementById(TOKENS_STYLE_ID), null);
+
+    css.denervate();
+}
+
+function testCss_DoesNotMountTokensUponInnervation(): void {
     const bus = new EventTarget();
     const css = activateCss(new Css('css-token-test'), bus);
+    const tokensElement = document.getElementById(TOKENS_STYLE_ID);
+    assert.strictEqual(tokensElement, null);
+    css.denervate();
+}
 
+function testCss_MountsTokensOnLifecycleEvent(): void {
+    const bus = new EventTarget();
+    const css = activateCss(new Css('css-lifecycle-test'), bus);
+    assert.strictEqual(document.getElementById(TOKENS_STYLE_ID), null);
+
+    emitSignal(bus, SignalType.MOUNT, {});
     const tokensElement = document.getElementById(TOKENS_STYLE_ID);
     assert.ok(tokensElement !== null);
     assert.ok(tokensElement?.textContent?.includes('--uca-spacing-medium: 1rem;'));
     assert.ok(tokensElement?.textContent?.includes('--uca-tone-brand: #2563eb;'));
 
+    tokensElement?.remove();
     css.denervate();
-    assert.strictEqual(document.getElementById(TOKENS_STYLE_ID), null);
 }
 
 function testCss_TranslatesQualitiesDeterministically(): void {
@@ -207,7 +237,9 @@ function testCss_MultipleAutonomousNeighborUcas(): void {
 function runTests(): void {
     console.log('🧪 Testing autonomous peer qualities Css capability (W3C DTCG)...');
     testCss_IdentityAndDefaults();
-    testCss_MountsTokensUponInnervationAndCleansOnDenervate();
+    testCss_ResolvesSchemaOnDemand();
+    testCss_DoesNotMountTokensUponInnervation();
+    testCss_MountsTokensOnLifecycleEvent();
     testCss_TranslatesQualitiesDeterministically();
     testCss_AppliesStyleForNeighborUca();
     testCss_ResolvesStyleOnDemand();

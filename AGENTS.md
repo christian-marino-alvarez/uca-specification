@@ -12,6 +12,22 @@ Este documento es el punto de entrada normativo para asistentes inteligentes y d
 > 
 > **Antes de generar, modificar o refactorizar código en cualquier dominio, el agente DEBE consultar y aplicar estrictamente el fichero `rules.md` del dominio correspondiente.**
 
+### 1.1 Revisión Obligatoria de la Estructura y Flow del Core antes de cualquier Implementación
+
+> [!CAUTION]
+> **INVARIANTE PRIMARIA DEL SISTEMA:**
+> **Antes de cualquier implementación, modificación o refactorización en cualquier elemento del sistema (UCAs, Capabilities o Core), el agente DEBE revisar minuciosamente la estructura interna y el flujo reactivo del Core (`src/core/uca.ts`, `src/core/capability.ts`, `src/core/types.ts`)**.
+> 
+> Cualquier diseño o cambio **DEBE respetar, integrarse de forma natural y seguir rigurosamente el ciclo de vida ontológico del Core**:
+> 1. **Inervación y Receptores**: `innervate`, `connectReceptors`, `disconnectReceptors`, `denervate`.
+> 2. **Ciclo de Disposición Idempotente**: `Capability.updateEvent(id)` $\rightarrow$ `handleDispositionUpdate` $\rightarrow$ verificación idempotente con ordenación alfabética recursiva (`isDispositionChanged` / `normalizeKeys`) $\rightarrow$ reconexión $\rightarrow$ `onDispositionUpdated(event)`.
+> 3. **Sincronización Declarativa del Catálogo en UCAs**: `syncCatalog()` activando/denervando capacidades según `disposition.reactTo` sobre `catalog(): Cooky`.
+> 4. **Enrutamiento Reactivo Unívoco**: `react(signal: Signal)` con handlers dedicados por señal, sin fallthrough ni atajos artificiales.
+> 5. **Emisión Pura de Impulsos**: `this.pulse(property, value)`.
+> 
+> Queda terminantemente prohibido implementar mecanismos ad-hoc, estados paralelos o atajos reactivos que se salten o ignoren el flujo natural del Core.
+> **Siempre se debe validar la integridad del Core ejecutando `npm run test:core` antes de iniciar cualquier desarrollo y tras finalizarlo.**
+
 ---
 
 ## 2. Mapa de Dominios y Ficheros `rules.md`
@@ -116,6 +132,13 @@ Todo código producido en este repositorio debe respetar rigurosamente los sigui
    * Los tipos TypeScript se infieren directamente de Zod (`export type Body = z.infer<typeof bodySchema>`), erradicando interfaces escritas manualmente sin validación en runtime.
    * `types.ts` re-exporta los tipos derivados de `schema.ts` junto a los enumerados obligatorios de señales (`SignalType`) y tipos de datos (`DataType`).
    * La validación en tiempo de ejecución se realiza de forma reactiva y determinista mediante la capability primitiva `@uca/capability-schema`.
+21. **Alineación Obligatoria con el Flujo y Ciclo de Vida de Core**:
+   * Toda UCA y Capability debe operar en estricta sincronía con las primitivas del Core (`Capability` y `Uca`).
+   * Ante actualizaciones de disposición (`onDispositionUpdated`), las UCAs deben discriminar conscientemente la naturaleza del estímulo:
+     - **Cambio Semántico** (`aim.body.request`, `aim.body.context`): Justifica reevaluación cognitiva (`ADAPT` o `RECOMPOSE`).
+     - **Cambio Ambiental** (`limits`): Si las dimensiones relativas (`%`, `full`) son compatibles, la estrategia es **`KEEP`** (no llamar al LLM).
+     - **Continuidad Estructural** (`aim.body.composition`): Conservación de la composición confirmada por Builder para permitir reconciliación incremental.
+   * Queda estrictamente prohibido emitir pulsos de regeneración ciegos (`pulse(UPDATE)`) en `onDispositionUpdated` o diseñar circuitos paralelos al Core.
 
 ---
 
@@ -134,7 +157,7 @@ Todo código producido en este repositorio debe respetar rigurosamente los sigui
 2. Definir el esquema formal con Zod (`bodySchema`) en `src/collection/ucas/<nombre>/schema.ts` e inferir `Body = z.infer<typeof bodySchema>`.
 3. Re-exportar tipos en `src/collection/ucas/<nombre>/types.ts` junto a `SignalType` y `DataType`.
 4. Crear la clase en `src/collection/ucas/<nombre>/index.ts` heredando de `Uca<Body>`. Sin guardar propiedades de datos; constructor identitario `super(id, purpose)`.
-5. Definir `purpose` en el constructor y componer capacidades en `protected override capabilities(): Cooky`.
+5. Definir `purpose` en la propiedad estática y componer capacidades en `protected override catalog(): Cooky`.
 6. Exportar en `src/collection/ucas/index.ts`.
 7. Crear la suite en `src/collection/ucas/<nombre>/tests/index.ts`.
 
@@ -142,9 +165,15 @@ Todo código producido en este repositorio debe respetar rigurosamente los sigui
 
 ## 5. Comandos de Validación Obligatorios
 
-Tras cualquier cambio o creación de contenido, ejecutar:
+**Antes de cualquier intervención (OBLIGATORIO):**
 ```bash
+npm run test:core    # Valida que el núcleo ontológico esté 100% íntegro antes de tocar código
+```
+
+**Tras cualquier cambio o creación de contenido:**
+```bash
+npm run test:core    # Verifica que el núcleo permanezca intacto y conforme a sus contratos
 npm run typecheck    # Verifica consistencia estricta de tipos en TypeScript
-npm test             # Ejecuta las suites de core, capabilities y ucas
+npm test             # Ejecuta las suites completas de core, capabilities y ucas
 npm run build        # Compila la distribución ESM y tipos
 ```

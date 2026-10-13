@@ -3,10 +3,14 @@ export enum SignalType {
     RESOLVE = 'style.resolve',
     THEME = 'style.theme',
     REMOVE = 'style.remove',
+    MOUNT = 'style.mount',
+    SCHEMA = 'style.schema',
     APPLIED = 'style.applied',
     RESOLVED = 'style.resolved',
     THEMED = 'style.themed',
     REMOVED = 'style.removed',
+    MOUNTED = 'style.mounted',
+    SCHEMA_RESOLVED = 'style.schema.resolved',
     ERROR = 'style.error',
 }
 
@@ -16,10 +20,14 @@ export enum DataType {
     RESOLVE_PAYLOAD = 'ResolvePayload',
     THEME_PAYLOAD = 'ThemePayload',
     REMOVE_PAYLOAD = 'RemovePayload',
+    MOUNT_PAYLOAD = 'MountPayload',
+    SCHEMA_PAYLOAD = 'SchemaPayload',
     APPLIED_RESULT = 'AppliedResult',
     RESOLVED_RESULT = 'ResolvedResult',
     THEMED_RESULT = 'ThemedResult',
     REMOVED_RESULT = 'RemovedResult',
+    MOUNTED_RESULT = 'MountedResult',
+    SCHEMA_RESOLVED_RESULT = 'SchemaResolvedResult',
     UNKNOWN = 'unknown',
 }
 
@@ -66,6 +74,23 @@ export interface ThemePayload {
 
 export interface RemovePayload {
     readonly elementId: string;
+}
+
+export interface MountPayload {
+    readonly tokens?: Record<string, Record<string, unknown>>;
+}
+
+export interface MountedResult {
+    readonly mounted: boolean;
+}
+
+export interface SchemaPayload {
+    readonly format?: string;
+}
+
+export interface SchemaResolvedResult {
+    readonly tokens: Record<string, Record<string, unknown>>;
+    readonly summary: string;
 }
 
 export interface AppliedResult {

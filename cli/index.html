@@ -7,6 +7,15 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>
+        window.process = window.process || { env: {} };
+        window.process.env.GEMINI_API_KEY = "{{GEMINI_API_KEY}}";
+        window.process.env.OPENAI_API_KEY = "{{OPENAI_API_KEY}}";
+        if (typeof localStorage !== 'undefined') {
+            if ("{{GEMINI_API_KEY}}") localStorage.setItem('GEMINI_API_KEY', "{{GEMINI_API_KEY}}");
+            if ("{{OPENAI_API_KEY}}") localStorage.setItem('OPENAI_API_KEY', "{{OPENAI_API_KEY}}");
+        }
+    </script>
     <script type="importmap">
 {{IMPORT_MAP}}
     </script>

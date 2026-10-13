@@ -75,17 +75,25 @@ export class WebComponent extends Capability<Body> {
         const container = this.resolveContainerElement(containerElement);
         const element = elementId && container ? this.createElement(this.registerElement(tag), elementId, attributes, content) : null;
         if (!element || !container) { return; }
-        this.bindLifecycle(element, elementId, events);
-        document.getElementById(elementId)?.remove();
-        container.appendChild(element);
+        this.mountElement(element, container, elementId, events);
     }
 
-    private bindLifecycle(element: HTMLElement, elementId: string, events?: readonly string[]): void {
+    private mountElement(element: HTMLElement, container: Element, elementId: string, events?: readonly string[]): void {
+        const controller = this.bindLifecycle(element, elementId, events);
+        document.getElementById(elementId)?.remove();
+        container.appendChild(element);
+        if (!element.tagName.includes('-')) {
+            this.handleConnected(element, elementId, controller.signal, events);
+        }
+    }
+
+    private bindLifecycle(element: HTMLElement, elementId: string, events?: readonly string[]): AbortController {
         const controller = new AbortController();
         const customElement = element as HTMLElement & { onConnected?: () => void; onDisconnected?: () => void; abortController?: AbortController };
         customElement.abortController = controller;
         customElement.onConnected = () => this.handleConnected(element, elementId, controller.signal, events);
         customElement.onDisconnected = () => this.handleDisconnected(elementId, controller);
+        return controller;
     }
 
     private handleConnected(element: HTMLElement, elementId: string, signal: AbortSignal, events?: readonly string[]): void {

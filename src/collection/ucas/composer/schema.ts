@@ -2,67 +2,47 @@ import { z } from 'zod';
 
 export const dimensionValueSchema = z.union([
     z.string().min(1),
-    z.number().transform((num) => `${Math.round(num <= 1 ? num * 100 : num)}%`),
+    z.number(),
 ]);
 
 export const dimensionsSchema = z.object({
-    width: dimensionValueSchema.describe('Relative or semantic width within host (e.g. full, half, third, 100%, 0.5)'),
-    height: dimensionValueSchema.describe('Relative or semantic height within host (e.g. full, auto, screen, 5%, 0.05)'),
+    width: dimensionValueSchema.describe('Relative or semantic width (e.g. full, half, third, 100%, 0.5)'),
+    height: dimensionValueSchema.describe('Relative or semantic height (e.g. full, auto, screen, 5%, 0.05)'),
 }).strict();
 
-export const nodeSchema = z.object({
-    purpose: z.string().min(1).describe('Ontological responsibility of this immediate child UCA'),
-    context: z.string().min(1).describe('Operating context delegated to this child'),
+export const styleSchema = z.object({
+    surface: z.string().optional().describe('Surface color token: default, card, muted, dark, brand, accent'),
+    spacing: z.string().optional().describe('Spacing token: none, small, medium, large, xlarge'),
+    tone: z.string().optional().describe('Accent/text tone token: brand, surface, muted, dark, accent'),
+    typeface: z.string().optional().describe('Typeface token: sans, serif, mono'),
+    textSize: z.string().optional().describe('Text size token: small, medium, large, title'),
+    elevation: z.string().optional().describe('Box shadow elevation token: none, low, medium, high'),
+    radius: z.string().optional().describe('Border radius token: none, small, medium, large, full'),
+    direction: z.string().optional().describe('Flexbox layout direction: row, column'),
+    alignment: z.string().optional().describe('Flexbox layout alignment: start, center, end, space-between'),
+}).strict();
+
+export const sectionSchema = z.object({
+    purpose: z.string().min(1).describe('Ontological purpose and responsibility of this section'),
+    context: z.string().min(1).describe('Operating context delegated to this section'),
+    parentTo: z.string().min(1).describe('Identifier of the parent host UCA'),
     dimensions: dimensionsSchema,
-    parentTo: z.string().min(1).describe('Identifier of the existing host UCA'),
+    style: styleSchema.optional().describe('Qualities and design tokens for styling this section'),
 }).strict();
 
-export const flatNodeSchema = z.object({
-    id: z.string().min(1).describe('Child identity'),
-    purpose: z.string().min(1).describe('Ontological responsibility of this immediate child UCA'),
-    context: z.string().min(1).describe('Operating context delegated to this child'),
-    dimensions: dimensionsSchema,
-    parentTo: z.string().min(1).describe('Identifier of the existing host UCA'),
-}).strict();
-
-export const keyedItemSchema = z.record(z.string().min(1), nodeSchema);
-export const flatItemSchema = flatNodeSchema.transform((node) => {
-    const { id, ...rest } = node;
-    return { [id]: rest };
-});
-
-export const itemSchema = z.union([keyedItemSchema, flatItemSchema]);
-export const structureSchema = keyedItemSchema;
-
-export function schemaForParent(parentTo: string) {
-    const boundNode = nodeSchema.extend({ parentTo: z.literal(parentTo) });
-    const boundKeyed = z.record(z.string().min(1).refine((id) => id !== parentTo), boundNode);
-    const boundFlat = flatNodeSchema.extend({ parentTo: z.literal(parentTo) }).transform((node) => {
-        const { id, ...rest } = node;
-        return { [id]: rest };
-    });
-    return z.union([boundKeyed, boundFlat]);
-}
+export const layoutSchema = z.record(z.string().min(1), sectionSchema);
 
 export const bodySchema = z.object({
-    id: z.string().optional(),
-    request: z.string().optional().describe('Purpose to satisfy through immediate children'),
-    context: z.string().optional(),
-    parentTo: z.string().optional(),
-    composition: structureSchema.optional().describe('Current complete composition, replaced on recomposition'),
-    correlationId: z.string().optional(),
-    streamId: z.string().optional(),
+    request: z.string().describe('Request instruction that Composer uses with its LLM to build the layout'),
+    context: z.string().describe('Operational context inherited from App that determines the layout'),
+    catalog: z.array(z.string()).default(['Box']).describe('Array of available UCAs to compose the layout'),
+    parentTo: z.string().default('app').describe('Host identifier for parentTo relationship'),
+    layout: layoutSchema.optional().describe('Composed layout structure'),
 });
 
-export const createPayloadSchema = bodySchema.extend({
-    model: z.enum(['local', 'nube']).optional(),
-    provider: z.string().optional(),
-    imagination: z.number().min(0).max(10).optional(),
-});
-
+export type DimensionValue = z.infer<typeof dimensionValueSchema>;
 export type Dimensions = z.infer<typeof dimensionsSchema>;
+export type Style = z.infer<typeof styleSchema>;
+export type Section = z.infer<typeof sectionSchema>;
+export type Layout = z.infer<typeof layoutSchema>;
 export type Body = z.infer<typeof bodySchema>;
-export type Node = z.infer<typeof nodeSchema>;
-export type Item = z.infer<typeof itemSchema>;
-export type Structure = z.infer<typeof structureSchema>;
-export type CreatePayload = z.infer<typeof createPayloadSchema>;

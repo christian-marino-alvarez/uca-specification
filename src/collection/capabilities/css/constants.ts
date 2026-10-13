@@ -89,3 +89,5 @@ export const DESIGN_TOKENS = {
         between: { $value: 'space-between', $description: 'Distribute items with space between' },
     },
 } as const;
+
+export const CSS_TOKENS_SUMMARY = 'Design tokens: Dimensions: auto, full, half, third, two-thirds, quarter, three-quarters, narrow, wide, screen, content. Surfaces: default, card, muted, dark, brand, accent, danger. Spacing: none, small, medium, large, xlarge. Tones: brand, surface, muted, dark, accent, danger. Typefaces: sans, serif, mono. Text sizes: small, medium, large, title, display. Radius: none, small, medium, large, full. Elevation: none, low, card, modal. Direction: row, column. Alignment: start, center, end, stretch, between.';

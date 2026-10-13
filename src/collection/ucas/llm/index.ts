@@ -115,25 +115,26 @@ export class Llm extends Uca<Body> {
 
     private handleInfer(value: unknown): void {
         const payload = (value ?? {}) as InferPayload;
-        const { request, context, role, provider } = payload;
-        const { aim } = this.disposition;
-        const { role: bodyRole } = (aim.body ?? {}) as Body;
+        const { request, context, role, provider, correlationId } = payload;
+        if (correlationId && !this.id.includes(correlationId) && !correlationId.includes(this.id)) { return; }
         const prompt = context ? `${request}\nContext: ${JSON.stringify(context)}` : request;
-        const systemInstruction = role ?? bodyRole;
-        const generatePayload = this.buildGeneratePayload(payload, prompt, systemInstruction);
         const activeProvider = this.resolveActiveProvider(provider);
         const signal = activeProvider === 'gemini' ? GeminiSignalType.GENERATE : OpenaiSignalType.GENERATE;
+        const generatePayload = this.buildGeneratePayload(payload, prompt, role);
+        if (activeProvider === 'gemini') {
+            console.log(`[${this.id}] 🧠 Llamando a Gemini (${generatePayload.model})...`);
+        }
         this.pulse(signal, generatePayload);
     }
 
-    private buildGeneratePayload(payload: InferPayload, prompt: string, systemInstruction?: string): Record<string, unknown> {
+    private buildGeneratePayload(payload: InferPayload, prompt: string, role?: string): Record<string, unknown> {
         const { provider, model, expectations, imagination, limit, correlationId, streamId, thinkingBudget, thinkingLevel } = payload;
         const { aim } = this.disposition;
-        const { thinkingBudget: bodyBudget, thinkingLevel: bodyLevel, imagination: bTemp, limit: bLimit } = (aim.body ?? {}) as Body;
+        const { role: bodyRole, thinkingBudget: bodyBudget, thinkingLevel: bodyLevel, imagination: bTemp, limit: bLimit } = (aim.body ?? {}) as Body;
         const activeProvider = this.resolveActiveProvider(provider);
         const fallbackModel = activeProvider === 'gemini' ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL;
         const targetModel = model ?? fallbackModel;
-        return { prompt, schema: expectations, systemInstruction, model: targetModel, temperature: imagination ?? bTemp, maxOutputTokens: limit ?? bLimit, correlationId, streamId, thinkingBudget: thinkingBudget ?? bodyBudget, thinkingLevel: thinkingLevel ?? bodyLevel };
+        return { prompt, schema: expectations, systemInstruction: role ?? bodyRole, model: targetModel, temperature: imagination ?? bTemp, maxOutputTokens: limit ?? bLimit, correlationId, streamId, thinkingBudget: thinkingBudget ?? bodyBudget, thinkingLevel: thinkingLevel ?? bodyLevel };
     }
 
     private handleConnect(value: unknown): void {
@@ -143,14 +144,24 @@ export class Llm extends Uca<Body> {
 
     private handleStream(value: unknown): void {
         const payload = (value ?? {}) as InferPayload;
-        const { request, model, expectations, provider, role, correlationId, streamId, thinkingBudget, thinkingLevel, imagination, limit } = payload;
+        const { correlationId } = payload;
+        if (correlationId && !this.id.includes(correlationId) && !correlationId.includes(this.id)) { return; }
+        const activeProvider = this.resolveActiveProvider(payload.provider);
+        const signal = activeProvider === 'gemini' ? GeminiSignalType.STREAM : OpenaiSignalType.STREAM;
+        const streamPayload = this.buildStreamPayload(payload, activeProvider);
+        if (activeProvider === 'gemini') {
+            console.log(`[${this.id}] 🧠 Llamando a Gemini (${streamPayload.model} stream)...`);
+        }
+        this.pulse(signal, streamPayload);
+    }
+
+    private buildStreamPayload(payload: InferPayload, provider: ProviderType): Record<string, unknown> {
+        const { request, model, expectations, role, correlationId, streamId, thinkingBudget, thinkingLevel, imagination, limit } = payload;
         const { aim } = this.disposition;
         const { thinkingBudget: bBudget, thinkingLevel: bLevel, role: bRole, imagination: bTemp, limit: bTokens } = (aim.body ?? {}) as Body;
-        const activeProvider = this.resolveActiveProvider(provider);
-        const fallbackModel = activeProvider === 'gemini' ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL;
+        const fallbackModel = provider === 'gemini' ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL;
         const targetModel = model ?? fallbackModel;
-        const signal = activeProvider === 'gemini' ? GeminiSignalType.STREAM : OpenaiSignalType.STREAM;
-        this.pulse(signal, { prompt: request, model: targetModel, schema: expectations, systemInstruction: role ?? bRole, correlationId, streamId, thinkingBudget: thinkingBudget ?? bBudget, thinkingLevel: thinkingLevel ?? bLevel, temperature: imagination ?? bTemp, maxOutputTokens: limit ?? bTokens });
+        return { prompt: request, model: targetModel, schema: expectations, systemInstruction: role ?? bRole, correlationId, streamId, thinkingBudget: thinkingBudget ?? bBudget, thinkingLevel: thinkingLevel ?? bLevel, temperature: imagination ?? bTemp, maxOutputTokens: limit ?? bTokens };
     }
 
     private handleCapabilitySignal(property: string, value: unknown): void {
