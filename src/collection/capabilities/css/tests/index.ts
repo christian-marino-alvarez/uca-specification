@@ -112,6 +112,21 @@ function testCss_TranslatesQualitiesDeterministically(): void {
     assert.strictEqual(declarations['border-radius'], DESIGN_TOKENS.radius.medium.$value);
     assert.strictEqual(declarations['flex-direction'], DESIGN_TOKENS.direction.column.$value);
     assert.strictEqual(declarations['align-items'], DESIGN_TOKENS.alignment.center.$value);
+    assert.strictEqual(declarations['justify-content'], 'center');
+}
+
+function testCss_TranslatesGapIndependentlyFromSpacing(): void {
+    const independent = Css.translateQualities({ spacing: 'large', gap: 'small' });
+    assert.strictEqual(independent['padding'], DESIGN_TOKENS.spacing.large.$value);
+    assert.strictEqual(independent['gap'], DESIGN_TOKENS.spacing.small.$value);
+    assert.strictEqual(Css.translateQualities({ spacing: 'medium' })['gap'], DESIGN_TOKENS.spacing.medium.$value);
+    assert.strictEqual(Css.translateQualities({})['gap'], undefined);
+}
+
+function testCss_TranslatesBorderToken(): void {
+    assert.strictEqual(Css.translateQualities({ border: 'outline' })['border'], DESIGN_TOKENS.border.outline.$value);
+    assert.strictEqual(Css.translateQualities({ border: 'none' })['border'], 'none');
+    assert.strictEqual(Css.translateQualities({})['border'], undefined);
 }
 
 function testCss_AppliesStyleForNeighborUca(): void {
@@ -241,6 +256,8 @@ function runTests(): void {
     testCss_DoesNotMountTokensUponInnervation();
     testCss_MountsTokensOnLifecycleEvent();
     testCss_TranslatesQualitiesDeterministically();
+    testCss_TranslatesBorderToken();
+    testCss_TranslatesGapIndependentlyFromSpacing();
     testCss_AppliesStyleForNeighborUca();
     testCss_ResolvesStyleOnDemand();
     testCss_UpdatesThemeTokensWithDtcgFormat();

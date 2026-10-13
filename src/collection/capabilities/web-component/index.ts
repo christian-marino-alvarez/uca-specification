@@ -147,12 +147,13 @@ export class WebComponent extends Capability<Body> {
     }
 
     private resolveContainerElement(selector?: string): Element | null {
-        if (!selector || typeof document === 'undefined') { return null; }
+        if (typeof document === 'undefined') { return null; }
+        if (!selector) { return document.getElementById('app') ?? document.body; }
         if (selector.startsWith('#')) {
             const rawId = selector.slice(1);
-            return document.getElementById(rawId) ?? document.querySelector(`[id="${rawId}"]`);
+            return document.getElementById(rawId) ?? document.querySelector(`[id="${rawId}"]`) ?? document.getElementById('app') ?? document.body;
         }
-        return document.querySelector(selector);
+        return document.querySelector(selector) ?? document.getElementById('app') ?? document.body;
     }
 
     private applyAttributes(element: HTMLElement, attributes?: Record<string, string>): void {

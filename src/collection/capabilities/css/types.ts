@@ -43,20 +43,8 @@ export type DesignTokenGroup = {
     readonly [name: string]: DesignToken<unknown> | DesignTokenGroup | unknown;
 };
 
-export interface Qualities {
-    readonly width?: string;
-    readonly height?: string;
-    readonly spacing?: string;
-    readonly surface?: string;
-    readonly tone?: string;
-    readonly typeface?: string;
-    readonly textSize?: string;
-    readonly elevation?: string;
-    readonly radius?: string;
-    readonly direction?: string;
-    readonly alignment?: string;
-    readonly custom?: Record<string, string>;
-}
+import type { Qualities, BaseRules, Body } from './schema.js';
+export type { Qualities, BaseRules, Body };
 
 export interface ApplyPayload {
     readonly elementId: string;
@@ -113,7 +101,3 @@ export interface RemovedResult {
     readonly removed: boolean;
 }
 
-export interface Body {
-    readonly qualities?: Qualities;
-    readonly tokens?: Record<string, Record<string, unknown>>;
-}

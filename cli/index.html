@@ -11,9 +11,12 @@
         window.process = window.process || { env: {} };
         window.process.env.GEMINI_API_KEY = "{{GEMINI_API_KEY}}";
         window.process.env.OPENAI_API_KEY = "{{OPENAI_API_KEY}}";
+        window.process.env.JEV_API_KEY = "{{JEV_API_KEY}}";
+        window.process.env.TYPESAFE_API_KEY = "{{JEV_API_KEY}}";
         if (typeof localStorage !== 'undefined') {
             if ("{{GEMINI_API_KEY}}") localStorage.setItem('GEMINI_API_KEY', "{{GEMINI_API_KEY}}");
             if ("{{OPENAI_API_KEY}}") localStorage.setItem('OPENAI_API_KEY', "{{OPENAI_API_KEY}}");
+            if ("{{JEV_API_KEY}}") localStorage.setItem('JEV_API_KEY', "{{JEV_API_KEY}}");
         }
     </script>
     <script type="importmap">

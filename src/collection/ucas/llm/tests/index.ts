@@ -145,14 +145,65 @@ function testLlm_TransducesErrors(): void {
     llm.denervate();
 }
 
+import { SignalType as JevSignalType } from '@uca/capability-jev/types';
+
+function testLlm_TransducesInferToJevWhenRequested(): void {
+    const bus = new EventTarget();
+    const llm = activateLlm(new Llm('llm-test'), bus);
+    let jevPayload: unknown = undefined;
+
+    bus.addEventListener(JevSignalType.INFER, (event: Event) => {
+        const { detail } = event as CustomEvent<Signal>;
+        jevPayload = detail.value;
+    });
+
+    emitSignal(bus, SignalType.INFER, {
+        request: 'Is this area ready?',
+        provider: 'jev',
+        correlationId: 'llm-test:rootCanvas',
+    });
+
+    assert.notStrictEqual(jevPayload, undefined);
+    const { questions, correlationId } = jevPayload as { questions: Record<string, unknown>; correlationId?: string };
+    assert.strictEqual(correlationId, 'llm-test:rootCanvas');
+    assert.strictEqual(questions.assessment, 'Is this area ready?');
+    llm.denervate();
+}
+
+function testLlm_TransducesJevInferredToLlmInferred(): void {
+    const bus = new EventTarget();
+    const llm = activateLlm(new Llm('llm-test'), bus);
+    let inferredResult: unknown = undefined;
+
+    bus.addEventListener(SignalType.INFERRED, (event: Event) => {
+        const { detail } = event as CustomEvent<Signal>;
+        inferredResult = detail.value;
+    });
+
+    emitSignal(bus, JevSignalType.INFERRED, {
+        state: { ready: true },
+        answers: { assessment: 'ready' },
+        correlationId: 'test:rootCanvas',
+    });
+
+    assert.notStrictEqual(inferredResult, undefined);
+    const { data, correlationId } = inferredResult as { data?: Record<string, unknown>; correlationId?: string };
+    assert.strictEqual(correlationId, 'test:rootCanvas');
+    assert.deepStrictEqual(data, { assessment: 'ready' });
+    llm.denervate();
+}
+
 function runAllLlmTests(): void {
     testLlm_IdentityAndDefaults();
     testLlm_TransducesInferToGeminiGenerateByDefault();
     testLlm_TransducesInferToOpenaiGenerateWhenRequested();
     testLlm_TransducesOpenaiGeneratedToLlmInferred();
+    testLlm_TransducesInferToJevWhenRequested();
+    testLlm_TransducesJevInferredToLlmInferred();
     testLlm_TransducesConnectAndConnected();
     testLlm_TransducesErrors();
     console.log('✔ All LLM UCA cognitive reasoning tests passed successfully.');
 }
 
 runAllLlmTests();
+

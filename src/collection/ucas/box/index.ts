@@ -42,9 +42,10 @@ export class Box extends Uca<Body> {
     }
 
     protected override catalog(): Cooky {
+        const { id } = this;
         const declarations: Cooky = [
-            [WebComponent, { aim: { description: WebComponent.AIM }, reactTo: [...WebComponent.disposition.reactTo ?? []] }],
-            [Css, { aim: { description: Css.AIM }, reactTo: [...Css.disposition.reactTo ?? []] }],
+            [WebComponent, { aim: { description: WebComponent.AIM, body: { id: `${id}:web-component` } }, reactTo: [...WebComponent.disposition.reactTo ?? []] }],
+            [Css, { aim: { description: Css.AIM, body: { id: `${id}:css` } }, reactTo: [...Css.disposition.reactTo ?? []] }],
         ];
         return declarations;
     }
@@ -81,8 +82,8 @@ export class Box extends Uca<Body> {
     private handleRender(value?: unknown): void {
         const { elementId = this.id, parentTo, containerElement, content, qualities, events } = (value ?? {}) as Body;
         const targetContainer = containerElement ?? (parentTo?.startsWith('#') ? parentTo : parentTo ? `#${parentTo}` : undefined);
-        if (qualities) { this.pulse(CssSignalType.APPLY, { elementId, qualities }); }
-        this.pulse(WebComponentSignalType.RENDER, { elementId, containerElement: targetContainer, content, events });
+        if (qualities) { this.pulse(CssSignalType.APPLY, { id: `${this.id}:css`, elementId, qualities }); }
+        this.pulse(WebComponentSignalType.RENDER, { id: `${this.id}:web-component`, elementId, containerElement: targetContainer, content, events });
     }
 
     private handleUpdate(value?: unknown): void {
@@ -98,7 +99,8 @@ export class Box extends Uca<Body> {
     }
 
     private handleComponentRendered(value?: unknown): void {
-        const { elementId = this.id } = (value ?? {}) as { elementId?: string };
+        const { elementId = this.id, tag } = (value ?? {}) as { elementId?: string; tag?: string };
+        if (tag === 'img') { return; }
         this.pulse(SignalType.CREATED, { elementId, detail: value });
     }
 

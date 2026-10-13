@@ -2,11 +2,15 @@ import assert from 'node:assert';
 import { Uca } from '@uca/core/uca';
 import { Llm } from '@uca/llm';
 import { SignalType as LlmSignalType, type InferPayload, type Body as LlmBody } from '@uca/llm/types';
+import { SignalType as GeminiSignalType } from '@uca/capability-gemini/types';
 import { StreamTransformer } from '@uca/capability-stream-transformer';
 import {
     SignalType as TransformerSignalType,
     type TransformPayload,
 } from '@uca/capability-stream-transformer/types';
+import { Builder } from '@uca/builder';
+import { SignalType as BuilderSignalType } from '@uca/builder/types';
+import { SignalType as BoxSignalType } from '@uca/box/types';
 import type { Signal } from '@uca/core/types';
 import { Composer } from '../index.js';
 import { __ID__, DEFAULT_CATALOG, DEFAULT_CONTEXT, DEFAULT_MODEL, DEFAULT_PROVIDER, DEFAULT_REQUEST } from '../constants.js';
@@ -65,7 +69,7 @@ function testComposer_SchemaValidation(): void {
 function testComposer_CapabilitiesInCooky(): void {
     const composer = new TestableComposer('custom-composer');
     const catalog = composer.exposeCatalog();
-    assert.strictEqual(catalog.length, 2);
+    assert.strictEqual(catalog.length, 3);
     const [LlmClass, llmDisposition] = catalog[0];
     const { aim: llmAim } = llmDisposition;
     const { model, provider } = (llmAim.body ?? {}) as LlmBody;
@@ -74,6 +78,26 @@ function testComposer_CapabilitiesInCooky(): void {
     assert.strictEqual(provider, DEFAULT_PROVIDER);
     const [TransformerClass] = catalog[1];
     assert.strictEqual(TransformerClass, StreamTransformer);
+    const [BuilderClass, builderDisposition] = catalog[2];
+    assert.strictEqual(BuilderClass, Builder);
+    const { aim: builderAim } = builderDisposition;
+    const { id: builderId } = (builderAim.body ?? {}) as { id?: string };
+    assert.strictEqual(builderId, 'custom-composer:builder');
+}
+
+function testComposer_BuilderInnervated(): void {
+    const bus = new EventTarget();
+    let boxRendered: unknown;
+    bus.addEventListener(BoxSignalType.RENDER, (event) => {
+        const { detail } = event as CustomEvent<Signal<unknown>>;
+        boxRendered = detail?.value;
+    });
+    const composer = new Composer('my-composer').innervate(bus);
+    emitSignal(bus, composer.updateEvent, Composer.disposition);
+    emitSignal(bus, BuilderSignalType.BUILD, { elementId: 'headerArea' });
+    assert.ok(boxRendered);
+    assert.strictEqual((boxRendered as { elementId: string }).elementId, 'headerArea');
+    composer.denervate();
 }
 
 function testComposer_TriggersLlmStreamOnCompose(): void {
@@ -105,7 +129,7 @@ function testComposer_StreamsThroughTransformer(): void {
     emitSignal(bus, SignalType.COMPOSE, { request: 'Hero section' });
     assert.ok(transformPayload);
     assert.ok(transformPayload.stream instanceof ReadableStream);
-    assert.strictEqual(transformPayload.correlationId, 'stream-test-composer');
+    assert.strictEqual(transformPayload.correlationId, 'stream-test-composer::app');
     composer.denervate();
 }
 
@@ -143,17 +167,60 @@ function testComposer_StreamChunksDoNotPolluteBus(): void {
     composer.denervate();
 }
 
-function runTests(): void {
+function testComposer_SingleLlmRelaysEachProviderChunk(): void {
+    const bus = new EventTarget();
+    const composer = new Composer('dedup-composer').innervate(bus);
+    emitSignal(bus, composer.updateEvent, Composer.disposition);
+    let relayedChunks = 0;
+    bus.addEventListener(LlmSignalType.CHUNK, () => { relayedChunks += 1; });
+    emitSignal(bus, GeminiSignalType.CHUNK, { text: '{', correlationId: 'dedup-composer' });
+    assert.strictEqual(relayedChunks, 1);
+    composer.denervate();
+}
+
+async function testComposer_ConcurrentStreamsAreIsolated(): Promise<void> {
+    const bus = new EventTarget();
+    const streams = new Map<string, ReadableStream<string>>();
+    bus.addEventListener(TransformerSignalType.TRANSFORM, (event) => {
+        const { correlationId = '', stream } = (event as CustomEvent<Signal<TransformPayload>>).detail.value;
+        streams.set(correlationId, stream as ReadableStream<string>);
+        event.stopImmediatePropagation();
+    });
+    bus.addEventListener(LlmSignalType.STREAM, (event) => { event.stopImmediatePropagation(); });
+    const composer = new Composer('iso-composer').innervate(bus);
+    emitSignal(bus, composer.updateEvent, Composer.disposition);
+    emitSignal(bus, SignalType.COMPOSE, { request: 'root' });
+    emitSignal(bus, SignalType.COMPOSE, { request: 'child', parentTo: 'card', depth: 1 });
+    emitSignal(bus, LlmSignalType.CHUNK, { text: 'ROOT', correlationId: 'iso-composer::app' });
+    emitSignal(bus, LlmSignalType.CHUNK, { text: 'CARD', correlationId: 'iso-composer::card' });
+    emitSignal(bus, LlmSignalType.STREAM_END, { correlationId: 'iso-composer::app' });
+    emitSignal(bus, LlmSignalType.CHUNK, { text: '-MORE', correlationId: 'iso-composer::card' });
+    emitSignal(bus, LlmSignalType.STREAM_END, { correlationId: 'iso-composer::card' });
+    const read = async (key: string): Promise<string> => {
+        const reader = (streams.get(key) ?? new ReadableStream<string>()).getReader();
+        const parts: string[] = [];
+        for (let result = await reader.read(); !result.done; result = await reader.read()) { parts.push(result.value); }
+        return parts.join('');
+    };
+    assert.strictEqual(await read('iso-composer::app'), 'ROOT');
+    assert.strictEqual(await read('iso-composer::card'), 'CARD-MORE');
+    composer.denervate();
+}
+
+async function runTests(): Promise<void> {
     console.log('🧪 Testing Composer UCA (autonomous layout composer)...');
     testComposer_Identity();
     testComposer_Disposition();
     testComposer_SchemaValidation();
     testComposer_CapabilitiesInCooky();
+    testComposer_BuilderInnervated();
     testComposer_TriggersLlmStreamOnCompose();
     testComposer_StreamsThroughTransformer();
     testComposer_EmitsComposedOnLlmResult();
     testComposer_StreamChunksDoNotPolluteBus();
+    testComposer_SingleLlmRelaysEachProviderChunk();
+    await testComposer_ConcurrentStreamsAreIsolated();
     console.log('✅ All Composer UCA tests passed successfully!');
 }
 
-runTests();
+void runTests();

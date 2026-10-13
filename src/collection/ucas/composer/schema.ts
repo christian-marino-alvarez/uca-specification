@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { KINDS } from './constants.js';
 
 export const dimensionValueSchema = z.union([
     z.string().min(1),
@@ -23,6 +24,7 @@ export const styleSchema = z.object({
 }).strict();
 
 export const sectionSchema = z.object({
+    kind: z.enum(KINDS).optional().describe('Nature of this area: container, heading, text, action, input or media'),
     purpose: z.string().min(1).describe('Ontological purpose and responsibility of this section'),
     context: z.string().min(1).describe('Operating context delegated to this section'),
     parentTo: z.string().min(1).describe('Identifier of the parent host UCA'),

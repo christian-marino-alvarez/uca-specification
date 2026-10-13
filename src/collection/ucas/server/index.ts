@@ -174,8 +174,29 @@ export class Server extends Uca<Body> {
             { method: 'GET', path: '/api/health', response: { status: 200, body: { status: 'healthy', uca: 'Server' } } },
             { method: 'POST', path: '/api/llm', handler: (context) => this.handleLlmPost(context) },
             { method: 'ALL', path: '/api/llm/sse', handler: (context) => this.handleLlmSse(context) },
+            { method: 'ALL', path: '/v1/systemone', handler: (context) => this.handleSystemOne(context) },
             { method: 'ALL', path: '*', handler: (context) => this.handleStaticRequest(context, effectiveStaticDir, effectiveWebDir) },
         ];
+    }
+
+    private async handleSystemOne(context: RequestContext): Promise<Response> {
+        const { method, body } = context;
+        if (method === 'OPTIONS') { return this.buildCorsPreflightResponse(); }
+        return this.forwardSystemOneRequest(body);
+    }
+
+    private buildCorsPreflightResponse(): Response {
+        const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': '*' };
+        return new Response(null, { status: 204, headers });
+    }
+
+    private async forwardSystemOneRequest(body: unknown): Promise<Response> {
+        const { JEV_API_KEY: jevKey, TYPESAFE_API_KEY: tsKey } = process.env;
+        const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${jevKey ?? tsKey}` };
+        const response = await fetch('https://api.typesafe.ai/v1/systemone', { method: 'POST', headers, body: JSON.stringify(body) });
+        const data = await response.text();
+        const resHeaders = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+        return new Response(data, { status: response.status, headers: resHeaders });
     }
 
     private async handleLlmPost(context: RequestContext): Promise<Response> {

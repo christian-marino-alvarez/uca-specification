@@ -9,6 +9,16 @@ export interface Limits {
     readonly [key: string]: unknown;
 }
 
+export interface ComposePayload extends Partial<Body> {
+    readonly limits?: Limits;
+    readonly depth?: number;
+}
+
+export interface StreamEntry {
+    readonly controller: ReadableStreamDefaultController<string>;
+    readonly depth: number;
+}
+
 export enum SignalType {
     COMPOSE = 'composer.compose',
     COMPOSED = 'composer.composed',

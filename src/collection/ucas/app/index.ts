@@ -104,9 +104,10 @@ export class App extends Uca<Body> {
 
     private requestLayout(language: string, dimensions?: Dimensions): void {
         const suggestion = language.startsWith('es') ? 'Dime qué quieres' : 'Tell me what you want';
-        const request = `Architect centered representation areas presenting UCA with a text input suggesting "${suggestion}", and an action button`;
-        const { width, height, orientation } = dimensions ?? {};
-        const limits = { width, height, orientation };
+        const request = `Architect layout representation areas with text input "${suggestion}" and action button`;
+        const { width = 1440, height = 900, orientation = 'landscape-primary', pixelRatio = 1 } = dimensions ?? {};
+        const ratio = Number((width / height).toFixed(2));
+        const limits = { width, height, ratio, orientation, pixelRatio };
         this.pulse(ComposerSignalType.COMPOSE, { request, limits, parentTo: this.id });
     }
 

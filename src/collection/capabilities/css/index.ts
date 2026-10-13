@@ -6,6 +6,7 @@ import {
     DESIGN_TOKENS,
     STYLE_PREFIX,
     TOKENS_STYLE_ID,
+    generateBaseRulesCss,
 } from './constants.js';
 import {
     type ApplyPayload,
@@ -53,10 +54,12 @@ export class Css extends Capability<Body> {
     };
 
     public static translateQualities(qualities: Qualities): Record<string, string> {
-        const { width, height, spacing, surface, tone, typeface, textSize, elevation, radius, direction, alignment, custom } = qualities;
+        const { width, height, spacing, gap, surface, tone, typeface, textSize, elevation, radius, border, direction, alignment, custom } = qualities;
         return {
             ...Css.resolveDimensions(width, height),
             ...Css.resolveVisuals(spacing, surface, tone, elevation, radius),
+            ...Css.resolveGap(gap ?? spacing),
+            ...Css.resolveBorder(border),
             ...Css.resolveTypography(typeface, textSize),
             ...Css.resolveLayout(direction, alignment),
             ...(custom ?? {}),
@@ -81,9 +84,7 @@ export class Css extends Capability<Body> {
                 lines.push(`--uca-${category}-${name}: ${val};`);
             }
         }
-        const mediaRules = '@media (max-width: 768px) { #app { flex-direction: column !important; flex-wrap: nowrap !important; overflow-y: auto !important; height: 100vh !important; } ext-uca { width: 100% !important; flex-basis: auto !important; flex-grow: 0 !important; flex-shrink: 0 !important; height: auto !important; min-height: 80px !important; } }';
-        const baseRules = `body { margin: 0; padding: 0; background: #0a0d14; color: #e2e8f0; font-family: var(--uca-typeface-sans, system-ui, sans-serif); height: 100vh; overflow: hidden; } #app { width: 100vw; height: 100vh; display: flex; flex-direction: row; flex-wrap: wrap; background: #0a0d14; overflow: hidden; } ext-uca { display: block; box-sizing: border-box; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.08); background: #0e121a; } ${mediaRules}`;
-        return `:root { ${lines.join(' ')} } ${baseRules}`;
+        return `:root { ${lines.join(' ')} } ${generateBaseRulesCss()}`;
     }
 
     private static resolveTokenValue(group: Record<string, unknown>, key?: string): string | undefined {
@@ -92,22 +93,16 @@ export class Css extends Capability<Body> {
         return typeof entry === 'object' && entry ? entry.$value ?? key : entry ?? key;
     }
 
-    private static resolvePanelHeight(width?: string, height?: string, fallback?: string): string | undefined {
-        const isPanel = height === 'full' || height === 'screen' || (width === 'auto' && (!height || height === 'auto'));
-        return isPanel ? 'calc(100vh - 32px)' : fallback;
-    }
-
     private static resolveDimensions(width?: string, height?: string): Record<string, string> {
-        const resolvedWidth = Css.resolveTokenValue(DESIGN_TOKENS.dimensions, width);
+        const resolvedWidth = width === 'screen' ? '100vw' : Css.resolveTokenValue(DESIGN_TOKENS.dimensions, width);
         const resolvedHeight = Css.resolveTokenValue(DESIGN_TOKENS.dimensions, height);
-        const panelHeight = Css.resolvePanelHeight(width, height, resolvedHeight);
-        const isFlexGrow = width === 'auto' || width === 'two-thirds' || width === 'wide' || (width === 'full' && height === 'full');
+        const maxWidth = width === 'wide' ? '768px' : undefined;
         return {
-            ...(resolvedWidth && { width: resolvedWidth, 'flex-basis': width === 'auto' ? '0' : resolvedWidth }),
-            ...(panelHeight && { height: panelHeight }),
+            'box-sizing': 'border-box',
+            ...(resolvedWidth && { width: resolvedWidth }),
+            ...(maxWidth && { 'max-width': maxWidth }),
+            ...(resolvedHeight && { height: resolvedHeight }),
             ...(width === 'narrow' && { 'flex-shrink': '0', 'flex-grow': '0' }),
-            ...(isFlexGrow && { 'flex-grow': '1', 'flex-shrink': '1', 'min-width': '0' }),
-            ...(width === 'full' && height !== 'full' && { 'flex-grow': '0', 'flex-shrink': '0', 'min-height': '32px' }),
         };
     }
 
@@ -124,6 +119,16 @@ export class Css extends Capability<Body> {
         };
     }
 
+    private static resolveGap(gap?: string): Record<string, string> {
+        const resolvedGap = Css.resolveTokenValue(DESIGN_TOKENS.spacing, gap);
+        return resolvedGap ? { gap: resolvedGap } : {};
+    }
+
+    private static resolveBorder(border?: string): Record<string, string> {
+        const resolvedBorder = Css.resolveTokenValue(DESIGN_TOKENS.border, border);
+        return resolvedBorder ? { border: resolvedBorder } : {};
+    }
+
     private static resolveTypography(typeface?: string, textSize?: string): Record<string, string> {
         const font = Css.resolveTokenValue(DESIGN_TOKENS.typeface, typeface);
         const size = Css.resolveTokenValue(DESIGN_TOKENS.textSize, textSize);
@@ -136,9 +141,13 @@ export class Css extends Capability<Body> {
     private static resolveLayout(direction?: string, alignment?: string): Record<string, string> {
         const dir = Css.resolveTokenValue(DESIGN_TOKENS.direction, direction);
         const align = Css.resolveTokenValue(DESIGN_TOKENS.alignment, alignment);
+        const justify = ['space-between', 'center', 'flex-end'].includes(align ?? '') ? align : undefined;
+        const cross = align && align !== 'space-between' ? align : undefined;
         return {
-            ...(dir && { 'flex-direction': dir }),
-            ...(align && { 'align-items': align }),
+            ...((dir || align) ? { display: 'flex' } : {}),
+            ...(dir ? { 'flex-direction': dir } : {}),
+            ...(cross ? { 'align-items': cross } : {}),
+            ...(justify ? { 'justify-content': justify } : {}),
         };
     }
 

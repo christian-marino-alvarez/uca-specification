@@ -1,8 +1,9 @@
 import type { ConnectionConfig as GeminiConnectionConfig, ThinkingLevel } from '@uca/capability-gemini/types';
 import type { ConnectionConfig as OpenaiConnectionConfig } from '@uca/capability-openai/types';
+import type { ConnectionConfig as JevConnectionConfig } from '@uca/capability-jev/types';
 
-export type ProviderType = 'openai' | 'gemini';
-export type ConnectionConfig = GeminiConnectionConfig | OpenaiConnectionConfig;
+export type ProviderType = 'openai' | 'gemini' | 'jev';
+export type ConnectionConfig = GeminiConnectionConfig | OpenaiConnectionConfig | JevConnectionConfig;
 
 export enum SignalType {
     INFER = 'llm.infer',
@@ -26,6 +27,7 @@ export enum DataType {
 }
 
 export interface InferPayload {
+    readonly id?: string;
     readonly correlationId?: string;
     readonly streamId?: string;
     readonly request: string;

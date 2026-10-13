@@ -1,7 +1,7 @@
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import type { z } from 'zod';
-import { __ID__, AIM } from './constants.js';
+import { __ID__, AIM, IGNORED_NESTED_KEYS } from './constants.js';
 import {
     type Body,
     type TransformPayload,
@@ -102,6 +102,9 @@ export class StreamTransformer extends Capability<Body> {
         const match = /"([^"]+)"\s*:\s*\{/.exec(text);
         if (!match) { return undefined; }
         const key = match[1];
+        if ((IGNORED_NESTED_KEYS as readonly string[]).includes(key)) {
+            return undefined;
+        }
         const braceStart = match.index + match[0].lastIndexOf('{');
         const braceEnd = this.findBraceEnd(text, braceStart);
         if (braceEnd === -1) { return undefined; }

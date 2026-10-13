@@ -62,25 +62,26 @@ export class Jev extends Capability<Body> {
     private async handleInfer(value: unknown): Promise<void> {
         const payload = this.extractPayload<InferPayload>(value);
         if (!payload) { return; }
+        const { correlationId } = payload;
         try {
             const client = this.resolveClient();
             const result = await this.executeInference(client, payload);
             this.pulse(SignalType.INFERRED, result);
         } catch (error) {
-            this.pulse(SignalType.ERROR, error);
+            this.pulse(SignalType.ERROR, { error, correlationId });
         }
     }
 
     private async executeInference(client: TypeSafeClient, payload: InferPayload): Promise<InferResult> {
-        const { state, questions, model = DEFAULT_MODEL, limit, maxTokens } = payload;
+        const { state, questions, model = DEFAULT_MODEL, limit, maxTokens, correlationId } = payload;
         const { aim } = this.disposition;
         const bodyLimit = aim.body?.limit ?? aim.body?.maxTokens;
         const effectiveLimit = limit ?? maxTokens ?? bodyLimit;
         const options = effectiveLimit !== undefined ? { limit: effectiveLimit, max_tokens: effectiveLimit } : {};
         const formattedQuestions = this.formatQuestions(questions ?? {});
         const response = await client.systemOne({ state: state as any, questions: formattedQuestions as any, model, ...options });
-        const answers = response as unknown as Record<string, unknown>;
-        return { state, answers, model };
+        const { answers } = response as unknown as { answers: Record<string, unknown> };
+        return { state, answers, model, correlationId };
     }
 
     private formatQuestions(questions: Record<string, unknown>): Record<string, unknown> {
@@ -103,7 +104,7 @@ export class Jev extends Capability<Body> {
         const { apiKey, baseURL } = config ?? {};
         const envKey = typeof process !== 'undefined' ? process.env?.JEV_API_KEY ?? process.env?.TYPESAFE_API_KEY : undefined;
         const localKey = typeof localStorage !== 'undefined' ? localStorage.getItem('JEV_API_KEY') ?? undefined : undefined;
-        const resolvedApiKey = apiKey ?? envKey ?? localKey;
+        const resolvedApiKey = apiKey ?? envKey ?? localKey ?? 'server-proxy';
         const browserOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
         const resolvedBase = baseURL ?? browserOrigin;
         return new TypeSafeClient({ apiKey: resolvedApiKey, baseURL: resolvedBase, dangerouslyAllowBrowser: true });

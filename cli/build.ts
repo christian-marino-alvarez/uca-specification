@@ -114,12 +114,12 @@ async function transpileEntry(): Promise<void> {
 
 function buildHtml(importMap: string): void {
     const template = fs.readFileSync(path.join(CLI, 'index.html'), 'utf-8');
-    const geminiKey = process.env.GEMINI_API_KEY ?? '';
-    const openaiKey = process.env.OPENAI_API_KEY ?? '';
+    const { GEMINI_API_KEY: gemini = '', OPENAI_API_KEY: openai = '', JEV_API_KEY: jev = process.env.TYPESAFE_API_KEY ?? '' } = process.env;
     const html = template
         .replace('{{IMPORT_MAP}}', importMap)
-        .replace(/{{GEMINI_API_KEY}}/g, geminiKey)
-        .replace(/{{OPENAI_API_KEY}}/g, openaiKey);
+        .replace(/{{GEMINI_API_KEY}}/g, gemini)
+        .replace(/{{OPENAI_API_KEY}}/g, openai)
+        .replace(/{{JEV_API_KEY}}/g, jev);
     fs.writeFileSync(path.join(WEB_DIST, 'index.html'), html);
 }
 

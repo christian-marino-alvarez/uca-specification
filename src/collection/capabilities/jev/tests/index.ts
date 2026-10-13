@@ -41,7 +41,7 @@ async function testJev_InferWithMockClient(): Promise<void> {
     const mockClient = {
         systemOne: async (req: unknown) => {
             const parsed = req as { state: unknown; questions: Record<string, unknown> };
-            return { valid: true, echoState: parsed.state };
+            return { model: 'jev-test', answers: { valid: true, echoState: parsed.state }, usage: { input_tokens: 1, output_tokens: 1 } };
         },
     } as unknown as TypeSafeClient;
 
@@ -85,11 +85,13 @@ async function testJev_InferHandlesError(): Promise<void> {
         errorCaptured = (event as CustomEvent<Signal>).detail.value;
     });
 
-    emitSignal(bus, SignalType.INFER, { state: 'bad', questions: {} });
+    emitSignal(bus, SignalType.INFER, { state: 'bad', questions: {}, correlationId: 'owner::area' });
     await new Promise((resolve) => setTimeout(resolve, 30));
 
-    assert.ok(errorCaptured instanceof Error);
-    assert.strictEqual((errorCaptured as Error).message, 'Jev API network failure');
+    const { error, correlationId } = errorCaptured as { error: Error; correlationId: string };
+    assert.ok(error instanceof Error);
+    assert.strictEqual(error.message, 'Jev API network failure');
+    assert.strictEqual(correlationId, 'owner::area');
 
     jev.denervate();
 }
