@@ -92,13 +92,19 @@ export class Decision extends Capability<Body> {
                 return { decision: answer >= DEFAULT_THRESHOLD, probability: answer };
             case 'string':
                 return { decision: AFFIRMATIVE_PATTERN.test(answer) };
-            case 'object': {
-                const { noul, decision, assessment, needsSubdivision, ...rest } = (answer ?? {}) as Record<string, unknown>;
-                const [firstValue] = Object.values(rest);
-                return this.resolveAnswer(noul ?? decision ?? assessment ?? needsSubdivision ?? firstValue);
-            }
+            case 'object':
+                return this.resolveObjectAnswer(answer);
             default:
                 return { decision: false };
         }
+    }
+
+    private resolveObjectAnswer(answer: unknown): { decision: boolean; probability?: number } {
+        const { choice, confidence, noul, decision, assessment, needsSubdivision, recompose, ...rest } = (answer ?? {}) as Record<string, unknown>;
+        if (typeof choice === 'string') {
+            return { decision: AFFIRMATIVE_PATTERN.test(choice), ...(typeof confidence === 'number' && { probability: confidence }) };
+        }
+        const [firstValue] = Object.values(rest);
+        return this.resolveAnswer(noul ?? decision ?? assessment ?? needsSubdivision ?? recompose ?? firstValue);
     }
 }

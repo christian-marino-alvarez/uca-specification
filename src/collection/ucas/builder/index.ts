@@ -4,14 +4,17 @@ import { Box } from '@uca/box';
 import { SignalType as BoxSignalType } from '@uca/box/types';
 import { Picture } from '@uca/picture';
 import { SignalType as PictureSignalType } from '@uca/picture/types';
+import { Memory } from '@uca/memory';
+import { SignalType as MemorySignalType, type RetrievedResult } from '@uca/memory/types';
 import { Decision } from '@uca/capability-decision';
 import { SignalType as DecisionSignalType, type DecidedResult } from '@uca/capability-decision/types';
 import { DEFAULT_MODEL as DECISION_MODEL, DEFAULT_PROVIDER as DECISION_PROVIDER } from '@uca/capability-decision/constants';
 import { Llm } from '@uca/llm';
 import { SignalType as LlmSignalType } from '@uca/llm/types';
 import { SignalType as JevSignalType } from '@uca/capability-jev/types';
+import { Composer } from '@uca/composer';
 import { SignalType as ComposerSignalType } from '@uca/composer/types';
-import { __ID__, CORRELATION_SEPARATOR, DEFAULT_STATUS, MAX_SUBDIVISION_DEPTH, ROOT_PARENT, SKELETON_BORDER, STRUCTURAL_DEPTH, SUBDIVISION_QUESTION, capSpacing, createDynamicSkeletonSvg, formatDimension, isLeafKind, isNestedArea, resolveGap, resolveNestedHeight, resolveNestedWidth } from './constants.js';
+import { __ID__, CORRELATION_SEPARATOR, DEFAULT_STATUS, ROOT_PARENT, STRUCTURAL_DEPTH, SUBDIVISION_QUESTION, areAreaMediasEqual, areAreaQualitiesEqual, buildChildComposePayload, createDynamicSkeletonSvg, formatDimension, isAreaMounted, isLeafKind, resolveBoxQualities, resolveNestedHeight } from './constants.js';
 import { type AreaPayload, type Body, type Dimensions, DataType, SignalType } from './types.js';
 
 export class Builder extends Uca<Body> {
@@ -30,9 +33,14 @@ export class Builder extends Uca<Body> {
             PictureSignalType.CREATED,
             DecisionSignalType.DECIDED,
             DecisionSignalType.ERROR,
+            MemorySignalType.RETRIEVED,
+            MemorySignalType.SAVED,
+            ComposerSignalType.CHUNK,
             ...Box.disposition.reactTo ?? [],
             ...Picture.disposition.reactTo ?? [],
             ...Decision.disposition.reactTo ?? [],
+            ...Memory.disposition.reactTo ?? [],
+            ...Composer.disposition.reactTo ?? [],
             LlmSignalType.INFER,
         ],
         inputs: [
@@ -40,6 +48,7 @@ export class Builder extends Uca<Body> {
             { signal: SignalType.SKELETON, type: DataType.SKELETON_PAYLOAD, description: 'Command to render loading skeleton for the area' },
             { signal: SignalType.EVALUATE, type: DataType.EVALUATE_PAYLOAD, description: 'Command to evaluate area sufficiency via Decision' },
             { signal: DecisionSignalType.DECIDED, type: DataType.UNKNOWN, description: 'Decision results from Decision capability' },
+            { signal: ComposerSignalType.CHUNK, type: DataType.UNKNOWN, description: 'Composed area chunk from Composer capability' },
         ],
         outputs: [
             { signal: SignalType.BUILT, type: DataType.BUILT_RESULT, description: 'Emitted when area template has been materialized' },
@@ -60,6 +69,8 @@ export class Builder extends Uca<Body> {
             ...this.buildPictureCooky(),
             ...this.buildDecisionCooky(),
             ...this.buildLlmCooky(),
+            ...this.buildMemoryCooky(),
+            ...this.buildComposerCooky(),
         ];
     }
 
@@ -91,6 +102,12 @@ export class Builder extends Uca<Body> {
                 break;
             case DecisionSignalType.ERROR:
                 this.handleDecisionError(signal);
+                break;
+            case MemorySignalType.RETRIEVED:
+                this.handleMemoryRetrieved(signal);
+                break;
+            case ComposerSignalType.CHUNK:
+                this.handleComposerChunk(value);
                 break;
             default:
                 break;
@@ -129,19 +146,71 @@ export class Builder extends Uca<Body> {
         return [[Llm, { aim, reactTo }]];
     }
 
+    private buildMemoryCooky(): Cooky {
+        const { id } = this;
+        const body = { id: `${id}:memory`, namespace: `${id}:areas` };
+        const aim = { description: Memory.purpose, body };
+        const reactTo = [...Memory.disposition.reactTo ?? []];
+        return [[Memory, { aim, reactTo }]];
+    }
+
+    private buildComposerCooky(): Cooky {
+        const { id } = this;
+        const body = { id: `${id}:composer`, request: '', context: Builder.purpose, catalog: ['Box'], parentTo: ROOT_PARENT };
+        const aim = { description: Composer.purpose, body };
+        const reactTo = [...Composer.disposition.reactTo ?? []];
+        return [[Composer, { aim, reactTo }]];
+    }
+
+    private handleComposerChunk(value?: unknown): void {
+        this.handleBuild(value);
+    }
+
     private handleBuild(value?: unknown): void {
         const payload = (value ?? {}) as AreaPayload;
-        const { elementId, areaId = elementId ?? this.id, parentTo, kind, depth = 0 } = payload;
+        const { elementId, areaId = elementId ?? this.id } = payload;
+        const correlationId = `${this.id}${CORRELATION_SEPARATOR}${JSON.stringify({ areaId, payload })}`;
+        this.pulse(MemorySignalType.GET, { id: `${this.id}:memory`, key: areaId, correlationId });
+    }
+
+    private handleMemoryRetrieved(signal: Signal): void {
+        const { value } = signal;
+        const { value: memorized, correlationId = '' } = (value ?? {}) as RetrievedResult<AreaPayload>;
+        const [ownerId, encoded = ''] = correlationId.split(CORRELATION_SEPARATOR);
+        if (ownerId !== this.id || !encoded) { return; }
+        const { areaId, payload } = JSON.parse(encoded) as { areaId: string; payload: AreaPayload };
+        if (!memorized || !isAreaMounted(areaId)) { this.materializeNewArea(areaId, { ...memorized, ...payload, subdivided: memorized?.subdivided }); return; }
+        this.reconcileExistingArea(areaId, memorized, payload);
+    }
+
+    private materializeNewArea(areaId: string, payload: AreaPayload): void {
+        const { kind, depth = 0, subdivided } = payload;
         console.log(`[${this.id}] 🏗️ Construyendo template para área:`, areaId, `(profundidad ${depth})`);
+        this.pulse(MemorySignalType.SAVE, { id: `${this.id}:memory`, key: areaId, value: payload });
         this.handleSkeleton(payload);
-        const isDone = parentTo === ROOT_PARENT || depth >= MAX_SUBDIVISION_DEPTH || isLeafKind(kind);
-        if (isDone) { this.logFinalRender(areaId); return; }
+        if (isLeafKind(kind) || subdivided === false) { this.logFinalRender(areaId); return; }
         this.routeSubdivision({ ...payload, areaId });
     }
 
+    private reconcileExistingArea(areaId: string, memorized: AreaPayload, incoming: AreaPayload): void {
+        const [qualitiesChanged, mediaChanged] = [!areAreaQualitiesEqual(memorized, incoming), !areAreaMediasEqual(memorized, incoming)];
+        if (!qualitiesChanged && !mediaChanged) { return; }
+        const merged: AreaPayload = { ...memorized, ...incoming, subdivided: memorized.subdivided };
+        this.pulse(MemorySignalType.SAVE, { id: `${this.id}:memory`, key: areaId, value: merged });
+        if (qualitiesChanged) { this.updateAreaBox(areaId, merged); }
+        if (merged.subdivided) { this.pulse(ComposerSignalType.COMPOSE, buildChildComposePayload({ ...merged, areaId }, this.id)); }
+    }
+
+    private updateAreaBox(areaId: string, payload: AreaPayload): void {
+        const qualities = resolveBoxQualities(payload);
+        console.log(`[${this.id}] 🎨 Actualizando área ${areaId} (${qualities.width}, ${qualities.direction ?? 'auto'})`);
+        this.pulse(BoxSignalType.UPDATE, { elementId: areaId, qualities });
+        this.pulse(SignalType.BUILT, { areaId, success: true });
+    }
+
     private routeSubdivision(payload: AreaPayload): void {
-        const { depth = 0 } = payload;
-        if (depth === STRUCTURAL_DEPTH) {
+        const { depth = 0, subdivided } = payload;
+        if (depth === STRUCTURAL_DEPTH || subdivided) {
             this.delegateSubdivisionToComposer(payload);
             return;
         }
@@ -158,13 +227,8 @@ export class Builder extends Uca<Body> {
     }
 
     private renderSkeletonBox(areaId: string, payload: AreaPayload): void {
-        const { parentTo, dimensions, style, depth = 0, kind } = payload;
-        const { width = 'full', height = 'auto' } = dimensions ?? {};
-        const { spacing, direction, alignment } = style ?? {};
-        const [isRoot, isNested] = [parentTo === ROOT_PARENT, isNestedArea(parentTo, depth, kind)];
-        const [elevation, radius] = isRoot ? ['none', 'none'] : isNested ? ['none', 'small'] : ['card', 'large'];
-        const surface = (isRoot || isNested) ? undefined : 'card';
-        const qualities = { width: resolveNestedWidth(String(width), depth), height: resolveNestedHeight(String(height), depth), ...(surface && { surface }), ...(!isRoot && { border: SKELETON_BORDER }), elevation, radius, spacing: capSpacing(spacing ?? (isNested ? 'small' : 'large'), depth), gap: resolveGap(depth), ...(direction && { direction }), ...(alignment && { alignment }) };
+        const { parentTo } = payload;
+        const qualities = resolveBoxQualities(payload);
         this.pulse(BoxSignalType.RENDER, { elementId: areaId, parentTo, qualities });
     }
 
@@ -181,12 +245,12 @@ export class Builder extends Uca<Body> {
     }
 
     private evaluateAreaWithDecision(payload: AreaPayload): void {
-        const { elementId, areaId = elementId ?? this.id, purpose = '', context = '', dimensions, style, depth = 0 } = payload;
+        const { elementId, areaId = elementId ?? this.id, purpose = '', context = '', dimensions, style, media, depth = 0 } = payload;
         const { width, height } = dimensions ?? {};
-        const [formattedWidth, formattedHeight] = [formatDimension(width), formatDimension(height)];
+        const [formattedWidth, formattedHeight] = [formatDimension(width), formatDimension(resolveNestedHeight(String(height ?? 'auto'), depth))];
         console.log(`[${this.id}] ⚖️ Evaluando decisión de subdivisión con Decision (Jev) para área:`, areaId, `[${formattedWidth} x ${formattedHeight}]`);
-        const state = { areaId, purpose, context, depth, dimensions, style, dimensionsDescription: { width: formattedWidth, height: formattedHeight } };
-        this.pulse(DecisionSignalType.DECIDE, { state, question: SUBDIVISION_QUESTION, correlationId: `${this.id}${CORRELATION_SEPARATOR}${areaId}` });
+        const state = { areaId, purpose, context, depth, dimensions, style, media, dimensionsDescription: { width: formattedWidth, height: formattedHeight } };
+        this.pulse(DecisionSignalType.DECIDE, { id: `${this.id}:decision`, state, question: SUBDIVISION_QUESTION, correlationId: `${this.id}${CORRELATION_SEPARATOR}${areaId}` });
     }
 
     private handleDecisionDecided(signal: Signal): void {
@@ -195,21 +259,17 @@ export class Builder extends Uca<Body> {
         const [ownerId, areaId = this.id] = correlationId.split(CORRELATION_SEPARATOR);
         if (correlationId && ownerId !== this.id) { return; }
         console.log(`[${this.id}] ⚖️ Decisión para ${areaId}: ${decision ? 'subdividir' : 'terminal'} (probabilidad ${probability?.toFixed(2) ?? 'n/d'})`);
-        if (decision === true) {
-            this.delegateSubdivisionToComposer({ ...(state as AreaPayload), areaId });
-            return;
-        }
+        if (decision === true) { this.delegateSubdivisionToComposer({ ...(state as AreaPayload), areaId }); return; }
+        if (state) { this.pulse(MemorySignalType.SAVE, { id: `${this.id}:memory`, key: areaId, value: { ...(state as AreaPayload), areaId, subdivided: false } }); }
         this.logFinalRender(areaId);
     }
 
     private delegateSubdivisionToComposer(payload: AreaPayload): void {
-        const { areaId = this.id, purpose, context, dimensions, style, depth = 0 } = payload;
-        const { direction = 'column' } = style ?? {};
-        const { width = 'full', height = 'auto' } = dimensions ?? {};
+        const { areaId = this.id, purpose, context, depth = 0 } = payload;
         console.log(`[${this.id}] 🔀 Subdividiendo área ${areaId} mediante Composer (profundidad ${depth + 1})...`);
+        this.pulse(MemorySignalType.SAVE, { id: `${this.id}:memory`, key: areaId, value: { ...payload, areaId, subdivided: true } });
         this.pulse(PictureSignalType.REMOVE, { elementId: `${areaId}:skeleton-pic` });
-        const request = `Architect child representation sub-areas strictly constrained to parent container dimensions: [width: ${width}, height: ${height}] and parent layout direction: ${direction}. Container: "${purpose || areaId}". Do NOT recreate "${areaId}".`;
-        this.pulse(ComposerSignalType.COMPOSE, { request, context: context || `Subdivision of ${areaId}`, parentTo: areaId, limits: dimensions, depth: depth + 1 });
+        this.pulse(ComposerSignalType.COMPOSE, buildChildComposePayload({ ...payload, areaId }, this.id));
         this.pulse(SignalType.SUBDIVIDE, { areaId, purpose, context });
     }
 

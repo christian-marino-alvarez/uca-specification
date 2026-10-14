@@ -8,6 +8,7 @@ export const bodySchema = z.object({
     status: z.enum(['idle', 'skeleton', 'evaluating', 'built', 'subdivided']).optional().describe('Lifecycle state of the template construction'),
     provider: z.enum(['gemini', 'openai', 'jev']).optional().describe('Cognitive AI evaluation provider'),
     model: z.string().optional().describe('AI model to use for area evaluation'),
+    areas: z.record(z.string(), z.unknown()).optional().describe('Memorized dispositions of materialized areas'),
 });
 
 export type Body = z.infer<typeof bodySchema>;

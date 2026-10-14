@@ -68,4 +68,6 @@ export interface AreaPayload {
     readonly depth?: number;
     readonly dimensions?: Dimensions;
     readonly style?: Record<string, string>;
+    readonly media?: { readonly minWidth?: number; readonly maxWidth?: number; readonly orientation?: string };
+    readonly subdivided?: boolean;
 }

@@ -30,6 +30,7 @@ export interface ConnectionStatus {
 }
 
 export interface InferPayload {
+    readonly id?: string;
     readonly state: unknown;
     readonly questions: Record<string, unknown>;
     readonly model?: string;
@@ -46,6 +47,7 @@ export interface InferResult {
 }
 
 export interface Body {
+    readonly id?: string;
     readonly client?: TypeSafeClient;
     readonly connection?: ConnectionConfig;
     readonly limit?: number;

@@ -75,7 +75,7 @@ export class Css extends Capability<Body> {
         return `${selector} { ${rules} }`;
     }
 
-    public static generateTokensCss(tokens: Record<string, Record<string, unknown>>): string {
+    public static generateTokensCss(tokens: Record<string, Record<string, unknown>> = DESIGN_TOKENS as unknown as Record<string, Record<string, unknown>>): string {
         const lines: string[] = [];
         for (const [category, group] of Object.entries(tokens)) {
             for (const [name, token] of Object.entries(group)) {
@@ -96,14 +96,9 @@ export class Css extends Capability<Body> {
     private static resolveDimensions(width?: string, height?: string): Record<string, string> {
         const resolvedWidth = width === 'screen' ? '100vw' : Css.resolveTokenValue(DESIGN_TOKENS.dimensions, width);
         const resolvedHeight = Css.resolveTokenValue(DESIGN_TOKENS.dimensions, height);
-        const maxWidth = width === 'wide' ? '768px' : undefined;
-        return {
-            'box-sizing': 'border-box',
-            ...(resolvedWidth && { width: resolvedWidth }),
-            ...(maxWidth && { 'max-width': maxWidth }),
-            ...(resolvedHeight && { height: resolvedHeight }),
-            ...(width === 'narrow' && { 'flex-shrink': '0', 'flex-grow': '0' }),
-        };
+        const narrowRules: Record<string, string> = width === 'narrow' ? { 'flex-shrink': '0', 'flex-grow': '0' } : {};
+        const maxWidthRules = { 'max-width': width === 'wide' ? '768px' : '100%' };
+        return { 'box-sizing': 'border-box', ...maxWidthRules, ...(resolvedWidth && { width: resolvedWidth }), ...(resolvedHeight && { height: resolvedHeight }), ...narrowRules };
     }
 
     private static resolveVisuals(spacing?: string, surface?: string, tone?: string, elevation?: string, radius?: string): Record<string, string> {

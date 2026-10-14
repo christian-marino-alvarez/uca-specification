@@ -3,9 +3,9 @@ import { Capability } from '@uca/core/capability';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
 import { Browser } from '@uca/capability-browser';
 import { SignalType as BrowserSignalType, type BrowserContext } from '@uca/capability-browser/types';
-import { Composer } from '@uca/composer';
-import { SignalType as ComposerSignalType } from '@uca/composer/types';
-import { __ID__, DEFAULT_CONTEXT, DEFAULT_LANGUAGE, DEFAULT_NAME } from './constants.js';
+import { Builder } from '@uca/builder';
+import { SignalType as BuilderSignalType } from '@uca/builder/types';
+import { __ID__, DEFAULT_CONTEXT, DEFAULT_LANGUAGE, DEFAULT_NAME, DEFAULT_ROOT_AREA, resolveRootLayout, resolveViewportMedia } from './constants.js';
 import { type Body, type Dimensions, DataType, SignalType } from './types.js';
 
 export class App extends Uca<Body> {
@@ -25,18 +25,19 @@ export class App extends Uca<Body> {
             SignalType.DETECT,
             BrowserSignalType.DETECTED,
             BrowserSignalType.CHANGED,
-            ComposerSignalType.COMPOSED,
+            BuilderSignalType.BUILT,
             ...Browser.disposition.reactTo ?? [],
-            ...Composer.disposition.reactTo ?? [],
+            ...Builder.disposition.reactTo ?? [],
         ],
         inputs: [
             { signal: SignalType.DETECT, type: DataType.VOID, description: 'Request browser environment detection' },
-            { signal: ComposerSignalType.COMPOSED, type: DataType.LAYOUT, description: 'Layout created by Composer capability' },
+            { signal: BuilderSignalType.BUILT, type: DataType.LAYOUT, description: 'Area template materialized by Builder capability' },
         ],
         outputs: [
             { signal: SignalType.DIMENSIONS_DETECTED, type: DataType.APP_BODY, description: 'Application body with detected dimensions' },
             { signal: SignalType.DIMENSIONS_CHANGED, type: DataType.APP_BODY, description: 'Application body with updated dimensions upon window resize' },
             { signal: SignalType.LAYOUT_COMPOSED, type: DataType.LAYOUT, description: 'Final application layout composed' },
+            { signal: BuilderSignalType.BUILD, type: DataType.LAYOUT, description: 'Request root area construction to Builder' },
         ],
     };
 
@@ -62,8 +63,8 @@ export class App extends Uca<Body> {
             case BrowserSignalType.CHANGED:
                 this.handleBrowserChanged(signal);
                 break;
-            case ComposerSignalType.COMPOSED:
-                this.handleComposerComposed(signal);
+            case BuilderSignalType.BUILT:
+                this.handleBuilderBuilt(signal);
                 break;
             default:
                 break;
@@ -73,16 +74,10 @@ export class App extends Uca<Body> {
     protected override catalog(): Cooky {
         const { id } = this;
         const browserId = `${id}:browser`;
-        const composerId = `${id}:composer`;
+        const builderId = `${id}:builder`;
         const cooky: Cooky = [
-            [Browser, {
-                aim: { description: 'Browser context detector', body: { id: browserId } },
-                reactTo: [...Browser.disposition.reactTo ?? []],
-            }],
-            [Composer, {
-                aim: { description: Composer.purpose, body: { id: composerId, catalog: ['Box'], parentTo: id } },
-                reactTo: [...Composer.disposition.reactTo ?? []],
-            }],
+            [Browser, { aim: { description: 'Browser context detector', body: { id: browserId } }, reactTo: [...Browser.disposition.reactTo ?? []] }],
+            [Builder, { aim: { description: Builder.purpose, body: { id: builderId, parentTo: id } }, reactTo: [...Builder.disposition.reactTo ?? []] }],
         ];
         return cooky;
     }
@@ -99,22 +94,22 @@ export class App extends Uca<Body> {
         const { name = DEFAULT_NAME, purpose = App.purpose, context = DEFAULT_CONTEXT } = aim.body ?? {};
         const payload: Body = { name, purpose, context, language, dimensions };
         this.pulse(SignalType.DIMENSIONS_DETECTED, payload);
-        this.requestLayout(language, dimensions);
+        this.requestBuild(language, dimensions);
     }
 
-    private requestLayout(language: string, dimensions?: Dimensions): void {
+    private requestBuild(language: string, dimensions?: Dimensions): void {
         const suggestion = language.startsWith('es') ? 'Dime qué quieres' : 'Tell me what you want';
-        const request = `Architect layout representation areas with text input "${suggestion}" and action button`;
-        const { width = 1440, height = 900, orientation = 'landscape-primary', pixelRatio = 1 } = dimensions ?? {};
-        const ratio = Number((width / height).toFixed(2));
-        const limits = { width, height, ratio, orientation, pixelRatio };
-        this.pulse(ComposerSignalType.COMPOSE, { request, limits, parentTo: this.id });
+        const purpose = `Architect layout representation areas with text input "${suggestion}" and action button`;
+        const { aim } = this.disposition;
+        const { context = DEFAULT_CONTEXT } = aim.body ?? {};
+        const media = resolveViewportMedia(dimensions);
+        const [width, direction] = resolveRootLayout(dimensions);
+        this.pulse(BuilderSignalType.BUILD, { areaId: DEFAULT_ROOT_AREA, parentTo: this.id, kind: 'container', depth: 0, purpose, context, dimensions: { width, height: 'auto' }, style: { direction, alignment: 'center' }, media });
     }
 
-    private handleComposerComposed(signal: Signal): void {
+    private handleBuilderBuilt(signal: Signal): void {
         const { value } = signal;
-        const { layout } = (value ?? {}) as { layout: unknown };
-        this.pulse(SignalType.LAYOUT_COMPOSED, { layout });
+        this.pulse(SignalType.LAYOUT_COMPOSED, { layout: value });
     }
 
     private handleBrowserChanged(signal: Signal): void {
@@ -125,6 +120,7 @@ export class App extends Uca<Body> {
         const { name = DEFAULT_NAME, purpose = App.purpose, context = DEFAULT_CONTEXT } = aim.body ?? {};
         const payload: Body = { name, purpose, context, language, dimensions };
         this.pulse(SignalType.DIMENSIONS_CHANGED, payload);
+        this.requestBuild(language, dimensions);
     }
 
     private getDimensions(value: unknown): Dimensions {

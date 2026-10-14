@@ -5,16 +5,17 @@ export const __ID__ = 'builder';
 export const DEFAULT_STATUS = 'idle' as const;
 
 export const ROOT_PARENT = 'app';
-export const MAX_SUBDIVISION_DEPTH = 2;
 export const STRUCTURAL_DEPTH = 0;
 export const CORRELATION_SEPARATOR = '::';
 export const SUBDIVISION_QUESTION = 'Does this layout area contain two or more clearly distinct visual roles (for example a header, a content body and a set of actions) that are better expressed as separate child areas? Answer no when the area holds a single element such as one button, one input field or one line of text.';
 export const COMPACT_WIDTHS: readonly string[] = ['narrow'];
-export const resolveNestedWidth = (width: string, depth: number): string => (depth > 0 && width === 'wide' ? 'full' : width);
-export const resolveNestedHeight = (height: string, depth: number): string => (depth > 0 && height === 'full' ? 'auto' : height);
+export const resolveNestedWidth = (width: string, _depth?: number): string => width;
+export const resolveNestedHeight = (height: string, depth: number): string => (depth > 0 && (height === 'full' || height === 'screen') ? 'auto' : height);
 export const LEAF_KINDS: readonly string[] = ['heading', 'text', 'action', 'input', 'media'];
 export const isLeafKind = (kind?: string): boolean => Boolean(kind && LEAF_KINDS.includes(kind));
-export const isNestedArea = (parentTo?: string, depth: number = 0, kind?: string): boolean => (depth > 0 || isLeafKind(kind) || Boolean(parentTo && parentTo !== ROOT_PARENT && parentTo !== 'canvasRoot' && parentTo !== 'canvas_root'));
+export const isAreaMounted = (areaId: string): boolean => typeof document === 'undefined' || Boolean(document.getElementById(areaId));
+export const isTopLevelParent = (parentTo?: string): boolean => parentTo === ROOT_PARENT || parentTo === 'canvasRoot' || parentTo === 'canvas_root';
+export const isNestedArea = (parentTo?: string, depth: number = 0, kind?: string): boolean => (isLeafKind(kind) || (parentTo ? (!isTopLevelParent(parentTo) || depth > 1) : depth > 0));
 
 export const SKELETON_SURFACE = 'muted' as const;
 export const SKELETON_ELEVATION = 'low' as const;
@@ -28,7 +29,7 @@ const SHIMMER_FILL = 'fill="url(%23shimmer)"';
 const LINE_SHAPE = { height: 32, elements: `<rect x="0" y="4" width="45%" height="24" rx="6" ${SHIMMER_FILL}/>` };
 
 const SKELETON_ELEMENTS: Readonly<Record<string, { height: number; elements: string }>> = {
-    action: { height: 40, elements: `<rect x="40%" y="0" width="60%" height="40" rx="8" ${SHIMMER_FILL}/>` },
+    action: { height: 40, elements: `<rect x="0" y="0" width="100%" height="40" rx="8" ${SHIMMER_FILL}/>` },
     heading: { height: 36, elements: `<rect x="0" y="4" width="28" height="28" rx="14" ${SHIMMER_FILL}/><rect x="40" y="8" width="60%" height="16" rx="4" ${SHIMMER_FILL}/>` },
     input: { height: 56, elements: `<rect x="0" y="0" width="100%" height="56" rx="10" fill="%23f8fafc" stroke="%23e2e8f0" stroke-width="1.5"/><rect x="16" y="20" width="40%" height="16" rx="4" ${SHIMMER_FILL}/>` },
     media: { height: 96, elements: `<rect x="0" y="0" width="100%" height="96" rx="10" ${SHIMMER_FILL}/>` },
@@ -68,4 +69,55 @@ export const formatDimension = (value?: string | number): string => {
         return `${stringVal} (${token.$value} - ${token.$description})`;
     }
     return stringVal;
+};
+
+export const resolveBoxQualities = (payload: {
+    readonly parentTo?: string;
+    readonly dimensions?: { readonly width?: string | number; readonly height?: string | number };
+    readonly style?: Record<string, string>;
+    readonly depth?: number;
+    readonly kind?: string;
+}): Record<string, string> => {
+    const { parentTo, dimensions, style, depth = 0, kind } = payload;
+    const { width = 'full', height = 'auto' } = dimensions ?? {};
+    const { spacing, direction, alignment } = style ?? {};
+    const [isRoot, isNested] = [parentTo === ROOT_PARENT && kind !== 'container', isNestedArea(parentTo, depth, kind)];
+    const [elevation, radius] = isRoot ? ['none', 'none'] : isNested ? ['none', 'small'] : ['card', 'large'];
+    const surface = (isRoot || isNested) ? undefined : 'card';
+    return { width: resolveNestedWidth(String(width), depth), height: resolveNestedHeight(String(height), depth), ...(surface && { surface }), ...(!isRoot && { border: SKELETON_BORDER }), elevation, radius, spacing: capSpacing(spacing ?? (isNested ? 'small' : 'large'), depth), gap: resolveGap(depth), ...(direction && { direction }), ...(alignment && { alignment }) };
+};
+
+export const areAreaQualitiesEqual = (
+    first: { readonly dimensions?: unknown; readonly style?: unknown; readonly kind?: string; readonly parentTo?: string },
+    second: { readonly dimensions?: unknown; readonly style?: unknown; readonly kind?: string; readonly parentTo?: string },
+): boolean => {
+    const firstSignature = JSON.stringify({ dimensions: first.dimensions ?? {}, style: first.style ?? {}, kind: first.kind, parentTo: first.parentTo });
+    const secondSignature = JSON.stringify({ dimensions: second.dimensions ?? {}, style: second.style ?? {}, kind: second.kind, parentTo: second.parentTo });
+    return firstSignature === secondSignature;
+};
+
+export const areAreaMediasEqual = (
+    first: { readonly media?: unknown },
+    second: { readonly media?: unknown },
+): boolean => JSON.stringify(first.media ?? {}) === JSON.stringify(second.media ?? {});
+
+export const buildChildComposePayload = (
+    payload: {
+        readonly areaId?: string;
+        readonly purpose?: string;
+        readonly context?: string;
+        readonly dimensions?: { readonly width?: string | number; readonly height?: string | number };
+        readonly style?: Record<string, string>;
+        readonly media?: Record<string, unknown>;
+        readonly depth?: number;
+    },
+    fallbackId: string,
+): Record<string, unknown> => {
+    const { areaId = fallbackId, purpose, context, dimensions, style, media, depth = 0 } = payload;
+    const { direction = 'column' } = style ?? {};
+    const { width = 'full', height = 'auto' } = dimensions ?? {};
+    const effectiveHeight = height === 'screen' ? 'auto' : height;
+    const request = `Subdivide container into child areas: "${purpose || areaId}". Do NOT recreate "${areaId}".`;
+    const limits = { width, height: effectiveHeight, direction, ...media };
+    return { request, context: context || `Subdivision of ${areaId}`, parentTo: areaId, limits, depth: depth + 1 };
 };

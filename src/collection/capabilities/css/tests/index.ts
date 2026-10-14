@@ -249,6 +249,15 @@ function testCss_MultipleAutonomousNeighborUcas(): void {
     css.denervate();
 }
 
+function testCss_GeneratesResponsiveBaseRulesAndBoundedDimensions(): void {
+    const baseCss = Css.generateTokensCss();
+    assert.ok(baseCss.includes('min-width: 0;'));
+    assert.ok(baseCss.includes('max-width: 100%;'));
+    assert.ok(baseCss.includes('img { max-width: 100%; height: auto; display: block; }'));
+    assert.strictEqual(Css.translateQualities({ width: 'half' })['max-width'], '100%');
+    assert.strictEqual(Css.translateQualities({ width: 'wide' })['max-width'], '768px');
+}
+
 function runTests(): void {
     console.log('🧪 Testing autonomous peer qualities Css capability (W3C DTCG)...');
     testCss_IdentityAndDefaults();
@@ -258,6 +267,7 @@ function runTests(): void {
     testCss_TranslatesQualitiesDeterministically();
     testCss_TranslatesBorderToken();
     testCss_TranslatesGapIndependentlyFromSpacing();
+    testCss_GeneratesResponsiveBaseRulesAndBoundedDimensions();
     testCss_AppliesStyleForNeighborUca();
     testCss_ResolvesStyleOnDemand();
     testCss_UpdatesThemeTokensWithDtcgFormat();
@@ -267,3 +277,4 @@ function runTests(): void {
 }
 
 runTests();
+

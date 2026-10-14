@@ -104,12 +104,16 @@ export class LocalStorage extends Capability<Body> {
 
     private handleClear(): void {
         const storage = this.resolveStorage();
-        if (!storage) {
-            this.pulseError('clear', 'Storage not available');
-            return;
-        }
-        storage.clear();
+        if (!storage) { this.pulseError('clear', 'Storage not available'); return; }
+        const { aim } = this.disposition;
+        const { prefix = DEFAULT_PREFIX } = aim.body ?? {};
+        if (!prefix) { storage.clear(); } else { this.clearPrefixedKeys(storage, prefix); }
         this.pulse(SignalType.CLEARED, undefined);
+    }
+
+    private clearPrefixedKeys(storage: Storage, prefix: string): void {
+        const keys = Array.from({ length: storage.length }, (_, index) => storage.key(index));
+        keys.filter((key): key is string => Boolean(key?.startsWith(prefix))).forEach((key) => storage.removeItem(key));
     }
 
     private resolveStorage(): Storage | undefined {

@@ -88,8 +88,8 @@ export class Box extends Uca<Body> {
 
     private handleUpdate(value?: unknown): void {
         const { elementId = this.id, content, qualities, events } = (value ?? {}) as Body;
-        if (qualities) { this.pulse(CssSignalType.APPLY, { elementId, qualities }); }
-        this.pulse(WebComponentSignalType.UPDATE, { elementId, content, events });
+        if (qualities) { this.pulse(CssSignalType.APPLY, { id: `${this.id}:css`, elementId, qualities }); }
+        this.pulse(WebComponentSignalType.UPDATE, { id: `${this.id}:web-component`, elementId, content, events });
     }
 
     private handleRemove(value?: unknown): void {

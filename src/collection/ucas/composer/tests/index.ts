@@ -8,14 +8,15 @@ import {
     SignalType as TransformerSignalType,
     type TransformPayload,
 } from '@uca/capability-stream-transformer/types';
-import { Builder } from '@uca/builder';
-import { SignalType as BuilderSignalType } from '@uca/builder/types';
-import { SignalType as BoxSignalType } from '@uca/box/types';
+import { Memory } from '@uca/memory';
+import { SignalType as MemorySignalType } from '@uca/memory/types';
+import { Decision } from '@uca/capability-decision';
+import { SignalType as DecisionSignalType, type DecidePayload } from '@uca/capability-decision/types';
 import type { Signal } from '@uca/core/types';
 import { Composer } from '../index.js';
-import { __ID__, DEFAULT_CATALOG, DEFAULT_CONTEXT, DEFAULT_MODEL, DEFAULT_PROVIDER, DEFAULT_REQUEST } from '../constants.js';
+import { __ID__, DEFAULT_CATALOG, DEFAULT_CONTEXT, DEFAULT_MODEL, DEFAULT_PROVIDER, DEFAULT_REQUEST, adaptLayoutMeasures } from '../constants.js';
 import { bodySchema } from '../schema.js';
-import { DataType, SignalType } from '../types.js';
+import { type ComposerMemoryState, SignalType } from '../types.js';
 
 class TestableComposer extends Composer {
     public exposeCatalog(): ReturnType<Composer['catalog']> {
@@ -69,35 +70,16 @@ function testComposer_SchemaValidation(): void {
 function testComposer_CapabilitiesInCooky(): void {
     const composer = new TestableComposer('custom-composer');
     const catalog = composer.exposeCatalog();
-    assert.strictEqual(catalog.length, 3);
+    assert.strictEqual(catalog.length, 4);
     const [LlmClass, llmDisposition] = catalog[0];
     const { aim: llmAim } = llmDisposition;
     const { model, provider } = (llmAim.body ?? {}) as LlmBody;
     assert.strictEqual(LlmClass, Llm);
     assert.strictEqual(model, DEFAULT_MODEL);
     assert.strictEqual(provider, DEFAULT_PROVIDER);
-    const [TransformerClass] = catalog[1];
-    assert.strictEqual(TransformerClass, StreamTransformer);
-    const [BuilderClass, builderDisposition] = catalog[2];
-    assert.strictEqual(BuilderClass, Builder);
-    const { aim: builderAim } = builderDisposition;
-    const { id: builderId } = (builderAim.body ?? {}) as { id?: string };
-    assert.strictEqual(builderId, 'custom-composer:builder');
-}
-
-function testComposer_BuilderInnervated(): void {
-    const bus = new EventTarget();
-    let boxRendered: unknown;
-    bus.addEventListener(BoxSignalType.RENDER, (event) => {
-        const { detail } = event as CustomEvent<Signal<unknown>>;
-        boxRendered = detail?.value;
-    });
-    const composer = new Composer('my-composer').innervate(bus);
-    emitSignal(bus, composer.updateEvent, Composer.disposition);
-    emitSignal(bus, BuilderSignalType.BUILD, { elementId: 'headerArea' });
-    assert.ok(boxRendered);
-    assert.strictEqual((boxRendered as { elementId: string }).elementId, 'headerArea');
-    composer.denervate();
+    assert.strictEqual(catalog[1][0], StreamTransformer);
+    assert.strictEqual(catalog[2][0], Memory);
+    assert.strictEqual(catalog[3][0], Decision);
 }
 
 function testComposer_TriggersLlmStreamOnCompose(): void {
@@ -207,19 +189,112 @@ async function testComposer_ConcurrentStreamsAreIsolated(): Promise<void> {
     composer.denervate();
 }
 
+function seedComposerMemory(bus: EventTarget, composerId: string): void {
+    const media = { minWidth: 1024, maxWidth: 4096, orientation: 'landscape-primary' };
+    const mediaKey = 'app:1024-4096:landscape-primary';
+    const layout = { mainArea: { purpose: 'Main', context: 'Web', parentTo: 'app', kind: 'container' as const, dimensions: { width: 'half' as const, height: 'full' as const }, style: { direction: 'row' as const }, media } };
+    const state: ComposerMemoryState = { request: 'Build hero', context: DEFAULT_CONTEXT, activeMediaKey: mediaKey, activeLayout: layout, medias: { [mediaKey]: { media, layout } } };
+    emitSignal(bus, MemorySignalType.SAVE, { id: `${composerId}:memory`, key: 'app', value: state });
+}
+
+function testComposer_MemoryKeepWithinMediaRange(): void {
+    const bus = new EventTarget();
+    let llmCalls = 0;
+    let decisionCalls = 0;
+    bus.addEventListener(LlmSignalType.STREAM, (event) => { llmCalls += 1; event.stopImmediatePropagation(); });
+    bus.addEventListener(DecisionSignalType.DECIDE, (event) => { decisionCalls += 1; event.stopImmediatePropagation(); });
+    const composer = new Composer('keep-composer').innervate(bus);
+    emitSignal(bus, composer.updateEvent, Composer.disposition);
+    seedComposerMemory(bus, 'keep-composer');
+    emitSignal(bus, SignalType.COMPOSE, { request: 'Build hero', limits: { width: 1280, height: 800, orientation: 'landscape-primary' } });
+    assert.strictEqual(llmCalls, 0);
+    assert.strictEqual(decisionCalls, 0);
+    composer.denervate();
+}
+
+function testComposer_JevAdaptsWhenOutOfRangeAndDecisionFalse(): void {
+    const bus = new EventTarget();
+    let llmCalls = 0;
+    let decideCorrelationId = '';
+    let builtWidth = '';
+    bus.addEventListener(LlmSignalType.STREAM, (event) => { llmCalls += 1; event.stopImmediatePropagation(); });
+    bus.addEventListener(DecisionSignalType.DECIDE, (event) => {
+        decideCorrelationId = (event as CustomEvent<Signal<DecidePayload>>).detail.value?.correlationId ?? '';
+        event.stopImmediatePropagation();
+    });
+    bus.addEventListener(SignalType.CHUNK, (event) => {
+        const { dimensions } = (event as CustomEvent<Signal<{ dimensions?: { width?: string } }>>).detail.value ?? {};
+        builtWidth = dimensions?.width ?? '';
+    });
+    const composer = new Composer('jev-adapt-composer').innervate(bus);
+    emitSignal(bus, composer.updateEvent, Composer.disposition);
+    seedComposerMemory(bus, 'jev-adapt-composer');
+    emitSignal(bus, SignalType.COMPOSE, { request: 'Build hero', limits: { width: 390, height: 844, orientation: 'portrait-primary' } });
+    assert.ok(decideCorrelationId.startsWith('jev-adapt-composer::jev::'));
+    emitSignal(bus, DecisionSignalType.DECIDED, { decision: false, raw: { recompose: 'no', 'width:mainArea': 'full', 'direction:mainArea': 'column' }, correlationId: decideCorrelationId });
+    assert.strictEqual(llmCalls, 0);
+    assert.strictEqual(builtWidth, 'full');
+    composer.denervate();
+}
+
+function testComposer_GeminiInvokedWhenJevDecisionTrue(): void {
+    const bus = new EventTarget();
+    let llmCalls = 0;
+    let decideCorrelationId = '';
+    bus.addEventListener(LlmSignalType.STREAM, (event) => { llmCalls += 1; event.stopImmediatePropagation(); });
+    bus.addEventListener(DecisionSignalType.DECIDE, (event) => {
+        decideCorrelationId = (event as CustomEvent<Signal<DecidePayload>>).detail.value?.correlationId ?? '';
+        event.stopImmediatePropagation();
+    });
+    const composer = new Composer('jev-recompose-composer').innervate(bus);
+    emitSignal(bus, composer.updateEvent, Composer.disposition);
+    seedComposerMemory(bus, 'jev-recompose-composer');
+    emitSignal(bus, SignalType.COMPOSE, { request: 'Build hero', limits: { width: 390, height: 844, orientation: 'portrait-primary' } });
+    emitSignal(bus, DecisionSignalType.DECIDED, { decision: true, raw: { recompose: 'yes' }, correlationId: decideCorrelationId });
+    assert.strictEqual(llmCalls, 1);
+    composer.denervate();
+}
+
+function testComposer_ResponsiveAdaptationAcrossBreakpoints(): void {
+    const cardLayout = { card: { purpose: 'Card', context: 'Web', parentTo: 'canvasRoot', kind: 'container' as const, dimensions: { width: 'full' as const, height: 'auto' as const }, style: { direction: 'column' as const } } };
+    const childrenLayout = {
+        inputArea: { purpose: 'Input', context: 'Card', parentTo: 'card', kind: 'input' as const, dimensions: { width: 'full' as const, height: 'auto' as const }, style: {} },
+        actionArea: { purpose: 'Action', context: 'Card', parentTo: 'card', kind: 'action' as const, dimensions: { width: 'full' as const, height: 'auto' as const }, style: {} },
+    };
+    const [desktopCard, tabletCard, mobileCard] = [
+        adaptLayoutMeasures(cardLayout, { minWidth: 1024, maxWidth: 4096 }).card,
+        adaptLayoutMeasures(cardLayout, { minWidth: 640, maxWidth: 1023 }).card,
+        adaptLayoutMeasures(cardLayout, { minWidth: 0, maxWidth: 639 }).card,
+    ];
+    assert.deepStrictEqual([desktopCard.dimensions.width, desktopCard.style?.direction], ['two-thirds', 'row']);
+    assert.deepStrictEqual([tabletCard.dimensions.width, tabletCard.style?.direction], ['wide', 'column']);
+    assert.deepStrictEqual([mobileCard.dimensions.width, mobileCard.style?.direction], ['full', 'column']);
+    const [desktopChildren, tabletChildren, mobileChildren] = [
+        adaptLayoutMeasures(childrenLayout, { minWidth: 1024, maxWidth: 4096 }),
+        adaptLayoutMeasures(childrenLayout, { minWidth: 640, maxWidth: 1023 }),
+        adaptLayoutMeasures(childrenLayout, { minWidth: 0, maxWidth: 639 }),
+    ];
+    assert.deepStrictEqual([desktopChildren.inputArea.dimensions.width, desktopChildren.actionArea.dimensions.width], ['two-thirds', 'third']);
+    assert.deepStrictEqual([tabletChildren.inputArea.dimensions.width, tabletChildren.actionArea.dimensions.width], ['full', 'half']);
+    assert.deepStrictEqual([mobileChildren.inputArea.dimensions.width, mobileChildren.actionArea.dimensions.width], ['full', 'full']);
+}
+
 async function runTests(): Promise<void> {
     console.log('🧪 Testing Composer UCA (autonomous layout composer)...');
     testComposer_Identity();
     testComposer_Disposition();
     testComposer_SchemaValidation();
     testComposer_CapabilitiesInCooky();
-    testComposer_BuilderInnervated();
     testComposer_TriggersLlmStreamOnCompose();
     testComposer_StreamsThroughTransformer();
     testComposer_EmitsComposedOnLlmResult();
     testComposer_StreamChunksDoNotPolluteBus();
     testComposer_SingleLlmRelaysEachProviderChunk();
     await testComposer_ConcurrentStreamsAreIsolated();
+    testComposer_MemoryKeepWithinMediaRange();
+    testComposer_JevAdaptsWhenOutOfRangeAndDecisionFalse();
+    testComposer_GeminiInvokedWhenJevDecisionTrue();
+    testComposer_ResponsiveAdaptationAcrossBreakpoints();
     console.log('✅ All Composer UCA tests passed successfully!');
 }
 

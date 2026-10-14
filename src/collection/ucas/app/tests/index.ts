@@ -2,13 +2,14 @@ import assert from 'node:assert';
 import { Uca } from '@uca/core/uca';
 import { Browser } from '@uca/capability-browser';
 import { SignalType as BrowserSignalType } from '@uca/capability-browser/types';
-import { Composer } from '@uca/composer';
-import { SignalType as ComposerSignalType } from '@uca/composer/types';
+import { Builder } from '@uca/builder';
+import { SignalType as BuilderSignalType } from '@uca/builder/types';
+import { SignalType as LlmSignalType } from '@uca/llm/types';
 import type { Signal } from '@uca/core/types';
 import { App } from '../index.js';
-import { __ID__, DEFAULT_CONTEXT, DEFAULT_LANGUAGE, DEFAULT_NAME } from '../constants.js';
+import { __ID__, DEFAULT_CONTEXT, DEFAULT_LANGUAGE, DEFAULT_NAME, DEFAULT_ROOT_AREA } from '../constants.js';
 import { bodySchema } from '../schema.js';
-import { type Body, DataType, SignalType } from '../types.js';
+import { type Body, SignalType } from '../types.js';
 
 class TestableApp extends App {
     public exposeCatalog(): ReturnType<App['catalog']> {
@@ -16,7 +17,14 @@ class TestableApp extends App {
     }
 }
 
+const guardedBuses = new WeakSet<EventTarget>();
+
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
+    if (!guardedBuses.has(bus)) {
+        guardedBuses.add(bus);
+        bus.addEventListener(LlmSignalType.STREAM, (event: Event) => { event.stopImmediatePropagation(); });
+        bus.addEventListener(LlmSignalType.INFER, (event: Event) => { event.stopImmediatePropagation(); });
+    }
     const detail = { source: 'test', property, value, timestamp: Date.now() };
     bus.dispatchEvent(new CustomEvent(property, { detail }));
 }
@@ -36,7 +44,7 @@ function testApp_Disposition(): void {
     assert.strictEqual(body?.context, DEFAULT_CONTEXT);
     assert.strictEqual(body?.language, DEFAULT_LANGUAGE);
     assert.strictEqual(inputs?.length, 2);
-    assert.strictEqual(outputs?.length, 3);
+    assert.strictEqual(outputs?.length, 4);
 }
 
 function testApp_SchemaDefaults(): void {
@@ -63,7 +71,7 @@ function testApp_CapabilitiesInCooky(): void {
     const catalog = app.exposeCatalog();
     assert.strictEqual(catalog.length, 2);
     assert.strictEqual(catalog[0][0], Browser);
-    assert.strictEqual(catalog[1][0], Composer);
+    assert.strictEqual(catalog[1][0], Builder);
 }
 
 function testApp_CapturesDimensionsOnDisposition(): void {
@@ -98,9 +106,12 @@ function testApp_RespondsToDetectSignal(): void {
 function testApp_HandlesBrowserChanged(): void {
     const bus = new EventTarget();
     let changedPayload: Body | undefined;
+    let buildMedia: { minWidth?: number; maxWidth?: number; orientation?: string } | undefined;
     bus.addEventListener(SignalType.DIMENSIONS_CHANGED, (event) => {
-        const { detail } = event as CustomEvent<Signal<Body>>;
-        changedPayload = detail?.value;
+        changedPayload = (event as CustomEvent<Signal<Body>>).detail?.value;
+    });
+    bus.addEventListener(BuilderSignalType.BUILD, (event) => {
+        buildMedia = (event as CustomEvent<Signal<{ media?: { minWidth?: number; maxWidth?: number; orientation?: string } }>>).detail?.value?.media;
     });
     const app = new App('change-app').innervate(bus);
     emitSignal(bus, app.updateEvent, App.disposition);
@@ -108,19 +119,24 @@ function testApp_HandlesBrowserChanged(): void {
     emitSignal(bus, BrowserSignalType.CHANGED, mock);
     assert.strictEqual(changedPayload?.dimensions?.pixelRatio, 2);
     assert.strictEqual(changedPayload?.language, 'fr-FR');
+    assert.strictEqual(buildMedia?.maxWidth, 639);
+    assert.strictEqual(buildMedia?.orientation, 'portrait-primary');
     app.denervate();
 }
 
-function testApp_TriggersComposerOnDetection(): void {
+function testApp_TriggersBuilderOnDetection(): void {
     const bus = new EventTarget();
-    let composePayload: unknown;
-    bus.addEventListener(ComposerSignalType.COMPOSE, (event) => {
-        const { detail } = event as CustomEvent<Signal<unknown>>;
-        composePayload = detail?.value;
+    let buildPayload: { areaId?: string; parentTo?: string; depth?: number } | undefined;
+    bus.addEventListener(BuilderSignalType.BUILD, (event) => {
+        const { detail } = event as CustomEvent<Signal<typeof buildPayload>>;
+        buildPayload = detail?.value;
     });
-    const app = new App('compose-app').innervate(bus);
+    const app = new App('build-app').innervate(bus);
     emitSignal(bus, app.updateEvent, App.disposition);
-    assert.ok(composePayload);
+    assert.ok(buildPayload);
+    assert.strictEqual(buildPayload.areaId, DEFAULT_ROOT_AREA);
+    assert.strictEqual(buildPayload.parentTo, 'build-app');
+    assert.strictEqual(buildPayload.depth, 0);
     app.denervate();
 }
 
@@ -133,8 +149,8 @@ function testApp_EmitsLayoutComposed(): void {
     });
     const app = new App('layout-app').innervate(bus);
     emitSignal(bus, app.updateEvent, App.disposition);
-    emitSignal(bus, ComposerSignalType.COMPOSED, { layout: { root: 'Box' } });
-    assert.deepStrictEqual(layoutResult, { root: 'Box' });
+    emitSignal(bus, BuilderSignalType.BUILT, { areaId: DEFAULT_ROOT_AREA, success: true });
+    assert.deepStrictEqual(layoutResult, { areaId: DEFAULT_ROOT_AREA, success: true });
     app.denervate();
 }
 
@@ -148,7 +164,7 @@ function runTests(): void {
     testApp_CapturesDimensionsOnDisposition();
     testApp_RespondsToDetectSignal();
     testApp_HandlesBrowserChanged();
-    testApp_TriggersComposerOnDetection();
+    testApp_TriggersBuilderOnDetection();
     testApp_EmitsLayoutComposed();
     console.log('✅ All App UCA tests passed successfully!');
 }

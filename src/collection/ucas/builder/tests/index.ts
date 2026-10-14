@@ -8,33 +8,44 @@ import { SignalType as PictureSignalType } from '@uca/picture/types';
 import { Decision } from '@uca/capability-decision';
 import { SignalType as DecisionSignalType } from '@uca/capability-decision/types';
 import { Llm } from '@uca/llm';
+import { SignalType as LlmSignalType } from '@uca/llm/types';
+import { Composer } from '@uca/composer';
 import { SignalType as ComposerSignalType } from '@uca/composer/types';
 import { Builder } from '../index.js';
-import { __ID__, MAX_SUBDIVISION_DEPTH, SKELETON_BORDER, capSpacing, createDynamicSkeletonSvg, isLeafKind, isNestedArea, resolveGap, resolveNestedHeight, resolveNestedWidth } from '../constants.js';
+import { __ID__, SKELETON_BORDER, capSpacing, createDynamicSkeletonSvg, isLeafKind, isNestedArea, resolveGap, resolveNestedHeight, resolveNestedWidth } from '../constants.js';
 import { SignalType } from '../types.js';
 
 function testBuilder_NestedWideBecomesFull(): void {
     assert.strictEqual(resolveNestedWidth('wide', 0), 'wide');
-    assert.strictEqual(resolveNestedWidth('wide', 1), 'full');
+    assert.strictEqual(resolveNestedWidth('wide', 1), 'wide');
     assert.strictEqual(resolveNestedWidth('half', 1), 'half');
 }
 
 function testBuilder_NestedFullHeightBecomesAuto(): void {
     assert.strictEqual(resolveNestedHeight('full', 0), 'full');
+    assert.strictEqual(resolveNestedHeight('screen', 0), 'screen');
     assert.strictEqual(resolveNestedHeight('full', 1), 'auto');
-    assert.strictEqual(resolveNestedHeight('screen', 1), 'screen');
+    assert.strictEqual(resolveNestedHeight('screen', 1), 'auto');
 }
 
 function testBuilder_NestedAreaClassification(): void {
     assert.strictEqual(isNestedArea('app', 0), false);
     assert.strictEqual(isNestedArea('canvasRoot', 0), false);
+    assert.strictEqual(isNestedArea('canvasRoot', 1, 'container'), false);
     assert.strictEqual(isNestedArea('mainContainer', 0), true);
     assert.strictEqual(isNestedArea('canvasRoot', 0, 'action'), true);
     assert.strictEqual(isLeafKind('action'), true);
     assert.strictEqual(isLeafKind('container'), false);
 }
 
+const guardedBuses = new WeakSet<EventTarget>();
+
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
+    if (!guardedBuses.has(bus)) {
+        guardedBuses.add(bus);
+        bus.addEventListener(LlmSignalType.STREAM, (event: Event) => { event.stopImmediatePropagation(); });
+        bus.addEventListener(LlmSignalType.INFER, (event: Event) => { event.stopImmediatePropagation(); });
+    }
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
     bus.dispatchEvent(new CustomEvent(property, { detail: signal }));
 }
@@ -49,7 +60,7 @@ function testBuilder_Identity(): void {
 function testBuilder_Disposition(): void {
     const { aim, inputs, outputs, reactTo } = Builder.disposition;
     assert.strictEqual(aim.description, Builder.purpose);
-    assert.strictEqual(inputs?.length, 4);
+    assert.strictEqual(inputs?.length, 5);
     assert.strictEqual(outputs?.length, 5);
     assert.ok(reactTo?.includes(SignalType.BUILD));
     assert.ok(reactTo?.includes(SignalType.SKELETON));
@@ -57,6 +68,7 @@ function testBuilder_Disposition(): void {
     assert.ok(reactTo?.includes(BoxSignalType.CREATED));
     assert.ok(reactTo?.includes(PictureSignalType.CREATED));
     assert.ok(reactTo?.includes(DecisionSignalType.DECIDED));
+    assert.ok(reactTo?.includes(ComposerSignalType.CHUNK));
 }
 
 function testBuilder_CatalogComposition(): void {
@@ -67,15 +79,17 @@ function testBuilder_CatalogComposition(): void {
     }
     const builder = new TestableBuilder('catalog-builder');
     const catalog = builder.exposeCatalog();
-    assert.strictEqual(catalog.length, 4);
+    assert.strictEqual(catalog.length, 6);
     const [BoxClass] = catalog[0];
     const [PictureClass] = catalog[1];
     const [DecisionClass] = catalog[2];
     const [LlmClass] = catalog[3];
+    const [ComposerClass] = catalog[5];
     assert.strictEqual(BoxClass, Box);
     assert.strictEqual(PictureClass, Picture);
     assert.strictEqual(DecisionClass, Decision);
     assert.strictEqual(LlmClass, Llm);
+    assert.strictEqual(ComposerClass, Composer);
 }
 
 function testBuilder_RendersSkeletonOnBuild(): void {
@@ -196,15 +210,18 @@ function testBuilder_TerminalByRootOrDepth(): void {
     const bus = new EventTarget();
     const decided: unknown[] = [];
     const built: unknown[] = [];
+    const composed: unknown[] = [];
     bus.addEventListener(DecisionSignalType.DECIDE, (event: Event) => { decided.push((event as CustomEvent<Signal>).detail?.value); });
     bus.addEventListener(SignalType.BUILT, (event: Event) => { built.push((event as CustomEvent<Signal>).detail?.value); });
+    bus.addEventListener(ComposerSignalType.COMPOSE, (event: Event) => { composed.push((event as CustomEvent<Signal>).detail?.value); });
     const builder = new Builder('depth-builder').innervate(bus);
     emitSignal(bus, builder.updateEvent, Builder.disposition);
     emitSignal(bus, SignalType.BUILD, { elementId: 'viewport', parentTo: 'app', depth: 0 });
-    emitSignal(bus, SignalType.BUILD, { elementId: 'deep-leaf', parentTo: 'nested', depth: MAX_SUBDIVISION_DEPTH });
+    emitSignal(bus, SignalType.BUILD, { elementId: 'deep-leaf', parentTo: 'nested', depth: 2, kind: 'action' });
     assert.strictEqual(decided.length, 0);
-    assert.strictEqual(built.length, 2);
-    emitSignal(bus, SignalType.BUILD, { elementId: 'action-bar', parentTo: 'prompt-container', depth: 1 });
+    assert.strictEqual(composed.length, 1);
+    assert.strictEqual(built.length, 1);
+    emitSignal(bus, SignalType.BUILD, { elementId: 'action-bar', parentTo: 'prompt-container', depth: 2, kind: 'container' });
     assert.strictEqual(decided.length, 1);
     builder.denervate();
 }
@@ -219,9 +236,9 @@ function testBuilder_FirstLevelSubdividesWithoutDecision(): void {
     });
     const builder = new Builder('structural-builder').innervate(bus);
     emitSignal(bus, builder.updateEvent, Builder.disposition);
-    emitSignal(bus, SignalType.BUILD, { elementId: 'main', parentTo: 'canvas', depth: 0 });
+    emitSignal(bus, SignalType.BUILD, { elementId: 'canvasRoot', parentTo: 'app', depth: 0 });
     assert.strictEqual(decided.length, 0);
-    assert.strictEqual(composePayload?.parentTo, 'main');
+    assert.strictEqual(composePayload?.parentTo, 'canvasRoot');
     assert.strictEqual(composePayload?.depth, 1);
     builder.denervate();
 }
@@ -243,7 +260,8 @@ function testBuilder_SubdivisionPropagatesDepth(): void {
 function testBuilder_DimensionsStayRawThroughDecisionRoundTrip(): void {
     const bus = new EventTarget();
     let decideState: { dimensions?: { width?: string }; dimensionsDescription?: { width?: string } } | undefined;
-    let composePayload: { request?: string; limits?: { width?: string; height?: string } } | undefined;
+    let composePayload: { request?: string; limits?: { width?: string; height?: string; direction?: string } } | undefined;
+    bus.addEventListener(DecisionSignalType.DECIDED, () => undefined);
     bus.addEventListener(DecisionSignalType.DECIDE, (event: Event) => {
         decideState = ((event as CustomEvent<Signal>).detail?.value as { state: typeof decideState }).state;
     });
@@ -256,8 +274,8 @@ function testBuilder_DimensionsStayRawThroughDecisionRoundTrip(): void {
     assert.strictEqual(decideState?.dimensions?.width, 'wide');
     assert.ok(decideState?.dimensionsDescription?.width?.includes('80%'));
     emitSignal(bus, DecisionSignalType.DECIDED, { correlationId: 'raw-builder::card', decision: true, state: decideState });
-    assert.deepStrictEqual(composePayload?.limits, { width: 'wide', height: 'half' });
-    assert.ok(composePayload?.request?.includes('[width: wide, height: half]'));
+    assert.deepStrictEqual(composePayload?.limits, { width: 'wide', height: 'half', direction: 'column' });
+    assert.ok(composePayload?.request?.includes('card'));
     builder.denervate();
 }
 
@@ -310,6 +328,48 @@ function testBuilder_LeafKindsAreTerminal(): void {
     builder.denervate();
 }
 
+function testBuilder_MemoryDifferentialUpdate(): void {
+    const bus = new EventTarget();
+    const renders: unknown[] = [];
+    const updates: Array<{ elementId: string; qualities: { width?: string; direction?: string } }> = [];
+    bus.addEventListener(BoxSignalType.RENDER, (event: Event) => { renders.push((event as CustomEvent<Signal>).detail?.value); });
+    bus.addEventListener(BoxSignalType.UPDATE, (event: Event) => { updates.push((event as CustomEvent<Signal>).detail?.value as (typeof updates)[number]); });
+    const builder = new Builder('mem-diff-builder').innervate(bus);
+    emitSignal(bus, builder.updateEvent, Builder.disposition);
+    emitSignal(bus, SignalType.BUILD, { elementId: 'hero-box', parentTo: 'app', dimensions: { width: 'wide', height: 'auto' }, style: { direction: 'row' } });
+    assert.strictEqual(renders.length, 1);
+    assert.strictEqual(updates.length, 0);
+    emitSignal(bus, SignalType.BUILD, { elementId: 'hero-box', parentTo: 'app', dimensions: { width: 'wide', height: 'auto' }, style: { direction: 'row' } });
+    assert.strictEqual(renders.length, 1);
+    assert.strictEqual(updates.length, 0);
+    emitSignal(bus, SignalType.BUILD, { elementId: 'hero-box', parentTo: 'app', dimensions: { width: 'full', height: 'auto' }, style: { direction: 'column' } });
+    assert.strictEqual(renders.length, 1);
+    assert.strictEqual(updates.length, 1);
+    assert.strictEqual(updates[0].elementId, 'hero-box');
+    assert.strictEqual(updates[0].qualities.width, 'full');
+    assert.strictEqual(updates[0].qualities.direction, 'column');
+    builder.denervate();
+}
+
+function testBuilder_CascadePropagatesToSubdividedChildren(): void {
+    const bus = new EventTarget();
+    const composeCalls: Array<{ parentTo?: string; limits?: { width?: string; minWidth?: number; maxWidth?: number } }> = [];
+    bus.addEventListener(ComposerSignalType.COMPOSE, (event: Event) => {
+        composeCalls.push((event as CustomEvent<Signal>).detail?.value as (typeof composeCalls)[number]);
+    });
+    const builder = new Builder('cascade-builder').innervate(bus);
+    emitSignal(bus, builder.updateEvent, Builder.disposition);
+    emitSignal(bus, SignalType.BUILD, { elementId: 'mainContainer', parentTo: 'canvasRoot', depth: 0, kind: 'container', dimensions: { width: 'half', height: 'full' }, media: { minWidth: 1024, maxWidth: 4096 } });
+    assert.strictEqual(composeCalls.length, 1);
+    assert.strictEqual(composeCalls[0].parentTo, 'mainContainer');
+    emitSignal(bus, SignalType.BUILD, { elementId: 'mainContainer', parentTo: 'canvasRoot', depth: 0, kind: 'container', dimensions: { width: 'full', height: 'full' }, media: { minWidth: 0, maxWidth: 639 } });
+    assert.strictEqual(composeCalls.length, 2);
+    assert.strictEqual(composeCalls[1].parentTo, 'mainContainer');
+    assert.strictEqual(composeCalls[1].limits?.width, 'full');
+    assert.strictEqual(composeCalls[1].limits?.minWidth, 0);
+    builder.denervate();
+}
+
 function runTests(): void {
     console.log('🧪 Testing autonomous Builder UCA with Box, Picture, and Decision composition...');
     testBuilder_Identity();
@@ -333,6 +393,8 @@ function runTests(): void {
     testBuilder_SkeletonBoxCapsSpacingAndSetsGap();
     testBuilder_NestedAreaClassification();
     testBuilder_LeafKindsAreTerminal();
+    testBuilder_MemoryDifferentialUpdate();
+    testBuilder_CascadePropagatesToSubdividedChildren();
     console.log('✅ All Builder UCA tests passed successfully!');
 }
 

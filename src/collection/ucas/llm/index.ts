@@ -86,7 +86,7 @@ export class Llm extends Uca<Body> {
     private buildOpenaiCooky(connection?: ConnectionConfig, model?: string): Cooky {
         const targetModel = model ?? DEFAULT_OPENAI_MODEL;
         const disposition: Disposition<OpenaiBody> = {
-            aim: { description: Openai.AIM, body: { connection, model: targetModel } },
+            aim: { description: Openai.AIM, body: { id: `${this.id}:openai`, connection, model: targetModel } },
             reactTo: [...Openai.disposition.reactTo ?? []],
         };
         return [[Openai, disposition]];
@@ -97,7 +97,7 @@ export class Llm extends Uca<Body> {
         const { thinkingBudget, thinkingLevel, imagination, limit, role } = (aim.body ?? {}) as Body;
         const targetModel = model ?? DEFAULT_GEMINI_MODEL;
         const disposition: Disposition<GeminiBody> = {
-            aim: { description: Gemini.AIM, body: { connection, model: targetModel, thinkingBudget, thinkingLevel, temperature: imagination, maxOutputTokens: limit, systemInstruction: role } },
+            aim: { description: Gemini.AIM, body: { id: `${this.id}:gemini`, connection, model: targetModel, thinkingBudget, thinkingLevel, temperature: imagination, maxOutputTokens: limit, systemInstruction: role } },
             reactTo: [...Gemini.disposition.reactTo ?? []],
         };
         return [[Gemini, disposition]];
@@ -106,7 +106,7 @@ export class Llm extends Uca<Body> {
     private buildJevCooky(connection?: ConnectionConfig, model?: string): Cooky {
         const targetModel = model ?? DEFAULT_JEV_MODEL;
         const disposition: Disposition<JevBody> = {
-            aim: { description: Jev.AIM, body: { connection, defaultModel: targetModel } as unknown as JevBody },
+            aim: { description: Jev.AIM, body: { id: `${this.id}:jev`, connection, defaultModel: targetModel } as unknown as JevBody },
             reactTo: [...Jev.disposition.reactTo ?? []],
         };
         return [[Jev, disposition]];
@@ -125,7 +125,7 @@ export class Llm extends Uca<Body> {
                 this.handleConnect(value);
                 break;
             default:
-                this.handleCapabilitySignal(property, value);
+                this.handleCapabilitySignal(signal);
                 break;
         }
     }
@@ -153,6 +153,7 @@ export class Llm extends Uca<Body> {
         const { request, context, model, limit, correlationId, expectations } = payload;
         const questions = expectations && Object.keys(expectations).length > 0 ? expectations : { assessment: request };
         const jevPayload = {
+            id: `${this.id}:jev`,
             state: context ?? { request },
             questions,
             model: model ?? DEFAULT_JEV_MODEL,
@@ -177,7 +178,7 @@ export class Llm extends Uca<Body> {
         const activeProvider = this.resolveActiveProvider(provider);
         const fallbackModel = activeProvider === 'gemini' ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL;
         const targetModel = model ?? fallbackModel;
-        return { prompt, schema: expectations, systemInstruction: role ?? bodyRole, model: targetModel, temperature: imagination ?? bTemp, maxOutputTokens: limit ?? bLimit, correlationId, streamId, thinkingBudget: thinkingBudget ?? bodyBudget, thinkingLevel: thinkingLevel ?? bodyLevel };
+        return { id: `${this.id}:${activeProvider}`, prompt, schema: expectations, systemInstruction: role ?? bodyRole, model: targetModel, temperature: imagination ?? bTemp, maxOutputTokens: limit ?? bLimit, correlationId, streamId, thinkingBudget: thinkingBudget ?? bodyBudget, thinkingLevel: thinkingLevel ?? bodyLevel };
     }
 
     private handleConnect(value: unknown): void {
@@ -205,10 +206,16 @@ export class Llm extends Uca<Body> {
         const { thinkingBudget: bBudget, thinkingLevel: bLevel, role: bRole, imagination: bTemp, limit: bTokens } = (aim.body ?? {}) as Body;
         const fallbackModel = provider === 'gemini' ? DEFAULT_GEMINI_MODEL : DEFAULT_OPENAI_MODEL;
         const targetModel = model ?? fallbackModel;
-        return { prompt: request, model: targetModel, schema: expectations, systemInstruction: role ?? bRole, correlationId, streamId, thinkingBudget: thinkingBudget ?? bBudget, thinkingLevel: thinkingLevel ?? bLevel, temperature: imagination ?? bTemp, maxOutputTokens: limit ?? bTokens };
+        return { id: `${this.id}:${provider}`, prompt: request, model: targetModel, schema: expectations, systemInstruction: role ?? bRole, correlationId, streamId, thinkingBudget: thinkingBudget ?? bBudget, thinkingLevel: thinkingLevel ?? bLevel, temperature: imagination ?? bTemp, maxOutputTokens: limit ?? bTokens };
     }
 
-    private handleCapabilitySignal(property: string, value: unknown): void {
+    private handleCapabilitySignal(signal: Signal): void {
+        const { property, source, value } = signal;
+        if (source.includes(':') && !source.startsWith(`${this.id}:`)) { return; }
+        this.routeCapabilitySignal(property, value);
+    }
+
+    private routeCapabilitySignal(property: string, value: unknown): void {
         switch (property) {
             case GeminiSignalType.GENERATED:
             case OpenaiSignalType.GENERATED:

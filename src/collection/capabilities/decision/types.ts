@@ -11,12 +11,14 @@ export enum DataType {
 }
 
 export interface Body {
+    readonly id?: string;
     readonly provider?: string;
     readonly model?: string;
     readonly llm?: string;
 }
 
 export interface DecidePayload {
+    readonly id?: string;
     readonly state?: unknown;
     readonly question?: string;
     readonly criteria?: Record<string, unknown>;

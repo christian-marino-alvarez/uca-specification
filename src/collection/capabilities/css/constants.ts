@@ -126,13 +126,23 @@ export const DEFAULT_BASE_RULES = {
     customElement: {
         display: 'block',
         'box-sizing': 'border-box',
+        'min-width': '0',
+        'max-width': '100%',
+    },
+    image: {
+        'max-width': '100%',
+        height: 'auto',
+        display: 'block',
     },
 } as const;
 
-export const DEFAULT_MEDIA_RULES = '@media (max-width: 768px) { #app { flex-direction: column !important; flex-wrap: nowrap !important; overflow-y: auto !important; height: 100vh !important; } ext-uca { width: 100% !important; flex-basis: auto !important; flex-grow: 0 !important; flex-shrink: 0 !important; height: auto !important; min-height: 80px !important; } }';
+export const DEFAULT_MEDIA_RULES = '@media (max-width: 768px) { #app { flex-direction: column; flex-wrap: nowrap; overflow-y: auto; height: 100vh; } }';
 
 export const formatDeclarations = (declarations: Record<string, string>): string =>
     Object.entries(declarations).map(([k, v]) => `${k}: ${v};`).join(' ');
 
-export const generateBaseRulesCss = (rules = DEFAULT_BASE_RULES, media = DEFAULT_MEDIA_RULES): string =>
-    `body { ${formatDeclarations(rules.body)} } #app { ${formatDeclarations(rules.app)} } ext-uca { ${formatDeclarations(rules.customElement)} } ${media}`;
+export const generateBaseRulesCss = (rules = DEFAULT_BASE_RULES, media = DEFAULT_MEDIA_RULES): string => {
+    const { body, app, customElement, image } = rules as typeof DEFAULT_BASE_RULES;
+    const imageCss = image ? ` img { ${formatDeclarations(image)} }` : '';
+    return `body { ${formatDeclarations(body)} } #app { ${formatDeclarations(app)} } ext-uca { ${formatDeclarations(customElement)} }${imageCss} ${media}`;
+};

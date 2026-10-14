@@ -1,6 +1,6 @@
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
-import { TypeSafeClient, noul } from '@typesafe-ai/sdk';
+import { TypeSafeClient, choice, noul, type EntryType, type Questions } from '@typesafe-ai/sdk';
 import { __ID__, DEFAULT_MODEL } from './constants.js';
 import {
     type Body,
@@ -78,19 +78,22 @@ export class Jev extends Capability<Body> {
         const bodyLimit = aim.body?.limit ?? aim.body?.maxTokens;
         const effectiveLimit = limit ?? maxTokens ?? bodyLimit;
         const options = effectiveLimit !== undefined ? { limit: effectiveLimit, max_tokens: effectiveLimit } : {};
-        const formattedQuestions = this.formatQuestions(questions ?? {});
-        const response = await client.systemOne({ state: state as any, questions: formattedQuestions as any, model, ...options });
+        const formattedQuestions = this.formatQuestions(questions ?? {}) as Questions;
+        const response = await client.systemOne({ state: state as EntryType, questions: formattedQuestions, model, ...options });
         const { answers } = response as unknown as { answers: Record<string, unknown> };
         return { state, answers, model, correlationId };
     }
 
     private formatQuestions(questions: Record<string, unknown>): Record<string, unknown> {
-        const result: Record<string, unknown> = {};
-        for (const [key, value] of Object.entries(questions)) {
-            const isNoul = typeof value === 'object' && value !== null && 'type' in value && (value as { type: string }).type === 'noul';
-            result[key] = isNoul ? value : noul(typeof value === 'string' ? value : key);
-        }
-        return Object.keys(result).length ? result : { answer: noul('Procesar consulta') };
+        const entries = Object.entries(questions).map(([key, val]) => [key, this.formatQuestionEntry(key, val)]);
+        return entries.length ? Object.fromEntries(entries) : { answer: noul('Procesar consulta') };
+    }
+
+    private formatQuestionEntry(key: string, value: unknown): unknown {
+        const { type, instructions, options } = (typeof value === 'object' && value !== null ? value : {}) as { type?: string; instructions?: string; options?: Record<string, string> };
+        if (type === 'noul' || type === 'choice' || type === 'score') { return value; }
+        if (options) { return choice(instructions ?? key, options); }
+        return noul(typeof value === 'string' ? value : key);
     }
 
     private resolveClient(): TypeSafeClient {

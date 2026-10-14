@@ -47,6 +47,7 @@
     "@uca/picture": "^0.1.0",
     "@uca/llm": "^0.1.0",
     "@uca/composer": "^0.1.0",
+    "@uca/memory": "^0.1.0",
     "@uca/capability-css": "^0.1.0",
     "@uca/capability-decision": "^0.1.0",
     "@uca/capability-jev": "^0.1.0",

@@ -40,6 +40,7 @@ export interface ConnectionStatus {
 }
 
 export interface GeneratePayload {
+    readonly id?: string;
     readonly correlationId?: string;
     readonly streamId?: string;
     readonly prompt: string;
@@ -78,6 +79,7 @@ export interface StreamEndResult {
 }
 
 export interface Body {
+    readonly id?: string;
     readonly client?: GoogleGenAI;
     readonly connection?: ConnectionConfig;
     readonly model?: string;

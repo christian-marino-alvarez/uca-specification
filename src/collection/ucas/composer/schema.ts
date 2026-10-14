@@ -23,6 +23,12 @@ export const styleSchema = z.object({
     alignment: z.string().optional().describe('Flexbox layout alignment: start, center, end, space-between'),
 }).strict();
 
+export const mediaRangeSchema = z.object({
+    minWidth: z.number().optional().describe('Minimum viewport width in pixels for which this layout is valid'),
+    maxWidth: z.number().optional().describe('Maximum viewport width in pixels for which this layout is valid'),
+    orientation: z.string().optional().describe('Screen orientation for which this layout is valid'),
+}).strict();
+
 export const sectionSchema = z.object({
     kind: z.enum(KINDS).optional().describe('Nature of this area: container, heading, text, action, input or media'),
     purpose: z.string().min(1).describe('Ontological purpose and responsibility of this section'),
@@ -30,6 +36,7 @@ export const sectionSchema = z.object({
     parentTo: z.string().min(1).describe('Identifier of the parent host UCA'),
     dimensions: dimensionsSchema,
     style: styleSchema.optional().describe('Qualities and design tokens for styling this section'),
+    media: mediaRangeSchema.optional().describe('Viewport media range for which this section layout is valid'),
 }).strict();
 
 export const layoutSchema = z.record(z.string().min(1), sectionSchema);
@@ -40,11 +47,13 @@ export const bodySchema = z.object({
     catalog: z.array(z.string()).default(['Box']).describe('Array of available UCAs to compose the layout'),
     parentTo: z.string().default('app').describe('Host identifier for parentTo relationship'),
     layout: layoutSchema.optional().describe('Composed layout structure'),
+    medias: z.record(z.string(), z.unknown()).optional().describe('Memorized media ranges and layouts'),
 });
 
 export type DimensionValue = z.infer<typeof dimensionValueSchema>;
 export type Dimensions = z.infer<typeof dimensionsSchema>;
 export type Style = z.infer<typeof styleSchema>;
+export type MediaRange = z.infer<typeof mediaRangeSchema>;
 export type Section = z.infer<typeof sectionSchema>;
 export type Layout = z.infer<typeof layoutSchema>;
 export type Body = z.infer<typeof bodySchema>;

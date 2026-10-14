@@ -1,10 +1,11 @@
-import type { Body, Dimensions, Layout, Section, Style } from './schema.js';
+import type { Body, Dimensions, Layout, MediaRange, Section, Style } from './schema.js';
 
-export { type Body, type Dimensions, type Layout, type Section, type Style } from './schema.js';
+export { type Body, type Dimensions, type Layout, type MediaRange, type Section, type Style } from './schema.js';
 
 export interface Limits {
-    readonly width?: number;
-    readonly height?: number;
+    readonly width?: number | string;
+    readonly height?: number | string;
+    readonly ratio?: number;
     readonly orientation?: string;
     readonly [key: string]: unknown;
 }
@@ -14,9 +15,26 @@ export interface ComposePayload extends Partial<Body> {
     readonly depth?: number;
 }
 
+export interface MediaMemoryItem {
+    readonly media: MediaRange;
+    readonly layout: Layout;
+}
+
+export interface ComposerMemoryState {
+    readonly request: string;
+    readonly context: string;
+    readonly activeMediaKey?: string;
+    readonly activeLayout?: Layout;
+    readonly medias: Record<string, MediaMemoryItem>;
+}
+
 export interface StreamEntry {
     readonly controller: ReadableStreamDefaultController<string>;
     readonly depth: number;
+    readonly parentTo: string;
+    readonly request: string;
+    readonly context: string;
+    readonly limits?: Limits;
 }
 
 export enum SignalType {

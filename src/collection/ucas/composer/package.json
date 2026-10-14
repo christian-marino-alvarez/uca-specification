@@ -45,10 +45,12 @@
   "dependencies": {
     "@uca/core": "^0.1.0",
     "@uca/llm": "^0.1.0",
+    "@uca/memory": "^0.1.0",
     "@uca/capability-gemini": "^0.1.0",
+    "@uca/capability-jev": "^0.1.0",
+    "@uca/capability-decision": "^0.1.0",
     "@uca/capability-css": "^0.1.0",
     "@uca/capability-stream-transformer": "^0.1.0",
-    "@uca/builder": "^0.1.0",
     "zod": "^4.6.5"
   },
   "scripts": {
