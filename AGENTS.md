@@ -26,7 +26,7 @@ Este documento es el punto de entrada normativo para asistentes inteligentes y d
 > 5. **Emisión Pura de Impulsos**: `this.pulse(property, value)`.
 > 
 > Queda terminantemente prohibido implementar mecanismos ad-hoc, estados paralelos o atajos reactivos que se salten o ignoren el flujo natural del Core.
-> **Siempre se debe validar la integridad del Core ejecutando `npm run test:core` antes de iniciar cualquier desarrollo y tras finalizarlo.**
+> **Las pruebas son manuales y corresponden al usuario; se aplica la política de la sección 5. No ejecutar validaciones automáticas por iniciativa propia.**
 
 ---
 
@@ -55,8 +55,13 @@ Todo código producido en este repositorio debe respetar rigurosamente los sigui
    * Queda terminantemente prohibido el acceso profundo o reiterado por punto (ej. `this.disposition.aim.body?.tag`, `this.disposition.aim.body?.observedAttributes`, `signal.value.id`, `customEvent.detail.name`).
    * Desestructurar siempre al inicio de los métodos, aplicando valores por defecto cuando proceda:
      ```typescript
-     const { aim } = this.disposition;
-     const { observedAttributes, tag } = aim.body ?? {};
+     const {
+         aim,
+     } = this.disposition;
+     const {
+         observedAttributes,
+         tag,
+     } = aim.body ?? {};
      ```
 4. **Prohibición de Redundancia de Dominio y Namespace en Ficheros e Identificadores**:
    * **Nombres de Ficheros y Carpetas**: Nombrar directamente en singular por el concepto funcional (ej. `web-component/`, `div.ts`, nunca `web-components/`, `web-component.capability.ts` ni `div.uca.ts`).
@@ -71,7 +76,7 @@ Todo código producido en este repositorio debe respetar rigurosamente los sigui
    * Todos los nombres de variables, parámetros, propiedades, métodos y clases deben ser completos, específicos y auto-explicativos.
    * Queda estrictamente prohibido el uso de términos crípticos, abreviados o truncados (ej. `observed` en lugar de `observedAttributes`, `el` en lugar de `element`, `cap`, `disp`, `sig`, `cb`). Usar siempre términos completos del dominio: `observedAttributes`, `element`, `capability`, `disposition`, `signal`, `callback`.
 6. **Estructuras de Control Claras y Prohibición de Encadenar `else if`**:
-   * Obligatoriedad de bloques con llaves `{ }` en sentencias `if / else`. Prohibido el código inline sin llaves.
+   * Obligatoriedad de bloques multilínea con llaves `{ }` en sentencias `if / else`, incluso para una única instrucción. Nunca escribir sus cuerpos inline, ni siquiera con llaves. Escribir `else` en una línea nueva, después de la llave de cierre del bloque anterior.
    * **Prohibición estricta de encadenar múltiples `else if`**: Queda terminantemente prohibido utilizar más de un `else if`. Ante más de 2 ramas o condiciones alternativas, **DEBE** utilizarse siempre una estructura `switch-case`.
 7. **Tipos Dedicados (`types.ts`)**:
    * Todas las interfaces, tipos y contratos deben residir en el archivo `types.ts` del dominio correspondiente.
@@ -132,13 +137,25 @@ Todo código producido en este repositorio debe respetar rigurosamente los sigui
    * Los tipos TypeScript se infieren directamente de Zod (`export type Body = z.infer<typeof bodySchema>`), erradicando interfaces escritas manualmente sin validación en runtime.
    * `types.ts` re-exporta los tipos derivados de `schema.ts` junto a los enumerados obligatorios de señales (`SignalType`) y tipos de datos (`DataType`).
    * La validación en tiempo de ejecución se realiza de forma reactiva y determinista mediante la capability primitiva `@uca/capability-schema`.
+   * **Los archivos de esquemas (`schema.ts`) no pueden contener lógica de negocio.** Solo declaran y componen contratos de datos, restricciones estructurales y tipos inferidos.
+   * Se permiten restricciones declarativas de estructura, tipos, obligatoriedad, enumerados, rangos y longitudes. Las decisiones, cálculos, comparaciones entre campos, comprobaciones contra una petición concreta, selección de modelos, reintentos y construcción dinámica de contratos según el contexto pertenecen a métodos de la UCA o Capability responsable.
+   * No ocultar lógica de negocio en funciones auxiliares ni en callbacks de `.refine()`, `.superRefine()` o `.transform()` dentro de archivos de esquemas. Por ejemplo, calcular que los pesos sumen 100 %, comprobar identificadores duplicados o comparar los extremos de una escala debe resolverse en métodos del dominio.
 21. **Alineación Obligatoria con el Flujo y Ciclo de Vida de Core**:
    * Toda UCA y Capability debe operar en estricta sincronía con las primitivas del Core (`Capability` y `Uca`).
    * Ante actualizaciones de disposición (`onDispositionUpdated`), las UCAs deben discriminar conscientemente la naturaleza del estímulo:
      - **Cambio Semántico** (`aim.body.request`, `aim.body.context`): Justifica reevaluación cognitiva (`ADAPT` o `RECOMPOSE`).
      - **Cambio Ambiental** (`limits`): Si las dimensiones relativas (`%`, `full`) son compatibles, la estrategia es **`KEEP`** (no llamar al LLM).
-     - **Continuidad Estructural** (`aim.body.composition`): Conservación de la composición confirmada por Builder para permitir reconciliación incremental.
+     - **Continuidad Estructural** (`aim.body.composition`): Conservación de la composición confirmada por el organismo responsable para permitir reconciliación incremental.
    * Queda estrictamente prohibido emitir pulsos de regeneración ciegos (`pulse(UPDATE)`) en `onDispositionUpdated` o diseñar circuitos paralelos al Core.
+22. **Formato Vertical de Desestructuraciones, Objetos y Arrays**:
+   * Las desestructuraciones, los objetos y los arrays no vacíos deben escribirse en varias líneas, con una propiedad o elemento por línea, incluidos los spreads. Se aplica también cuando contienen un único elemento.
+   * Las estructuras anidadas siguen el mismo formato. En particular, cada objeto de `inputs` y `outputs` debe declarar `signal`, `type`, `schema` y `description`, cuando correspondan, en líneas independientes.
+   * Los literales vacíos (`{}` y `[]`) pueden permanecer inline. No comprimir propiedades o elementos en una línea para cumplir el límite de longitud de los métodos.
+23. **Agrupación de `reactTo` por Capacidad en Métodos**:
+   * En UCAs compuestas, agrupar las suscripciones por capacidad en métodos privados estáticos dedicados, llamados `reactTo<Capacidad>()`, situados junto a los demás miembros estáticos.
+   * Cada método desestructura `reactTo` de la disposición de la capacidad y devuelve sus señales junto a los eventos de esa capacidad que escucha la UCA, utilizando enums formales y formato vertical.
+   * `disposition.reactTo` combina estos grupos mediante spreads y mantiene explícitas las señales propias de la UCA. No introducir constantes auxiliares de señales ni modificar las suscripciones al reorganizarlas.
+   * Estos métodos declarativos están permitidos aunque sean breves y se utilicen una sola vez: su propósito es hacer visible la agrupación por capacidad.
 
 ---
 
@@ -150,7 +167,7 @@ Todo código producido en este repositorio debe respetar rigurosamente los sigui
 3. Crear la clase en `src/collection/capabilities/<nombre>/index.ts` heredando de `Capability<Body>`. Sin variables de estado de datos; constructor identitario.
 4. Implementar `react(signal: Signal)` y emitir eventos con `this.pulse(property, value)`.
 5. Exportar en `src/collection/capabilities/index.ts`.
-6. Crear la suite en `src/collection/capabilities/<nombre>/tests/index.ts`.
+6. Solo si el usuario solicita pruebas automáticas, crear la suite en `src/collection/capabilities/<nombre>/tests/index.ts`.
 
 ### ¿Cómo Crear una Nueva UCA?
 1. Leer [src/collection/ucas/rules.md](file:///Users/milos/Documents/workspace/uca-specification/src/collection/ucas/rules.md).
@@ -159,21 +176,14 @@ Todo código producido en este repositorio debe respetar rigurosamente los sigui
 4. Crear la clase en `src/collection/ucas/<nombre>/index.ts` heredando de `Uca<Body>`. Sin guardar propiedades de datos; constructor identitario `super(id, purpose)`.
 5. Definir `purpose` en la propiedad estática y componer capacidades en `protected override catalog(): Cooky`.
 6. Exportar en `src/collection/ucas/index.ts`.
-7. Crear la suite en `src/collection/ucas/<nombre>/tests/index.ts`.
+7. Solo si el usuario solicita pruebas automáticas, crear la suite en `src/collection/ucas/<nombre>/tests/index.ts`.
 
 ---
 
-## 5. Comandos de Validación Obligatorios
+## 5. Pruebas manuales y cierre de implementación
 
-**Antes de cualquier intervención (OBLIGATORIO):**
-```bash
-npm run test:core    # Valida que el núcleo ontológico esté 100% íntegro antes de tocar código
-```
-
-**Tras cualquier cambio o creación de contenido:**
-```bash
-npm run test:core    # Verifica que el núcleo permanezca intacto y conforme a sus contratos
-npm run typecheck    # Verifica consistencia estricta de tipos en TypeScript
-npm test             # Ejecuta las suites completas de core, capabilities y ucas
-npm run build        # Compila la distribución ESM y tipos
-```
+* **Las pruebas las realiza manualmente el usuario.** El agente no debe crear ni ejecutar pruebas automáticas salvo petición expresa del usuario.
+* Tras implementar, el agente debe detenerse y comunicar los cambios. No debe iniciar revisiones posteriores, inspeccionar logs, probar la aplicación en el navegador, capturar pantallas ni ejecutar comprobaciones de tipos, lint, tests o compilaciones para validar el resultado, salvo petición expresa del usuario.
+* No ejecutar validaciones automáticas previas por iniciativa propia, incluidas las de Core. La lectura de las reglas y del código necesaria para implementar sigue siendo obligatoria.
+* Una petición de implementar no autoriza por sí misma pruebas o revisiones. Las peticiones expresas de revisión o prueba se limitan al alcance indicado por el usuario.
+* Esta política sustituye cualquier obligación anterior de ejecutar validaciones antes o después de modificar el repositorio. No altera las validaciones de datos que forman parte del funcionamiento de la aplicación.

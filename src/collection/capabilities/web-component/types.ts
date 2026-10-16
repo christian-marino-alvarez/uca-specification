@@ -34,6 +34,7 @@ export interface RenderPayload {
     readonly attributes?: Record<string, string>;
     readonly content?: string;
     readonly events?: readonly string[];
+    readonly context?: unknown;
 }
 
 export interface UpdatePayload {
@@ -41,25 +42,30 @@ export interface UpdatePayload {
     readonly attributes?: Record<string, string>;
     readonly content?: string;
     readonly events?: readonly string[];
+    readonly context?: unknown;
 }
 
 export interface RemovePayload {
     readonly elementId?: string;
+    readonly context?: unknown;
 }
 
 export interface RenderedResult {
     readonly elementId: string;
     readonly tag: string;
+    readonly context?: unknown;
 }
 
 export interface UpdatedResult {
     readonly elementId: string;
     readonly updated: boolean;
+    readonly context?: unknown;
 }
 
 export interface RemovedResult {
     readonly elementId: string;
     readonly removed: boolean;
+    readonly context?: unknown;
 }
 
 export interface EventContext {
@@ -70,4 +76,5 @@ export interface EventContext {
     readonly value?: unknown;
     readonly checked?: boolean;
     readonly detail?: unknown;
+    readonly context?: unknown;
 }

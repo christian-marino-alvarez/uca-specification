@@ -3,6 +3,7 @@ import type { Disposition, Signal } from '@uca/core/types';
 import {
     __ID__,
     AIM,
+    BREAKPOINT_QUERIES,
     DEFAULT_BROWSER,
     DEFAULT_SCREEN,
     DEFAULT_VIEWPORT,
@@ -65,8 +66,9 @@ export class Browser extends Capability<Body> {
     }
 
     private handleDetect(): void {
-        this.bindWindowListeners();
-        this.pulse(SignalType.DETECTED, this.captureContext());
+        const context = this.captureContext();
+        this.bindWindowListeners(context);
+        this.pulse(SignalType.DETECTED, context);
     }
 
     private handleDestroy(): void {
@@ -74,20 +76,39 @@ export class Browser extends Capability<Body> {
         this.pulse(SignalType.DESTROYED, { destroyed: true });
     }
 
-    private bindWindowListeners(): void {
-        if (typeof window === 'undefined' || this.mediaListener) { return; }
-        this.mediaListener = () => this.pulse(SignalType.CHANGED, this.captureContext());
-        window.addEventListener('resize', this.mediaListener);
-        const queries = ['(orientation: portrait)', '(prefers-color-scheme: dark)'];
-        this.mediaQueries = queries.map((query) => window.matchMedia?.(query)).filter(Boolean) as MediaQueryList[];
+    private createMediaListener(initialContext: BrowserContext): () => void {
+        let previousContext = JSON.stringify(initialContext);
+        return () => {
+            const context = this.captureContext();
+            const serialized = JSON.stringify(context);
+            if (serialized !== previousContext) {
+                previousContext = serialized;
+                this.pulse(SignalType.CHANGED, context);
+            }
+        };
+    }
+
+    private subscribeMediaQueries(): void {
+        this.mediaQueries = BREAKPOINT_QUERIES
+            .map((query) => window.matchMedia?.(query))
+            .filter(Boolean) as MediaQueryList[];
         for (const mediaQuery of this.mediaQueries) {
-            mediaQuery.addEventListener('change', this.mediaListener);
+            mediaQuery.addEventListener('change', this.mediaListener!);
         }
     }
 
+    private bindWindowListeners(initialContext: BrowserContext): void {
+        if (typeof window === 'undefined' || this.mediaListener) {
+            return;
+        }
+        this.mediaListener = this.createMediaListener(initialContext);
+        this.subscribeMediaQueries();
+    }
+
     private unbindWindowListeners(): void {
-        if (!this.mediaListener) { return; }
-        if (typeof window !== 'undefined') { window.removeEventListener('resize', this.mediaListener); }
+        if (!this.mediaListener) {
+            return;
+        }
         for (const mediaQuery of this.mediaQueries) {
             mediaQuery.removeEventListener('change', this.mediaListener);
         }
@@ -121,9 +142,10 @@ export class Browser extends Capability<Body> {
         const { userAgent, language, maxTouchPoints = 0, onLine = true } = navigator;
         const colorScheme = this.resolveThemePreference();
         const reducedMotion = this.resolveReducedMotion();
+        const writingDirection = this.resolveWritingDirection();
         const type = this.detectBrowserType(userAgent);
         const platform = this.resolvePlatform();
-        return { type, userAgent, language, platform, touch: maxTouchPoints > 0, maxTouchPoints, colorScheme, reducedMotion, online: onLine };
+        return { type, userAgent, language, writingDirection, platform, touch: maxTouchPoints > 0, maxTouchPoints, colorScheme, reducedMotion, online: onLine };
     }
 
     private resolveThemePreference(): 'dark' | 'light' {
@@ -136,6 +158,17 @@ export class Browser extends Capability<Body> {
         if (typeof window === 'undefined' || !window.matchMedia) { return false; }
         const { matches } = window.matchMedia('(prefers-reduced-motion: reduce)');
         return matches;
+    }
+
+    private resolveWritingDirection(): 'ltr' | 'rtl' {
+        if (typeof document === 'undefined') { return 'ltr'; }
+        const {
+            documentElement,
+        } = document;
+        const {
+            dir,
+        } = documentElement;
+        return dir === 'rtl' ? 'rtl' : 'ltr';
     }
 
     private resolvePlatform(): string {

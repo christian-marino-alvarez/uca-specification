@@ -1,3 +1,4 @@
+import { createStream } from './stream.js';
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import OpenAI from 'openai';
@@ -25,8 +26,10 @@ export class Openai extends Capability<Body> {
             SignalType.CONNECT,
             SignalType.GENERATE,
             SignalType.STREAM,
+            SignalType.ABORT,
         ],
         inputs: [
+            { signal: SignalType.ABORT, type: DataType.ABORT_PAYLOAD, description: 'Abort a pending generation' },
             { signal: SignalType.CONNECT, type: DataType.CONNECTION_CONFIG, description: 'Configure OpenAI API connection' },
             { signal: SignalType.GENERATE, type: DataType.GENERATE_PAYLOAD, description: 'Generate cognitive text or structured JSON' },
             { signal: SignalType.STREAM, type: DataType.GENERATE_PAYLOAD, description: 'Stream cognitive tokens in real-time' },
@@ -34,19 +37,29 @@ export class Openai extends Capability<Body> {
         outputs: [
             { signal: SignalType.CONNECTED, type: DataType.CONNECTION_STATUS, description: 'OpenAI connection confirmed' },
             { signal: SignalType.GENERATED, type: DataType.GENERATE_RESULT, description: 'Generated inference and structured data' },
-            { signal: SignalType.CHUNK, type: DataType.CHUNK_RESULT, description: 'Streamed token chunk' },
-            { signal: SignalType.STREAM_END, type: DataType.STREAM_END_RESULT, description: 'Stream completed notification' },
+            { signal: SignalType.STREAMED, type: DataType.STREAM_RESULT, description: 'Owned stream of generated text' },
             { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'Error notification' },
         ],
     };
+
+    private readonly controllers = new Map<string, AbortController>();
 
     public constructor(id: string = __ID__) {
         super(id);
     }
 
+    public override denervate(): void {
+        this.controllers.forEach((controller) => controller.abort());
+        this.controllers.clear();
+        super.denervate();
+    }
+
     protected override async react(signal: Signal): Promise<void> {
         const { property, value } = signal;
         switch (property) {
+            case SignalType.ABORT:
+                this.handleAbort(value);
+                break;
             case SignalType.CONNECT:
                 this.handleConnect(value);
                 break;
@@ -79,7 +92,7 @@ export class Openai extends Capability<Body> {
             const result = await this.executeGeneration(client, payload);
             this.pulse(SignalType.GENERATED, result);
         } catch (error) {
-            this.pulse(SignalType.ERROR, error);
+            this.pulse(SignalType.ERROR, { error: String(error), correlationId: payload.correlationId });
         }
     }
 
@@ -109,69 +122,38 @@ export class Openai extends Capability<Body> {
     }
 
     private async handleStream(value: unknown): Promise<void> {
-        const payload = this.extractPayload<GeneratePayload>(value);
-        if (!payload) { return; }
-        const { prompt, model = DEFAULT_MODEL, systemInstruction, schema, correlationId, streamId } = payload;
-        const activeCorrelationId = correlationId ?? streamId;
+        const payload = this.extractPayload<GeneratePayload>(value)!;
+        const { correlationId = crypto.randomUUID(), streamId } = payload;
+        const controller = new AbortController(); const { signal } = controller;
+        this.controllers.get(correlationId)?.abort(); this.controllers.set(correlationId, controller);
         try {
-            const client = this.resolveClient();
-            await this.executeStream(client, prompt, model, systemInstruction, schema, activeCorrelationId);
+            const stream = await this.openStream(payload, correlationId, controller);
+            this.pulse(SignalType.STREAMED, { correlationId, streamId, stream });
         } catch (error) {
-            console.error('❌ [OPENAI] Fallback activado:', error);
-            this.handleStreamFallback(prompt, model, activeCorrelationId);
+            this.controllers.get(correlationId) === controller && this.controllers.delete(correlationId); !signal.aborted && this.pulse(SignalType.ERROR, { error: String(error), correlationId });
         }
     }
 
-    private async executeStream(client: OpenAI, prompt: string, model: string, systemInstruction?: string, schema?: Record<string, unknown>, correlationId?: string): Promise<void> {
+    private async openStream(payload: GeneratePayload, correlationId: string, controller: AbortController): Promise<ReadableStream<string>> {
+        const { prompt } = payload;
+        const { signal } = controller;
+        const { model = DEFAULT_MODEL, schema, systemInstruction, temperature = DEFAULT_TEMPERATURE, maxOutputTokens = DEFAULT_MAX_OUTPUT_TOKENS } = payload;
+        const { chat: { completions } } = this.resolveClient();
         const messages = this.buildMessages(prompt, systemInstruction);
-        const responseFormat = schema ? { type: 'json_object' as const } : undefined;
-        const stream = await client.chat.completions.create({ model, messages, stream: true, response_format: responseFormat });
-        for await (const chunk of stream) {
-            const { choices } = chunk;
-            const deltaText = choices[0]?.delta?.content ?? '';
-            if (deltaText) { this.pulse(SignalType.CHUNK, { text: deltaText, prompt, model, correlationId, streamId: correlationId }); }
+        const response_format = schema ? { type: 'json_object' as const } : undefined;
+        const iterator = await completions.create({ model, messages, stream: true, response_format, temperature, max_tokens: maxOutputTokens }, { signal });
+        signal.throwIfAborted();
+        return createStream(iterator[Symbol.asyncIterator](), controller, () => { this.controllers.get(correlationId) === controller && this.controllers.delete(correlationId); });
+    }
+
+    private handleAbort(value: unknown): void {
+        const { correlationId } = value as { correlationId?: string };
+        if (correlationId) {
+            this.controllers.get(correlationId)?.abort(); this.controllers.delete(correlationId);
         }
-        this.pulse(SignalType.STREAM_END, { prompt, model, correlationId, streamId: correlationId });
-    }
-
-    private handleStreamFallback(prompt: string, model: string, correlationId?: string): void {
-        const fallbackText = this.buildStreamFallbackJson(prompt);
-        const tokens = this.sliceIntoTokens(fallbackText);
-        for (const token of tokens) {
-            this.pulse(SignalType.CHUNK, { text: token, prompt, model, correlationId, streamId: correlationId });
+        else {
+            this.controllers.forEach((controller) => controller.abort()); this.controllers.clear();
         }
-        this.pulse(SignalType.STREAM_END, { prompt, model, correlationId, streamId: correlationId });
-    }
-
-    private sliceIntoTokens(text: string): string[] {
-        const tokens: string[] = [];
-        const chunkSize = 20;
-        for (let i = 0; i < text.length; i += chunkSize) {
-            tokens.push(text.slice(i, i + chunkSize));
-        }
-        return tokens;
-    }
-
-    private buildStreamFallbackJson(prompt: string): string {
-        const isExplanation = prompt.includes('Explicar') || prompt.includes('explicar') || prompt.includes('u = (p, d, C, O)');
-        return isExplanation ? this.getExplanationFallbackJson() : this.getInitialFallbackJson();
-    }
-
-    private getInitialFallbackJson(): string {
-        const boxDisp = { aim: { description: 'Contenedor de bienvenida', body: { text: '¿Quieres saber qué es Uca?' } }, reactTo: ['action:query-button.triggered'] };
-        const actionDisp = { aim: { description: 'Botón de exploración', body: { label: 'Descubrir qué es UCA' } }, reactTo: [] };
-        const ucas = [{ id: 'box:center-container', disposition: boxDisp }, { id: 'action:query-button', disposition: actionDisp }];
-        const answer = '¿Quieres saber qué es Uca?';
-        return JSON.stringify({ data: { ucas, answer }, metadata: { tokens: 42 } });
-    }
-
-    private getExplanationFallbackJson(): string {
-        const panelText = 'UCA es una primitiva formal u = (p, d, C, O).';
-        const cardDisp = { aim: { description: 'Formula and explanation', body: { text: panelText } }, reactTo: ['action:simulate-pulse.triggered'] };
-        const listDisp = { aim: { description: 'Pillars', body: { items: ['Purpose', 'Disposition', 'Capabilities', 'Outcomes'] } }, reactTo: ['action:simulate-pulse.triggered'] };
-        const actionDisp = { aim: { description: 'Simulate pulse', body: { label: '⚡ Emitir pulso de prueba' } }, reactTo: [] };
-        const ucas = [{ id: 'box:explanation-card', disposition: cardDisp }, { id: 'list:ontological-pillars', disposition: listDisp }, { id: 'action:simulate-pulse', disposition: actionDisp }];
-        return JSON.stringify({ data: { ucas, answer: panelText }, metadata: { tokens: 68 } });
     }
 
     private resolveClient(): OpenAI {

@@ -37,6 +37,26 @@ export interface DesignToken<T = string> {
     readonly $description?: string;
 }
 
+export type DesignTokens = Readonly<Record<
+    string,
+    Readonly<Record<string, DesignToken<string | number>>>
+>>;
+
+export interface DesignModes {
+    readonly light?: DesignTokens;
+    readonly dark?: DesignTokens;
+    readonly reducedMotion?: DesignTokens;
+}
+
+export interface StylesheetDesign {
+    readonly tokens: DesignTokens;
+    readonly modes?: DesignModes;
+    readonly rules?: Readonly<Record<
+        string,
+        Readonly<Record<string, string | number>>
+    >>;
+}
+
 export type DesignTokenGroup = {
     readonly $type?: string;
     readonly $description?: string;
@@ -44,11 +64,16 @@ export type DesignTokenGroup = {
 };
 
 import type { Qualities, BaseRules, Body } from './schema.js';
+import type { DESIGN_TOKENS } from './constants.js';
 export type { Qualities, BaseRules, Body };
+
+export type TokenProperty = readonly [quality: keyof Qualities, group: keyof typeof DESIGN_TOKENS, property: string];
+export type DimensionProperty = readonly [quality: 'width' | 'height' | 'maxWidth' | 'minWidth' | 'minHeight', property: string, viewport: string];
 
 export interface ApplyPayload {
     readonly elementId: string;
     readonly qualities: Qualities;
+    readonly control?: ControlType;
 }
 
 export interface ResolvePayload {
@@ -101,3 +126,6 @@ export interface RemovedResult {
     readonly removed: boolean;
 }
 
+
+export enum ControlType { INPUT = 'input', ACTION = 'action' }
+export interface StateRule { readonly suffix: string; readonly declarations: Readonly<Record<string, string>>; }

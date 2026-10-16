@@ -5,6 +5,7 @@ import type { Signal } from '@uca/core/types';
 import { Capability } from '@uca/core/capability';
 import { Box } from '../index.js';
 import { type EventContext, SignalType } from '../types.js';
+import { SignalType as WebComponentSignalType } from '@uca/capability-web-component/types';
 import { __ID__ } from '../constants.js';
 
 const dom = new JSDOM('<!DOCTYPE html><html><head></head><body><div id="container"></div></body></html>');
@@ -232,6 +233,18 @@ function testBox_ParentToNesting(): void {
     document.getElementById('uca-style-child-box')?.remove();
 }
 
+function testBox_IgnoresForeignComponentSignals(): void {
+    const bus = new EventTarget();
+    const created: unknown[] = [];
+    bus.addEventListener(SignalType.CREATED, (event: Event) => { created.push(event); });
+    const box = new Box('box-owner').innervate(bus);
+    emitSignal(bus, Capability.updateEvent('box-owner'), Box.disposition);
+    const foreignSignal: Signal = { source: 'input:web-component', property: WebComponentSignalType.RENDERED, value: { elementId: 'prompt-input' }, timestamp: Date.now() };
+    bus.dispatchEvent(new CustomEvent(WebComponentSignalType.RENDERED, { detail: foreignSignal }));
+    assert.strictEqual(created.length, 0);
+    box.denervate();
+}
+
 function runTests(): void {
     console.log('🧪 Testing autonomous Box UCA...');
     testBox_IdentityAndDefaults();
@@ -241,6 +254,7 @@ function runTests(): void {
     testBox_EventBridgeAndDelegation();
     testBox_SingleUcaManagingNBoxes();
     testBox_ParentToNesting();
+    testBox_IgnoresForeignComponentSignals();
     console.log('✅ All Box UCA tests passed successfully!');
 }
 

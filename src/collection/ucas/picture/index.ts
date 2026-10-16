@@ -75,30 +75,40 @@ export class Picture extends Uca<Body> {
     }
 
     private handleRender(value?: unknown): void {
-        const { elementId = this.id, parentTo, containerElement, src, alt = DEFAULT_ALT, loading = DEFAULT_LOADING, qualities } = (value ?? {}) as Body;
+        const { elementId = this.id, parentTo, containerElement, src, alt = DEFAULT_ALT, loading = DEFAULT_LOADING, qualities, context } = (value ?? {}) as Body & { context?: unknown };
         const targetContainer = containerElement ?? (parentTo?.startsWith('#') ? parentTo : parentTo ? `#${parentTo}` : undefined);
-        if (qualities) { this.pulse(CssSignalType.APPLY, { id: `${this.id}:css`, elementId, qualities }); }
+        if (qualities) { this.pulse(CssSignalType.APPLY, { elementId, qualities }); }
         const attributes = { src: src ?? '', alt, loading };
-        this.pulse(WebComponentSignalType.RENDER, { id: `${this.id}:web-component`, elementId, tag: 'img', containerElement: targetContainer, attributes });
+        this.pulse(WebComponentSignalType.RENDER, {
+            elementId,
+            tag: 'img',
+            containerElement: targetContainer,
+            attributes,
+            ...(context !== undefined && { context }),
+        });
     }
 
     private handleUpdate(value?: unknown): void {
-        const { elementId = this.id, src, alt, loading, qualities } = (value ?? {}) as Body;
+        const { elementId = this.id, src, alt, loading, qualities, context } = (value ?? {}) as Body;
         if (qualities) { this.pulse(CssSignalType.APPLY, { elementId, qualities }); }
         const attributes = { ...(src && { src }), ...(alt && { alt }), ...(loading && { loading }) };
-        this.pulse(WebComponentSignalType.UPDATE, { elementId, attributes });
+        this.pulse(WebComponentSignalType.UPDATE, { elementId, attributes, context });
     }
 
     private handleRemove(value?: unknown): void {
-        const { elementId = this.id } = (value ?? {}) as Body;
+        const { elementId = this.id, context } = (value ?? {}) as Body;
         this.pulse(CssSignalType.REMOVE, { elementId });
-        this.pulse(WebComponentSignalType.REMOVE, { elementId });
+        this.pulse(WebComponentSignalType.REMOVE, { elementId, context });
     }
 
     private handleComponentRendered(value?: unknown): void {
-        const { elementId = this.id, tag } = (value ?? {}) as { elementId?: string; tag?: string };
+        const { elementId = this.id, tag, context } = (value ?? {}) as { elementId?: string; tag?: string; context?: unknown };
         if (tag && tag !== 'img') { return; }
-        this.pulse(SignalType.CREATED, { elementId, detail: value });
+        this.pulse(SignalType.CREATED, {
+            elementId,
+            detail: value,
+            ...(context !== undefined && { context }),
+        });
     }
 
     private handleComponentUpdated(value?: unknown): void {
@@ -107,7 +117,19 @@ export class Picture extends Uca<Body> {
     }
 
     private handleComponentRemoved(value?: unknown): void {
-        const { elementId = this.id } = (value ?? {}) as { elementId?: string };
-        this.pulse(SignalType.REMOVED, { elementId, detail: value });
+        const {
+            elementId = this.id,
+            context,
+        } = (value ?? {}) as {
+            elementId?: string;
+            context?: unknown;
+        };
+        this.pulse(SignalType.REMOVED, {
+            elementId,
+            detail: value,
+            ...(context !== undefined && {
+                context,
+            }),
+        });
     }
 }

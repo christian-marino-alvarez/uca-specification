@@ -3,6 +3,8 @@ import * as path from 'node:path';
 import { execSync } from 'node:child_process';
 import { builtinModules } from 'node:module';
 import * as esbuild from 'esbuild';
+import { Css } from '@uca/capability-css';
+import { DESIGN } from '@uca/app/constants';
 
 try {
     process.loadEnvFile?.();
@@ -59,9 +61,6 @@ function generateImportMap(): string {
     const workspaces = resolveWorkspaces();
     const imports: Record<string, string> = {
         'zod': './vendor/zod.js',
-        '@google/genai': './vendor/google-genai.js',
-        'openai': './vendor/openai.js',
-        '@typesafe-ai/sdk': './vendor/typesafe-ai-sdk.js',
     };
     for (const workspace of workspaces) {
         Object.assign(imports, buildImportMapEntry(workspace));
@@ -72,11 +71,9 @@ function generateImportMap(): string {
 async function bundleVendorLibraries(): Promise<void> {
     const vendorDir = path.join(WEB_DIST, 'vendor');
     fs.mkdirSync(vendorDir, { recursive: true });
+    ['typesafe-ai-sdk.js', 'google-genai.js', 'openai.js'].forEach((name) => fs.rmSync(path.join(vendorDir, name), { force: true }));
     await Promise.all([
         buildVendor(vendorDir, 'zod', 'zod.js'),
-        buildVendor(vendorDir, '@google/genai', 'google-genai.js'),
-        buildVendor(vendorDir, 'openai', 'openai.js'),
-        buildVendor(vendorDir, '@typesafe-ai/sdk', 'typesafe-ai-sdk.js'),
     ]);
 }
 
@@ -93,9 +90,6 @@ async function buildVendor(dir: string, entry: string, outfile: string): Promise
 }
 
 async function transpileEntry(): Promise<void> {
-    const geminiKey = process.env.GEMINI_API_KEY ?? '';
-    const openaiKey = process.env.OPENAI_API_KEY ?? '';
-    const jevKey = process.env.JEV_API_KEY ?? '';
     await esbuild.build({
         entryPoints: [path.join(CLI, 'entry.ts')],
         outfile: path.join(WEB_DIST, 'app.js'),
@@ -104,23 +98,31 @@ async function transpileEntry(): Promise<void> {
         packages: 'external',
         platform: 'browser',
         target: 'es2022',
-        define: {
-            'process.env.GEMINI_API_KEY': JSON.stringify(geminiKey),
-            'process.env.OPENAI_API_KEY': JSON.stringify(openaiKey),
-            'process.env.JEV_API_KEY': JSON.stringify(jevKey),
-        },
     });
 }
 
 function buildHtml(importMap: string): void {
     const template = fs.readFileSync(path.join(CLI, 'index.html'), 'utf-8');
-    const { GEMINI_API_KEY: gemini = '', OPENAI_API_KEY: openai = '', JEV_API_KEY: jev = process.env.TYPESAFE_API_KEY ?? '' } = process.env;
-    const html = template
-        .replace('{{IMPORT_MAP}}', importMap)
-        .replace(/{{GEMINI_API_KEY}}/g, gemini)
-        .replace(/{{OPENAI_API_KEY}}/g, openai)
-        .replace(/{{JEV_API_KEY}}/g, jev);
+    const html = template.replace('{{IMPORT_MAP}}', importMap);
     fs.writeFileSync(path.join(WEB_DIST, 'index.html'), html);
+}
+
+function buildStylesheet(): void {
+    const stylesheet = Css.generateStylesheet(DESIGN);
+    fs.writeFileSync(path.join(WEB_DIST, 'design.css'), stylesheet);
+}
+
+function buildDesignPreview(): void {
+    fs.copyFileSync(path.join(CLI, 'design-preview.html'), path.join(WEB_DIST, 'design-preview.html'));
+    fs.copyFileSync(path.join(CLI, 'design-preview.css'), path.join(WEB_DIST, 'design-preview.css'));
+}
+
+function buildAssets(): void {
+    const source = path.join(CLI, 'assets');
+    const destination = path.join(WEB_DIST, 'assets');
+    fs.cpSync(source, destination, {
+        recursive: true,
+    });
 }
 
 function buildServerEntry(): void {
@@ -165,6 +167,12 @@ async function build(): Promise<void> {
     console.log('🗺️  Import map generated');
     await transpileEntry();
     console.log('📄 Entry point transpiled');
+    buildStylesheet();
+    console.log('🎨 Deterministic design stylesheet generated');
+    buildDesignPreview();
+    console.log('🖼️  Visual design preview generated');
+    buildAssets();
+    console.log('🪪 Brand assets copied');
     buildHtml(importMap);
     console.log(`✔ Web app complete → ${WEB_DIST}`);
     buildServerEntry();

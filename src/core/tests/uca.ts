@@ -627,3 +627,144 @@ runAllTests().catch((error: unknown) => {
     console.error('Test execution failed:', error);
     process.exit(1);
 });
+
+// Routing metadata belongs to the envelope; catalog input ports select active recipients.
+import { test } from 'node:test';
+import { RoutingSignal } from './types.js';
+
+class RoutingProbe extends Capability {
+    public static override disposition: Disposition = {
+        aim: { description: 'Receive routed commands' }, reactTo: [RoutingSignal.COMMAND, RoutingSignal.ALTERNATIVE],
+        inputs: [{ signal: RoutingSignal.COMMAND, type: 'unknown' }],
+        outputs: [{ signal: RoutingSignal.EVENT, type: 'unknown' }],
+    };
+    public readonly received: Signal[] = [];
+    protected override react(signal: Signal): void { this.received.push(signal); }
+    public emitEvent(): void { this.pulse(RoutingSignal.EVENT, { completed: true }); }
+}
+
+class RoutingParent extends Uca {
+    public static override purpose = 'Route commands through declared input ports';
+    public readonly received: Signal[] = [];
+    protected override react(signal: Signal): void { this.received.push(signal); }
+    protected override catalog(): Cooky {
+        const { aim } = RoutingProbe.disposition;
+        return [[RoutingProbe, { aim: { ...aim, body: { id: `${this.id}:probe` } }, reactTo: [RoutingSignal.COMMAND, RoutingSignal.ALTERNATIVE] }]];
+    }
+    public send(property: string, value: unknown, targetId?: string): Signal | undefined {
+        return this.pulse(property, value, targetId);
+    }
+}
+
+class AmbiguousParent extends RoutingParent {
+    protected override catalog(): Cooky {
+        return [...super.catalog(), [RoutingProbe, { ...RoutingProbe.disposition, aim: { description: 'Second receiver', body: { id: `${this.id}:second` } } }]];
+    }
+}
+
+function routingFixture(Factory: typeof RoutingParent = RoutingParent, id = 'parent', bus = new EventTarget()) {
+    const parent = new Factory(id).innervate(bus);
+    updateDisposition(bus, id, { aim: { description: Factory.purpose }, reactTo: [RoutingSignal.COMMAND, RoutingSignal.ALTERNATIVE, RoutingSignal.EVENT] });
+    const receiver = parent.registry.get(`${id}:probe`) as RoutingProbe;
+    return { bus, parent, receiver };
+}
+
+test('Core infers a destination from catalog inputs and preserves the domain payload', () => {
+    const { parent, receiver } = routingFixture();
+    const value = { id: 'domain-identity', areaId: 'area' };
+    const signal = parent.send(RoutingSignal.COMMAND, value);
+    assert.strictEqual(signal?.targetId, 'parent:probe');
+    assert.strictEqual(signal?.value, value);
+    assert.strictEqual(receiver.received.length, 1);
+    assert.strictEqual(receiver.received[0], signal);
+    parent.denervate();
+});
+
+test('Core resolves receivers within the emitting catalog on a shared bus', () => {
+    const { bus, parent, receiver } = routingFixture();
+    const other = routingFixture(RoutingParent, 'other', bus);
+    parent.send(RoutingSignal.COMMAND, { areaId: 'area' });
+    assert.strictEqual(receiver.received.length, 1);
+    assert.strictEqual(other.receiver.received.length, 0);
+    parent.denervate(); other.parent.denervate();
+});
+
+test('Core rejects ambiguous routing before dispatch and permits an explicit destination', () => {
+    const { parent, receiver } = routingFixture(AmbiguousParent);
+    const second = parent.registry.get('parent:second') as RoutingProbe;
+    assert.throws(() => parent.send(RoutingSignal.COMMAND, {}), /Ambiguous destination/);
+    assert.strictEqual(receiver.received.length, 0); assert.strictEqual(second.received.length, 0);
+    parent.send(RoutingSignal.COMMAND, {}, second.id);
+    assert.strictEqual(receiver.received.length, 0); assert.strictEqual(second.received.length, 1);
+    parent.denervate();
+});
+
+test('Core preserves broadcasts when no catalog input declares the signal', () => {
+    const { bus, parent } = routingFixture();
+    let observed: Signal | undefined;
+    bus.addEventListener(RoutingSignal.EVENT, (event) => { const { detail } = event as CustomEvent<Signal>; observed = detail; });
+    const signal = parent.send(RoutingSignal.EVENT, { completed: true });
+    assert.strictEqual(signal?.targetId, undefined);
+    assert.strictEqual(observed, signal);
+    parent.denervate();
+});
+
+test('Core excludes denervated capabilities from inferred destinations', () => {
+    const { bus, parent, receiver } = routingFixture();
+    updateDisposition(bus, parent.id, { aim: { description: RoutingParent.purpose }, reactTo: [] });
+    assert.strictEqual(receiver.target, undefined);
+    const signal = parent.send(RoutingSignal.COMMAND, {});
+    assert.strictEqual(signal?.targetId, undefined); assert.strictEqual(receiver.received.length, 0);
+    parent.denervate();
+});
+
+test('Core uses current input ports after a disposition update', () => {
+    const { bus, parent, receiver } = routingFixture();
+    updateDisposition(bus, receiver.id, { ...RoutingProbe.disposition, inputs: [{ signal: RoutingSignal.ALTERNATIVE, type: 'unknown' }] });
+    assert.strictEqual(parent.send(RoutingSignal.COMMAND, {})?.targetId, undefined);
+    assert.strictEqual(parent.send(RoutingSignal.ALTERNATIVE, {})?.targetId, receiver.id);
+    parent.denervate();
+});
+
+test('Core exposes the same addressed signal to wildcard observers', () => {
+    const { bus, parent } = routingFixture();
+    let observed: Signal | undefined;
+    bus.addEventListener('*', (event) => { const { detail } = event as CustomEvent<Signal>; observed = detail; });
+    const signal = parent.send(RoutingSignal.COMMAND, {});
+    assert.strictEqual(observed, signal); assert.strictEqual(observed?.targetId, 'parent:probe');
+    parent.denervate();
+});
+
+test('Core delivers catalog responses only to their owner on a shared bus', () => {
+    const { bus, parent, receiver } = routingFixture();
+    const other = routingFixture(RoutingParent, 'other', bus);
+    receiver.emitEvent();
+    assert.strictEqual(parent.received.length, 1);
+    assert.strictEqual(parent.received[0].source, receiver.id);
+    assert.strictEqual(other.parent.received.length, 0);
+    parent.denervate(); other.parent.denervate();
+});
+
+test('Core rejects a response from a foreign instance even when addressed to the owner', () => {
+    const { bus, parent } = routingFixture();
+    const signal: Signal = { source: 'foreign:probe', targetId: parent.id, property: RoutingSignal.EVENT, value: {} };
+    bus.dispatchEvent(new CustomEvent(RoutingSignal.EVENT, { detail: signal }));
+    assert.strictEqual(parent.received.length, 0);
+    parent.denervate();
+});
+
+test('Envelope destinations use exact identities instead of suffix aliases', () => {
+    const { parent } = routingFixture(RoutingParent, 'probe');
+    parent.send(RoutingSignal.COMMAND, {});
+    assert.strictEqual(parent.received.length, 0);
+    parent.denervate();
+});
+
+test('Core ignores late responses from denervated catalog instances', () => {
+    const { bus, parent, receiver } = routingFixture();
+    receiver.denervate();
+    const signal: Signal = { source: receiver.id, property: RoutingSignal.EVENT, value: {} };
+    bus.dispatchEvent(new CustomEvent(RoutingSignal.EVENT, { detail: signal }));
+    assert.strictEqual(parent.received.length, 0);
+    parent.denervate();
+});

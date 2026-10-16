@@ -1,9 +1,10 @@
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
-import { TypeSafeClient, choice, noul, type EntryType, type Questions } from '@typesafe-ai/sdk';
-import { __ID__, DEFAULT_MODEL } from './constants.js';
+import { __ID__, DEFAULT_MODEL, DEFAULT_ENDPOINT, DEFAULT_QUESTIONS } from './constants.js';
 import {
     type Body,
+    type Question,
+    type RequestBody,
     type ConnectionConfig,
     type InferPayload,
     type InferResult,
@@ -12,7 +13,7 @@ import {
 } from './types.js';
 
 export class Jev extends Capability<Body> {
-    public static readonly AIM: string = 'Perform system-one probabilistic reasoning and state evaluation using Jev SDK';
+    public static readonly AIM: string = 'Perform system-one probabilistic reasoning and state evaluation through server-to-server HTTP';
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Jev.AIM, body: {} },
@@ -64,53 +65,37 @@ export class Jev extends Capability<Body> {
         if (!payload) { return; }
         const { correlationId } = payload;
         try {
-            const client = this.resolveClient();
-            const result = await this.executeInference(client, payload);
+            const result = await this.executeInference(payload);
             this.pulse(SignalType.INFERRED, result);
         } catch (error) {
             this.pulse(SignalType.ERROR, { error, correlationId });
         }
     }
 
-    private async executeInference(client: TypeSafeClient, payload: InferPayload): Promise<InferResult> {
-        const { state, questions, model = DEFAULT_MODEL, limit, maxTokens, correlationId } = payload;
+    private async executeInference(payload: InferPayload): Promise<InferResult> {
+        const { state, model = DEFAULT_MODEL, correlationId } = payload;
         const { aim } = this.disposition;
-        const bodyLimit = aim.body?.limit ?? aim.body?.maxTokens;
-        const effectiveLimit = limit ?? maxTokens ?? bodyLimit;
-        const options = effectiveLimit !== undefined ? { limit: effectiveLimit, max_tokens: effectiveLimit } : {};
-        const formattedQuestions = this.formatQuestions(questions ?? {}) as Questions;
-        const response = await client.systemOne({ state: state as EntryType, questions: formattedQuestions, model, ...options });
-        const { answers } = response as unknown as { answers: Record<string, unknown> };
+        const { connection } = aim.body ?? {};
+        const { apiKey = process.env.JEV_API_KEY ?? process.env.TYPESAFE_API_KEY, baseURL } = connection ?? {};
+        const endpoint = baseURL ? `${baseURL.replace(/\/$/, '')}/v1/systemone` : DEFAULT_ENDPOINT;
+        if (!apiKey) { throw new Error('Jev API key is not configured on the backend'); }
+        const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` }, body: JSON.stringify(this.buildRequest(payload)) });
+        if (!response.ok) { throw new Error(`Jev HTTP ${response.status}: ${await response.text()}`); }
+        const { answers } = await response.json() as { answers: Record<string, unknown> };
         return { state, answers, model, correlationId };
     }
-
-    private formatQuestions(questions: Record<string, unknown>): Record<string, unknown> {
-        const entries = Object.entries(questions).map(([key, val]) => [key, this.formatQuestionEntry(key, val)]);
-        return entries.length ? Object.fromEntries(entries) : { answer: noul('Procesar consulta') };
-    }
-
-    private formatQuestionEntry(key: string, value: unknown): unknown {
-        const { type, instructions, options } = (typeof value === 'object' && value !== null ? value : {}) as { type?: string; instructions?: string; options?: Record<string, string> };
-        if (type === 'noul' || type === 'choice' || type === 'score') { return value; }
-        if (options) { return choice(instructions ?? key, options); }
-        return noul(typeof value === 'string' ? value : key);
-    }
-
-    private resolveClient(): TypeSafeClient {
+    private buildRequest(payload: InferPayload): RequestBody {
+        const { state, questions = DEFAULT_QUESTIONS, model = DEFAULT_MODEL, limit, maxTokens } = payload;
         const { aim } = this.disposition;
-        const { client, connection } = aim.body ?? {};
-        if (client) { return client; }
-        return this.createClient(connection);
+        const { limit: bodyLimit, maxTokens: bodyMaxTokens } = aim.body ?? {};
+        const effectiveLimit = limit ?? maxTokens ?? bodyLimit ?? bodyMaxTokens;
+        const formatted = Object.fromEntries(Object.entries(questions).map(([key, value]) => [key, this.formatQuestion(key, value)]));
+        return { state, questions: formatted, model, ...(effectiveLimit !== undefined && { limit: effectiveLimit, max_tokens: effectiveLimit }) };
     }
-
-    private createClient(config?: ConnectionConfig): TypeSafeClient {
-        const { apiKey, baseURL } = config ?? {};
-        const envKey = typeof process !== 'undefined' ? process.env?.JEV_API_KEY ?? process.env?.TYPESAFE_API_KEY : undefined;
-        const localKey = typeof localStorage !== 'undefined' ? localStorage.getItem('JEV_API_KEY') ?? undefined : undefined;
-        const resolvedApiKey = apiKey ?? envKey ?? localKey ?? 'server-proxy';
-        const browserOrigin = typeof window !== 'undefined' ? window.location.origin : undefined;
-        const resolvedBase = baseURL ?? browserOrigin;
-        return new TypeSafeClient({ apiKey: resolvedApiKey, baseURL: resolvedBase, dangerouslyAllowBrowser: true });
+    private formatQuestion(key: string, value: unknown): unknown {
+        if (typeof value === 'string') { return { type: 'noul', instructions: value }; }
+        const { type, instructions = key, options, criteria } = value as Question;
+        if (type) { return value; }
+        return options ? { type: 'choice', instructions, criteria: options } : { type: 'noul', instructions, criteria };
     }
 }
-

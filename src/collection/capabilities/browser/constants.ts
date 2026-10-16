@@ -16,6 +16,7 @@ export const DEFAULT_BROWSER = {
     type: 'Node',
     userAgent: 'Node',
     language: 'es-ES',
+    writingDirection: 'ltr' as const,
     platform: 'server',
     touch: false,
     maxTouchPoints: 0,
@@ -29,3 +30,13 @@ export const DEFAULT_CONTEXT = {
     screen: DEFAULT_SCREEN,
     browser: DEFAULT_BROWSER,
 } as const;
+
+export const BREAKPOINT_QUERIES = [
+    '(max-width: 480px)',
+    '(min-width: 481px) and (max-width: 768px)',
+    '(min-width: 769px) and (max-width: 1200px)',
+    '(min-width: 1201px) and (max-width: 1440px)',
+    '(min-width: 1441px)',
+    '(orientation: portrait)',
+    '(prefers-color-scheme: dark)',
+] as const;

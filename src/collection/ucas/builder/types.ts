@@ -1,73 +1,46 @@
-export { type Body, bodySchema } from './schema.js';
+export enum Path {
+    LAYOUT = 'LAYOUT',
+    VIEW = 'VIEW',
+}
 
 export enum SignalType {
     BUILD = 'builder.build',
-    SKELETON = 'builder.skeleton',
-    EVALUATE = 'builder.evaluate',
-    BUILT = 'builder.built',
-    SUBDIVIDE = 'builder.subdivide',
+    DECIDED = 'builder.decided',
+    LAYOUT_AREA_CREATED = 'builder.layout.area.created',
+    VIEW_ELEMENT_CREATED = 'builder.view.element.created',
+    VIEW_COMPLETED = 'builder.view.completed',
     ERROR = 'builder.error',
 }
 
 export enum DataType {
-    BODY = 'Body',
-    BUILD_PAYLOAD = 'BuildPayload',
-    SKELETON_PAYLOAD = 'SkeletonPayload',
-    EVALUATE_PAYLOAD = 'EvaluatePayload',
-    BUILT_RESULT = 'BuiltResult',
-    SUBDIVIDE_RESULT = 'SubdivideResult',
-    UNKNOWN = 'unknown',
+    REQUEST = 'Request',
+    RESULT = 'Result',
+    LAYOUT_AREA_RESULT = 'LayoutAreaResult',
+    VIEW_ELEMENT_RESULT = 'ViewElementResult',
+    VIEW_COMPLETED_RESULT = 'ViewCompletedResult',
+    ERROR = 'Error',
 }
 
-export interface BuildPayload {
-    readonly areaId: string;
-    readonly purpose?: string;
-    readonly context?: string;
-    readonly parentTo?: string;
-    readonly dimensions?: { width?: string | number; height?: string | number };
-    readonly style?: Record<string, string>;
-}
+export type {
+    Aim,
+    AvailableUcas,
+    Body,
+    Browser,
+    Composition,
+    Design,
+    DecisionContext,
+    DecisionContinuation,
+    Failure,
+    Limits,
+    Request,
+    Result,
+} from './schema.js';
 
-export interface SkeletonPayload {
-    readonly areaId: string;
-    readonly parentTo?: string;
-    readonly dimensions?: { width?: string | number; height?: string | number };
-    readonly style?: Record<string, string>;
-}
+export {
+    type Result as LayoutAreaResult,
+} from '@uca/layout/types';
 
-export interface EvaluatePayload {
-    readonly areaId: string;
-    readonly purpose?: string;
-    readonly context?: string;
-    readonly parentTo?: string;
-    readonly dimensions?: { width?: string | number; height?: string | number };
-}
-
-export interface BuiltResult {
-    readonly areaId: string;
-    readonly success: boolean;
-}
-
-export interface SubdivideResult {
-    readonly areaId: string;
-    readonly reason?: string;
-}
-
-export interface Dimensions {
-    readonly width?: string | number;
-    readonly height?: string | number;
-}
-
-export interface AreaPayload {
-    readonly areaId?: string;
-    readonly elementId?: string;
-    readonly purpose?: string;
-    readonly kind?: string;
-    readonly context?: string;
-    readonly parentTo?: string;
-    readonly depth?: number;
-    readonly dimensions?: Dimensions;
-    readonly style?: Record<string, string>;
-    readonly media?: { readonly minWidth?: number; readonly maxWidth?: number; readonly orientation?: string };
-    readonly subdivided?: boolean;
-}
+export {
+    type Completed as ViewCompleted,
+    type Result as ViewElementResult,
+} from '@uca/view/types';

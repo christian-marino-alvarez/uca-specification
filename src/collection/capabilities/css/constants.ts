@@ -1,6 +1,15 @@
+import { ControlType, type StateRule, type TokenProperty, type DimensionProperty } from './types.js';
 export const __ID__ = 'css';
 
 export const TOKENS_STYLE_ID = 'uca-tokens';
+
+export const DESIGN_READY_PROPERTY = '--uca-design-ready';
+
+export const LIGHT_SCHEME_QUERY = '(prefers-color-scheme: light)';
+
+export const DARK_SCHEME_QUERY = '(prefers-color-scheme: dark)';
+
+export const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
 export const STYLE_PREFIX = 'uca-style-';
 
@@ -19,6 +28,12 @@ export const DESIGN_TOKENS = {
         screen: { $value: '100vh', $description: 'Full viewport height' },
         content: { $value: 'fit-content', $description: 'Fit to inner content' },
     },
+    control: {
+        $type: 'color',
+        border: { $value: '#cbd5e1', $description: 'Control boundary' },
+        'border-hover': { $value: '#94a3b8', $description: 'Hovered control boundary' },
+        placeholder: { $value: '#64748b', $description: 'Placeholder text' },
+    },
     spacing: {
         $type: 'dimension',
         none: { $value: '0', $description: 'Zero spacing' },
@@ -29,6 +44,7 @@ export const DESIGN_TOKENS = {
     },
     surface: {
         $type: 'color',
+        transparent: { $value: 'transparent', $description: 'Transparent surface revealing the containing area' },
         default: { $value: '#ffffff', $description: 'Default surface background' },
         card: { $value: '#ffffff', $description: 'Card elevated surface' },
         muted: { $value: '#f3f4f6', $description: 'Subtle neutral surface' },
@@ -46,9 +62,18 @@ export const DESIGN_TOKENS = {
         accent: { $value: '#f59e0b', $description: 'Attention accent color' },
         danger: { $value: '#ef4444', $description: 'Destructive warning color' },
     },
+    textColor: {
+        $type: 'color',
+        light: { $value: '#ffffff', $description: 'Light foreground for dark surfaces' },
+        dark: { $value: '#111827', $description: 'Dark foreground for light surfaces' },
+        muted: { $value: '#64748b', $description: 'Secondary foreground; verify contrast against the chosen surface' },
+        brand: { $value: '#2563eb', $description: 'Brand accent foreground' },
+        accent: { $value: '#f59e0b', $description: 'Attention accent foreground' },
+        danger: { $value: '#ef4444', $description: 'Destructive warning foreground' },
+    },
     typeface: {
         $type: 'fontFamily',
-        sans: { $value: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', $description: 'Clean sans-serif typeface' },
+        sans: { $value: 'Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', $description: 'Clean sans-serif typeface' },
         serif: { $value: 'Georgia, Cambria, "Times New Roman", Times, serif', $description: 'Editorial serif typeface' },
         mono: { $value: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace', $description: 'Code monospace typeface' },
     },
@@ -59,6 +84,26 @@ export const DESIGN_TOKENS = {
         large: { $value: '1.25rem', $description: 'Subheading text scale' },
         title: { $value: '1.5rem', $description: 'Prominent title text scale' },
         display: { $value: '2.25rem', $description: 'Display hero text scale' },
+    },
+    fontWeight: {
+        $type: 'fontWeight',
+        normal: { $value: 400, $description: 'Regular text weight' },
+        medium: { $value: 500, $description: 'Medium text emphasis' },
+        semibold: { $value: 600, $description: 'Semibold text emphasis' },
+        bold: { $value: 700, $description: 'Bold text emphasis' },
+    },
+    lineHeight: {
+        $type: 'number',
+        tight: { $value: 1.2, $description: 'Compact line height relative to the font size' },
+        normal: { $value: 1.5, $description: 'Standard line height relative to the font size' },
+        relaxed: { $value: 1.75, $description: 'Spacious line height relative to the font size' },
+    },
+    textAlign: {
+        $type: 'string',
+        start: { $value: 'start', $description: 'Text aligned to the writing direction start' },
+        center: { $value: 'center', $description: 'Text centered within its line box' },
+        end: { $value: 'end', $description: 'Text aligned to the writing direction end' },
+        justify: { $value: 'justify', $description: 'Text distributed across the line box' },
     },
     elevation: {
         $type: 'shadow',
@@ -97,52 +142,56 @@ export const DESIGN_TOKENS = {
         stretch: { $value: 'stretch', $description: 'Stretch items across cross-axis' },
         between: { $value: 'space-between', $description: 'Distribute items with space between' },
     },
-} as const;
-
-export const CSS_TOKENS_SUMMARY = 'Design tokens: Dimensions: auto, full, half, third, two-thirds, quarter, three-quarters, narrow, wide, screen, content. Surfaces: default, card, muted, dark, brand, accent, danger. Spacing: none, small, medium, large, xlarge. Tones: brand, surface, muted, dark, accent, danger. Typefaces: sans, serif, mono. Text sizes: small, medium, large, title, display. Radius: none, small, medium, large, full. Border: none, subtle, strong, outline. Elevation: none, low, card, modal. Direction: row, column. Alignment: start, center, end, stretch, between.';
-
-export const DEFAULT_BASE_RULES = {
-    body: {
-        margin: '0',
-        padding: '0',
-        background: 'var(--uca-surface-muted, #f8fafc)',
-        color: 'var(--uca-tone-dark, #0f172a)',
-        'font-family': 'var(--uca-typeface-sans, system-ui, sans-serif)',
-        'min-height': '100vh',
-        'overflow-x': 'hidden',
+    distribution: {
+        $type: 'string',
+        start: { $value: 'flex-start', $description: 'Children grouped at the main axis start' },
+        center: { $value: 'center', $description: 'Children centered on the main axis' },
+        end: { $value: 'flex-end', $description: 'Children grouped at the main axis end' },
+        between: { $value: 'space-between', $description: 'Free main axis space between children' },
+        around: { $value: 'space-around', $description: 'Free main axis space around children' },
+        evenly: { $value: 'space-evenly', $description: 'Equal main axis spaces between children and at both edges' },
     },
-    app: {
-        width: '100vw',
-        'min-height': '100vh',
-        display: 'flex',
-        'flex-direction': 'column',
-        'justify-content': 'center',
-        'align-items': 'center',
-        background: 'var(--uca-surface-muted, #f8fafc)',
-        'overflow-y': 'auto',
-        'overflow-x': 'hidden',
-        'box-sizing': 'border-box',
-    },
-    customElement: {
-        display: 'block',
-        'box-sizing': 'border-box',
-        'min-width': '0',
-        'max-width': '100%',
-    },
-    image: {
-        'max-width': '100%',
-        height: 'auto',
-        display: 'block',
+    wrap: {
+        $type: 'string',
+        nowrap: { $value: 'nowrap', $description: 'Keep children on a single flex line' },
+        wrap: { $value: 'wrap', $description: 'Allow children to wrap onto further flex lines' },
+        reverse: { $value: 'wrap-reverse', $description: 'Wrap children with reversed cross axis line order' },
     },
 } as const;
 
-export const DEFAULT_MEDIA_RULES = '@media (max-width: 768px) { #app { flex-direction: column; flex-wrap: nowrap; overflow-y: auto; height: 100vh; } }';
+export const CSS_TOKENS_SUMMARY = `Design tokens: ${Object.entries(DESIGN_TOKENS).map(([category, group]) => `${category}: ${Object.keys(group).filter((name) => !name.startsWith('$')).join(', ')}`).join('. ')}.`;
+
+export const TOKEN_PROPERTIES = [
+    ['spacing', 'spacing', 'padding'], ['spacingInline', 'spacing', 'padding-inline'], ['spacingBlock', 'spacing', 'padding-block'],
+    ['marginInline', 'spacing', 'margin-inline'], ['gap', 'spacing', 'gap'],
+    ['tone', 'tone', 'background-color'], ['surface', 'surface', 'background-color'], ['textColor', 'textColor', 'color'],
+    ['typeface', 'typeface', 'font-family'], ['textSize', 'textSize', 'font-size'], ['fontWeight', 'fontWeight', 'font-weight'],
+    ['lineHeight', 'lineHeight', 'line-height'], ['textAlign', 'textAlign', 'text-align'],
+    ['elevation', 'elevation', 'box-shadow'], ['radius', 'radius', 'border-radius'], ['border', 'border', 'border'],
+    ['direction', 'direction', 'flex-direction'], ['distribution', 'distribution', 'justify-content'], ['wrap', 'wrap', 'flex-wrap'],
+] as const satisfies readonly TokenProperty[];
+export const DIMENSION_PROPERTIES = [
+    ['width', 'width', '100vw'], ['height', 'height', '100vh'], ['maxWidth', 'max-width', '100vw'],
+    ['minWidth', 'min-width', '100vw'], ['minHeight', 'min-height', '100vh'],
+] as const satisfies readonly DimensionProperty[];
+export const ALIGNMENT_DISTRIBUTIONS: readonly string[] = ['space-between', 'center', 'flex-end'];
+
+export const BASE_RULES = { 'box-sizing': 'border-box' } as const;
+export const CONTAINER_RULES = { display: 'block' } as const;
+export const CONTROL_INHERITANCE_RULES = { font: 'inherit', color: 'inherit' } as const;
+export const IDENTIFIED_DESCENDANT_SELECTOR = '[id]';
 
 export const formatDeclarations = (declarations: Record<string, string>): string =>
-    Object.entries(declarations).map(([k, v]) => `${k}: ${v};`).join(' ');
+    Object.entries(declarations).map(([property, value]) => `${property}: ${value};`).join(' ');
 
-export const generateBaseRulesCss = (rules = DEFAULT_BASE_RULES, media = DEFAULT_MEDIA_RULES): string => {
-    const { body, app, customElement, image } = rules as typeof DEFAULT_BASE_RULES;
-    const imageCss = image ? ` img { ${formatDeclarations(image)} }` : '';
-    return `body { ${formatDeclarations(body)} } #app { ${formatDeclarations(app)} } ext-uca { ${formatDeclarations(customElement)} }${imageCss} ${media}`;
+export const generateBaseRulesCss = (): string => `*, *::before, *::after { ${formatDeclarations(BASE_RULES)} } ext-uca { ${formatDeclarations(CONTAINER_RULES)} } input, button, select, textarea { ${formatDeclarations(CONTROL_INHERITANCE_RULES)} }`;
+
+export const DIMENSION_PATTERN = /^(?:0|\d+(?:\.\d+)?(?:px|rem|em|%|vw|vh|dvh|svh))$/;
+export const ACCESSIBLE_CONTROL_STATES = [
+    { suffix: ':focus-visible', declarations: { outline: 'auto' } },
+    { suffix: ':disabled', declarations: { cursor: 'not-allowed' } },
+] as const;
+export const CONTROL_STATE_RULES: Readonly<Record<ControlType, readonly StateRule[]>> = {
+    [ControlType.INPUT]: ACCESSIBLE_CONTROL_STATES,
+    [ControlType.ACTION]: ACCESSIBLE_CONTROL_STATES,
 };

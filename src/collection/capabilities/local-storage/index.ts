@@ -1,6 +1,6 @@
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
-import { __ID__, AIM, DEFAULT_PREFIX } from './constants.js';
+import { __ID__, AIM, DEFAULT_PREFIX, MISSING_STORAGE, MISSING_STORAGE_OR_KEY, OPERATIONS } from './constants.js';
 import {
     type Body,
     type ItemPayload,
@@ -42,72 +42,73 @@ export class LocalStorage extends Capability<Body> {
     }
 
     protected override react(signal: Signal): void {
-        const { property, value } = signal;
-        switch (property) {
-            case SignalType.SET:
-                this.handleSet(value);
-                break;
-            case SignalType.GET:
-                this.handleGet(value);
-                break;
-            case SignalType.REMOVE:
-                this.handleRemove(value);
-                break;
-            case SignalType.CLEAR:
-                this.handleClear();
-                break;
+        const { property, value, source } = signal;
+        try {
+            switch (property) {
+                case SignalType.SET:
+                    this.handleSet(value, source);
+                    break;
+                case SignalType.GET:
+                    this.handleGet(value, source);
+                    break;
+                case SignalType.REMOVE:
+                    this.handleRemove(value, source);
+                    break;
+                case SignalType.CLEAR:
+                    this.handleClear();
+                    break;
+            }
         }
-    }
-
-    private isOwnerMatch(key?: string): boolean {
-        const { aim } = this.disposition;
-        const { ownerId } = (aim.body ?? {}) as Body;
-        return !ownerId || key === ownerId;
+        catch (error) {
+            this.handleError(signal, error);
+        }
     }
 
     private serializeValue(value: unknown): string {
         return typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
     }
 
-    private handleSet(value: unknown): void {
+    private handleSet(value: unknown, source: string): void {
         const { key, value: raw, id: _target, targetId, ...rest } = (value ?? {}) as ItemPayload;
-        if (!this.isOwnerMatch(key)) { return; }
         const storage = this.resolveStorage();
-        if (!storage || !key) { this.pulseError('set', 'Storage not available or missing key', key); return; }
+        if (!storage || !key) {
+            throw new Error(MISSING_STORAGE_OR_KEY);
+        }
         const serialized = this.serializeValue(raw);
         storage.setItem(this.resolveKey(key), serialized);
-        const targetMetadata = targetId !== undefined ? { id: targetId } : {};
-        this.pulse(SignalType.SAVED, { ...rest, ...targetMetadata, key, value: serialized });
+        this.pulse(SignalType.SAVED, { ...rest, key, value: serialized }, targetId ?? source);
     }
 
-    private handleGet(value: unknown): void {
+    private handleGet(value: unknown, source: string): void {
         const payload = typeof value === 'string' ? { key: value } : ((value ?? {}) as KeyPayload);
         const { key, id: _target, targetId, ...rest } = payload;
-        if (!this.isOwnerMatch(key)) { return; }
         const storage = this.resolveStorage();
-        if (!storage || !key) { this.pulseError('get', 'Storage not available or missing key', key); return; }
+        if (!storage || !key) {
+            throw new Error(MISSING_STORAGE_OR_KEY);
+        }
         const retrieved = storage.getItem(this.resolveKey(key));
-        const targetMetadata = targetId !== undefined ? { id: targetId } : {};
-        this.pulse(SignalType.RETRIEVED, { ...rest, ...targetMetadata, key, value: retrieved });
+        this.pulse(SignalType.RETRIEVED, { ...rest, key, value: retrieved }, targetId ?? source);
     }
 
-    private handleRemove(value: unknown): void {
+    private handleRemove(value: unknown, source: string): void {
         const payload = typeof value === 'string' ? { key: value } : ((value ?? {}) as KeyPayload);
         const { key, id: _target, targetId, ...rest } = payload;
-        if (!this.isOwnerMatch(key)) { return; }
         const storage = this.resolveStorage();
-        if (!storage || !key) { this.pulseError('remove', 'Storage not available or missing key', key); return; }
+        if (!storage || !key) {
+            throw new Error(MISSING_STORAGE_OR_KEY);
+        }
         storage.removeItem(this.resolveKey(key));
-        const targetMetadata = targetId !== undefined ? { id: targetId } : {};
-        this.pulse(SignalType.REMOVED, { ...rest, ...targetMetadata, key });
+        this.pulse(SignalType.REMOVED, { ...rest, key }, targetId ?? source);
     }
 
     private handleClear(): void {
         const storage = this.resolveStorage();
-        if (!storage) { this.pulseError('clear', 'Storage not available'); return; }
+        if (!storage) {
+            throw new Error(MISSING_STORAGE);
+        }
         const { aim } = this.disposition;
         const { prefix = DEFAULT_PREFIX } = aim.body ?? {};
-        if (!prefix) { storage.clear(); } else { this.clearPrefixedKeys(storage, prefix); }
+        prefix ? this.clearPrefixedKeys(storage, prefix) : storage.clear();
         this.pulse(SignalType.CLEARED, undefined);
     }
 
@@ -134,9 +135,12 @@ export class LocalStorage extends Capability<Body> {
         return `${prefix}${key}`;
     }
 
-    private pulseError(operation: string, error: unknown, key?: string): void {
-        const payload: StorageError = { operation, error, ...(key !== undefined && { key }) };
-        this.pulse(SignalType.ERROR, payload);
+    private handleError(signal: Signal, error: unknown): void {
+        const { property, value, source } = signal;
+        const { key, correlationId, targetId } = (typeof value === 'string' ? { key: value } : value ?? {}) as KeyPayload;
+        const operation = OPERATIONS[property as keyof typeof OPERATIONS];
+        const payload: StorageError = { operation, error, ...(key !== undefined && { key }), ...(correlationId !== undefined && { correlationId }) };
+        this.pulse(SignalType.ERROR, payload, targetId ?? source);
     }
 }
 

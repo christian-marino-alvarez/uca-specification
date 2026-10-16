@@ -26,6 +26,9 @@ export enum DataType {
     REQUEST_CONTEXT = 'RequestContext',
     VOID = 'void',
     UNKNOWN = 'unknown',
+    INFER_RESULT = 'InferResult',
+    STREAM_RESULT = 'StreamResult',
+    STREAM_END_RESULT = 'StreamEndResult',
 }
 
 export interface StartConfig {
@@ -56,3 +59,37 @@ export type {
     HttpMethod,
     RespondConfig,
 };
+
+export type InferenceRequest = import('@uca/llm/types').InferPayload;
+
+export interface EvaluationContext { readonly state?: unknown; readonly questions?: Record<string, unknown>; }
+export interface Question extends Record<string, unknown> { readonly instructions?: unknown; }
+export interface ValidationContext { readonly stream: boolean; readonly correlationId?: string; }
+
+export interface StreamSource {
+    readonly stream?: ReadableStream<string>;
+    readonly error?: unknown;
+}
+
+export interface Command { readonly property: string; readonly value: unknown; }
+
+export interface StreamBinding {
+    readonly source: Promise<StreamSource>;
+    readonly correlationId: string;
+    readonly abort: AbortController;
+    readonly cleanup: () => void;
+    readonly completed: () => void;
+    reader?: ReadableStreamDefaultReader<string>;
+    cancelled: boolean;
+}
+
+export interface StreamFrame { readonly text?: string; readonly done?: boolean; readonly error?: string; }
+
+export interface StreamSourceRequest {
+    readonly target?: EventTarget;
+    readonly source: string;
+    readonly correlationId?: string;
+    readonly abort: AbortSignal;
+    readonly request: () => void;
+    readonly cancel: () => void;
+}

@@ -4,6 +4,8 @@ export enum SignalType {
     CONNECT = 'gemini.connect',
     GENERATE = 'gemini.generate',
     STREAM = 'gemini.stream',
+    ABORT = 'gemini.abort',
+    STREAMED = 'gemini.streamed',
     CONNECTED = 'gemini.connected',
     GENERATED = 'gemini.generated',
     CHUNK = 'gemini.chunk',
@@ -16,6 +18,8 @@ export enum DataType {
     GENERATE_PAYLOAD = 'GeneratePayload',
     CONNECTION_STATUS = 'ConnectionStatus',
     GENERATE_RESULT = 'GenerateResult',
+    STREAM_RESULT = 'StreamResult',
+    ABORT_PAYLOAD = 'AbortPayload',
     CHUNK_RESULT = 'ChunkResult',
     STREAM_END_RESULT = 'StreamEndResult',
     UNKNOWN = 'unknown',
@@ -90,3 +94,17 @@ export interface Body {
     readonly systemInstruction?: string;
     readonly responseMimeType?: string;
 }
+
+export interface StreamResult { readonly correlationId?: string; readonly streamId?: string; readonly stream: ReadableStream<string>; }
+
+export interface ActiveStream {
+    readonly controller: AbortController;
+    readonly correlationId: string;
+}
+
+export interface AbortPayload {
+    readonly correlationId?: string;
+    readonly streamId?: string;
+}
+
+export type StreamIterator = AsyncIterator<{ text?: string }>;

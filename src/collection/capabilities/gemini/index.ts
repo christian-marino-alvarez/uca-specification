@@ -1,9 +1,12 @@
+import { createStream } from './stream.js';
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import { GoogleGenAI } from '@google/genai';
 import { __ID__, DEFAULT_MODEL, DEFAULT_THINKING_BUDGET, DEFAULT_THINKING_LEVEL, THINKING_LEVEL_MODEL_PREFIX } from './constants.js';
 import {
     type Body,
+    type AbortPayload,
+    type ActiveStream,
     type ConnectionConfig,
     type GeneratePayload,
     type GenerateResult,
@@ -21,8 +24,10 @@ export class Gemini extends Capability<Body> {
             SignalType.CONNECT,
             SignalType.GENERATE,
             SignalType.STREAM,
+            SignalType.ABORT,
         ],
         inputs: [
+            { signal: SignalType.ABORT, type: DataType.ABORT_PAYLOAD, description: 'Abort a pending generation' },
             { signal: SignalType.CONNECT, type: DataType.CONNECTION_CONFIG, description: 'Configure Gemini API connection' },
             { signal: SignalType.GENERATE, type: DataType.GENERATE_PAYLOAD, description: 'Generate cognitive text or structured JSON' },
             { signal: SignalType.STREAM, type: DataType.GENERATE_PAYLOAD, description: 'Stream cognitive tokens in real-time' },
@@ -30,19 +35,29 @@ export class Gemini extends Capability<Body> {
         outputs: [
             { signal: SignalType.CONNECTED, type: DataType.CONNECTION_STATUS, description: 'Gemini connection confirmed' },
             { signal: SignalType.GENERATED, type: DataType.GENERATE_RESULT, description: 'Generated inference and structured data' },
-            { signal: SignalType.CHUNK, type: DataType.CHUNK_RESULT, description: 'Streamed token chunk' },
-            { signal: SignalType.STREAM_END, type: DataType.STREAM_END_RESULT, description: 'Stream completed notification' },
+            { signal: SignalType.STREAMED, type: DataType.STREAM_RESULT, description: 'Owned stream of generated text' },
             { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'Error notification' },
         ],
     };
+
+    private readonly controllers = new Map<string, ActiveStream>();
 
     public constructor(id: string = __ID__) {
         super(id);
     }
 
+    public override denervate(): void {
+        this.controllers.forEach(({ controller }) => controller.abort());
+        this.controllers.clear();
+        super.denervate();
+    }
+
     protected override async react(signal: Signal): Promise<void> {
         const { property, value } = signal;
         switch (property) {
+            case SignalType.ABORT:
+                this.handleAbort(value);
+                break;
             case SignalType.CONNECT:
                 this.handleConnect(value);
                 break;
@@ -58,77 +73,57 @@ export class Gemini extends Capability<Body> {
     }
 
     private async handleStream(value: unknown): Promise<void> {
-        const payload = this.extractPayload<GeneratePayload>(value);
-        if (!payload) { return; }
-        const { prompt, correlationId, streamId } = payload;
-        const activeCorrelationId = correlationId ?? streamId;
+        const payload = this.extractPayload<GeneratePayload>(value)!;
+        const { correlationId = crypto.randomUUID(), streamId } = payload;
+        const controller = new AbortController(); const { signal } = controller;
+        const requestId = streamId ?? correlationId;
+        this.replaceController(requestId, correlationId, controller);
         try {
-            await this.executeStream(this.resolveClient(), payload, activeCorrelationId);
+            const stream = await this.openStream(payload, requestId, controller);
+            this.pulse(SignalType.STREAMED, { correlationId, streamId, stream });
         } catch (error) {
-            console.error('❌ [GEMINI] Fallback activado:', error);
-            this.pulse(SignalType.ERROR, { error: String(error), correlationId: activeCorrelationId });
-            this.handleStreamFallback(prompt, activeCorrelationId);
+            this.releaseController(requestId, controller); !signal.aborted && this.pulse(SignalType.ERROR, { error: String(error), correlationId });
         }
     }
 
-    private async executeStream(client: GoogleGenAI, payload: GeneratePayload, correlationId?: string): Promise<void> {
+    private async openStream(payload: GeneratePayload, requestId: string, controller: AbortController): Promise<ReadableStream<string>> {
         const { prompt } = payload;
+        const { signal } = controller;
         const { model, config } = this.resolveGenerationConfig(payload);
-        const state = { start: Date.now(), first: true, fullText: '' };
-        const stream = await client.models.generateContentStream({ model, contents: prompt, config });
-        for await (const chunk of stream) { this.handleStreamChunk(chunk, state, prompt, model, correlationId); }
-        this.pulse(SignalType.STREAM_END, { prompt, model, correlationId, streamId: correlationId });
-        this.pulse(SignalType.GENERATED, this.formatResult({ text: state.fullText }, prompt, model, correlationId));
+        const { models } = this.resolveClient();
+        const iterator = await models.generateContentStream({ model, contents: prompt, config: { ...config, abortSignal: signal } });
+        signal.throwIfAborted();
+        return createStream(iterator, controller, () => this.releaseController(requestId, controller));
     }
 
-    private handleStreamChunk(chunk: { text?: string }, state: { start: number; first: boolean; fullText: string }, prompt: string, model: string, correlationId?: string): void {
-        const text = chunk.text ?? '';
-        if (!text) { return; }
-        state.fullText += text;
-        if (state.first) {
-            state.first = false;
+    private handleAbort(value: unknown): void {
+        const { correlationId, streamId } = value as AbortPayload;
+        this.controllers.forEach(({ controller, correlationId: activeCorrelation }, requestId) => {
+            const matches = streamId ? requestId === streamId : !correlationId || activeCorrelation === correlationId;
+            if (matches) {
+                controller.abort();
+                this.controllers.delete(requestId);
+            }
+        });
+    }
+
+    private replaceController(requestId: string, correlationId: string, controller: AbortController): void {
+        const active = this.controllers.get(requestId);
+        const {
+            controller: activeController,
+        } = active ?? {};
+        activeController?.abort();
+        this.controllers.set(requestId, { controller, correlationId });
+    }
+
+    private releaseController(requestId: string, controller: AbortController): void {
+        const active = this.controllers.get(requestId);
+        const {
+            controller: activeController,
+        } = active ?? {};
+        if (activeController === controller) {
+            this.controllers.delete(requestId);
         }
-        this.pulse(SignalType.CHUNK, { text, prompt, model, correlationId, streamId: correlationId });
-    }
-
-    private handleStreamFallback(prompt: string, correlationId?: string): void {
-        const fallbackText = this.buildStreamFallbackJson(prompt);
-        const tokens = this.sliceIntoTokens(fallbackText);
-        for (const token of tokens) {
-            this.pulse(SignalType.CHUNK, { text: token, prompt, correlationId, streamId: correlationId });
-        }
-        this.pulse(SignalType.STREAM_END, { prompt, correlationId, streamId: correlationId });
-    }
-
-    private sliceIntoTokens(text: string): string[] {
-        const tokens: string[] = [];
-        const chunkSize = 20;
-        for (let i = 0; i < text.length; i += chunkSize) {
-            tokens.push(text.slice(i, i + chunkSize));
-        }
-        return tokens;
-    }
-
-    private buildStreamFallbackJson(prompt: string): string {
-        const isExplanation = prompt.includes('Explicar') || prompt.includes('explicar') || prompt.includes('u = (p, d, C, O)');
-        return isExplanation ? this.getExplanationFallbackJson() : this.getInitialFallbackJson();
-    }
-
-    private getInitialFallbackJson(): string {
-        const boxDisp = { aim: { description: 'Contenedor de bienvenida', body: { text: '¿Quieres saber qué es Uca?' } }, reactTo: ['action:query-button.triggered'] };
-        const actionDisp = { aim: { description: 'Botón de exploración', body: { label: 'Descubrir qué es UCA' } }, reactTo: [] };
-        const ucas = [{ id: 'box:center-container', disposition: boxDisp }, { id: 'action:query-button', disposition: actionDisp }];
-        const answer = '¿Quieres saber qué es Uca?';
-        return JSON.stringify({ data: { ucas, answer }, metadata: { tokens: 42 } });
-    }
-
-    private getExplanationFallbackJson(): string {
-        const panelText = 'UCA es una primitiva formal u = (p, d, C, O).';
-        const cardDisp = { aim: { description: 'Formula and explanation', body: { text: panelText } }, reactTo: ['action:simulate-pulse.triggered'] };
-        const listDisp = { aim: { description: 'Pillars', body: { items: ['Purpose', 'Disposition', 'Capabilities', 'Outcomes'] } }, reactTo: ['action:simulate-pulse.triggered'] };
-        const actionDisp = { aim: { description: 'Simulate pulse', body: { label: '⚡ Emitir pulso de prueba' } }, reactTo: [] };
-        const ucas = [{ id: 'box:explanation-card', disposition: cardDisp }, { id: 'list:ontological-pillars', disposition: listDisp }, { id: 'action:simulate-pulse', disposition: actionDisp }];
-        return JSON.stringify({ data: { ucas, answer: panelText }, metadata: { tokens: 68 } });
     }
 
     private handleConnect(value: unknown): void {
@@ -150,7 +145,7 @@ export class Gemini extends Capability<Body> {
             const result = await this.executeGeneration(client, payload);
             this.pulse(SignalType.GENERATED, result);
         } catch (error) {
-            this.pulse(SignalType.ERROR, error);
+            this.pulse(SignalType.ERROR, { error: String(error), correlationId: payload.correlationId });
         }
     }
 
@@ -240,4 +235,3 @@ export class Gemini extends Capability<Body> {
         return apiKey ?? envKey ?? localKey;
     }
 }
-

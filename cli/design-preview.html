@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UCA · Validación visual del diseño</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="design.css" rel="stylesheet">
+    <link href="design-preview.css" rel="stylesheet">
+</head>
+<body>
+    <main class="preview">
+        <nav class="navigation" aria-label="Navegación principal">
+            <a class="brand" href="#top" aria-label="UCA, inicio">
+                <img class="brand-logo" src="assets/uca-logo.svg" alt="UCA">
+            </a>
+            <div class="navigation-links">
+                <a href="#architecture">Arquitectura</a>
+                <a href="#principles">Principios</a>
+                <a class="button button-small" href="#explore">Explorar</a>
+            </div>
+        </nav>
+
+        <section class="hero" id="top">
+            <div class="hero-copy">
+                <p class="eyebrow"><span></span> Una interfaz construida con UCA</p>
+                <h1>La interfaz<br><em>emerge</em> en conjunto.</h1>
+                <p class="lead">Esta página es la demostración: el navegador aporta el contexto y las UCAs reaccionan entre sí hasta componer una experiencia bajo un diseño declarado.</p>
+                <div class="actions">
+                    <a class="button" href="#architecture">Descubrir la arquitectura <span>↘</span></a>
+                    <a class="text-link" href="#principles">Ver principios <span>→</span></a>
+                </div>
+            </div>
+
+            <div class="system-map" aria-label="Representación de una UCA y sus capacidades">
+                <div class="orbit orbit-outer"></div>
+                <div class="orbit orbit-inner"></div>
+                <div class="node node-browser"><span>01</span>Browser</div>
+                <div class="node node-builder"><span>02</span>Builder</div>
+                <div class="node node-decision"><span>03</span>Decision</div>
+                <div class="core-node"><small>PROPÓSITO</small><strong>UCA</strong><span>percibir · decidir · actuar</span></div>
+            </div>
+        </section>
+
+        <section class="metrics" id="architecture">
+            <article><strong>01</strong><span>contexto<br>del navegador</span></article>
+            <article><strong>◇</strong><span>diseño<br>declarado</span></article>
+            <article><strong>∞</strong><span>colaboración<br>reactiva</span></article>
+            <article><strong>→</strong><span>interfaz<br>emergente</span></article>
+        </section>
+
+        <section class="principles" id="principles">
+            <p class="eyebrow"><span></span> El modelo</p>
+            <div class="section-heading">
+                <h2>Una demostración.<br>Tres movimientos.</h2>
+                <p>La aplicación se representa a sí misma mientras cada UCA transforma señales del entorno en una composición visible y trazable.</p>
+            </div>
+            <div class="cards">
+                <article class="card card-featured">
+                    <span class="card-index">01</span>
+                    <div class="card-icon">⌁</div>
+                    <h3>Percibir</h3>
+                    <p>Recibe señales del entorno y de otras unidades a través de receptores declarativos.</p>
+                    <code>signal → react()</code>
+                </article>
+                <article class="card">
+                    <span class="card-index">02</span>
+                    <div class="card-icon">◇</div>
+                    <h3>Decidir</h3>
+                    <p>Evalúa el contexto con capacidades especializadas y el contrato adecuado.</p>
+                    <code>context → decision</code>
+                </article>
+                <article class="card">
+                    <span class="card-index">03</span>
+                    <div class="card-icon">↗</div>
+                    <h3>Actuar</h3>
+                    <p>Emite un nuevo pulso que transforma el sistema sin acoplar sus unidades.</p>
+                    <code>pulse(property, value)</code>
+                </article>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

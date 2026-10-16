@@ -2,6 +2,14 @@
 
 Este documento establece las directrices obligatorias para el desarrollo, mantenimiento y creación de nuevas capacidades dentro del dominio `src/collection/capabilities`.
 
+## Política de pruebas manuales y cierre de implementación
+
+* **Las pruebas las realiza manualmente el usuario.** El agente no debe crear ni ejecutar pruebas automáticas salvo petición expresa del usuario.
+* Tras implementar, el agente debe detenerse y comunicar los cambios. No debe iniciar revisiones posteriores, inspeccionar logs, probar la aplicación en el navegador, capturar pantallas ni ejecutar comprobaciones de tipos, lint, tests o compilaciones para validar el resultado, salvo petición expresa del usuario.
+* No ejecutar validaciones automáticas previas por iniciativa propia, incluidas las de Core. La lectura de las reglas y del código necesaria para implementar sigue siendo obligatoria.
+* Una petición de implementar no autoriza por sí misma pruebas o revisiones. Las peticiones expresas de revisión o prueba se limitan al alcance indicado por el usuario.
+* Esta política sustituye cualquier obligación anterior de ejecutar validaciones antes o después de modificar el repositorio. No altera las validaciones de datos que forman parte del funcionamiento de la aplicación.
+
 ---
 
 ## 1. Responsabilidad y Naturaleza de una Capability
@@ -37,8 +45,8 @@ Una **Capability** representa una habilidad funcional o mecánica pura, terminal
    * Las Capabilities **no deben almacenar propiedades de dominio como variables de estado de instancia** (`this.value`, `this.items`, etc.).
    * Son procesadores mecánicos reactivos: reciben los estímulos a través de su `react(signal: Signal)` o leen la configuración del receptor desde `this.disposition.aim.body`.
    * Los constructores son puramente identitarios (`constructor(id: string = '<default>')`) y no aceptan objetos de opciones o valores de dominio.
-7. **Revisión y Validación Obligatoria del Core**:
-   * Antes de cualquier creación o modificación de una Capability, el agente **DEBE revisar la estructura y flow del Core** (`src/core/capability.ts`) y validar su integridad ejecutando `npm run test:core`.
+7. **Lectura Obligatoria del Core**:
+   * Antes de cualquier creación o modificación de una Capability, el agente **DEBE revisar la estructura y flow del Core** (`src/core/capability.ts`) sin ejecutar validaciones automáticas; las pruebas corresponden al usuario.
 
 ---
 
@@ -108,6 +116,12 @@ Una **Capability** representa una habilidad funcional o mecánica pura, terminal
 
 ---
 
+## Archivos de Esquemas Sin Lógica de Negocio
+
+* Los archivos `schema.ts` solo declaran y componen contratos, restricciones estructurales y tipos inferidos, conforme a la sección 3.20 de `AGENTS.md`.
+* Las decisiones, cálculos, comparaciones entre campos, validaciones contra una petición concreta, selección de modelos, reintentos y construcción dinámica de contratos según el contexto deben implementarse en métodos de la Capability responsable.
+* Prohibido introducir esa lógica en funciones auxiliares o callbacks de `.refine()`, `.superRefine()` o `.transform()` dentro de archivos de esquemas. Las restricciones declarativas de tipos, obligatoriedad, enumerados, rangos y longitudes sí pertenecen al esquema.
+
 ## 4. Protocolo para Crear una Nueva Capability
  
 Cada capability constituye su propio subdominio dentro de `src/collection/capabilities/`:
@@ -123,7 +137,7 @@ Cada capability constituye su propio subdominio dentro de `src/collection/capabi
    * Crear `src/collection/capabilities/<nombre>/index.ts`.
    * Extender `Capability<Body>`, implementar `constructor`, `innervate`, `denervate`, y `react(signal: Signal)`.
    * Emplear `this.pulse(property, value)` para emitir cambios observables.
-5. **Crear Suite de Pruebas Espejo en su Subdominio (`tests/index.ts`)**:
+5. **Suite de Pruebas Espejo Solo Bajo Petición Expresa (`tests/index.ts`)**:
    * Alojar las pruebas dentro de `src/collection/capabilities/<nombre>/tests/index.ts` replicando exactamente el nombre del archivo (`index.ts`) sin sufijo `.test`.
    * Verificar inervación, recepción reactiva de señales, emisión nerviosa (`pulse`) y desconexión limpia en denervación.
 6. **Re-exportar en el Catálogo de Capabilities (`src/collection/capabilities/index.ts`)**:
@@ -131,10 +145,5 @@ Cada capability constituye su propio subdominio dentro de `src/collection/capabi
      ```typescript
      export * from './<nombre>/index.js';
      ```
-7. **Añadir Script y Validar**:
-   * Registrar o verificar el script en `package.json` (`npm run test:capabilities`).
-   * Ejecutar y validar (verificando Core antes y después):
-     ```bash
-     npm run test:core && npm test && npm run typecheck
-     ```
-
+7. **Cerrar la Implementación**:
+   * Comunicar los cambios y dejar las pruebas manuales al usuario. No realizar revisiones ni validaciones posteriores salvo petición expresa.

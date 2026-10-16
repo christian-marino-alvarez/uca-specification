@@ -1,5 +1,9 @@
 export const __ID__ = 'stream-transformer';
-
-export const AIM = 'Transform incoming text stream into a validated object chunk stream';
-
-export const IGNORED_NESTED_KEYS = ['style', 'dimensions', 'qualities', 'metadata'] as const;
+export const AIM = 'Transform text into ordered objects, retaining failed validation until recovery resolves';
+export const DEFAULT_MAX_ATTEMPTS = 2;
+export const DEFAULT_TIMEOUT_MS = 30_000;
+export const DEFAULT_MAX_BUFFER_SIZE = 1_048_576;
+export const DEFAULT_HIGH_WATER_MARK = 0;
+export const OPENING_FENCE = /^\s*(?:```(?:json)?\s*)?$/;
+export const CLOSING_FENCE = /^\s*```\s*$/;
+export const EMPTY_SUFFIX = /^\s*$/;

@@ -9,8 +9,8 @@ class DummyProbeCapability extends Capability {
         this.reactedSignal = signal;
     }
 
-    public emitTestPulse(property: string, value: unknown): Signal | undefined {
-        return this.pulse(property, value);
+    public emitTestPulse(property: string, value: unknown, targetId?: string): Signal | undefined {
+        return this.pulse(property, value, targetId);
     }
 }
 
@@ -176,3 +176,17 @@ function runAllCapabilityTests(): void {
 
 runAllCapabilityTests();
 
+
+import { test } from 'node:test';
+import { RoutingSignal } from './types.js';
+
+test('An explicit envelope target takes precedence over an id in the domain payload', () => {
+    const bus = new EventTarget();
+    const first = new DummyProbeCapability('first').innervate(bus), second = new DummyProbeCapability('second').innervate(bus);
+    const disposition = { aim: { description: 'Receive commands' }, reactTo: [RoutingSignal.COMMAND] };
+    updateDisposition(bus, first.id, disposition); updateDisposition(bus, second.id, disposition);
+    const signal = first.emitTestPulse(RoutingSignal.COMMAND, { id: 'domain-id' }, second.id);
+    assert.strictEqual(first.reactedSignal, undefined); assert.strictEqual(second.reactedSignal, signal);
+    assert.strictEqual(signal?.targetId, second.id); assert.deepStrictEqual(signal?.value, { id: 'domain-id' });
+    first.denervate(); second.denervate();
+});

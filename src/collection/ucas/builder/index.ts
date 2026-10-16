@@ -1,101 +1,229 @@
 import { Uca } from '@uca/core/uca';
-import type { Cooky, Disposition, Signal } from '@uca/core/types';
-import { Box } from '@uca/box';
-import { SignalType as BoxSignalType } from '@uca/box/types';
-import { Picture } from '@uca/picture';
-import { SignalType as PictureSignalType } from '@uca/picture/types';
-import { Memory } from '@uca/memory';
-import { SignalType as MemorySignalType, type RetrievedResult } from '@uca/memory/types';
-import { Decision } from '@uca/capability-decision';
-import { SignalType as DecisionSignalType, type DecidedResult } from '@uca/capability-decision/types';
-import { DEFAULT_MODEL as DECISION_MODEL, DEFAULT_PROVIDER as DECISION_PROVIDER } from '@uca/capability-decision/constants';
-import { Llm } from '@uca/llm';
-import { SignalType as LlmSignalType } from '@uca/llm/types';
-import { SignalType as JevSignalType } from '@uca/capability-jev/types';
-import { Composer } from '@uca/composer';
-import { SignalType as ComposerSignalType } from '@uca/composer/types';
-import { __ID__, CORRELATION_SEPARATOR, DEFAULT_STATUS, ROOT_PARENT, STRUCTURAL_DEPTH, SUBDIVISION_QUESTION, areAreaMediasEqual, areAreaQualitiesEqual, buildChildComposePayload, createDynamicSkeletonSvg, formatDimension, isAreaMounted, isLeafKind, resolveBoxQualities, resolveNestedHeight } from './constants.js';
-import { type AreaPayload, type Body, type Dimensions, DataType, SignalType } from './types.js';
+import type {
+    Cooky,
+    Disposition,
+    Signal,
+} from '@uca/core/types';
+import { Schema } from '@uca/capability-schema';
+import { Catalog } from '@uca/capability-catalog';
+import {
+    Kind as CatalogKind,
+    SignalType as CatalogSignalType,
+    type Entry as CatalogEntry,
+    type Failure as CatalogFailure,
+    type Result as CatalogResult,
+} from '@uca/capability-catalog/types';
+import {
+    SignalType as SchemaSignalType,
+    type ErrorResult as SchemaError,
+    type ValidatedResult,
+} from '@uca/capability-schema/types';
+import { Decision } from '@uca/decision';
+import { Logger } from '@uca/logger';
+import {
+    SignalType as DecisionSignalType,
+    type Failure as DecisionFailure,
+    type Request as DecisionRequest,
+    type Result as DecisionResult,
+} from '@uca/decision/types';
+import {
+    Scope,
+    SignalType as LoggerSignalType,
+} from '@uca/logger/types';
+import { Layout } from '@uca/layout';
+import {
+    SignalType as LayoutSignalType,
+    type Area as LayoutArea,
+    type Completed as LayoutCompleted,
+    type Composition as LayoutComposition,
+    type Failure as LayoutFailure,
+    type Request as LayoutRequest,
+} from '@uca/layout/types';
+import { View } from '@uca/view';
+import {
+    SignalType as ViewSignalType,
+    type Completed as ViewCompleted,
+    type Composition as ViewComposition,
+    type Failure as ViewFailure,
+    type Request as ViewRequest,
+    type Result as ViewElementResult,
+} from '@uca/view/types';
+import {
+    __ID__,
+    CATALOG_KINDS,
+    DECISION_REQUEST,
+    INVALID_LAYOUT_ERROR,
+    LOGGER_SIGNALS,
+    MINIMUM_LAYOUT_AREAS,
+} from './constants.js';
+import {
+    errorSchema,
+    layoutAreaResultSchema,
+    requestSchema,
+    resultSchema,
+    viewCompletedSchema,
+    viewElementResultSchema,
+} from './schema.js';
+import {
+    DataType,
+    Path,
+    SignalType,
+    type AvailableUcas,
+    type Body,
+    type Composition,
+    type DecisionContinuation,
+    type DecisionContext,
+    type Request,
+} from './types.js';
 
 export class Builder extends Uca<Body> {
-    public static override purpose: string = 'Materialize template representation areas, render loading skeletons, evaluate area sufficiency via Decision capability, or request sub-area decomposition';
+    public static override purpose = 'Determine whether a defined DOM area requires a structural layout or its final view';
 
     public static override disposition: Disposition<Body> = {
         aim: {
             description: Builder.purpose,
-            body: { status: DEFAULT_STATUS },
         },
         reactTo: [
             SignalType.BUILD,
-            SignalType.SKELETON,
-            SignalType.EVALUATE,
-            BoxSignalType.CREATED,
-            PictureSignalType.CREATED,
-            DecisionSignalType.DECIDED,
-            DecisionSignalType.ERROR,
-            MemorySignalType.RETRIEVED,
-            MemorySignalType.SAVED,
-            ComposerSignalType.CHUNK,
-            ...Box.disposition.reactTo ?? [],
-            ...Picture.disposition.reactTo ?? [],
-            ...Decision.disposition.reactTo ?? [],
-            ...Memory.disposition.reactTo ?? [],
-            ...Composer.disposition.reactTo ?? [],
-            LlmSignalType.INFER,
+            ...Builder.reactToSchema(),
+            ...Builder.reactToCatalog(),
+            ...Builder.reactToDecision(),
+            ...Builder.reactToLayout(),
+            ...Builder.reactToView(),
+            ...Builder.reactToLogger(),
         ],
         inputs: [
-            { signal: SignalType.BUILD, type: DataType.BUILD_PAYLOAD, description: 'Command to construct the area template' },
-            { signal: SignalType.SKELETON, type: DataType.SKELETON_PAYLOAD, description: 'Command to render loading skeleton for the area' },
-            { signal: SignalType.EVALUATE, type: DataType.EVALUATE_PAYLOAD, description: 'Command to evaluate area sufficiency via Decision' },
-            { signal: DecisionSignalType.DECIDED, type: DataType.UNKNOWN, description: 'Decision results from Decision capability' },
-            { signal: ComposerSignalType.CHUNK, type: DataType.UNKNOWN, description: 'Composed area chunk from Composer capability' },
+            {
+                signal: SignalType.BUILD,
+                type: DataType.REQUEST,
+                schema: requestSchema,
+            },
         ],
         outputs: [
-            { signal: SignalType.BUILT, type: DataType.BUILT_RESULT, description: 'Emitted when area template has been materialized' },
-            { signal: SignalType.SUBDIVIDE, type: DataType.SUBDIVIDE_RESULT, description: 'Emitted when area requires further subdivision' },
-            { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'Emitted upon builder failure' },
-            { signal: DecisionSignalType.DECIDE, type: DataType.UNKNOWN, description: 'Query Decision capability for area subdivision evaluation' },
-            { signal: ComposerSignalType.COMPOSE, type: DataType.UNKNOWN, description: 'Delegate sub-area layout generation to Composer' },
+            {
+                signal: SignalType.DECIDED,
+                type: DataType.RESULT,
+                schema: resultSchema,
+            },
+            {
+                signal: SignalType.LAYOUT_AREA_CREATED,
+                type: DataType.LAYOUT_AREA_RESULT,
+                schema: layoutAreaResultSchema,
+            },
+            {
+                signal: SignalType.VIEW_ELEMENT_CREATED,
+                type: DataType.VIEW_ELEMENT_RESULT,
+                schema: viewElementResultSchema,
+            },
+            {
+                signal: SignalType.VIEW_COMPLETED,
+                type: DataType.VIEW_COMPLETED_RESULT,
+                schema: viewCompletedSchema,
+            },
+            {
+                signal: SignalType.ERROR,
+                type: DataType.ERROR,
+                schema: errorSchema,
+            },
         ],
     };
+
+    private static reactToSchema(): string[] {
+        const {
+            reactTo = [],
+        } = Schema.disposition;
+        return [
+            ...reactTo,
+            SchemaSignalType.VALIDATED,
+            SchemaSignalType.ERROR,
+        ];
+    }
+
+    private static reactToDecision(): string[] {
+        const {
+            reactTo = [],
+        } = Decision.disposition;
+        return [
+            ...reactTo,
+            DecisionSignalType.DECIDED,
+            DecisionSignalType.ERROR,
+        ];
+    }
+
+    private static reactToCatalog(): string[] {
+        const {
+            reactTo = [],
+        } = Catalog.disposition;
+        return [
+            ...reactTo,
+            CatalogSignalType.LISTED,
+            CatalogSignalType.ERROR,
+        ];
+    }
+
+    private static reactToLayout(): string[] {
+        const {
+            reactTo = [],
+        } = Layout.disposition;
+        return [
+            ...reactTo,
+            LayoutSignalType.COMPLETED,
+            LayoutSignalType.ERROR,
+        ];
+    }
+
+    private static reactToLogger(): string[] {
+        const {
+            reactTo = [],
+        } = Logger.disposition;
+        return [
+            ...reactTo,
+        ];
+    }
+
+    private static reactToView(): string[] {
+        const {
+            reactTo = [],
+        } = View.disposition;
+        return [
+            ...reactTo,
+            ViewSignalType.ELEMENT_CREATED,
+            ViewSignalType.COMPLETED,
+            ViewSignalType.ERROR,
+        ];
+    }
 
     public constructor(id: string = __ID__) {
         super(id);
     }
 
-    protected override catalog(): Cooky {
-        return [
-            ...this.buildBoxCooky(),
-            ...this.buildPictureCooky(),
-            ...this.buildDecisionCooky(),
-            ...this.buildLlmCooky(),
-            ...this.buildMemoryCooky(),
-            ...this.buildComposerCooky(),
-        ];
-    }
-
-    protected override onDispositionUpdated(event: Event): void {
-        super.onDispositionUpdated(event);
-        console.log(`[${this.id}] 🏗️ Builder innervado`);
+    public override denervate(): void {
+        const {
+            registry,
+        } = this;
+        registry.forEach((capability) => capability.denervate());
+        super.denervate();
     }
 
     protected override react(signal: Signal): void {
-        const { property, value } = signal;
+        const {
+            property,
+        } = signal;
         switch (property) {
             case SignalType.BUILD:
-                this.handleBuild(value);
+                this.handleBuild(signal);
                 break;
-            case SignalType.SKELETON:
-                this.handleSkeleton(value);
+            case SchemaSignalType.VALIDATED:
+                this.handleSchemaValidated(signal);
                 break;
-            case SignalType.EVALUATE:
-                this.handleEvaluate(value);
+            case SchemaSignalType.ERROR:
+                this.handleSchemaError(signal);
                 break;
-            case BoxSignalType.CREATED:
-                this.handleBoxCreated(signal);
+            case CatalogSignalType.LISTED:
+                this.handleCatalogListed(signal);
                 break;
-            case PictureSignalType.CREATED:
-                this.handlePictureCreated(signal);
+            case CatalogSignalType.ERROR:
+                this.handleCatalogError(signal);
                 break;
             case DecisionSignalType.DECIDED:
                 this.handleDecisionDecided(signal);
@@ -103,197 +231,571 @@ export class Builder extends Uca<Body> {
             case DecisionSignalType.ERROR:
                 this.handleDecisionError(signal);
                 break;
-            case MemorySignalType.RETRIEVED:
-                this.handleMemoryRetrieved(signal);
+            case LayoutSignalType.COMPLETED:
+                this.handleLayoutCompleted(signal);
                 break;
-            case ComposerSignalType.CHUNK:
-                this.handleComposerChunk(value);
+            case LayoutSignalType.ERROR:
+                this.handleLayoutError(signal);
                 break;
-            default:
+            case ViewSignalType.ELEMENT_CREATED:
+                this.handleViewElementCreated(signal);
+                break;
+            case ViewSignalType.COMPLETED:
+                this.handleViewCompleted(signal);
+                break;
+            case ViewSignalType.ERROR:
+                this.handleViewError(signal);
                 break;
         }
     }
 
-    private buildBoxCooky(): Cooky {
-        const { id } = this;
-        const body = { id: `${id}:box` };
-        const aim = { description: Box.purpose, body };
-        const reactTo = [...Box.disposition.reactTo ?? []];
-        return [[Box, { aim, reactTo }]];
+    protected override receptors(): string[] {
+        return super.receptors().filter(
+            (property) => property !== LoggerSignalType.OBSERVE,
+        );
     }
 
-    private buildPictureCooky(): Cooky {
-        const { id } = this;
-        const body = { id: `${id}:picture` };
-        const aim = { description: Picture.purpose, body };
-        const reactTo = [...Picture.disposition.reactTo ?? []];
-        return [[Picture, { aim, reactTo }]];
+    protected override catalog(): Cooky {
+        const {
+            id,
+        } = this;
+        return [
+            [Schema, this.createSchemaDisposition(`${id}:schema`)],
+            [Catalog, this.createCatalogDisposition(`${id}:catalog`)],
+            [Decision, this.createDecisionDisposition(`${id}:decision`)],
+            [Layout, this.createLayoutDisposition(`${id}:layout`)],
+            [View, this.createViewDisposition(`${id}:view`)],
+            [Logger, this.createLoggerDisposition(`${id}:logger`)],
+        ];
     }
 
-    private buildDecisionCooky(): Cooky {
-        const { id } = this;
-        const body = { id: `${id}:decision`, llm: `${id}:llm` };
-        const aim = { description: Decision.AIM, body };
-        const reactTo = [...Decision.disposition.reactTo ?? []];
-        return [[Decision, { aim, reactTo }]];
+    private createSchemaDisposition(id: string): Disposition {
+        return {
+            ...Schema.disposition,
+            aim: {
+                description: Schema.AIM,
+                body: {
+                    id,
+                },
+            },
+        };
     }
 
-    private buildLlmCooky(): Cooky {
-        const { id } = this;
-        const body = { id: `${id}:llm`, provider: DECISION_PROVIDER, model: DECISION_MODEL };
-        const aim = { description: 'Reasoning model for Jev decision evaluation', body };
-        const reactTo = [LlmSignalType.INFER, LlmSignalType.CONNECT, ...Object.values(JevSignalType)];
-        return [[Llm, { aim, reactTo }]];
+    private createDecisionDisposition(id: string): Disposition {
+        return {
+            ...Decision.disposition,
+            aim: {
+                description: Decision.purpose,
+                body: {
+                    id,
+                },
+            },
+        };
     }
 
-    private buildMemoryCooky(): Cooky {
-        const { id } = this;
-        const body = { id: `${id}:memory`, namespace: `${id}:areas` };
-        const aim = { description: Memory.purpose, body };
-        const reactTo = [...Memory.disposition.reactTo ?? []];
-        return [[Memory, { aim, reactTo }]];
+    private createCatalogDisposition(id: string): Disposition {
+        const {
+            aim,
+        } = Catalog.disposition;
+        const {
+            body,
+        } = aim;
+        return {
+            ...Catalog.disposition,
+            aim: {
+                ...aim,
+                body: {
+                    ...body,
+                    id,
+                },
+            },
+        };
     }
 
-    private buildComposerCooky(): Cooky {
-        const { id } = this;
-        const body = { id: `${id}:composer`, request: '', context: Builder.purpose, catalog: ['Box'], parentTo: ROOT_PARENT };
-        const aim = { description: Composer.purpose, body };
-        const reactTo = [...Composer.disposition.reactTo ?? []];
-        return [[Composer, { aim, reactTo }]];
+    private createLayoutDisposition(id: string): Disposition {
+        return {
+            ...Layout.disposition,
+            aim: {
+                description: Layout.purpose,
+                body: {
+                    id,
+                },
+            },
+        };
     }
 
-    private handleComposerChunk(value?: unknown): void {
-        this.handleBuild(value);
+    private createViewDisposition(id: string): Disposition {
+        return {
+            ...View.disposition,
+            aim: {
+                description: View.purpose,
+                body: {
+                    id,
+                },
+            },
+        };
     }
 
-    private handleBuild(value?: unknown): void {
-        const payload = (value ?? {}) as AreaPayload;
-        const { elementId, areaId = elementId ?? this.id } = payload;
-        const correlationId = `${this.id}${CORRELATION_SEPARATOR}${JSON.stringify({ areaId, payload })}`;
-        this.pulse(MemorySignalType.GET, { id: `${this.id}:memory`, key: areaId, correlationId });
+    private createLoggerBody(id: string) {
+        return {
+            id,
+            scope: Scope.FRONT,
+            prefix: 'Builder Flow',
+            filter: ({
+                property,
+            }: Signal) => LOGGER_SIGNALS.includes(property),
+        };
     }
 
-    private handleMemoryRetrieved(signal: Signal): void {
-        const { value } = signal;
-        const { value: memorized, correlationId = '' } = (value ?? {}) as RetrievedResult<AreaPayload>;
-        const [ownerId, encoded = ''] = correlationId.split(CORRELATION_SEPARATOR);
-        if (ownerId !== this.id || !encoded) { return; }
-        const { areaId, payload } = JSON.parse(encoded) as { areaId: string; payload: AreaPayload };
-        if (!memorized || !isAreaMounted(areaId)) { this.materializeNewArea(areaId, { ...memorized, ...payload, subdivided: memorized?.subdivided }); return; }
-        this.reconcileExistingArea(areaId, memorized, payload);
+    private createLoggerDisposition(id: string): Disposition {
+        return {
+            ...Logger.disposition,
+            aim: {
+                description: Logger.purpose,
+                body: this.createLoggerBody(id),
+            },
+        };
     }
 
-    private materializeNewArea(areaId: string, payload: AreaPayload): void {
-        const { kind, depth = 0, subdivided } = payload;
-        console.log(`[${this.id}] 🏗️ Construyendo template para área:`, areaId, `(profundidad ${depth})`);
-        this.pulse(MemorySignalType.SAVE, { id: `${this.id}:memory`, key: areaId, value: payload });
-        this.handleSkeleton(payload);
-        if (isLeafKind(kind) || subdivided === false) { this.logFinalRender(areaId); return; }
-        this.routeSubdivision({ ...payload, areaId });
+    private handleBuild(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        this.pulse(SchemaSignalType.VALIDATE, {
+            schema: requestSchema,
+            value,
+        });
     }
 
-    private reconcileExistingArea(areaId: string, memorized: AreaPayload, incoming: AreaPayload): void {
-        const [qualitiesChanged, mediaChanged] = [!areAreaQualitiesEqual(memorized, incoming), !areAreaMediasEqual(memorized, incoming)];
-        if (!qualitiesChanged && !mediaChanged) { return; }
-        const merged: AreaPayload = { ...memorized, ...incoming, subdivided: memorized.subdivided };
-        this.pulse(MemorySignalType.SAVE, { id: `${this.id}:memory`, key: areaId, value: merged });
-        if (qualitiesChanged) { this.updateAreaBox(areaId, merged); }
-        if (merged.subdivided) { this.pulse(ComposerSignalType.COMPOSE, buildChildComposePayload({ ...merged, areaId }, this.id)); }
+    private handleSchemaValidated(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        const {
+            value: request,
+        } = value as ValidatedResult;
+        const validated = request as Request;
+        const {
+            correlationId,
+        } = validated;
+        this.pulse(CatalogSignalType.LIST, {
+            correlationId,
+            kinds: CATALOG_KINDS,
+            context: validated,
+        });
     }
 
-    private updateAreaBox(areaId: string, payload: AreaPayload): void {
-        const qualities = resolveBoxQualities(payload);
-        console.log(`[${this.id}] 🎨 Actualizando área ${areaId} (${qualities.width}, ${qualities.direction ?? 'auto'})`);
-        this.pulse(BoxSignalType.UPDATE, { elementId: areaId, qualities });
-        this.pulse(SignalType.BUILT, { areaId, success: true });
+    private handleSchemaError(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        const {
+            error,
+        } = value as SchemaError;
+        this.emitError(error, null, 0);
     }
 
-    private routeSubdivision(payload: AreaPayload): void {
-        const { depth = 0, subdivided } = payload;
-        if (depth === STRUCTURAL_DEPTH || subdivided) {
-            this.delegateSubdivisionToComposer(payload);
-            return;
-        }
-        this.evaluateAreaWithDecision(payload);
+    private handleCatalogListed(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        const {
+            entries,
+            context,
+        } = value as CatalogResult;
+        const request = context as Request;
+        this.pulse(
+            DecisionSignalType.DECIDE,
+            this.createDecisionRequest(request, entries),
+        );
     }
 
-    private handleSkeleton(value?: unknown): void {
-        const payload = (value ?? {}) as AreaPayload;
-        const { elementId, areaId = elementId ?? this.id, parentTo, kind, dimensions } = payload;
-        console.log(`[${this.id}] 💀 Renderizando skeleton para área: ${areaId} (kind: ${kind ?? 'sin kind'})`);
-        if (parentTo && parentTo !== ROOT_PARENT) { this.pulse(PictureSignalType.REMOVE, { elementId: `${parentTo}:skeleton-pic` }); }
-        this.renderSkeletonBox(areaId, payload);
-        this.renderSkeletonPicture(areaId, kind, dimensions);
-    }
-
-    private renderSkeletonBox(areaId: string, payload: AreaPayload): void {
-        const { parentTo } = payload;
-        const qualities = resolveBoxQualities(payload);
-        this.pulse(BoxSignalType.RENDER, { elementId: areaId, parentTo, qualities });
-    }
-
-    private renderSkeletonPicture(areaId: string, kind?: string, dimensions?: Dimensions): void {
-        const skeletonPictureId = `${areaId}:skeleton-pic`;
-        const { width, height } = dimensions ?? {};
-        const src = createDynamicSkeletonSvg(kind, height, width);
-        const qualities = { width: 'full', height: 'auto', radius: 'small' };
-        this.pulse(PictureSignalType.RENDER, { elementId: skeletonPictureId, parentTo: areaId, src, qualities });
-    }
-
-    private handleEvaluate(value?: unknown): void {
-        this.evaluateAreaWithDecision((value ?? {}) as AreaPayload);
-    }
-
-    private evaluateAreaWithDecision(payload: AreaPayload): void {
-        const { elementId, areaId = elementId ?? this.id, purpose = '', context = '', dimensions, style, media, depth = 0 } = payload;
-        const { width, height } = dimensions ?? {};
-        const [formattedWidth, formattedHeight] = [formatDimension(width), formatDimension(resolveNestedHeight(String(height ?? 'auto'), depth))];
-        console.log(`[${this.id}] ⚖️ Evaluando decisión de subdivisión con Decision (Jev) para área:`, areaId, `[${formattedWidth} x ${formattedHeight}]`);
-        const state = { areaId, purpose, context, depth, dimensions, style, media, dimensionsDescription: { width: formattedWidth, height: formattedHeight } };
-        this.pulse(DecisionSignalType.DECIDE, { id: `${this.id}:decision`, state, question: SUBDIVISION_QUESTION, correlationId: `${this.id}${CORRELATION_SEPARATOR}${areaId}` });
+    private handleCatalogError(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        const {
+            correlationId,
+            error,
+            context,
+        } = value as CatalogFailure;
+        this.emitError(
+            error,
+            correlationId,
+            0,
+            (context as Request | undefined) ?? null,
+        );
     }
 
     private handleDecisionDecided(signal: Signal): void {
-        const { value } = signal;
-        const { decision, probability, correlationId = '', state } = (value ?? {}) as DecidedResult;
-        const [ownerId, areaId = this.id] = correlationId.split(CORRELATION_SEPARATOR);
-        if (correlationId && ownerId !== this.id) { return; }
-        console.log(`[${this.id}] ⚖️ Decisión para ${areaId}: ${decision ? 'subdividir' : 'terminal'} (probabilidad ${probability?.toFixed(2) ?? 'n/d'})`);
-        if (decision === true) { this.delegateSubdivisionToComposer({ ...(state as AreaPayload), areaId }); return; }
-        if (state) { this.pulse(MemorySignalType.SAVE, { id: `${this.id}:memory`, key: areaId, value: { ...(state as AreaPayload), areaId, subdivided: false } }); }
-        this.logFinalRender(areaId);
-    }
-
-    private delegateSubdivisionToComposer(payload: AreaPayload): void {
-        const { areaId = this.id, purpose, context, depth = 0 } = payload;
-        console.log(`[${this.id}] 🔀 Subdividiendo área ${areaId} mediante Composer (profundidad ${depth + 1})...`);
-        this.pulse(MemorySignalType.SAVE, { id: `${this.id}:memory`, key: areaId, value: { ...payload, areaId, subdivided: true } });
-        this.pulse(PictureSignalType.REMOVE, { elementId: `${areaId}:skeleton-pic` });
-        this.pulse(ComposerSignalType.COMPOSE, buildChildComposePayload({ ...payload, areaId }, this.id));
-        this.pulse(SignalType.SUBDIVIDE, { areaId, purpose, context });
-    }
-
-    private logFinalRender(areaId: string): void {
-        console.log(`[${this.id}] ✅ Render final de template para área: ${areaId} (skeleton temporal preservado)`);
-        this.pulse(SignalType.BUILT, { areaId, success: true });
+        const {
+            value,
+        } = signal;
+        const {
+            correlationId,
+            result: {
+                selectedId,
+                continuation,
+            },
+        } = value as DecisionResult;
+        const {
+            request,
+            availableUcas,
+        } = continuation as DecisionContinuation;
+        this.pulse(SignalType.DECIDED, {
+            correlationId,
+            result: {
+                path: selectedId as Path,
+            },
+        });
+        if (selectedId === Path.LAYOUT) {
+            this.pulse(
+                LayoutSignalType.CREATE,
+                this.createLayoutRequest(request, availableUcas),
+            );
+        }
+        if (selectedId === Path.VIEW) {
+            this.pulse(
+                ViewSignalType.CREATE,
+                this.createViewRequest(request, availableUcas),
+            );
+        }
     }
 
     private handleDecisionError(signal: Signal): void {
-        const { value } = signal;
-        const { correlationId = '' } = (value ?? {}) as { correlationId?: string };
-        const [ownerId, areaId = this.id] = correlationId.split(CORRELATION_SEPARATOR);
-        if (correlationId && ownerId !== this.id) { return; }
-        console.warn(`[${this.id}] ⚠️ Fallback de decisión (error Jev): considerando área lista:`, value);
-        this.logFinalRender(areaId);
+        const {
+            value,
+        } = signal;
+        const {
+            correlationId,
+            error,
+            attempts,
+        } = value as DecisionFailure;
+        this.emitError(error, correlationId, attempts);
     }
 
-    private handleBoxCreated(signal: Signal): void {
-        const { value } = signal;
-        console.log(`[${this.id}] 📦 Skeleton Box montado:`, value);
+    private handleLayoutCompleted(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        const completion = value as LayoutCompleted;
+        const {
+            correlationId,
+            targetAreaId,
+            composition: {
+                areas,
+            },
+            request,
+        } = completion;
+        const {
+            attempt,
+        } = request;
+        if (this.isLayoutValid(completion)) {
+            areas.forEach((area) => {
+                this.pulse(SignalType.LAYOUT_AREA_CREATED, {
+                    correlationId,
+                    targetAreaId,
+                    area,
+                    request,
+                });
+                this.pulse(
+                    SignalType.BUILD,
+                    this.createAreaRequest(area, request),
+                );
+            });
+            return;
+        }
+        if (attempt === 0) {
+            this.pulse(LayoutSignalType.REPAIR, {
+                completion,
+                error: INVALID_LAYOUT_ERROR,
+            });
+            return;
+        }
+        this.emitError(
+            INVALID_LAYOUT_ERROR,
+            correlationId,
+            attempt,
+            this.createBuildRequest(request),
+        );
     }
 
-    private handlePictureCreated(signal: Signal): void {
-        const { value } = signal;
-        console.log(`[${this.id}] 🖼️ Skeleton Picture montado:`, value);
+    private handleLayoutError(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        const {
+            correlationId,
+            error,
+            request,
+        } = value as LayoutFailure;
+        this.emitError(
+            error,
+            correlationId,
+            0,
+            this.createBuildRequest(request),
+        );
+    }
+
+    private handleViewElementCreated(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        this.pulse(
+            SignalType.VIEW_ELEMENT_CREATED,
+            value as ViewElementResult,
+        );
+    }
+
+    private handleViewCompleted(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        this.pulse(
+            SignalType.VIEW_COMPLETED,
+            value as ViewCompleted,
+        );
+    }
+
+    private handleViewError(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        const {
+            correlationId,
+            error,
+        } = value as ViewFailure;
+        this.emitError(error, correlationId, 0);
+    }
+
+    private createDecisionRequest(request: Request, entries: CatalogEntry[]): DecisionRequest {
+        const {
+            correlationId,
+            areaId,
+            name,
+            aim,
+            context: fulfillment,
+        } = request;
+        const availableUcas: AvailableUcas = {
+            web: entries.filter(({
+                kind,
+            }) => kind === CatalogKind.WEB),
+            logic: entries.filter(({
+                kind,
+            }) => kind === CatalogKind.LOGIC),
+        };
+        const context: DecisionContext = {
+            area: {
+                id: areaId,
+                ...(name && {
+                    name,
+                }),
+                aim,
+                context: fulfillment,
+            },
+            availableUcas,
+        };
+        return {
+            ...DECISION_REQUEST,
+            context,
+            continuation: {
+                request,
+                availableUcas,
+            },
+            correlationId,
+        };
+    }
+
+    private createAreaRequest(area: LayoutArea, request: LayoutRequest): Request {
+        const {
+            id: areaId,
+            name,
+            purpose: aim,
+        } = area;
+        const {
+            context: {
+                fulfillment,
+                browser,
+                design,
+                limits,
+            },
+        } = request;
+        return {
+            correlationId: crypto.randomUUID(),
+            areaId,
+            name,
+            browser,
+            design,
+            aim,
+            context: fulfillment,
+            limits,
+        };
+    }
+
+    private createBuildRequest(request: LayoutRequest): Request {
+        const {
+            correlationId,
+            area: {
+                id: areaId,
+                name,
+            },
+            purpose: aim,
+            context: {
+                fulfillment,
+                browser,
+                design,
+                limits,
+                composition,
+            },
+        } = request;
+        return {
+            correlationId,
+            areaId,
+            ...(name && {
+                name,
+            }),
+            browser,
+            design,
+            aim,
+            context: fulfillment,
+            limits,
+            ...(composition && {
+                composition,
+            }),
+        };
+    }
+
+    private extractLayoutComposition(composition?: Composition): LayoutComposition | undefined {
+        if (composition && 'areas' in composition) {
+            return composition as LayoutComposition;
+        }
+        return undefined;
+    }
+
+    private extractViewComposition(composition?: Composition): ViewComposition | undefined {
+        if (composition && 'visual' in composition) {
+            return composition as ViewComposition;
+        }
+        return undefined;
+    }
+
+    private createLayoutContext(request: Request, availableUcas: AvailableUcas): LayoutRequest['context'] {
+        const {
+            browser,
+            design,
+            context: fulfillment,
+            limits,
+            composition,
+        } = request;
+        const layoutComposition = this.extractLayoutComposition(composition);
+        return {
+            fulfillment,
+            browser,
+            design,
+            limits,
+            availableUcas,
+            ...(layoutComposition && {
+                composition: layoutComposition,
+            }),
+        };
+    }
+
+    private createLayoutRequest(request: Request, availableUcas: AvailableUcas): LayoutRequest {
+        const {
+            correlationId,
+            areaId,
+            name,
+            aim,
+        } = request;
+        return {
+            correlationId,
+            area: {
+                id: areaId,
+                ...(name && {
+                    name,
+                }),
+            },
+            purpose: aim,
+            decision: {
+                path: Path.LAYOUT,
+                minimumAreas: MINIMUM_LAYOUT_AREAS,
+            },
+            attempt: 0,
+            context: this.createLayoutContext(request, availableUcas),
+        };
+    }
+
+    private createViewContext(request: Request, availableUcas: AvailableUcas): ViewRequest['context'] {
+        const {
+            browser,
+            design,
+            context: fulfillment,
+            limits,
+            requirements,
+            composition,
+        } = request;
+        const viewComposition = this.extractViewComposition(composition);
+        return {
+            fulfillment,
+            browser,
+            design,
+            limits,
+            availableUcas,
+            ...(requirements && {
+                requirements,
+            }),
+            ...(viewComposition && {
+                composition: viewComposition,
+            }),
+        };
+    }
+
+    private createViewRequest(request: Request, availableUcas: AvailableUcas): ViewRequest {
+        const {
+            correlationId,
+            areaId,
+            name,
+            aim,
+        } = request;
+        return {
+            correlationId,
+            area: {
+                id: areaId,
+                ...(name && {
+                    name,
+                }),
+            },
+            purpose: aim,
+            attempt: 0,
+            context: this.createViewContext(request, availableUcas),
+        };
+    }
+
+    private isLayoutValid(completion: LayoutCompleted): boolean {
+        const {
+            composition: {
+                areas,
+            },
+            request: {
+                decision: {
+                    minimumAreas,
+                },
+            },
+        } = completion;
+        return areas.length >= minimumAreas;
+    }
+
+    private emitError(
+        error: unknown,
+        correlationId: string | null,
+        attempts: number,
+        request: Request | null = null,
+    ): void {
+        this.pulse(SignalType.ERROR, {
+            correlationId,
+            error: error instanceof Error ? error.message : String(error),
+            attempts,
+            request,
+        });
     }
 }

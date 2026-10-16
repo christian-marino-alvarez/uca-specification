@@ -32,12 +32,14 @@ export interface StreamPayload {
     readonly imagination?: number;
     readonly schema?: unknown;
     readonly maxTokens?: number;
+    readonly context?: unknown;
 }
 
 export interface StreamResult {
     readonly correlationId?: string;
     readonly streamId?: string;
     readonly stream: ReadableStream<string>;
+    readonly context?: unknown;
 }
 
 export interface ChunkPayload {
@@ -47,5 +49,15 @@ export interface ChunkPayload {
 
 export interface ErrorPayload {
     readonly correlationId?: string;
+    readonly streamId?: string;
     readonly error: string;
+    readonly context?: unknown;
 }
+
+export interface ActiveStream {
+    readonly controller: AbortController;
+    readonly correlationId: string;
+}
+
+export interface Frame { readonly text?: string; readonly error?: string; }
+export type ReadResult = ReadableStreamReadResult<string>;

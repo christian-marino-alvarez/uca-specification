@@ -1,5 +1,6 @@
 import {
     DispositionSignal,
+    EntityKind,
     type Disposition,
     type DispositionProvidePayload,
     type DispositionUpdatedPayload,
@@ -93,6 +94,10 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
         this._disposition = value;
     }
 
+    protected get entityKind(): EntityKind {
+        return EntityKind.CAPABILITY;
+    }
+
     protected onDispositionUpdated(_event: Event): void {
         const { id, disposition } = this;
         const payload: DispositionUpdatedPayload<TBody> = { id, disposition };
@@ -124,15 +129,38 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
         }
     }
 
-    protected pulse(property: string, value: unknown): Signal | undefined {
-        const { target, id } = this;
+    /** Emits domain data; Uca resolves a unique active catalog recipient unless targetId is supplied. */
+    protected pulse(property: string, value: unknown, targetId?: string): Signal | undefined {
+        const {
+            target,
+            id,
+            entityKind,
+        } = this;
         if (!target) { return undefined; }
-        const signal: Signal = { source: id, property, value, timestamp: Date.now() };
+        const destination = targetId ?? this.resolveTargetId(property);
+        const signal: Signal = {
+            source: id,
+            sourceKind: entityKind,
+            ...(destination && {
+                targetId: destination,
+            }),
+            property,
+            value,
+            timestamp: Date.now(),
+        };
         target.dispatchEvent(new CustomEvent(property, { detail: signal, bubbles: true }));
         if (property !== '*') {
             target.dispatchEvent(new CustomEvent('*', { detail: signal, bubbles: true }));
         }
         return signal;
+    }
+
+    protected resolveTargetId(_property: string): string | undefined {
+        return undefined;
+    }
+
+    protected acceptsSource(_signal: Signal): boolean {
+        return true;
     }
 
     protected extractPayload<T = TBody>(value: unknown): T | undefined {
@@ -179,13 +207,16 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
 
     private handleSignal(event: Event): void {
         const { detail: signal } = event as CustomEvent<Signal | undefined>;
-        if (!signal) { return; }
-        const { value } = signal;
+        if (!signal || !this.acceptsSignal(signal) || !this.acceptsSource(signal)) { return; }
+        void this.executeReaction(signal);
+    }
+
+    private acceptsSignal(signal: Signal): boolean {
+        const { targetId, value } = signal;
+        if (targetId !== undefined) { return targetId === this.id || this.receptors().includes('*'); }
+        // Compatibility for callers that still address signals through value.id.
         const payload = Capability.extractPayload<Record<string, unknown>>(value);
         const { id } = (payload ?? {}) as { id?: unknown };
-        if (id && !this.matchesId(String(id))) {
-            return;
-        }
-        void this.executeReaction(signal);
+        return !id || this.matchesId(String(id));
     }
 }

@@ -1,3 +1,12 @@
+import { Logger } from '@uca/logger';
+import { SignalType as LoggerSignalType, Scope } from '@uca/logger/types';
+import { normalizeInference } from './constants.js';
+import { createSseStream, requestStreamSource } from './sse.js';
+import type { InferenceRequest, ValidationContext } from './types.js';
+import { Schema } from '@uca/capability-schema';
+import { SignalType as SchemaSignalType, type ValidatedResult, type ErrorResult } from '@uca/capability-schema/types';
+import { inferenceSchema } from '@uca/llm/schema';
+import type { Failure } from '@uca/llm/types';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { Uca } from '@uca/core/uca';
@@ -9,26 +18,28 @@ import {
     type RequestContext,
     type RouteConfig,
 } from '@uca/capability-http-server/types';
-import { Llm } from '@uca/llm';
+import { Jev } from '@uca/capability-jev';
+import { Gemini } from '@uca/capability-gemini';
+import { Openai } from '@uca/capability-openai';
+import { SignalType as JevSignalType, type InferResult as JevResult } from '@uca/capability-jev/types';
+import { SignalType as GeminiSignalType, type GenerateResult } from '@uca/capability-gemini/types';
+import { SignalType as OpenaiSignalType } from '@uca/capability-openai/types';
+import { createCommand } from './inference.js';
+import { DEFAULT_PROVIDER } from '@uca/llm/constants';
 import {
     SignalType as LlmSignalType,
-    type Body as LlmBody,
+    type InferPayload,
     type InferResult,
-    type ChunkResult,
-    type StreamEndResult,
 } from '@uca/llm/types';
 import {
-    DEFAULT_PROVIDER,
-    DEFAULT_GEMINI_MODEL,
-} from '@uca/llm/constants';
-import {
     __ID__,
+    SSE_HEADERS,
     DEFAULT_AUTO_START,
     DEFAULT_DIST_DIR,
     DEFAULT_HOSTNAME,
     DEFAULT_PORT,
     DEFAULT_WEB_DIR,
-    DEFAULT_MAX_OUTPUT_TOKENS,
+    WARMUP_CONTRACT,
 } from './constants.js';
 import {
     type Body,
@@ -46,6 +57,7 @@ export class Server extends Uca<Body> {
             body: { port: DEFAULT_PORT, hostname: DEFAULT_HOSTNAME, autoStart: DEFAULT_AUTO_START },
         },
         reactTo: [
+            ...Logger.disposition.reactTo ?? [],
             SignalType.START,
             SignalType.STOP,
             SignalType.ROUTE,
@@ -54,11 +66,12 @@ export class Server extends Uca<Body> {
             HttpServerSignalType.CLOSED,
             HttpServerSignalType.REQUEST,
             HttpServerSignalType.ERROR,
-            LlmSignalType.INFERRED,
-            LlmSignalType.CHUNK,
-            LlmSignalType.STREAM_END,
+            JevSignalType.INFERRED, JevSignalType.ERROR,
+            GeminiSignalType.GENERATED, GeminiSignalType.STREAMED, GeminiSignalType.ERROR,
+            OpenaiSignalType.GENERATED, OpenaiSignalType.STREAMED, OpenaiSignalType.ERROR,
+            SchemaSignalType.VALIDATE, SchemaSignalType.VALIDATED, SchemaSignalType.ERROR,
             ...HttpServer.disposition.reactTo ?? [],
-            ...Llm.disposition.reactTo ?? [],
+            ...Jev.disposition.reactTo ?? [], ...Gemini.disposition.reactTo ?? [], ...Openai.disposition.reactTo ?? [],
         ],
         inputs: [
             { signal: SignalType.START, type: DataType.START_CONFIG, description: 'Start HTTP server' },
@@ -71,20 +84,24 @@ export class Server extends Uca<Body> {
             { signal: SignalType.STOPPED, type: DataType.VOID, description: 'Server stopped' },
             { signal: SignalType.REQUEST, type: DataType.REQUEST_CONTEXT, description: 'Incoming HTTP request' },
             { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'Server error' },
+            { signal: LlmSignalType.INFERRED, type: DataType.INFER_RESULT },
+            { signal: LlmSignalType.STREAMED, type: DataType.STREAM_RESULT },
+            { signal: LlmSignalType.STREAM_END, type: DataType.STREAM_END_RESULT },
+            { signal: LlmSignalType.ERROR, type: DataType.UNKNOWN },
         ],
     };
+
+    private readonly streams = new Map<string, AbortController>();
 
     public constructor(id: string = __ID__) {
         super(id);
     }
 
-    protected override catalog(): Cooky {
-        const { aim } = this.disposition;
-        const body = (aim.body ?? {}) as Body;
-        const allRoutes = [...(body.routes ?? []), ...this.buildDefaultRoutes(body)];
-        const httpServerDisposition = this.createHttpServerDisposition(body, allRoutes);
-        const llmDisposition = this.createLlmDisposition();
-        return [[HttpServer, httpServerDisposition], [Llm, llmDisposition]];
+    public override denervate(): void {
+        this.streams.forEach((controller) => controller.abort());
+        this.streams.clear();
+        this.registry.forEach((capability) => capability.denervate());
+        super.denervate();
     }
 
     protected override react(signal: Signal): void {
@@ -102,10 +119,38 @@ export class Server extends Uca<Body> {
             case SignalType.RESPOND:
                 this.pulse(HttpServerSignalType.RESPOND, value);
                 break;
+            case JevSignalType.INFERRED: this.handleJevInferred(signal); break;
+            case JevSignalType.ERROR: this.handleJevError(signal); break;
+            case GeminiSignalType.GENERATED: this.handleGeminiGenerated(signal); break;
+            case GeminiSignalType.STREAMED: this.handleGeminiStreamed(signal); break;
+            case GeminiSignalType.ERROR: this.handleGeminiError(signal); break;
+            case OpenaiSignalType.GENERATED: this.handleOpenaiGenerated(signal); break;
+            case OpenaiSignalType.STREAMED: this.handleOpenaiStreamed(signal); break;
+            case OpenaiSignalType.ERROR: this.handleOpenaiError(signal); break;
+            case SchemaSignalType.VALIDATED: this.handleValidated(value as ValidatedResult); break;
+            case SchemaSignalType.ERROR: this.handleValidationError(value as ErrorResult); break;
             default:
                 this.handleCapabilitySignal(property, value);
                 break;
         }
+    }
+
+    // The wildcard activates Logger in the catalog; only Logger subscribes to it.
+    protected override receptors(): string[] {
+        return super.receptors().filter((property) => property !== LoggerSignalType.OBSERVE);
+    }
+
+    protected override catalog(): Cooky {
+        const { aim } = this.disposition;
+        const body = aim.body ?? {}; const { routes = [] } = body;
+        return [
+            [Logger, { aim: { description: Logger.purpose, body: { id: `${this.id}:logger`, scope: Scope.BACKEND } }, reactTo: [...Logger.disposition.reactTo ?? []] }],
+            [HttpServer, this.createHttpServerDisposition(body, [...routes, ...this.buildDefaultRoutes(body)])],
+            [Jev, { ...Jev.disposition, aim: { description: Jev.AIM, body: { id: `${this.id}:jev` } } }],
+            [Gemini, { ...Gemini.disposition, aim: { description: Gemini.AIM, body: { id: `${this.id}:gemini` } } }],
+            [Openai, { ...Openai.disposition, aim: { description: Openai.AIM, body: { id: `${this.id}:openai` } } }],
+            [Schema, { ...Schema.disposition, aim: { description: Schema.AIM, body: { id: `${this.id}:schema` } } }],
+        ];
     }
 
     private createHttpServerDisposition(body: Body, routes: RouteConfig[]): Disposition<HttpServerBody> {
@@ -113,13 +158,6 @@ export class Server extends Uca<Body> {
         return {
             aim: { description: HttpServer.AIM, body: { port, hostname, routes, autoStart } },
             reactTo: [...HttpServer.disposition.reactTo ?? []],
-        };
-    }
-
-    private createLlmDisposition(): Disposition<LlmBody> {
-        return {
-            aim: { description: Llm.purpose, body: { provider: DEFAULT_PROVIDER, model: DEFAULT_GEMINI_MODEL } },
-            reactTo: [...Llm.disposition.reactTo ?? []],
         };
     }
 
@@ -152,18 +190,19 @@ export class Server extends Uca<Body> {
     }
 
     private logServerStarted(url: string): void {
-        console.log(`\n🚀 UCA Server successfully started at: ${url}`);
-        console.log(`🌐 Web Application running at: ${url}`);
-        console.log(`📡 Health endpoint: ${url}/api/health`);
-        console.log(`🧠 LLM Request endpoint: ${url}/api/llm`);
-        console.log(`⚡ LLM SSE Stream endpoint: ${url}/api/llm/sse\n`);
+        console.log(`\n[${Scope.BACKEND}] [${this.id}] 🚀 UCA Server successfully started at: ${url}`);
+        console.log(`[${Scope.BACKEND}] [${this.id}] 🌐 Web Application running at: ${url}`);
+        console.log(`[${Scope.BACKEND}] [${this.id}] 📡 Health endpoint: ${url}/api/health`);
+        console.log(`[${Scope.BACKEND}] [${this.id}] 🧠 LLM Request endpoint: ${url}/api/llm`);
+        console.log(`[${Scope.BACKEND}] [${this.id}] ⚡ LLM SSE Stream endpoint: ${url}/api/llm/sse\n`);
     }
 
     private warmupLlm(): void {
         const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
         const hasKey = typeof process !== 'undefined' && Boolean(process.env?.GEMINI_API_KEY ?? process.env?.GOOGLE_GENAI_API_KEY);
         if (isTest || !hasKey) { return; }
-        this.pulse(LlmSignalType.INFER, { request: 'Warmup', limit: 1, correlationId: 'system-warmup' });
+        const { property, value } = createCommand({ ...WARMUP_CONTRACT, limit: 1, correlationId: 'system-warmup' });
+        this.pulse(property, value);
     }
 
     private buildDefaultRoutes(body: Body): RouteConfig[] {
@@ -174,118 +213,31 @@ export class Server extends Uca<Body> {
             { method: 'GET', path: '/api/health', response: { status: 200, body: { status: 'healthy', uca: 'Server' } } },
             { method: 'POST', path: '/api/llm', handler: (context) => this.handleLlmPost(context) },
             { method: 'ALL', path: '/api/llm/sse', handler: (context) => this.handleLlmSse(context) },
-            { method: 'ALL', path: '/v1/systemone', handler: (context) => this.handleSystemOne(context) },
             { method: 'ALL', path: '*', handler: (context) => this.handleStaticRequest(context, effectiveStaticDir, effectiveWebDir) },
         ];
     }
 
-    private async handleSystemOne(context: RequestContext): Promise<Response> {
-        const { method, body } = context;
-        if (method === 'OPTIONS') { return this.buildCorsPreflightResponse(); }
-        return this.forwardSystemOneRequest(body);
-    }
-
-    private buildCorsPreflightResponse(): Response {
-        const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': '*' };
-        return new Response(null, { status: 204, headers });
-    }
-
-    private async forwardSystemOneRequest(body: unknown): Promise<Response> {
-        const { JEV_API_KEY: jevKey, TYPESAFE_API_KEY: tsKey } = process.env;
-        const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${jevKey ?? tsKey}` };
-        const response = await fetch('https://api.typesafe.ai/v1/systemone', { method: 'POST', headers, body: JSON.stringify(body) });
-        const data = await response.text();
-        const resHeaders = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
-        return new Response(data, { status: response.status, headers: resHeaders });
-    }
-
     private async handleLlmPost(context: RequestContext): Promise<Response> {
         const { body } = context;
-        const { prompt = 'UCA reasoning request', model, provider, temperature, maxOutputTokens, schema, correlationId: bId, requestId, thinkingLevel, deliberation, conciseness } = (body ?? {}) as Record<string, unknown>;
-        const correlationId = String(bId ?? requestId ?? crypto.randomUUID());
-        const level = this.resolveThinkingLevel(thinkingLevel, deliberation);
-        const limit = this.resolveMaxOutputTokens(maxOutputTokens, conciseness);
-        const temp = typeof temperature === 'number' ? temperature : undefined;
-        const targetModel = model ? String(model) : DEFAULT_GEMINI_MODEL;
-        const targetProvider = provider ? String(provider) : undefined;
-        const result = await this.requestLlmInference(String(prompt), targetModel, targetProvider, temp, limit, schema as Record<string, unknown> | undefined, correlationId, level);
-        return new Response(JSON.stringify(result), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    }
-
-    private resolveThinkingLevel(thinkingLevel: unknown, deliberation: unknown): string | undefined {
-        if (typeof thinkingLevel === 'string') { return thinkingLevel; }
-        if (typeof deliberation === 'number') {
-            return deliberation > 5 ? 'high' : (deliberation > 0 ? 'low' : undefined);
+        const payload = normalizeInference(body as InferenceRequest);
+        try {
+            const result = await this.requestLlmInference(payload);
+            return Response.json(result);
+        } catch (error) {
+            const { correlationId } = payload;
+            return Response.json({ error: String(error), correlationId }, { status: 502 });
         }
-        return undefined;
     }
 
-    private resolveMaxOutputTokens(maxOutputTokens: unknown, _conciseness: unknown): number | undefined {
-        if (typeof maxOutputTokens === 'number') { return maxOutputTokens; }
-        return DEFAULT_MAX_OUTPUT_TOKENS;
-    }
-
-    private requestLlmInference(request: string, model?: string, provider?: string, imagination?: number, limit?: number, expectations?: Record<string, unknown>, correlationId: string = crypto.randomUUID(), thinkingLevel?: string): Promise<InferResult> {
-        return new Promise((resolve) => {
-            const onInferred = (event: Event) => this.resolveInference(event, resolve, onInferred, onError, correlationId);
-            const onError = (event: Event) => this.failInference(event, resolve, onInferred, onError, request, correlationId);
+    private requestLlmInference(payload: InferPayload): Promise<InferResult> {
+        const { correlationId } = payload;
+        return new Promise((resolve, reject) => {
+            const onInferred = (event: Event) => { const { detail: { source, value } } = event as CustomEvent<Signal<InferResult>>; const { correlationId: receivedId } = value; if (source !== this.id || receivedId !== correlationId) { return; } this.removeInferenceListeners(onInferred, onError); resolve(value); };
+            const onError = (event: Event) => { const { detail: { source, value } } = event as CustomEvent<Signal<Failure>>; const { correlationId: receivedId, error } = value; if (source !== this.id || receivedId !== correlationId) { return; } this.removeInferenceListeners(onInferred, onError); reject(new Error(String(error))); };
             this.target?.addEventListener(LlmSignalType.INFERRED, onInferred);
             this.target?.addEventListener(LlmSignalType.ERROR, onError);
-            this.pulse(LlmSignalType.INFER, { request, model, provider, imagination, limit, expectations, correlationId, thinkingLevel });
+            this.pulse(SchemaSignalType.VALIDATE, { schema: inferenceSchema, value: payload, context: { stream: false, correlationId } });
         });
-    }
-
-    private resolveInference(event: Event, resolve: (r: InferResult) => void, onInferred: (e: Event) => void, onError: (e: Event) => void, correlationId: string): void {
-        const customEvent = event as CustomEvent<Signal>;
-        const result = customEvent.detail.value as InferResult | undefined;
-        if (result?.correlationId && result.correlationId !== correlationId) { return; }
-        this.removeInferenceListeners(onInferred, onError);
-        resolve(result as InferResult);
-    }
-
-    private failInference(event: Event, resolve: (r: InferResult) => void, onInferred: (e: Event) => void, onError: (e: Event) => void, request: string, correlationId: string): void {
-        const customEvent = event as CustomEvent<Signal>;
-        const { correlationId: errorCorrelationId } = (customEvent.detail.value ?? {}) as { correlationId?: string };
-        if (errorCorrelationId && errorCorrelationId !== correlationId) { return; }
-        this.removeInferenceListeners(onInferred, onError);
-        resolve(this.buildFallbackResult(request, String(customEvent.detail.value)));
-    }
-
-    private buildFallbackResult(request: string, errorMessage: string): InferResult {
-        const isInitial = request.includes('inicial') || request.includes('¿Quieres saber');
-        if (isInitial) {
-            return this.buildInitialViewFallback(errorMessage);
-        }
-        return this.buildExplanationFallback(errorMessage);
-    }
-
-    private buildInitialViewFallback(errorMessage: string): InferResult {
-        const boxDisp = { aim: { description: 'Contenedor de bienvenida', body: { text: '¿Quieres saber qué es Uca?' } }, reactTo: ['box.create', 'box.update'] };
-        const actionDisp = { aim: { description: 'Botón de exploración', body: { label: 'Descubrir qué es UCA' } }, reactTo: ['action.create', 'action.trigger'] };
-        const ucas = [
-            { id: 'box:center-container', disposition: boxDisp },
-            { id: 'action:query-button', disposition: actionDisp },
-        ];
-        const answer = '¿Quieres saber qué es Uca?';
-        const payload = { data: { ucas, answer }, error: errorMessage };
-        return { response: JSON.stringify(payload), data: payload };
-    }
-
-    private buildExplanationFallback(errorMessage: string): InferResult {
-        const panelText = 'UCA (Unidad Cognitiva Artificial) es una primitiva funcional mínima definida formalmente como u = (p, d, C, O), donde p es el Purpose (teleológico e inmutable), d es la Disposition (aim, reactTo y puertos), C son las Capabilities (sustrato reactivo) y O son los Outcomes observables. La cognición emerge fractalmente a través de la interacción de la red de UCAs.';
-        const listItems = [
-            '1. Purpose: Identidad y objetivo teleológico inmutable.',
-            '2. Disposition: Inclinación adaptativa, contratos y reactTo.',
-            '3. Capabilities: Habilidades operativas compuestas mediante Cooky.',
-            '4. Outcomes: Pulsos nerviosos y eventos observables en el canal.',
-        ];
-        const ucas = [
-            { id: 'box:center-container', disposition: { aim: { description: 'Panel ontológico', body: { text: panelText } }, reactTo: ['box.create'] } },
-            { id: 'list:features', disposition: { aim: { description: 'Pilares conceptuales', body: { items: listItems } }, reactTo: ['list.create'] } },
-            { id: 'action:query-button', disposition: { aim: { description: 'Botón reintentar', body: { label: 'Volver a consultar UCA' } }, reactTo: ['action.create', 'action.trigger'] } },
-        ];
-        const payload = { data: { ucas, answer: panelText }, error: errorMessage };
-        return { response: JSON.stringify(payload), data: payload };
     }
 
     private removeInferenceListeners(onInferred: (e: Event) => void, onError: (e: Event) => void): void {
@@ -294,100 +246,70 @@ export class Server extends Uca<Body> {
     }
 
     private handleLlmSse(context: RequestContext): Response {
+        const { target, id: source } = this;
         const { query, body } = context;
-        const { prompt: qP, model: qM, provider: qPr, correlationId: qC, streamId: qS, thinkingLevel: qL } = (query ?? {}) as Record<string, string>;
-        const { prompt: bP, request: bR, model: bM, provider: bPr, correlationId: bC, streamId: bS, thinkingLevel: bL, schema: bSchema } = (body ?? {}) as Record<string, unknown>;
-        const prompt = qP ?? (bP ? String(bP) : (bR ? String(bR) : 'UCA streaming reasoning'));
-        const correlationId = (bC ? String(bC) : undefined) ?? (bS ? String(bS) : undefined) ?? qC ?? qS ?? crypto.randomUUID();
-        const thinkingLevel = (typeof bL === 'string' ? bL : qL) ?? undefined;
-        const model = qM ?? (bM ? String(bM) : undefined);
-        const provider = qPr ?? (bPr ? String(bPr) : undefined);
-        const schema = bSchema as Record<string, unknown> | undefined;
-        return this.createSseResponse(this.createSseReadableStream(prompt, model, provider, correlationId, thinkingLevel, schema));
+        const payload = normalizeInference({ ...query, ...(body as InferenceRequest) });
+        const { correlationId = crypto.randomUUID(), provider = DEFAULT_PROVIDER } = payload;
+        const controller = new AbortController(); const { signal: abort } = controller; this.streams.set(correlationId, controller);
+        const request = () => this.pulse(SchemaSignalType.VALIDATE, { schema: inferenceSchema, value: payload, context: { stream: true, correlationId } });
+        const cancel = () => this.pulse(provider === 'openai' ? OpenaiSignalType.ABORT : GeminiSignalType.ABORT, { correlationId });
+        const response = requestStreamSource({ target, source, correlationId, abort, request, cancel });
+        const stream = createSseStream(response, correlationId, controller, () => this.streams.delete(correlationId), () => this.pulse(LlmSignalType.STREAM_END, { correlationId }));
+        return new Response(stream, { headers: SSE_HEADERS });
     }
 
-    private createSseResponse(stream: ReadableStream): Response {
-        const headers = { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache', Connection: 'keep-alive' };
-        return new Response(stream, { headers });
+    private handleJevInferred(signal: Signal): void {
+        const { value } = signal;
+        const { answers, state, model, correlationId } = value as JevResult;
+        this.pulse(LlmSignalType.INFERRED, { response: JSON.stringify(answers), data: answers, context: state, model, correlationId });
     }
-
-    private createSseReadableStream(prompt: string, model: string | undefined, provider: string | undefined, correlationId: string, thinkingLevel?: string, schema?: Record<string, unknown>): ReadableStream {
-        let chunkListener: ((e: Event) => void) | undefined;
-        let endListener: ((e: Event) => void) | undefined;
-        const state = { startTime: Date.now(), chunkCount: 0, correlationId };
-        const start = (controller: ReadableStreamDefaultController) => {
-            const encoder = new TextEncoder();
-            chunkListener = (e: Event) => this.writeSseChunk(e, controller, encoder, state);
-            endListener = (e: Event) => this.finishSseStream(e, controller, encoder, state, chunkListener, endListener);
-            this.bindSseNervousEvents(controller, encoder, prompt, model, provider, correlationId, chunkListener, endListener, thinkingLevel, schema);
-        };
-        return new ReadableStream({ start, cancel: () => this.removeSseListeners(chunkListener, endListener) });
+    private handleValidated(result: ValidatedResult): void {
+        const { value: payload, context } = result;
+        const { stream } = context as ValidationContext;
+        const { property, value } = createCommand(payload as InferPayload, stream);
+        this.pulse(property, value);
     }
-
-    private removeSseListeners(chunkListener?: (event: Event) => void, endListener?: (event: Event) => void): void {
-        if (chunkListener) { this.target?.removeEventListener(LlmSignalType.CHUNK, chunkListener); }
-        if (endListener) { this.target?.removeEventListener(LlmSignalType.STREAM_END, endListener); }
+    private handleValidationError(result: ErrorResult): void {
+        const { error, context } = result;
+        const { correlationId } = context as ValidationContext;
+        this.pulse(LlmSignalType.ERROR, { error, correlationId });
     }
-
-    private bindSseNervousEvents(
-        controller: ReadableStreamDefaultController,
-        encoder: TextEncoder,
-        prompt: string,
-        model: string | undefined,
-        provider: string | undefined,
-        correlationId: string,
-        chunkListener: (event: Event) => void,
-        endListener: (event: Event) => void,
-        thinkingLevel?: string,
-        schema?: Record<string, unknown>,
-    ): void {
-        console.log(`⚡ [SERVER] Conectando canal SSE [${correlationId}] con LLM (${provider ?? 'default'}/${model ?? 'default'})...`);
-        try { controller.enqueue(encoder.encode(`event: start\ndata: ${JSON.stringify({ status: 'connected', correlationId, prompt, model, provider })}\n\n`)); } catch { }
-        this.target?.addEventListener(LlmSignalType.CHUNK, chunkListener);
-        this.target?.addEventListener(LlmSignalType.STREAM_END, endListener);
-        this.pulse(LlmSignalType.STREAM, { request: prompt, model, provider, correlationId, streamId: correlationId, expectations: schema, thinkingLevel });
+    private handleGeminiGenerated(signal: Signal): void {
+        const { value } = signal;
+        const { text: response, data, model, usage, correlationId } = value as GenerateResult;
+        this.pulse(LlmSignalType.INFERRED, { response, data, model, usage, correlationId });
     }
-
-    private writeSseChunk(event: Event, controller: ReadableStreamDefaultController, encoder: TextEncoder, state: { startTime: number; chunkCount: number; correlationId: string }): void {
-        const customEvent = event as CustomEvent<Signal>;
-        const { text, correlationId, streamId } = (customEvent.detail.value ?? {}) as ChunkResult;
-        const eventId = correlationId ?? streamId;
-        if ((eventId && eventId !== state.correlationId) || !text) { return; }
-        state.chunkCount += 1;
-        const elapsed = Date.now() - state.startTime;
-        console.log(`📤 [SERVER] [${state.correlationId}] [t=+${elapsed}ms] Chunk #${state.chunkCount} (${text.length} ch)`);
-        try { controller.enqueue(encoder.encode(`event: message\ndata: ${JSON.stringify({ text, correlationId: state.correlationId })}\n\n`)); } catch { }
+    private handleOpenaiGenerated(signal: Signal): void {
+        const { value } = signal;
+        const { text: response, data, model, usage, correlationId } = value as GenerateResult;
+        this.pulse(LlmSignalType.INFERRED, { response, data, model, usage, correlationId });
     }
-
-    private finishSseStream(
-        event: Event,
-        controller: ReadableStreamDefaultController,
-        encoder: TextEncoder,
-        state: { startTime: number; chunkCount: number; correlationId: string },
-        chunkListener?: (event: Event) => void,
-        endListener?: (event: Event) => void,
-    ): void {
-        const customEvent = event as CustomEvent<Signal>;
-        const { correlationId, streamId } = (customEvent.detail?.value ?? {}) as StreamEndResult;
-        const eventId = correlationId ?? streamId;
-        if (eventId && eventId !== state.correlationId) { return; }
-        const elapsed = Date.now() - state.startTime;
-        console.log(`🏁 [SERVER] [${state.correlationId}] [t=+${elapsed}ms] Finalizado stream SSE (${state.chunkCount} chunks enviados).`);
-        this.removeSseListeners(chunkListener, endListener);
-        try {
-            controller.enqueue(encoder.encode(`event: done\ndata: ${JSON.stringify({ done: true, correlationId: state.correlationId })}\n\n`));
-            controller.close();
-        } catch { }
+    private handleJevError(signal: Signal): void {
+        const { value } = signal;
+        this.pulse(LlmSignalType.ERROR, value);
+    }
+    private handleGeminiStreamed(signal: Signal): void {
+        const { value } = signal;
+        this.pulse(LlmSignalType.STREAMED, value);
+    }
+    private handleGeminiError(signal: Signal): void {
+        const { value } = signal;
+        this.pulse(LlmSignalType.ERROR, value);
+    }
+    private handleOpenaiStreamed(signal: Signal): void {
+        const { value } = signal;
+        this.pulse(LlmSignalType.STREAMED, value);
+    }
+    private handleOpenaiError(signal: Signal): void {
+        const { value } = signal;
+        this.pulse(LlmSignalType.ERROR, value);
     }
 
     private handleStaticRequest(context: RequestContext, staticDir?: string, webDir?: string): Response {
         const { path: requestPath } = context;
         const filePath = this.resolveStaticPath(requestPath, staticDir, webDir);
         if (!filePath) {
-            return new Response(JSON.stringify({ error: 'Not Found', path: requestPath }), {
-                status: 404,
-                headers: { 'Content-Type': 'application/json' },
-            });
+            return Response.json({ error: 'Not Found', path: requestPath }, { status: 404 });
         }
         const contentType = this.resolveMimeType(filePath);
         const content = fs.readFileSync(filePath);

@@ -49,6 +49,6 @@
     "zod": "^4.6.5"
   },
   "scripts": {
-    "test": "tsx tests/index.ts"
+    "test": "tsx tests/index.ts && tsx tests/schema.ts"
   }
 }

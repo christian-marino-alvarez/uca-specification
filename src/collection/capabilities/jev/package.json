@@ -33,8 +33,7 @@
     }
   },
   "dependencies": {
-    "@uca/core": "^0.1.0",
-    "@typesafe-ai/sdk": "^0.6.0"
+    "@uca/core": "^0.1.0"
   },
   "scripts": {
     "test": "tsx tests/index.ts"

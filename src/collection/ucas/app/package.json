@@ -46,9 +46,7 @@
     "@uca/builder": "^0.1.0",
     "@uca/capability-browser": "^0.1.0",
     "@uca/core": "^0.1.0",
+    "@uca/memory": "^0.1.0",
     "zod": "^4.6.5"
-  },
-  "scripts": {
-    "test": "tsx tests/index.ts"
   }
 }

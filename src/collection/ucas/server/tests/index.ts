@@ -1,3 +1,4 @@
+import { SignalType as LoggerSignalType, type LogEntry } from '@uca/logger/types';
 import assert from 'node:assert/strict';
 import type { Signal } from '@uca/core/types';
 import { Server } from '../index.js';
@@ -119,4 +120,116 @@ async function testServerUca(): Promise<void> {
     console.log('✔ All Server UCA tests passed successfully.');
 }
 
-testServerUca();
+await testServerUca();
+
+import { once } from 'node:events';
+import { Llm } from '@uca/llm';
+import { SignalType as LlmSignalType } from '@uca/llm/types';
+import { createContextSchema } from '@uca/llm/schema';
+import { SYSTEM_INSTRUCTION } from '@uca/llm/constants';
+const contract = { outputSchema: { type: 'object' }, contextSchema: createContextSchema({ areaId: 'root' }), purpose: 'Present the requested area', goal: 'Build', limits: { width: 640 } };
+function evaluation(areaId: string) {
+    return { ...contract, provider: 'jev', goal: 'Evaluate', contextSchema: createContextSchema({ state: { areaId }, questions: { ready: 'Is it ready?' } }), correlationId: areaId };
+}
+
+import { SignalType as GeminiSignalType } from '@uca/capability-gemini/types';
+const originalFetch = globalThis.fetch;
+const originalKey = process.env.JEV_API_KEY;
+const originalMode = process.env.NODE_ENV;
+process.env.JEV_API_KEY = 'server-only-key'; process.env.NODE_ENV = 'test';
+const backendBus = new EventTarget(), observed: LogEntry[] = [];
+backendBus.addEventListener(LoggerSignalType.LOG, (event) => { const { detail: { value } } = event as CustomEvent<Signal<LogEntry>>; observed.push(value); });
+const backend = new Server('backend').innervate(backendBus);
+const clientBus = new EventTarget();
+const client = new Llm('client:llm').innervate(clientBus);
+const endpoint = 'http://127.0.0.1:39125';
+let upstreamCalls = 0;
+let confirmCancellation: (() => void) | undefined;
+const upstreamCancellation = new Promise<void>((resolve) => { confirmCancellation = resolve; });
+function providerEvent(property: string, value: unknown): void {
+    backendBus.dispatchEvent(new CustomEvent(property, { detail: { source: 'backend:gemini', property, value, timestamp: Date.now() } }));
+}
+backendBus.addEventListener(GeminiSignalType.STREAM, (event: Event) => {
+    event.stopImmediatePropagation();
+    const { detail: { value } } = event as CustomEvent<Signal>;
+    const { prompt, correlationId, systemInstruction, temperature, maxOutputTokens, schema } = value as Record<string, unknown>;
+    assert.equal(systemInstruction, SYSTEM_INSTRUCTION); assert.equal(temperature, 0); assert.equal(maxOutputTokens, 12); assert.deepEqual(schema, { type: 'object' });
+    assert.deepEqual(JSON.parse(String(prompt)), contract);
+    const stream = new ReadableStream<string>({
+        start(controller) {
+            controller.enqueue('layout');
+            if (correlationId !== 'cancel-stream') {
+                controller.close();
+            }
+        },
+        cancel() { confirmCancellation?.(); },
+    });
+    providerEvent(GeminiSignalType.STREAMED, { stream, correlationId });
+});
+async function inferArea(areaId: string): Promise<unknown> {
+    const response = await originalFetch(`${endpoint}/api/llm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(evaluation(areaId)) });
+    return response.json();
+}
+try {
+    globalThis.fetch = async (url, options) => {
+        if (!String(url).startsWith('https://api.typesafe.ai/')) { assert.equal(new Headers(options?.headers).get('Authorization'), null); return originalFetch(url, options); }
+        upstreamCalls += 1;
+        assert.equal(new Headers(options?.headers).get('Authorization'), 'Bearer server-only-key');
+        const { state, questions } = JSON.parse(String(options?.body));
+        assert.equal(questions.ready.type, 'noul');
+        assert.match(questions.ready.instructions, /"goal":"Evaluate"/);
+        assert.match(questions.ready.instructions, /"limits":\{"width":640\}/);
+        await new Promise((resolve) => setTimeout(resolve, state.areaId === 'first' ? 30 : 5));
+        if (state.areaId === 'failed') { return new Response('Unavailable', { status: 503 }); }
+        return Response.json({ answers: { areaId: state.areaId } });
+    };
+    emitSignal(backendBus, backend.updateEvent, { ...Server.disposition, aim: { description: Server.purpose, body: { port: 39125, hostname: '127.0.0.1', autoStart: false } } });
+    assert.equal(backend.registry.has('backend:llm'), false);
+    assert.ok(backend.registry.has('backend:jev')); assert.ok(backend.registry.has('backend:gemini'));
+    emitSignal(backendBus, SignalType.START, { port: 39125, hostname: '127.0.0.1' });
+    emitSignal(clientBus, client.updateEvent, { ...Llm.disposition, aim: { description: Llm.purpose, body: { endpoint: `${endpoint}/api/llm`, streamEndpoint: `${endpoint}/api/llm/sse` } } });
+    const completion = once(clientBus, LlmSignalType.INFERRED, { signal: AbortSignal.timeout(4000) });
+    emitSignal(clientBus, LlmSignalType.INFER, { ...evaluation('root'), id: client.id });
+    const [completed] = await completion;
+    const { detail: { value: result, targetId } } = completed as CustomEvent<Signal<Record<string, unknown>>>;
+    assert.deepEqual(result.data, { areaId: 'root' }); assert.deepEqual(result.context, { areaId: 'root' }); assert.equal(targetId, 'test-client');
+    const concurrent = await Promise.all([inferArea('first'), inferArea('second')]);
+    assert.deepEqual(concurrent.map((value) => (value as { correlationId: string }).correlationId), ['first', 'second']);
+    assert.deepEqual(concurrent.map((value) => (value as { data: unknown }).data), [{ areaId: 'first' }, { areaId: 'second' }]);
+    const failed = await inferArea('failed') as { error: string; correlationId: string };
+    assert.match(failed.error, /Jev HTTP 503/); assert.equal(failed.correlationId, 'failed');
+    assert.equal(upstreamCalls, 4);
+    const streamed = once(clientBus, LlmSignalType.STREAMED, { signal: AbortSignal.timeout(4000) });
+    const ended = once(clientBus, LlmSignalType.STREAM_END, { signal: AbortSignal.timeout(4000) });
+    emitSignal(clientBus, LlmSignalType.STREAM, { ...contract, id: client.id, provider: 'gemini', imagination: 0, limit: 12, correlationId: 'layout' });
+    const [received] = await streamed;
+    const { detail: { value: { stream, correlationId } } } = received as CustomEvent<Signal<import('@uca/llm/types').StreamResult>>;
+    assert.equal(correlationId, 'layout');
+    assert.equal(await new Response(stream.pipeThrough(new TextEncoderStream())).text(), 'layout');
+    assert.equal((received as CustomEvent<Signal>).detail.targetId, 'client');
+    await ended;
+    assert.equal(observed.filter(({ source, property }) => source === 'backend' && property === LlmSignalType.INFERRED).length, 3);
+    assert.equal(observed.filter(({ source, property }) => source === 'backend' && property === LlmSignalType.ERROR).length, 1);
+    assert.equal(observed.filter(({ source, property }) => source === 'backend' && property === LlmSignalType.STREAM_END).length, 1);
+    const cancellable = once(clientBus, LlmSignalType.STREAMED, { signal: AbortSignal.timeout(4000) });
+    emitSignal(clientBus, LlmSignalType.STREAM, { ...contract, id: client.id, provider: 'gemini', imagination: 0, limit: 12, correlationId: 'cancel-stream' });
+    const [cancellableEvent] = await cancellable;
+    const { detail: { value: { stream: cancellableStream } } } = cancellableEvent as CustomEvent<Signal<import('@uca/llm/types').StreamResult>>;
+    const cancellableReader = cancellableStream.getReader();
+    assert.deepEqual(await cancellableReader.read(), { done: false, value: 'layout' });
+    await cancellableReader.cancel();
+    await Promise.race([upstreamCancellation, new Promise((_, reject) => { setTimeout(() => reject(new Error('HTTP disconnect did not cancel the provider stream')), 2000).unref(); })]);
+    const rejected = await originalFetch(`${endpoint}/api/llm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ request: 'Legacy input', correlationId: 'invalid' }) });
+    const invalid = await rejected.json() as { error: string; correlationId: string };
+    assert.equal(rejected.ok, false); assert.equal(invalid.correlationId, 'invalid'); assert.match(invalid.error, /outputSchema/);
+    assert.equal(upstreamCalls, 4, 'Invalid HTTP contracts cannot reach a provider');
+    const invalidStream = await originalFetch(`${endpoint}/api/llm/sse`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...contract, goal: '', correlationId: 'invalid-stream' }) });
+    const invalidFrames = await invalidStream.text();
+    assert.match(invalidFrames, /error/); assert.match(invalidFrames, /invalid-stream/);
+
+} finally {
+    emitSignal(backendBus, SignalType.STOP, undefined); backend.denervate(); client.denervate(); globalThis.fetch = originalFetch;
+    if (originalKey === undefined) { delete process.env.JEV_API_KEY; } else { process.env.JEV_API_KEY = originalKey; }
+    if (originalMode === undefined) { delete process.env.NODE_ENV; } else { process.env.NODE_ENV = originalMode; }
+}
+console.log('✔ Client Llm → local backend → Jev, concurrent responses and SSE verified');

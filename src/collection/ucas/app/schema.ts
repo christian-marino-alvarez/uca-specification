@@ -1,31 +1,19 @@
 import { z } from 'zod';
+import { requestSchema as buildRequestSchema } from '@uca/builder/schema';
 
-export const screenSchema = z.object({
-    width: z.number().optional(),
-    height: z.number().optional(),
-    availWidth: z.number().optional(),
-    availHeight: z.number().optional(),
-    colorDepth: z.number().optional(),
-    pixelRatio: z.number().optional(),
-    orientation: z.string().optional(),
-}).optional();
-
-export const dimensionsSchema = z.object({
-    width: z.number().optional(),
-    height: z.number().optional(),
-    pixelRatio: z.number().optional(),
-    orientation: z.string().optional(),
-    screen: screenSchema,
-}).optional();
-
-export const bodySchema = z.object({
-    name: z.string().default('App'),
-    purpose: z.string().optional(),
-    context: z.string().optional(),
-    language: z.string().default('es-ES'),
-    dimensions: dimensionsSchema,
+export const buildSchema = buildRequestSchema.pick({
+    areaId: true,
+    design: true,
+    aim: true,
+    context: true,
+    limits: true,
+    requirements: true,
+    composition: true,
 });
 
-export type Screen = z.infer<typeof screenSchema>;
-export type Dimensions = z.infer<typeof dimensionsSchema>;
+export const bodySchema = z.object({
+    build: buildSchema.optional(),
+}).strict();
+
+export type Build = z.infer<typeof buildSchema>;
 export type Body = z.infer<typeof bodySchema>;

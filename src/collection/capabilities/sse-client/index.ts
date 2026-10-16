@@ -4,11 +4,15 @@ import {
     __ID__,
     AIM,
     DEFAULT_ENDPOINT,
+    JSON_HEADERS,
+    MAX_FRAME_LENGTH,
 } from './constants.js';
 import {
     type Body,
     type StreamPayload,
-    type StreamResult,
+    type ActiveStream,
+    type Frame,
+    type ReadResult,
     DataType,
     SignalType,
 } from './types.js';
@@ -28,17 +32,22 @@ export class SseClient extends Capability<Body> {
         ],
         outputs: [
             { signal: SignalType.STREAMED, type: DataType.STREAM_RESULT, description: 'SSE stream connected' },
-            { signal: SignalType.CHUNK, type: DataType.CHUNK_PAYLOAD, description: 'SSE text chunk received' },
             { signal: SignalType.END, type: DataType.VOID, description: 'SSE stream finished' },
             { signal: SignalType.ERROR, type: DataType.ERROR_PAYLOAD, description: 'SSE stream failed' },
             { signal: SignalType.ABORTED, type: DataType.VOID, description: 'SSE stream aborted' },
         ],
     };
 
-    private controller?: AbortController;
+    private readonly controllers = new Map<string, ActiveStream>();
 
     public constructor(id: string = __ID__) {
         super(id);
+    }
+
+    public override denervate(): void {
+        this.controllers.forEach(({ controller }) => controller.abort());
+        this.controllers.clear();
+        super.denervate();
     }
 
     protected override async react(signal: Signal): Promise<void> {
@@ -51,31 +60,50 @@ export class SseClient extends Capability<Body> {
     }
 
     private async handleStream(value?: unknown): Promise<void> {
-        const payload = (value ?? {}) as StreamPayload;
-        const { correlationId } = payload;
-        try {
-            await this.initiateStream(payload);
-        } catch (error) {
-            this.handleStreamError(error, correlationId);
-        }
+        const payload = value as StreamPayload;
+        const {
+            correlationId = crypto.randomUUID(),
+            streamId,
+            context,
+        } = payload;
+        const controller = new AbortController();
+        const requestId = streamId ?? correlationId;
+        this.replaceController(requestId, correlationId, controller);
+        try { await this.initiateStream({ ...payload, correlationId }, controller); }
+        catch (error) { this.releaseController(requestId, controller); !controller.signal.aborted && this.handleStreamError(error, correlationId, streamId, context); }
     }
 
-    private async initiateStream(payload: StreamPayload): Promise<void> {
-        const { correlationId, streamId } = payload;
-        const rawStream = await this.executeFetch(payload);
-        const [streamForListener, streamForChunks] = rawStream.tee();
-        this.pulse(SignalType.STREAMED, { correlationId, streamId, stream: streamForListener });
-        void this.consumeStream(streamForChunks, correlationId);
+    private async initiateStream(payload: StreamPayload, controller: AbortController): Promise<void> {
+        const {
+            correlationId,
+            streamId,
+            context,
+        } = payload;
+        const requestId = streamId ?? correlationId!;
+        const rawStream = await this.executeFetch(payload, controller);
+        const { signal } = controller; signal.throwIfAborted();
+        const reader = rawStream.getReader();
+        const stream = new ReadableStream<string>({
+            pull: (consumer) => this.readChunk(reader, consumer, controller, requestId, correlationId, streamId, context),
+            cancel: async (reason) => { controller.abort(reason); this.releaseController(requestId, controller); await reader.cancel(reason); },
+        }, { highWaterMark: 0 });
+        this.pulse(SignalType.STREAMED, {
+            correlationId,
+            streamId,
+            stream,
+            context,
+        });
     }
 
-    private async executeFetch(payload: StreamPayload): Promise<ReadableStream<string>> {
-        const { endpoint = DEFAULT_ENDPOINT } = payload;
-        this.controller = new AbortController();
+    private async executeFetch(payload: StreamPayload, controller: AbortController): Promise<ReadableStream<string>> {
+        const {
+            endpoint = DEFAULT_ENDPOINT,
+            context: _context,
+            ...body
+        } = payload;
+        const { signal } = controller;
         const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-            signal: this.controller.signal,
+            method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(body), signal,
         });
         return this.parseStreamResponse(response);
     }
@@ -112,16 +140,21 @@ export class SseClient extends Capability<Body> {
     private processSseLines(text: string, controller: TransformStreamDefaultController<string>): string {
         const lines = text.split('\n');
         const remainder = lines.pop() ?? '';
-        for (const line of lines) {
-            const chunk = this.extractSseData(line);
-            if (chunk) { controller.enqueue(chunk); }
+        if (remainder.length > MAX_FRAME_LENGTH) {
+            throw new Error('SSE frame exceeds the transport buffer limit');
         }
+        lines.forEach((line) => this.flushSseBuffer(line, controller));
         return remainder;
     }
 
     private flushSseBuffer(buffer: string, controller: TransformStreamDefaultController<string>): void {
+        if (buffer.length > MAX_FRAME_LENGTH) {
+            throw new Error('SSE frame exceeds the transport buffer limit');
+        }
         const chunk = this.extractSseData(buffer);
-        if (chunk) { controller.enqueue(chunk); }
+        if (chunk) {
+            controller.enqueue(chunk);
+        }
     }
 
     private extractSseData(line: string): string | undefined {
@@ -129,46 +162,74 @@ export class SseClient extends Capability<Body> {
         if (!trimmed.startsWith('data:')) { return undefined; }
         const content = trimmed.slice(5).trim();
         if (!content || content === '[DONE]') { return undefined; }
-        try {
-            const parsed = JSON.parse(content) as { text?: unknown };
-            return typeof parsed.text === 'string' ? parsed.text : undefined;
-        } catch {
-            return content;
-        }
+        let frame: Frame;
+        try { frame = JSON.parse(content) as Frame; } catch { return content; }
+        const { text, error } = frame;
+        if (error) { throw new Error(error); }
+        return text;
     }
 
-    private async consumeStream(stream: ReadableStream<string>, correlationId?: string): Promise<void> {
+    private async readChunk(reader: ReadableStreamDefaultReader<string>, controller: ReadableStreamDefaultController<string>, abort: AbortController, requestId?: string, correlationId?: string, streamId?: string, context?: unknown): Promise<void> {
+        const { signal } = abort;
         try {
-            await this.readChunks(stream.getReader(), correlationId);
-            this.pulse(SignalType.END, { correlationId });
+            signal.throwIfAborted();
+            const result = await reader.read();
+            signal.throwIfAborted();
+            this.deliverRead(result, controller, abort, requestId, correlationId, streamId, context);
         } catch (error) {
-            this.handleStreamError(error, correlationId);
+            this.releaseController(requestId, abort); controller.error(error); !signal.aborted && this.handleStreamError(error, correlationId, streamId, context);
         }
     }
 
-    private async readChunks(reader: ReadableStreamDefaultReader<string>, correlationId?: string): Promise<void> {
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) { break; }
-            this.pulse(SignalType.CHUNK, { correlationId, chunk: value });
+    private deliverRead(result: ReadResult, controller: ReadableStreamDefaultController<string>, abort: AbortController, requestId?: string, correlationId?: string, streamId?: string, context?: unknown): void {
+        const { done, value } = result;
+        if (done) {
+            this.releaseController(requestId, abort); controller.close(); this.pulse(SignalType.END, { correlationId, streamId, context });
+        }
+        else {
+            controller.enqueue(value);
         }
     }
 
-    private handleStreamError(error: unknown, correlationId?: string): void {
-        if (this.isAbortError(error)) { return; }
-        const message = error instanceof Error ? error.message : String(error);
-        this.pulse(SignalType.ERROR, { correlationId, error: message });
-    }
-
-    private isAbortError(error: unknown): boolean {
+    private handleStreamError(error: unknown, correlationId?: string, streamId?: string, context?: unknown): void {
         const { message = '', name = '' } = (error ?? {}) as { message?: string; name?: string };
-        return name === 'AbortError' || message.includes('aborted');
+        if (name === 'AbortError' || message.includes('aborted')) {
+            return;
+        }
+        this.pulse(SignalType.ERROR, {
+            correlationId,
+            streamId,
+            error: message || String(error),
+            context,
+        });
     }
 
     private handleAbort(value?: unknown): void {
         const { correlationId } = (value ?? {}) as { correlationId?: string };
-        this.controller?.abort();
-        this.controller = undefined;
+        if (correlationId) {
+            this.controllers.forEach((active, requestId) => {
+                if (active.correlationId === correlationId) {
+                    active.controller.abort(); this.controllers.delete(requestId);
+                }
+            });
+        }
+        else {
+            this.controllers.forEach(({ controller }) => controller.abort()); this.controllers.clear();
+        }
         this.pulse(SignalType.ABORTED, { correlationId });
+    }
+
+    private replaceController(requestId: string, correlationId: string, controller: AbortController): void {
+        this.controllers.get(requestId)?.controller.abort();
+        this.controllers.set(requestId, {
+            controller,
+            correlationId,
+        });
+    }
+
+    private releaseController(requestId: string | undefined, controller: AbortController): void {
+        if (requestId && this.controllers.get(requestId)?.controller === controller) {
+            this.controllers.delete(requestId);
+        }
     }
 }

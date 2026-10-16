@@ -1,8 +1,17 @@
+export enum EntityKind {
+    UCA = 'UCA',
+    CAPABILITY = 'CAPABILITY',
+    EXTERNAL = 'EXTERNAL',
+}
+
 /**
  * Signal: Representación mínima de un cambio observable.
  */
 export interface Signal<T = unknown> {
     source: string;
+    readonly sourceKind?: EntityKind;
+    /** Destination resolved by Core from active catalog input ports, or explicitly supplied. */
+    readonly targetId?: string;
     property: string;
     value: T;
     timestamp?: number;
@@ -27,6 +36,7 @@ export interface Port {
 }
 
 export type PortDeclaration = Port;
+export type PortDirection = 'inputs' | 'outputs';
 
 
 /**
@@ -150,4 +160,3 @@ export type CookyEntry<TCapability extends ICapability = ICapability> = Declarat
  * Cooky: Array ordenado de tuplas declarativas [Clase de Capability, Disposition].
  */
 export type Cooky = readonly Declaration[];
-

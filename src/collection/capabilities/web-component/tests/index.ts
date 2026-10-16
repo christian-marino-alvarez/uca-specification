@@ -1,4 +1,5 @@
 import * as assert from 'node:assert';
+import { test } from 'node:test';
 import { JSDOM } from 'jsdom';
 import { Capability } from '@uca/core/capability';
 import type { Signal } from '@uca/core/types';
@@ -230,3 +231,29 @@ function runTests(): void {
 }
 
 runTests();
+
+function editableField() {
+    const bus = new EventTarget(), elementId = `field-${crypto.randomUUID()}`;
+    const component = activateComponent(new WebComponent(elementId), bus);
+    emitSignal(bus, SignalType.RENDER, { elementId, tag: 'input', containerElement: '#container', attributes: { value: 'Initial' } });
+    const field = document.getElementById(elementId) as HTMLInputElement;
+    field.value = 'User draft';
+    return { bus, component, elementId, field };
+}
+
+test('An explicit domain value updates the visible input after the user has edited it', (context) => {
+    const { bus, component, elementId, field } = editableField();
+    context.after(() => { component.denervate(); field.remove(); });
+    emitSignal(bus, SignalType.UPDATE, { elementId, attributes: { value: 'Restored question' } });
+    assert.strictEqual(field.getAttribute('value'), 'Restored question');
+    assert.strictEqual(field.value, 'Restored question');
+});
+
+test('Other attribute updates preserve the draft and an explicit empty value clears it', (context) => {
+    const { bus, component, elementId, field } = editableField();
+    context.after(() => { component.denervate(); field.remove(); });
+    emitSignal(bus, SignalType.UPDATE, { elementId, attributes: { placeholder: 'New hint' } });
+    assert.strictEqual(field.value, 'User draft');
+    emitSignal(bus, SignalType.UPDATE, { elementId, attributes: { value: '' } });
+    assert.strictEqual(field.value, '');
+});

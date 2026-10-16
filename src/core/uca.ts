@@ -1,10 +1,12 @@
 import {
     DispositionSignal,
+    EntityKind,
     type CapabilityConstructor,
     type Cooky,
     type Disposition,
     type DispositionProvidePayload,
     type ICapability,
+    type PortDirection,
     type Signal,
 } from './types.js';
 import { Capability } from './capability.js';
@@ -39,6 +41,10 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         return context;
     }
 
+    protected override get entityKind(): EntityKind {
+        return EntityKind.UCA;
+    }
+
     protected override onDispositionUpdated(event: Event): void {
         this.syncCatalog();
         super.onDispositionUpdated(event);
@@ -59,6 +65,20 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         return declarations;
     }
 
+    protected override resolveTargetId(property: string): string | undefined {
+        const candidates = this.matchingCapabilities(property, 'inputs');
+        if (candidates.length > 1) { throw new Error(`Ambiguous destination for ${property} in ${this.id}; specify targetId`); }
+        const [destination] = candidates;
+        return destination?.id;
+    }
+
+    protected override acceptsSource(signal: Signal): boolean {
+        const { source, property } = signal;
+        const { target } = this;
+        const candidates = this.matchingCapabilities(property, 'outputs', false);
+        return candidates.length === 0 || candidates.some(({ id, target: connectedTarget }) => id === source && connectedTarget === target);
+    }
+
     protected getCapability(id: string): ICapability | undefined {
         const result = this.registry.get(id);
         return result;
@@ -68,6 +88,16 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         if (!id || id === this.id) { return true; }
         const matches = this.id.endsWith(`:${id}`) || id.endsWith(`:${this.id}`);
         return matches;
+    }
+
+    private matchingCapabilities(property: string, direction: PortDirection, activeOnly = true): ICapability[] {
+        const { registry, target } = this;
+        return [...registry.values()].filter(({ target: connectedTarget, disposition, constructor: Factory }) => {
+            const { disposition: defaults } = Factory as typeof Capability;
+            const { [direction]: defaultPorts = [] } = defaults;
+            const { [direction]: ports = defaultPorts } = disposition;
+            return (!activeOnly || connectedTarget === target) && ports.some(({ signal }) => signal === property);
+        });
     }
 
     private syncCatalog(): void {

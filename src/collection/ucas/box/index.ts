@@ -63,16 +63,16 @@ export class Box extends Uca<Body> {
                 this.handleRemove(value);
                 break;
             case WebComponentSignalType.RENDERED:
-                this.handleComponentRendered(value);
+                this.handleComponentRendered(signal);
                 break;
             case WebComponentSignalType.UPDATED:
-                this.handleComponentUpdated(value);
+                this.handleComponentUpdated(signal);
                 break;
             case WebComponentSignalType.REMOVED:
-                this.handleComponentRemoved(value);
+                this.handleComponentRemoved(signal);
                 break;
             case WebComponentSignalType.EVENT:
-                this.handleComponentEvent(value);
+                this.handleComponentEvent(signal);
                 break;
             default:
                 break;
@@ -80,43 +80,46 @@ export class Box extends Uca<Body> {
     }
 
     private handleRender(value?: unknown): void {
-        const { elementId = this.id, parentTo, containerElement, content, qualities, events } = (value ?? {}) as Body;
+        const { elementId = this.id, parentTo, containerElement, content, qualities, events, context } = (value ?? {}) as Body & { context?: unknown };
         const targetContainer = containerElement ?? (parentTo?.startsWith('#') ? parentTo : parentTo ? `#${parentTo}` : undefined);
-        if (qualities) { this.pulse(CssSignalType.APPLY, { id: `${this.id}:css`, elementId, qualities }); }
-        this.pulse(WebComponentSignalType.RENDER, { id: `${this.id}:web-component`, elementId, containerElement: targetContainer, content, events });
+        if (qualities) { this.pulse(CssSignalType.APPLY, { elementId, qualities }); }
+        this.pulse(WebComponentSignalType.RENDER, { elementId, containerElement: targetContainer, content, events, context });
     }
 
     private handleUpdate(value?: unknown): void {
-        const { elementId = this.id, content, qualities, events } = (value ?? {}) as Body;
-        if (qualities) { this.pulse(CssSignalType.APPLY, { id: `${this.id}:css`, elementId, qualities }); }
-        this.pulse(WebComponentSignalType.UPDATE, { id: `${this.id}:web-component`, elementId, content, events });
+        const { elementId = this.id, content, qualities, events, context } = (value ?? {}) as Body & { context?: unknown };
+        if (qualities) { this.pulse(CssSignalType.APPLY, { elementId, qualities }); }
+        this.pulse(WebComponentSignalType.UPDATE, { elementId, content, events, context });
     }
 
     private handleRemove(value?: unknown): void {
-        const { elementId = this.id } = (value ?? {}) as Body;
+        const { elementId = this.id, context } = (value ?? {}) as Body & { context?: unknown };
         this.pulse(CssSignalType.REMOVE, { elementId });
-        this.pulse(WebComponentSignalType.REMOVE, { elementId });
+        this.pulse(WebComponentSignalType.REMOVE, { elementId, context });
     }
 
-    private handleComponentRendered(value?: unknown): void {
-        const { elementId = this.id, tag } = (value ?? {}) as { elementId?: string; tag?: string };
-        if (tag === 'img') { return; }
+    private handleComponentRendered(signal: Signal): void {
+        const { value } = signal;
+        const { elementId = this.id } = (value ?? {}) as { elementId?: string };
         this.pulse(SignalType.CREATED, { elementId, detail: value });
     }
 
-    private handleComponentUpdated(value?: unknown): void {
+    private handleComponentUpdated(signal: Signal): void {
+        const { value } = signal;
         const { elementId = this.id } = (value ?? {}) as { elementId?: string };
         this.pulse(SignalType.UPDATED, { elementId, detail: value });
     }
 
-    private handleComponentRemoved(value?: unknown): void {
+    private handleComponentRemoved(signal: Signal): void {
+        const { value } = signal;
         const { elementId = this.id } = (value ?? {}) as { elementId?: string };
         this.pulse(SignalType.REMOVED, { elementId, detail: value });
     }
 
-    private handleComponentEvent(value?: unknown): void {
-        const { elementId, event, action, value: eventVal, checked, detail } = (value ?? {}) as EventContext;
+    private handleComponentEvent(signal: Signal): void {
+        const { value } = signal;
+        const { elementId, event, action, value: eventValue, checked, detail, context } = (value ?? {}) as EventContext & { context?: unknown };
         if (!elementId) { return; }
-        this.pulse(SignalType.EVENT, { elementId, event, action, value: eventVal, checked, detail });
+        this.pulse(SignalType.EVENT, { elementId, event, action, value: eventValue, checked, detail, context });
     }
 }

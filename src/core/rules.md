@@ -2,6 +2,14 @@
 
 Este documento establece las directrices obligatorias e invariantes arquitectónicas para el mantenimiento y evolución del dominio **Core** de la Universal Cognitive Architecture (UCA).
 
+## Política de pruebas manuales y cierre de implementación
+
+* **Las pruebas las realiza manualmente el usuario.** El agente no debe crear ni ejecutar pruebas automáticas salvo petición expresa del usuario.
+* Tras implementar, el agente debe detenerse y comunicar los cambios. No debe iniciar revisiones posteriores, inspeccionar logs, probar la aplicación en el navegador, capturar pantallas ni ejecutar comprobaciones de tipos, lint, tests o compilaciones para validar el resultado, salvo petición expresa del usuario.
+* No ejecutar validaciones automáticas previas por iniciativa propia, incluidas las de Core. La lectura de las reglas y del código necesaria para implementar sigue siendo obligatoria.
+* Una petición de implementar no autoriza por sí misma pruebas o revisiones. Las peticiones expresas de revisión o prueba se limitan al alcance indicado por el usuario.
+* Esta política sustituye cualquier obligación anterior de ejecutar validaciones antes o después de modificar el repositorio. No altera las validaciones de datos que forman parte del funcionamiento de la aplicación.
+
 ---
 
 ## 1. Responsabilidad y Alcance del Dominio Core
@@ -34,8 +42,8 @@ El dominio `src/core` contiene **única y exclusivamente las primitivas ontológ
    * **Idempotencia**: `handleDispositionUpdate` verifica si hubo un cambio real comparando las estructuras con normalización recursiva de claves (`isDispositionChanged` / `normalizeKeys`). Si no hay cambio, la ejecución se detiene sin coste ni reconexión.
    * **Reconexión y Catálogo**: Si la disposición cambia efectivamente, se desconectan y reconectan los receptores, actualizándose `this.disposition`, y se invoca `onDispositionUpdated(event)`.
    * **Sincronización en `Uca`**: En `Uca.onDispositionUpdated()`, se ejecuta `syncCatalog()`, activando/inervando dinámicamente o silenciando/denervando capacidades según `disposition.reactTo`.
-6. **Validación Previa Obligatoria de Core**:
-   * Antes de cualquier implementación, refactorización o creación en cualquier dominio del repositorio, es **estrictamente obligatorio validar la integridad de Core** ejecutando `npm run test:core`.
+6. **Pruebas Manuales de Core**:
+   * Las pruebas de integridad de Core corresponden al usuario. El agente solo ejecuta validaciones si el usuario las solicita expresamente.
 
 ---
 
@@ -72,5 +80,4 @@ Cuando un agente necesite intervenir en `src/core`:
    export * from './capability.js';
    export * from './uca.js';
    ```
-5. **Verificación en Tests**: Todo cambio debe estar acompañado de su prueba correspondiente en `src/core/tests/uca.test.ts`.
-   * Ejecutar: `npm run test:core`.
+5. **Pruebas Manuales**: El usuario realiza las pruebas. Solo crear o ejecutar pruebas automáticas si las solicita expresamente; los archivos deben seguir las convenciones de `AGENTS.md`.

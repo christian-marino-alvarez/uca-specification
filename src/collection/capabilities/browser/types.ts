@@ -31,6 +31,7 @@ export interface NavigatorContext {
     readonly type: string;
     readonly userAgent: string;
     readonly language: string;
+    readonly writingDirection: 'ltr' | 'rtl';
     readonly platform: string;
     readonly touch: boolean;
     readonly maxTouchPoints: number;

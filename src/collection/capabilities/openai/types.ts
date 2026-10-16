@@ -4,6 +4,8 @@ export enum SignalType {
     CONNECT = 'openai.connect',
     GENERATE = 'openai.generate',
     STREAM = 'openai.stream',
+    ABORT = 'openai.abort',
+    STREAMED = 'openai.streamed',
     CONNECTED = 'openai.connected',
     GENERATED = 'openai.generated',
     CHUNK = 'openai.chunk',
@@ -16,6 +18,8 @@ export enum DataType {
     GENERATE_PAYLOAD = 'GeneratePayload',
     CONNECTION_STATUS = 'ConnectionStatus',
     GENERATE_RESULT = 'GenerateResult',
+    STREAM_RESULT = 'StreamResult',
+    ABORT_PAYLOAD = 'AbortPayload',
     CHUNK_RESULT = 'ChunkResult',
     STREAM_END_RESULT = 'StreamEndResult',
     UNKNOWN = 'unknown',
@@ -74,3 +78,7 @@ export interface Body {
     readonly connection?: ConnectionConfig;
     readonly model?: string;
 }
+
+export interface StreamResult { readonly correlationId?: string; readonly streamId?: string; readonly stream: ReadableStream<string>; }
+
+export type StreamIterator = AsyncIterator<import('openai').default.Chat.Completions.ChatCompletionChunk>;

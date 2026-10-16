@@ -4,6 +4,7 @@ import {
     __ID__,
     DEFAULT_EVENTS,
     DEFAULT_TAG,
+    INPUT_TAG,
 } from './constants.js';
 import {
     type Body,
@@ -71,39 +72,49 @@ export class WebComponent extends Capability<Body> {
 
     private handleRender(value?: unknown): void {
         const payload = (value ?? {}) as RenderPayload;
-        const { elementId = this.id, tag, containerElement, attributes, content, events } = payload;
+        const { elementId = this.id, tag, containerElement, attributes, content, events, context } = payload;
         const container = this.resolveContainerElement(containerElement);
         const element = elementId && container ? this.createElement(this.registerElement(tag), elementId, attributes, content) : null;
         if (!element || !container) { return; }
-        this.mountElement(element, container, elementId, events);
+        this.mountElement(element, container, elementId, events, context);
     }
 
-    private mountElement(element: HTMLElement, container: Element, elementId: string, events?: readonly string[]): void {
-        const controller = this.bindLifecycle(element, elementId, events);
+    private mountElement(element: HTMLElement, container: Element, elementId: string, events?: readonly string[], context?: unknown): void {
+        const controller = this.bindLifecycle(element, elementId, events, context);
         document.getElementById(elementId)?.remove();
         container.appendChild(element);
         if (!element.tagName.includes('-')) {
-            this.handleConnected(element, elementId, controller.signal, events);
+            this.handleConnected(element, elementId, controller.signal, events, context);
         }
     }
 
-    private bindLifecycle(element: HTMLElement, elementId: string, events?: readonly string[]): AbortController {
+    private bindLifecycle(element: HTMLElement, elementId: string, events?: readonly string[], context?: unknown): AbortController {
         const controller = new AbortController();
         const customElement = element as HTMLElement & { onConnected?: () => void; onDisconnected?: () => void; abortController?: AbortController };
         customElement.abortController = controller;
-        customElement.onConnected = () => this.handleConnected(element, elementId, controller.signal, events);
-        customElement.onDisconnected = () => this.handleDisconnected(elementId, controller);
+        customElement.onConnected = () => this.handleConnected(element, elementId, controller.signal, events, context);
+        customElement.onDisconnected = () => this.handleDisconnected(elementId, controller, context);
         return controller;
     }
 
-    private handleConnected(element: HTMLElement, elementId: string, signal: AbortSignal, events?: readonly string[]): void {
-        this.attachEventListeners(element, elementId, signal, events);
-        this.pulse(SignalType.RENDERED, { elementId, tag: element.tagName.toLowerCase() });
+    private handleConnected(element: HTMLElement, elementId: string, signal: AbortSignal, events?: readonly string[], context?: unknown): void {
+        this.attachEventListeners(element, elementId, signal, events, context);
+        this.pulse(SignalType.RENDERED, {
+            elementId,
+            tag: element.tagName.toLowerCase(),
+            ...(context !== undefined && { context }),
+        });
     }
 
-    private handleDisconnected(elementId: string, controller: AbortController): void {
+    private handleDisconnected(elementId: string, controller: AbortController, context?: unknown): void {
         controller.abort();
-        this.pulse(SignalType.REMOVED, { elementId, removed: true });
+        this.pulse(SignalType.REMOVED, {
+            elementId,
+            removed: true,
+            ...(context !== undefined && {
+                context,
+            }),
+        });
     }
 
     private createElement(tag: string, elementId: string, attributes?: Record<string, string>, content?: string): HTMLElement | null {
@@ -116,27 +127,31 @@ export class WebComponent extends Capability<Body> {
     }
 
     private handleUpdate(value?: unknown): void {
-        const { elementId = this.id, attributes, content, events } = (value ?? {}) as UpdatePayload;
+        const { elementId = this.id, attributes, content, events, context } = (value ?? {}) as UpdatePayload;
         if (!elementId || typeof document === 'undefined') { return; }
         const element = document.getElementById(elementId) as (HTMLElement & { abortController?: AbortController }) | null;
         if (!element) { return; }
         this.applyAttributes(element, attributes);
         if (content !== undefined) { element.innerHTML = content; }
-        if (events) { this.updateEventListeners(element, elementId, events); }
-        this.pulse(SignalType.UPDATED, { elementId, updated: true });
+        if (events) { this.updateEventListeners(element, elementId, events, context); }
+        this.pulse(SignalType.UPDATED, { elementId, updated: true, context });
     }
 
-    private updateEventListeners(element: HTMLElement & { abortController?: AbortController }, elementId: string, events: readonly string[]): void {
+    private updateEventListeners(element: HTMLElement & { abortController?: AbortController }, elementId: string, events: readonly string[], context?: unknown): void {
         element.abortController?.abort();
         const controller = new AbortController();
         element.abortController = controller;
-        this.attachEventListeners(element, elementId, controller.signal, events);
+        this.attachEventListeners(element, elementId, controller.signal, events, context);
     }
 
     private handleRemove(value?: unknown): void {
         const { elementId = this.id } = (value ?? {}) as RemovePayload;
         if (!elementId || typeof document === 'undefined') { return; }
-        document.getElementById(elementId)?.remove();
+        const element = document.getElementById(elementId) as (HTMLElement & { onDisconnected?: () => void }) | null;
+        if (!element) { return; }
+        const { tagName, onDisconnected } = element;
+        element.remove();
+        if (!tagName.includes('-')) { onDisconnected?.(); }
     }
 
     private registerElement(tag: string = DEFAULT_TAG): string {
@@ -157,22 +172,23 @@ export class WebComponent extends Capability<Body> {
     }
 
     private applyAttributes(element: HTMLElement, attributes?: Record<string, string>): void {
-        if (!attributes) { return; }
-        for (const [name, value] of Object.entries(attributes)) {
-            element.setAttribute(name, value);
+        const { value } = attributes ?? {}, { tagName } = element;
+        Object.entries(attributes ?? {}).forEach(([name, attribute]) => element.setAttribute(name, attribute));
+        if (value !== undefined && tagName === INPUT_TAG) {
+            (element as HTMLInputElement).value = value;
         }
     }
 
-    private attachEventListeners(element: HTMLElement, elementId: string, signal: AbortSignal, events?: readonly string[]): void {
+    private attachEventListeners(element: HTMLElement, elementId: string, signal: AbortSignal, events?: readonly string[], context?: unknown): void {
         const targetEvents = events ?? DEFAULT_EVENTS;
         for (const eventName of targetEvents) {
             element.addEventListener(eventName, (event: Event) => {
-                this.delegateDomEvent(elementId, eventName, event);
+                this.delegateDomEvent(elementId, eventName, event, context);
             }, { signal });
         }
     }
 
-    private delegateDomEvent(rootElementId: string, eventName: string, event: Event): void {
+    private delegateDomEvent(rootElementId: string, eventName: string, event: Event, context?: unknown): void {
         const { target } = event;
         const eventTarget = target as HTMLElement | null;
         const resolved = eventTarget?.closest?.('[data-action], [id]') ?? eventTarget;
@@ -180,6 +196,6 @@ export class WebComponent extends Capability<Body> {
         const action = resolved?.getAttribute?.('data-action') ?? eventName;
         const { value, checked } = (resolved as HTMLInputElement | null) ?? {};
         const { detail } = event as CustomEvent;
-        this.pulse(SignalType.EVENT, { elementId, event: eventName, action, value, checked, detail });
+        this.pulse(SignalType.EVENT, { elementId, event: eventName, action, value, checked, detail, context });
     }
 }

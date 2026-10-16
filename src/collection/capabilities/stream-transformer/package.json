@@ -30,6 +30,16 @@
       "types": "./constants.d.ts",
       "import": "./constants.js",
       "default": "./constants.ts"
+    },
+    "./parser": {
+      "types": "./parser.d.ts",
+      "import": "./parser.js",
+      "default": "./parser.ts"
+    },
+    "./parser.js": {
+      "types": "./parser.d.ts",
+      "import": "./parser.js",
+      "default": "./parser.ts"
     }
   },
   "dependencies": {

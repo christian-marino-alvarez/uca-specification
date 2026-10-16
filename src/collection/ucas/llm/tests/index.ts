@@ -1,209 +1,93 @@
 import * as assert from 'node:assert';
-import { Uca } from '@uca/core/uca';
 import type { Signal } from '@uca/core/types';
-import { SignalType as GeminiSignalType } from '@uca/capability-gemini/types';
-import { SignalType as OpenaiSignalType } from '@uca/capability-openai/types';
 import { Llm } from '../index.js';
-import { SignalType, DataType } from '../types.js';
-import { __ID__, DEFAULT_OPENAI_MODEL, DEFAULT_GEMINI_MODEL } from '../constants.js';
+import { SignalType } from '../types.js';
+import { createContextSchema } from '../schema.js';
+const contract = { outputSchema: { type: 'object' }, contextSchema: createContextSchema({ areaId: 'root' }), purpose: 'Present an interactive area', goal: 'Build', limits: { direction: 'column' } };
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };
     bus.dispatchEvent(new CustomEvent(property, { detail: signal }));
 }
 
-function activateLlm(llm: Llm, bus: EventTarget, disposition = Llm.disposition): Llm {
-    llm.innervate(bus);
-    emitSignal(bus, llm.updateEvent, disposition);
-    return llm;
-}
+// All frontend providers share our backend transport; no provider capability is activated.
+import { once } from 'node:events';
+const originalFetch = globalThis.fetch;
+const clientBus = new EventTarget();
+const client = new Llm('area:llm').innervate(clientBus);
+emitSignal(clientBus, client.updateEvent, Llm.disposition);
+assert.deepEqual([...client.registry.keys()], ['area:llm:http-client', 'area:llm:sse-client', 'area:llm:schema']);
+try {
+    globalThis.fetch = async (url, options) => {
+        assert.equal(url, '/api/llm');
+        assert.equal(new Headers(options?.headers).get('Authorization'), null);
+        const { outputSchema, contextSchema, purpose, goal, limits, correlationId, connection, apiKey, request, expectations, role } = JSON.parse(String(options?.body));
+        assert.deepEqual({ outputSchema, contextSchema, purpose, goal, limits }, contract);
+        assert.equal(request, undefined); assert.equal(expectations, undefined); assert.equal(role, undefined);
+        const { const: context } = contextSchema;
+        assert.equal(connection, undefined); assert.equal(apiKey, undefined);
+        return Response.json({ data: { ready: true }, context, correlationId });
+    };
+    for (const provider of ['jev', 'gemini', 'openai', 'gemini']) {
+        const response = once(clientBus, SignalType.INFERRED, { signal: AbortSignal.timeout(3000) });
+        emitSignal(clientBus, SignalType.INFER, { ...contract, id: client.id, provider, correlationId: provider });
+        const [event] = await response;
+        const { detail: { value, targetId } } = event as CustomEvent<Signal>;
+        assert.equal(targetId, 'test');
+        const result = value;
+        assert.deepEqual(result, { data: { ready: true }, context: { areaId: 'root' }, correlationId: provider });
+    }
+    globalThis.fetch = async (url, options) => {
+        assert.equal(url, '/api/llm/sse');
+        const { outputSchema, contextSchema, purpose, goal, limits, imagination, limit, schema } = JSON.parse(String(options?.body));
+        assert.deepEqual({ outputSchema, contextSchema, purpose, goal, limits }, contract);
+        assert.equal(imagination, 0); assert.equal(limit, 10); assert.equal(schema, undefined);
+        return new Response('data: {"text":"hello"}\n\ndata: {"done":true}\n\n');
+    };
+    const streamed = once(clientBus, SignalType.STREAMED, { signal: AbortSignal.timeout(3000) });
+    const end = once(clientBus, SignalType.STREAM_END, { signal: AbortSignal.timeout(3000) });
+    emitSignal(clientBus, SignalType.STREAM, { ...contract, id: client.id, imagination: 0, limit: 10, correlationId: 'stream' });
+    const [streamEvent] = await streamed;
+    const { detail: { value: streamResult, targetId: streamTarget } } = streamEvent as CustomEvent<Signal<import('../types.js').StreamResult>>;
+    assert.equal(streamResult.correlationId, 'stream'); assert.equal(streamTarget, 'area');
+    assert.equal(await new Response(streamResult.stream.pipeThrough(new TextEncoderStream())).text(), 'hello');
+    await end;
+    let invalidRequests = 0;
+    globalThis.fetch = async () => { invalidRequests += 1; return Response.json({}); };
+    for (const operation of [SignalType.INFER, SignalType.STREAM]) {
+        const rejected = once(clientBus, SignalType.ERROR, { signal: AbortSignal.timeout(3000) });
+        emitSignal(clientBus, operation, { ...contract, id: client.id, goal: '', correlationId: operation });
+        const [rejectedEvent] = await rejected;
+        const { detail: { value: rejectedValue, targetId } } = rejectedEvent as CustomEvent<Signal<{ correlationId: string }>>;
+        assert.equal(rejectedValue.correlationId, operation); assert.equal(targetId, operation === SignalType.INFER ? 'test' : 'area');
+    }
+    assert.equal(invalidRequests, 0, 'Invalid contracts must fail before transport');
+    globalThis.fetch = async () => new Response('data: {"error":"upstream failed"}\n\n');
+    const failure = once(clientBus, SignalType.ERROR, { signal: AbortSignal.timeout(3000) });
+    const failedStream = once(clientBus, SignalType.STREAMED, { signal: AbortSignal.timeout(3000) });
+    emitSignal(clientBus, SignalType.STREAM, { ...contract, id: client.id, correlationId: 'failure' });
+    const [failedStreamEvent] = await failedStream;
+    const { detail: { value: { stream: errorStream } } } = failedStreamEvent as CustomEvent<Signal<import('../types.js').StreamResult>>;
+    await assert.rejects(new Response(errorStream.pipeThrough(new TextEncoderStream())).text(), /upstream failed/);
+    const [failureEvent] = await failure;
+    const failed = (failureEvent as CustomEvent<Signal<Record<string, unknown>>>).detail.value;
+    assert.equal((failureEvent as CustomEvent<Signal>).detail.targetId, 'area');
+    assert.deepEqual(failed, { correlationId: 'failure', error: 'upstream failed' });
+} finally { globalThis.fetch = originalFetch; client.denervate(); }
+console.log('✔ Llm backend routing for all providers and SSE verified');
 
-function testLlm_IdentityAndDefaults(): void {
-    const llm = new Llm();
-    assert.strictEqual(llm.id, __ID__);
-    assert.strictEqual(llm.purpose, Llm.purpose);
-    assert.ok(llm instanceof Uca);
-    llm.innervate();
-    const { inputs, outputs } = llm.disposition;
-    assert.strictEqual(inputs?.length, 3);
-    assert.strictEqual(inputs?.[0]?.type, DataType.INFER_PAYLOAD);
-    assert.strictEqual(outputs?.length, 5);
-    assert.strictEqual(outputs?.[0]?.type, DataType.INFER_RESULT);
-    llm.denervate();
-}
 
-function testLlm_TransducesInferToGeminiGenerateByDefault(): void {
-    const bus = new EventTarget();
-    const llm = activateLlm(new Llm('llm-test'), bus);
-    let geminiPayload: unknown = undefined;
-
-    bus.addEventListener(GeminiSignalType.GENERATE, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal>;
-        geminiPayload = detail.value;
-    });
-
-    emitSignal(bus, SignalType.INFER, {
-        request: 'What is the speed of light?',
-    });
-
-    assert.notStrictEqual(geminiPayload, undefined);
-    const { prompt, model } = geminiPayload as { prompt: string; model?: string };
-    assert.strictEqual(prompt, 'What is the speed of light?');
-    assert.strictEqual(model, DEFAULT_GEMINI_MODEL);
-    llm.denervate();
-}
-
-function testLlm_TransducesInferToOpenaiGenerateWhenRequested(): void {
-    const bus = new EventTarget();
-    const llm = activateLlm(new Llm('llm-test'), bus);
-    let openaiPayload: unknown = undefined;
-
-    bus.addEventListener(OpenaiSignalType.GENERATE, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal>;
-        openaiPayload = detail.value;
-    });
-
-    emitSignal(bus, SignalType.INFER, {
-        request: 'What is the speed of light?',
-        provider: 'openai',
-        model: DEFAULT_OPENAI_MODEL,
-    });
-
-    assert.notStrictEqual(openaiPayload, undefined);
-    const { prompt, model } = openaiPayload as { prompt: string; model?: string };
-    assert.strictEqual(prompt, 'What is the speed of light?');
-    assert.strictEqual(model, DEFAULT_OPENAI_MODEL);
-    llm.denervate();
-}
-
-function testLlm_TransducesOpenaiGeneratedToLlmInferred(): void {
-    const bus = new EventTarget();
-    const llm = activateLlm(new Llm('llm-test'), bus);
-    let generatedResult: unknown = undefined;
-
-    bus.addEventListener(SignalType.INFERRED, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal>;
-        generatedResult = detail.value;
-    });
-
-    emitSignal(bus, OpenaiSignalType.GENERATED, {
-        prompt: 'hello',
-        text: 'Hello world!',
-        data: { message: 'Hello world!' },
-        model: DEFAULT_OPENAI_MODEL,
-    });
-
-    assert.notStrictEqual(generatedResult, undefined);
-    const { response, data } = generatedResult as { response?: string; data?: Record<string, unknown> };
-    assert.strictEqual(response, 'Hello world!');
-    assert.deepStrictEqual(data, { message: 'Hello world!' });
-    llm.denervate();
-}
-
-function testLlm_TransducesConnectAndConnected(): void {
-    const bus = new EventTarget();
-    const llm = activateLlm(new Llm('llm-test'), bus);
-    let geminiConfig: unknown = undefined;
-    let openaiConfig: unknown = undefined;
-    let connectedStatus: unknown = undefined;
-
-    bus.addEventListener(GeminiSignalType.CONNECT, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal>;
-        geminiConfig = detail.value;
-    });
-    bus.addEventListener(OpenaiSignalType.CONNECT, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal>;
-        openaiConfig = detail.value;
-    });
-    bus.addEventListener(SignalType.CONNECTED, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal>;
-        connectedStatus = detail.value;
-    });
-
-    emitSignal(bus, SignalType.CONNECT, { apiKey: 'secret-key' });
-    assert.deepStrictEqual(geminiConfig, { apiKey: 'secret-key' });
-    assert.deepStrictEqual(openaiConfig, { apiKey: 'secret-key' });
-
-    emitSignal(bus, OpenaiSignalType.CONNECTED, { status: 'ready' });
-    assert.strictEqual(connectedStatus, 'connected');
-    llm.denervate();
-}
-
-function testLlm_TransducesErrors(): void {
-    const bus = new EventTarget();
-    const llm = activateLlm(new Llm('llm-test'), bus);
-    let errorReceived: unknown = undefined;
-
-    bus.addEventListener(SignalType.ERROR, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal>;
-        errorReceived = detail.value;
-    });
-
-    emitSignal(bus, OpenaiSignalType.ERROR, new Error('OpenAI rate limit'));
-    assert.ok(errorReceived instanceof Error);
-    assert.strictEqual((errorReceived as Error).message, 'OpenAI rate limit');
-    llm.denervate();
-}
-
-import { SignalType as JevSignalType } from '@uca/capability-jev/types';
-
-function testLlm_TransducesInferToJevWhenRequested(): void {
-    const bus = new EventTarget();
-    const llm = activateLlm(new Llm('llm-test'), bus);
-    let jevPayload: unknown = undefined;
-
-    bus.addEventListener(JevSignalType.INFER, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal>;
-        jevPayload = detail.value;
-    });
-
-    emitSignal(bus, SignalType.INFER, {
-        request: 'Is this area ready?',
-        provider: 'jev',
-        correlationId: 'llm-test:rootCanvas',
-    });
-
-    assert.notStrictEqual(jevPayload, undefined);
-    const { questions, correlationId } = jevPayload as { questions: Record<string, unknown>; correlationId?: string };
-    assert.strictEqual(correlationId, 'llm-test:rootCanvas');
-    assert.strictEqual(questions.assessment, 'Is this area ready?');
-    llm.denervate();
-}
-
-function testLlm_TransducesJevInferredToLlmInferred(): void {
-    const bus = new EventTarget();
-    const llm = activateLlm(new Llm('llm-test'), bus);
-    let inferredResult: unknown = undefined;
-
-    bus.addEventListener(SignalType.INFERRED, (event: Event) => {
-        const { detail } = event as CustomEvent<Signal>;
-        inferredResult = detail.value;
-    });
-
-    emitSignal(bus, JevSignalType.INFERRED, {
-        state: { ready: true },
-        answers: { assessment: 'ready' },
-        correlationId: 'test:rootCanvas',
-    });
-
-    assert.notStrictEqual(inferredResult, undefined);
-    const { data, correlationId } = inferredResult as { data?: Record<string, unknown>; correlationId?: string };
-    assert.strictEqual(correlationId, 'test:rootCanvas');
-    assert.deepStrictEqual(data, { assessment: 'ready' });
-    llm.denervate();
-}
-
-function runAllLlmTests(): void {
-    testLlm_IdentityAndDefaults();
-    testLlm_TransducesInferToGeminiGenerateByDefault();
-    testLlm_TransducesInferToOpenaiGenerateWhenRequested();
-    testLlm_TransducesOpenaiGeneratedToLlmInferred();
-    testLlm_TransducesInferToJevWhenRequested();
-    testLlm_TransducesJevInferredToLlmInferred();
-    testLlm_TransducesConnectAndConnected();
-    testLlm_TransducesErrors();
-    console.log('✔ All LLM UCA cognitive reasoning tests passed successfully.');
-}
-
-runAllLlmTests();
-
+// Regression: all three Builder LLMs share one bus; only the targeted transport may fetch.
+const sharedBus = new EventTarget(), sharedRequests: unknown[] = [];
+const clients = ['builder:decision:llm', 'builder:composer:llm', 'builder:render:llm'].map((id) => new Llm(id).innervate(sharedBus));
+clients.forEach((instance) => emitSignal(sharedBus, instance.updateEvent, Llm.disposition));
+try {
+    globalThis.fetch = async (_url, options) => { sharedRequests.push(JSON.parse(String(options?.body))); return Response.json({ data: 'ready' }); };
+    for (const instance of clients) {
+        const completion = once(sharedBus, SignalType.INFERRED, { signal: AbortSignal.timeout(3000) });
+        const previous = sharedRequests.length;
+        emitSignal(sharedBus, SignalType.INFER, { ...contract, id: instance.id });
+        await completion;
+        assert.equal(sharedRequests.length - previous, 1, 'One addressed LLM inference must perform exactly one fetch on the shared bus');
+    }
+} finally { globalThis.fetch = originalFetch; clients.forEach((instance) => instance.denervate()); }

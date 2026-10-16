@@ -2,20 +2,28 @@ import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import {
     __ID__,
+    CONTROL_STATE_RULES, DIMENSION_PATTERN, DIMENSION_PROPERTIES, TOKEN_PROPERTIES, ALIGNMENT_DISTRIBUTIONS, IDENTIFIED_DESCENDANT_SELECTOR,
     CSS_TOKENS_SUMMARY,
+    DARK_SCHEME_QUERY,
+    DESIGN_READY_PROPERTY,
     DESIGN_TOKENS,
+    LIGHT_SCHEME_QUERY,
+    REDUCED_MOTION_QUERY,
     STYLE_PREFIX,
     TOKENS_STYLE_ID,
     generateBaseRulesCss,
 } from './constants.js';
 import {
     type ApplyPayload,
+    type DesignTokens,
+    type DesignToken, ControlType,
     type Body,
     type MountPayload,
     type Qualities,
     type RemovePayload,
     type ResolvePayload,
     type SchemaPayload,
+    type StylesheetDesign,
     type ThemePayload,
     DataType,
     SignalType,
@@ -38,7 +46,7 @@ export class Css extends Capability<Body> {
             { signal: SignalType.APPLY, type: DataType.APPLY_PAYLOAD, description: 'Apply autonomous qualities for element' },
             { signal: SignalType.RESOLVE, type: DataType.RESOLVE_PAYLOAD, description: 'Resolve domain qualities to CSS declarations' },
             { signal: SignalType.THEME, type: DataType.THEME_PAYLOAD, description: 'Update design tokens theme' },
-            { signal: SignalType.REMOVE, type: DataType.REMOVE_PAYLOAD, description: 'Remove element style rule' },
+            { signal: SignalType.REMOVE, type: DataType.REMOVE_PAYLOAD, description: 'Remove scoped style rules for the element and its existing descendants' },
             { signal: SignalType.MOUNT, type: DataType.MOUNT_PAYLOAD, description: 'Mount root design token stylesheet' },
             { signal: SignalType.SCHEMA, type: DataType.SCHEMA_PAYLOAD, description: 'Query design tokens schema and summary' },
         ],
@@ -54,14 +62,12 @@ export class Css extends Capability<Body> {
     };
 
     public static translateQualities(qualities: Qualities): Record<string, string> {
-        const { width, height, spacing, gap, surface, tone, typeface, textSize, elevation, radius, border, direction, alignment, custom } = qualities;
+        const { marginInline, custom } = qualities;
         return {
-            ...Css.resolveDimensions(width, height),
-            ...Css.resolveVisuals(spacing, surface, tone, elevation, radius),
-            ...Css.resolveGap(gap ?? spacing),
-            ...Css.resolveBorder(border),
-            ...Css.resolveTypography(typeface, textSize),
-            ...Css.resolveLayout(direction, alignment),
+            ...Css.resolveDimensions(qualities),
+            ...Css.resolveLayout(qualities),
+            ...Css.resolveTokenQualities(qualities),
+            ...(marginInline === 'auto' && { 'margin-inline': marginInline }),
             ...(custom ?? {}),
         };
     }
@@ -70,79 +76,104 @@ export class Css extends Capability<Body> {
         return elementId.includes(':') ? `[id="${elementId}"]` : `#${elementId}`;
     }
 
-    public static formatCssRule(selector: string, declarations: Record<string, string>): string {
+    public static formatCssRule(selector: string, declarations: Readonly<Record<string, string | number>>): string {
         const rules = Object.entries(declarations).map(([k, v]) => `${k}: ${v};`).join(' ');
         return `${selector} { ${rules} }`;
     }
 
-    public static generateTokensCss(tokens: Record<string, Record<string, unknown>> = DESIGN_TOKENS as unknown as Record<string, Record<string, unknown>>): string {
-        const lines: string[] = [];
-        for (const [category, group] of Object.entries(tokens)) {
-            for (const [name, token] of Object.entries(group)) {
-                if (name.startsWith('$')) { continue; }
-                const val = typeof token === 'object' && token && '$value' in token ? (token as { $value: string }).$value : token;
-                lines.push(`--uca-${category}-${name}: ${val};`);
-            }
+    private static formatControlStates(selector: string, control: ControlType): string {
+        return CONTROL_STATE_RULES[control].map(({ suffix, declarations }) => Css.formatCssRule(`${selector}${suffix}`, { ...declarations })).join(' ');
+    }
+
+    public static generateTokensCss(tokens: DesignTokens = DESIGN_TOKENS as unknown as DesignTokens): string {
+        const declarations = Css.formatTokenDeclarations(tokens);
+        return `:root { ${DESIGN_READY_PROPERTY}: 1; ${declarations} } ${generateBaseRulesCss()}`;
+    }
+
+    public static generateStylesheet(design: StylesheetDesign): string {
+        const {
+            tokens,
+            modes = {},
+            rules = {},
+        } = design;
+        const {
+            light,
+            dark,
+            reducedMotion,
+        } = modes;
+        return [
+            Css.generateTokensCss(tokens),
+            Css.formatRulesCss(rules),
+            Css.formatModeCss(LIGHT_SCHEME_QUERY, light),
+            Css.formatModeCss(DARK_SCHEME_QUERY, dark),
+            Css.formatModeCss(REDUCED_MOTION_QUERY, reducedMotion),
+        ].filter(Boolean).join('\n');
+    }
+
+    private static formatTokenDeclarations(tokens: DesignTokens): string {
+        return Object.entries(tokens).flatMap(([
+            category,
+            group,
+        ]) => Object.entries(group).filter(([
+            name,
+        ]) => !name.startsWith('$')).map(([
+            name,
+            token,
+        ]) => `--uca-${category}-${name}: ${token.$value};`)).join(' ');
+    }
+
+    private static formatRulesCss(rules: StylesheetDesign['rules'] = {}): string {
+        return Object.entries(rules).map(([
+            selector,
+            declarations,
+        ]) => Css.formatCssRule(selector, declarations)).join('\n');
+    }
+
+    private static formatModeCss(query: string, tokens?: DesignTokens): string {
+        if (!tokens) {
+            return '';
         }
-        return `:root { ${lines.join(' ')} } ${generateBaseRulesCss()}`;
+        const declarations = Css.formatTokenDeclarations(tokens);
+        return `@media ${query} { :root { ${declarations} } }`;
     }
 
-    private static resolveTokenValue(group: Record<string, unknown>, key?: string): string | undefined {
-        if (!key) { return undefined; }
-        const entry = group[key] as { $value?: string } | string | undefined;
-        return typeof entry === 'object' && entry ? entry.$value ?? key : entry ?? key;
+    private static tokenReference(group: string, name: string, fallback: string): string {
+        return `var(--uca-${group}-${name}, ${fallback})`;
     }
 
-    private static resolveDimensions(width?: string, height?: string): Record<string, string> {
-        const resolvedWidth = width === 'screen' ? '100vw' : Css.resolveTokenValue(DESIGN_TOKENS.dimensions, width);
-        const resolvedHeight = Css.resolveTokenValue(DESIGN_TOKENS.dimensions, height);
-        const narrowRules: Record<string, string> = width === 'narrow' ? { 'flex-shrink': '0', 'flex-grow': '0' } : {};
-        const maxWidthRules = { 'max-width': width === 'wide' ? '768px' : '100%' };
-        return { 'box-sizing': 'border-box', ...maxWidthRules, ...(resolvedWidth && { width: resolvedWidth }), ...(resolvedHeight && { height: resolvedHeight }), ...narrowRules };
+    private static resolveDimensions(qualities: Qualities): Record<string, string> {
+        const { dimensions: { $type: categoryType, ...tokens } } = DESIGN_TOKENS;
+        return { 'box-sizing': 'border-box', ...Object.fromEntries(DIMENSION_PROPERTIES.flatMap(([quality, property, viewport]) => {
+            const { [quality]: name } = qualities;
+            const { $value } = (tokens as Record<string, DesignToken>)[name ?? ''] ?? {};
+            const resolved = name === 'screen'
+                ? viewport
+                : $value !== undefined && name
+                    ? Css.tokenReference('dimensions', name, String($value))
+                    : name && DIMENSION_PATTERN.test(name) ? name : undefined;
+            return resolved ? [[property, resolved]] : [];
+        })) };
     }
 
-    private static resolveVisuals(spacing?: string, surface?: string, tone?: string, elevation?: string, radius?: string): Record<string, string> {
-        const pad = Css.resolveTokenValue(DESIGN_TOKENS.spacing, spacing);
-        const bg = Css.resolveTokenValue(DESIGN_TOKENS.surface, surface) ?? Css.resolveTokenValue(DESIGN_TOKENS.tone, tone);
-        const shadow = Css.resolveTokenValue(DESIGN_TOKENS.elevation, elevation);
-        const rad = Css.resolveTokenValue(DESIGN_TOKENS.radius, radius);
+    private static resolveTokenQualities(qualities: Qualities): Record<string, string> {
+        return Object.fromEntries(TOKEN_PROPERTIES.flatMap(([quality, group, property]) => {
+            const { [quality]: name } = qualities, { [group]: { $type: categoryType, ...tokens } } = DESIGN_TOKENS;
+            const { $value } = (tokens as Record<string, DesignToken<string | number>>)[name ?? ''] ?? {};
+            return $value !== undefined && name
+                ? [[property, Css.tokenReference(group, name, String($value))]]
+                : [];
+        }));
+    }
+
+    private static resolveLayout(qualities: Qualities): Record<string, string> {
+        const { direction, alignment, distribution, wrap } = qualities, { alignment: { $type: categoryType, ...tokens } } = DESIGN_TOKENS;
+        const { $value: aligned } = (tokens as Record<string, DesignToken>)[alignment ?? ''] ?? {};
+        const mainAxis = ALIGNMENT_DISTRIBUTIONS.includes(aligned ?? '') ? aligned : undefined;
+        const crossAxis = aligned && aligned !== 'space-between' ? aligned : undefined;
         return {
-            ...(pad && { padding: pad }),
-            ...(bg && { 'background-color': bg }),
-            ...(shadow && { 'box-shadow': shadow }),
-            ...(rad && { 'border-radius': rad }),
-        };
-    }
-
-    private static resolveGap(gap?: string): Record<string, string> {
-        const resolvedGap = Css.resolveTokenValue(DESIGN_TOKENS.spacing, gap);
-        return resolvedGap ? { gap: resolvedGap } : {};
-    }
-
-    private static resolveBorder(border?: string): Record<string, string> {
-        const resolvedBorder = Css.resolveTokenValue(DESIGN_TOKENS.border, border);
-        return resolvedBorder ? { border: resolvedBorder } : {};
-    }
-
-    private static resolveTypography(typeface?: string, textSize?: string): Record<string, string> {
-        const font = Css.resolveTokenValue(DESIGN_TOKENS.typeface, typeface);
-        const size = Css.resolveTokenValue(DESIGN_TOKENS.textSize, textSize);
-        return {
-            ...(font && { 'font-family': font }),
-            ...(size && { 'font-size': size }),
-        };
-    }
-
-    private static resolveLayout(direction?: string, alignment?: string): Record<string, string> {
-        const dir = Css.resolveTokenValue(DESIGN_TOKENS.direction, direction);
-        const align = Css.resolveTokenValue(DESIGN_TOKENS.alignment, alignment);
-        const justify = ['space-between', 'center', 'flex-end'].includes(align ?? '') ? align : undefined;
-        const cross = align && align !== 'space-between' ? align : undefined;
-        return {
-            ...((dir || align) ? { display: 'flex' } : {}),
-            ...(dir ? { 'flex-direction': dir } : {}),
-            ...(cross ? { 'align-items': cross } : {}),
-            ...(justify ? { 'justify-content': justify } : {}),
+            ...((direction || aligned || distribution || wrap) && { display: 'flex' }),
+            ...(crossAxis && { 'align-items': crossAxis }),
+            ...(mainAxis && { 'justify-content': mainAxis }),
         };
     }
 
@@ -158,9 +189,13 @@ export class Css extends Capability<Body> {
         style.textContent = cssText;
     }
 
-    private static removeStyleElement(id: string): void {
-        if (typeof document === 'undefined') { return; }
-        document.getElementById(id)?.remove();
+    private static removeScopedStyles(elementId: string): void {
+        if (typeof document === 'undefined') {
+            return;
+        }
+        const descendants = document.getElementById(elementId)?.querySelectorAll(IDENTIFIED_DESCENDANT_SELECTOR) ?? [];
+        const identifiers = [elementId, ...Array.from(descendants, ({ id }) => id)];
+        identifiers.forEach((identifier) => document.getElementById(`${STYLE_PREFIX}${identifier}`)?.remove());
     }
 
     public constructor(id: string = __ID__) {
@@ -204,26 +239,33 @@ export class Css extends Capability<Body> {
     private ensureTokensMounted(): void {
         if (typeof document === 'undefined') { return; }
         if (document.getElementById(TOKENS_STYLE_ID)) { return; }
+        const readiness = getComputedStyle(document.documentElement).getPropertyValue(DESIGN_READY_PROPERTY);
+        if (readiness.trim()) { return; }
         const { aim } = this.disposition;
-        const tokens = aim.body?.tokens ?? DESIGN_TOKENS;
+        const tokens = aim.body?.tokens as DesignTokens | undefined
+            ?? DESIGN_TOKENS as unknown as DesignTokens;
         Css.mountStyleElement(TOKENS_STYLE_ID, Css.generateTokensCss(tokens));
     }
 
     private handleMount(value?: unknown): void {
         const { tokens } = (value ?? {}) as MountPayload;
         const { aim } = this.disposition;
-        const target = tokens ?? aim.body?.tokens ?? DESIGN_TOKENS;
+        const target = tokens as DesignTokens | undefined
+            ?? aim.body?.tokens as DesignTokens | undefined
+            ?? DESIGN_TOKENS as unknown as DesignTokens;
         Css.mountStyleElement(TOKENS_STYLE_ID, Css.generateTokensCss(target));
         this.pulse(SignalType.MOUNTED, { mounted: true });
     }
 
     private handleApply(value?: unknown): void {
-        const { elementId, qualities } = (value ?? {}) as ApplyPayload;
-        if (!elementId || !qualities) { return; }
+        const { elementId, qualities, control } = (value ?? {}) as ApplyPayload;
+        if (!elementId || !qualities) {
+            return;
+        }
         this.ensureTokensMounted();
         const declarations = Css.translateQualities(qualities);
         const selector = Css.formatSelector(elementId);
-        const cssText = Css.formatCssRule(selector, declarations);
+        const cssText = Css.formatCssRule(selector, declarations) + (control ? Css.formatControlStates(selector, control) : '');
         Css.mountStyleElement(`${STYLE_PREFIX}${elementId}`, cssText);
         this.pulse(SignalType.APPLIED, { elementId, declarations });
     }
@@ -240,15 +282,17 @@ export class Css extends Capability<Body> {
     private handleTheme(value?: unknown): void {
         const { tokens } = (value ?? {}) as ThemePayload;
         if (!tokens) { return; }
-        const cssText = Css.generateTokensCss(tokens);
+        const cssText = Css.generateTokensCss(tokens as DesignTokens);
         Css.mountStyleElement(TOKENS_STYLE_ID, cssText);
         this.pulse(SignalType.THEMED, { updated: true });
     }
 
     private handleRemove(value?: unknown): void {
         const { elementId } = (value ?? {}) as RemovePayload;
-        if (!elementId) { return; }
-        Css.removeStyleElement(`${STYLE_PREFIX}${elementId}`);
+        if (!elementId) {
+            return;
+        }
+        Css.removeScopedStyles(elementId);
         this.pulse(SignalType.REMOVED, { elementId, removed: true });
     }
 }

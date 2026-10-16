@@ -1,4 +1,3 @@
-import type { TypeSafeClient } from '@typesafe-ai/sdk';
 
 export enum SignalType {
     CONNECT = 'jev.connect',
@@ -48,9 +47,11 @@ export interface InferResult {
 
 export interface Body {
     readonly id?: string;
-    readonly client?: TypeSafeClient;
     readonly connection?: ConnectionConfig;
     readonly limit?: number;
     readonly maxTokens?: number;
 }
 
+
+export interface Question { readonly type?: string; readonly instructions?: unknown; readonly options?: Record<string, string>; readonly criteria?: unknown; }
+export interface RequestBody { readonly state: unknown; readonly questions: Record<string, unknown>; readonly model: string; readonly limit?: number; readonly max_tokens?: number; }
