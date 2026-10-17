@@ -4,32 +4,44 @@ import type {
 
 export const __ID__ = 'placeholder';
 export const DEFAULT_KIND = 'text';
+export const VIEWBOX_WIDTH = 640;
 export const COMPACT_WIDTHS: readonly string[] = [
     'narrow',
 ];
-export const SHIMMER_GRADIENT = '<defs><linearGradient id="shimmer" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="%23e2e8f0" stop-opacity="0.8"/><stop offset="50%" stop-color="%23ffffff" stop-opacity="0.95"/><stop offset="100%" stop-color="%23e2e8f0" stop-opacity="0.8"/><animate attributeName="x1" from="-100%" to="100%" dur="1.8s" repeatCount="indefinite"/><animate attributeName="x2" from="0%" to="200%" dur="1.8s" repeatCount="indefinite"/></linearGradient></defs>';
-export const SHIMMER_FILL = 'fill="url(%23shimmer)"';
+
+export const PALETTES = {
+    dark: ':root{--surface:#141c29;--edge:#2a3546;--line:#334155;--accent:#b88761}',
+    light: ':root{--surface:#f3f5f8;--edge:#dce2eb;--line:#d1d9e5;--accent:#bf8458}',
+} as const;
+
+export const SHAPE_STYLES = '.surface{fill:var(--surface);stroke:var(--edge);stroke-width:1}.line{fill:var(--line)}.accent{fill:var(--accent);opacity:.55}';
+export const MOTION_STYLES = '@keyframes breathe{0%,100%{opacity:.45}50%{opacity:.8}}.line{animation:breathe 2.4s ease-in-out infinite}@media(prefers-reduced-motion:reduce){.line{animation:none}}';
+
 export const LINE_SHAPE: Shape = {
-    height: 32,
-    elements: `<rect x="0" y="4" width="45%" height="24" rx="6" ${SHIMMER_FILL}/>` ,
+    height: 88,
+    elements: '<rect class="line" x="0" y="8" width="400" height="12" rx="6"/><rect class="line" x="0" y="36" width="576" height="12" rx="6"/><rect class="line" x="0" y="64" width="304" height="12" rx="6"/>',
 };
+
+export const VIEW_SHAPE: Shape = {
+    height: 176,
+    elements: '<rect class="surface" x="1" y="1" width="638" height="174" rx="20"/><rect class="accent" x="28" y="28" width="32" height="4" rx="2"/><rect class="line" x="28" y="52" width="272" height="16" rx="8"/><rect class="line" x="28" y="84" width="480" height="10" rx="5"/><rect class="line" x="28" y="108" width="360" height="10" rx="5"/><rect class="line" x="28" y="140" width="152" height="8" rx="4"/>',
+};
+
 export const SHAPES: Readonly<Record<string, Shape>> = {
     action: {
-        height: 40,
-        elements: `<rect x="0" y="0" width="100%" height="40" rx="8" ${SHIMMER_FILL}/>` ,
+        height: 48,
+        elements: '<rect class="surface" x="1" y="1" width="638" height="46" rx="12"/><rect class="line" x="224" y="18" width="192" height="12" rx="6"/>',
     },
     heading: {
-        height: 36,
-        elements: `<rect x="0" y="4" width="28" height="28" rx="14" ${SHIMMER_FILL}/><rect x="40" y="8" width="60%" height="16" rx="4" ${SHIMMER_FILL}/>` ,
+        height: 48,
+        elements: '<rect class="line" x="0" y="12" width="352" height="20" rx="10"/>',
     },
     input: {
-        height: 56,
-        elements: `<rect x="0" y="0" width="100%" height="56" rx="10" fill="%23f8fafc" stroke="%23e2e8f0" stroke-width="1.5"/><rect x="16" y="20" width="40%" height="16" rx="4" ${SHIMMER_FILL}/>` ,
+        height: 60,
+        elements: '<rect class="surface" x="1" y="1" width="638" height="58" rx="14"/><rect class="line" x="24" y="24" width="248" height="12" rx="6"/>',
     },
-    media: {
-        height: 96,
-        elements: `<rect x="0" y="0" width="100%" height="96" rx="10" ${SHIMMER_FILL}/>` ,
-    },
+    media: VIEW_SHAPE,
+    view: VIEW_SHAPE,
+    container: VIEW_SHAPE,
     text: LINE_SHAPE,
-    container: LINE_SHAPE,
 };

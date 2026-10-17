@@ -8,8 +8,10 @@ import {
     DEFAULT_KIND,
     LINE_SHAPE,
     SHAPES,
-    SHIMMER_FILL,
-    SHIMMER_GRADIENT,
+    PALETTES,
+    SHAPE_STYLES,
+    MOTION_STYLES,
+    VIEWBOX_WIDTH,
     __ID__,
 } from './constants.js';
 import {
@@ -105,19 +107,24 @@ export class Placeholder extends Capability<Body> {
         const {
             kind = DEFAULT_KIND,
             dimensions = {},
+            appearance,
         } = request;
         const {
-            height: customHeight,
             width,
         } = dimensions;
         const {
-            height: defaultHeight,
+            height,
             elements,
         } = SHAPES[kind.toLowerCase()] ?? LINE_SHAPE;
-        const height = typeof customHeight === 'number' ? customHeight : defaultHeight;
-        const compact = `<rect x="0" y="0" width="100%" height="${height}" rx="8" ${SHIMMER_FILL}/>`;
+        const {
+            colorScheme,
+            reducedMotion = false,
+        } = appearance ?? {};
+        const palette = colorScheme === 'light' ? PALETTES.light : PALETTES.dark;
+        const compact = `<rect class="line" width="${VIEWBOX_WIDTH}" height="${height}" rx="12"/>`;
         const content = COMPACT_WIDTHS.includes(String(width)) ? compact : elements;
-        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="${height}">${SHIMMER_GRADIENT}${content}</svg>`;
-        return `data:image/svg+xml;utf8,${svg}`;
+        const styles = `${palette}${SHAPE_STYLES}${reducedMotion ? '' : MOTION_STYLES}`;
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${VIEWBOX_WIDTH}" height="${height}" viewBox="0 0 ${VIEWBOX_WIDTH} ${height}"><style>${styles}</style>${content}</svg>`;
+        return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
     }
 }

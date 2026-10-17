@@ -4,6 +4,7 @@ import {
     __ID__,
     AIM,
     BREAKPOINT_QUERIES,
+    CHANGE_SETTLE_MS,
     DEFAULT_BROWSER,
     DEFAULT_SCREEN,
     DEFAULT_VIEWPORT,
@@ -41,6 +42,7 @@ export class Browser extends Capability<Body> {
 
     private mediaQueries: MediaQueryList[] = [];
     private mediaListener?: () => void;
+    private changeTimer?: ReturnType<typeof setTimeout>;
 
     public constructor(id: string = __ID__) {
         super(id);
@@ -83,9 +85,17 @@ export class Browser extends Capability<Body> {
             const serialized = JSON.stringify(context);
             if (serialized !== previousContext) {
                 previousContext = serialized;
-                this.pulse(SignalType.CHANGED, context);
+                this.scheduleChanged(context);
             }
         };
+    }
+
+    private scheduleChanged(context: BrowserContext): void {
+        clearTimeout(this.changeTimer);
+        this.changeTimer = setTimeout(() => {
+            this.changeTimer = undefined;
+            this.pulse(SignalType.CHANGED, context);
+        }, CHANGE_SETTLE_MS);
     }
 
     private subscribeMediaQueries(): void {
@@ -106,6 +116,8 @@ export class Browser extends Capability<Body> {
     }
 
     private unbindWindowListeners(): void {
+        clearTimeout(this.changeTimer);
+        this.changeTimer = undefined;
         if (!this.mediaListener) {
             return;
         }

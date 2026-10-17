@@ -3,7 +3,7 @@ import { Uca } from '@uca/core/uca';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
 import { EntityKind } from '@uca/core/types';
 import { __ID__ } from './constants.js';
-import { type Body, type LogEntry, DataType, SignalType, Scope } from './types.js';
+import { type Body, type LogEntry, type ObservedPayload, DataType, SignalType, Scope } from './types.js';
 
 export class Logger extends Uca<Body> {
     public static override purpose: string = 'Observe nervous bus activity and log all reactive signals and primitives';
@@ -81,9 +81,14 @@ export class Logger extends Uca<Body> {
             sourceKind,
             scope,
             property,
+            value,
             ...context
         } = entry;
-        const message = `[${scope}] ${prefix ? `${prefix} ` : ''}[${sourceKind} ${source}] -> ${property}`;
+        const {
+            message: description,
+            error,
+        } = (value ?? {}) as ObservedPayload;
+        const message = `[${scope}] ${prefix ? `${prefix} ` : ''}[${sourceKind} ${source}] ${description ?? `-> ${property}`}`;
         const data = {
             source: {
                 kind: sourceKind,
@@ -91,8 +96,13 @@ export class Logger extends Uca<Body> {
             },
             scope,
             property,
+            value,
             ...context,
         };
+        if (error !== undefined) {
+            console.error(message, data);
+            return;
+        }
         console.log(message, data);
     }
 }

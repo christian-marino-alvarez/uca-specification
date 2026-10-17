@@ -10,10 +10,10 @@ export const bodySchema = z.object({
     src: z.string().min(1).describe('Source URI or data URI of the image'),
     alt: z.string().optional().describe('Alternative description for accessibility'),
     loading: z.enum(['lazy', 'eager']).optional().describe('Native image loading strategy'),
-    aspectRatio: z.string().optional().describe('Aspect ratio ratio constraint'),
+    aspectRatio: z.string().optional().describe('Aspect ratio constraint'),
     qualities: qualitiesSchema,
     context: z.unknown().optional(),
-});
+}).strict();
 
 export type Qualities = z.infer<typeof qualitiesSchema>;
 export type Body = z.infer<typeof bodySchema>;

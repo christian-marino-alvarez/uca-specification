@@ -1,5 +1,6 @@
 export const __ID__ = 'stream-transformer';
 export const AIM = 'Transform text into ordered objects, retaining failed validation until recovery resolves';
+export const VALIDATION_ERROR_MESSAGE = 'Fragment validation failed; requesting a corrected value';
 export const DEFAULT_MAX_ATTEMPTS = 2;
 export const DEFAULT_TIMEOUT_MS = 30_000;
 export const DEFAULT_MAX_BUFFER_SIZE = 1_048_576;

@@ -1,153 +1,110 @@
+import { Browser } from '@uca/capability-browser';
+import { SignalType as BrowserSignalType } from '@uca/capability-browser/types';
+import { Design } from '@uca/capability-design';
+import { SignalType as DesignSignalType } from '@uca/capability-design/types';
+import { Decision } from '@uca/decision';
+import { SignalType as DecisionSignalType } from '@uca/decision/types';
 import { Uca } from '@uca/core/uca';
 import type {
+    Aim,
+    CapabilityConstructor,
     Cooky,
     Disposition,
     Signal,
 } from '@uca/core/types';
-import { Browser } from '@uca/capability-browser';
 import {
-    SignalType as BrowserSignalType,
-    type BrowserContext,
-    type NavigatorContext,
-    type ScreenContext,
-} from '@uca/capability-browser/types';
-import { Builder } from '@uca/builder';
-import {
-    SignalType as BuilderSignalType,
-    type Failure as BuildFailure,
-    type LayoutAreaResult as BuildLayoutAreaResult,
-    type Request as BuildRequest,
-    type Result as BuildResult,
-    type ViewCompleted as BuildViewCompleted,
-    type ViewElementResult as BuildViewElementResult,
-} from '@uca/builder/types';
-import {
-    type Composition,
-    errorSchema as buildErrorSchema,
-    layoutAreaResultSchema as buildLayoutAreaResultSchema,
-    requestSchema as buildRequestSchema,
-    resultSchema as buildResultSchema,
-    viewCompletedSchema as buildViewCompletedSchema,
-    viewElementResultSchema as buildViewElementResultSchema,
-} from '@uca/builder/schema';
-import { Memory } from '@uca/memory';
-import {
-    SignalType as MemorySignalType,
-    type RetrievedResult,
-} from '@uca/memory/types';
-import {
+    DEFAULT_AIM_BODY,
+    DEFAULT_AIM_DESCRIPTION,
+    DEFAULT_PURPOSE,
     __ID__,
-    AREA_ID,
-    BUILD_AIM,
-    BUILD_CONTEXT,
-    DESIGN,
-    LIMITS,
-    VIEW_REQUIREMENTS,
 } from './constants.js';
 import {
-    type Body,
-    type Build,
+    browserContextSchema,
+    decisionResultSchema,
+    navigationSchema,
+} from './schema.js';
+import {
     DataType,
     SignalType,
+    type Body,
+    type DecisionResult,
+    type Navigation,
 } from './types.js';
 
 export class App extends Uca<Body> {
-    public static override purpose = 'Demonstrate emergent UCA composition by generating this browser interface through reactive collaboration under its declared context and deterministic design';
+    public static override purpose: string = DEFAULT_PURPOSE;
 
     public static override disposition: Disposition<Body> = {
         aim: {
-            description: App.purpose,
+            description: DEFAULT_AIM_DESCRIPTION,
             body: {
-                build: {
-                    areaId: AREA_ID,
-                    design: DESIGN,
-                    aim: BUILD_AIM,
-                    context: BUILD_CONTEXT,
-                    limits: LIMITS,
-                    requirements: VIEW_REQUIREMENTS,
-                },
+                ...DEFAULT_AIM_BODY,
             },
         },
         reactTo: [
-            SignalType.DETECT,
-            SignalType.BUILD,
+            SignalType.NAVIGATE,
             ...App.reactToBrowser(),
-            ...App.reactToBuilder(),
-            ...App.reactToMemory(),
+            ...App.reactToDesign(),
+            ...App.reactToDecision(),
         ],
         inputs: [
             {
-                signal: SignalType.DETECT,
-                type: DataType.VOID,
-                description: 'Detect the current browser environment',
-            },
-            {
-                signal: SignalType.BUILD,
-                type: DataType.BUILD_REQUEST,
-                schema: buildRequestSchema,
-                description: 'Request a construction path for a DOM area',
+                signal: SignalType.NAVIGATE,
+                type: DataType.NAVIGATION,
+                schema: navigationSchema,
+                description: 'Navigate to target page with parameters',
             },
         ],
         outputs: [
             {
-                signal: SignalType.BUILD_DECIDED,
-                type: DataType.BUILD_RESULT,
-                schema: buildResultSchema,
-                description: 'Construction path selected by Builder',
+                signal: SignalType.BROWSER_CHANGED,
+                type: DataType.BROWSER_CONTEXT,
+                schema: browserContextSchema,
+                description: 'Browser context telemetry captured or updated',
             },
             {
-                signal: SignalType.LAYOUT_AREA_CREATED,
-                type: DataType.LAYOUT_AREA_RESULT,
-                schema: buildLayoutAreaResultSchema,
-                description: 'Structural layout created progressively by Builder',
+                signal: SignalType.DECIDED,
+                type: DataType.DECISION_RESULT,
+                schema: decisionResultSchema,
+                description: 'Cognitive decision made for page structure',
             },
             {
-                signal: SignalType.VIEW_ELEMENT_CREATED,
-                type: DataType.VIEW_ELEMENT_RESULT,
-                schema: buildViewElementResultSchema,
-                description: 'Final view element created progressively by Builder',
-            },
-            {
-                signal: SignalType.VIEW_COMPLETED,
-                type: DataType.VIEW_COMPLETED_RESULT,
-                schema: buildViewCompletedSchema,
-                description: 'Final view composition completed by Builder',
-            },
-            {
-                signal: SignalType.BUILD_ERROR,
-                type: DataType.BUILD_ERROR,
-                schema: buildErrorSchema,
-                description: 'Builder contract or decision failure',
+                signal: SignalType.ERROR,
+                type: DataType.ERROR,
+                description: 'Application error notification',
             },
         ],
     };
 
     private static reactToBrowser(): string[] {
+        const {
+            reactTo = [],
+        } = Browser.disposition;
         return [
-            BrowserSignalType.DETECT,
+            ...reactTo,
             BrowserSignalType.DETECTED,
             BrowserSignalType.CHANGED,
         ];
     }
 
-    private static reactToBuilder(): string[] {
+    private static reactToDesign(): string[] {
+        const {
+            reactTo = [],
+        } = Design.disposition;
         return [
-            BuilderSignalType.BUILD,
-            BuilderSignalType.DECIDED,
-            BuilderSignalType.LAYOUT_AREA_CREATED,
-            BuilderSignalType.VIEW_ELEMENT_CREATED,
-            BuilderSignalType.VIEW_COMPLETED,
-            BuilderSignalType.ERROR,
+            ...reactTo,
+            DesignSignalType.THEME_CHANGED,
         ];
     }
 
-    private static reactToMemory(): string[] {
+    private static reactToDecision(): string[] {
+        const {
+            reactTo = [],
+        } = Decision.disposition;
         return [
-            MemorySignalType.SAVE,
-            MemorySignalType.GET,
-            MemorySignalType.SAVED,
-            MemorySignalType.RETRIEVED,
-            MemorySignalType.ERROR,
+            ...reactTo,
+            DecisionSignalType.DECIDED,
+            DecisionSignalType.ERROR,
         ];
     }
 
@@ -155,17 +112,12 @@ export class App extends Uca<Body> {
         super(id);
     }
 
-    public override denervate(): void {
-        const {
-            registry,
-        } = this;
-        registry.forEach((capability) => capability.denervate());
-        super.denervate();
-    }
-
-    protected override onDispositionUpdated(event: Event): void {
-        super.onDispositionUpdated(event);
-        this.pulse(BrowserSignalType.DETECT, undefined);
+    protected override catalog(): Cooky {
+        return [
+            this.buildBrowserCooky(),
+            this.buildDesignCooky(),
+            this.buildDecisionCooky(),
+        ];
     }
 
     protected override react(signal: Signal): void {
@@ -173,11 +125,8 @@ export class App extends Uca<Body> {
             property,
         } = signal;
         switch (property) {
-            case SignalType.DETECT:
-                this.handleDetect();
-                break;
-            case SignalType.BUILD:
-                this.handleBuild(signal);
+            case SignalType.NAVIGATE:
+                this.handleNavigate(signal);
                 break;
             case BrowserSignalType.DETECTED:
                 this.handleBrowserDetected(signal);
@@ -185,301 +134,162 @@ export class App extends Uca<Body> {
             case BrowserSignalType.CHANGED:
                 this.handleBrowserChanged(signal);
                 break;
-            case BuilderSignalType.DECIDED:
-                this.handleBuilderDecided(signal);
+            case DecisionSignalType.DECIDED:
+                this.handleDecisionDecided(signal);
                 break;
-            case BuilderSignalType.LAYOUT_AREA_CREATED:
-                this.handleBuilderLayoutAreaCreated(signal);
+            case DecisionSignalType.ERROR:
+                this.handleDecisionError(signal);
                 break;
-            case BuilderSignalType.VIEW_ELEMENT_CREATED:
-                this.handleBuilderViewElementCreated(signal);
+            case DesignSignalType.THEME_CHANGED:
+                this.handleThemeChanged(signal);
                 break;
-            case BuilderSignalType.VIEW_COMPLETED:
-                this.handleBuilderViewCompleted(signal);
-                break;
-            case BuilderSignalType.ERROR:
-                this.handleBuilderError(signal);
-                break;
-            case MemorySignalType.RETRIEVED:
-                this.handleMemoryRetrieved(signal);
+            default:
                 break;
         }
     }
 
-    protected override catalog(): Cooky {
+    private buildBrowserCooky(): [CapabilityConstructor, Disposition] {
         const {
             id,
         } = this;
         return [
-            [Browser, this.createBrowserDisposition(`${id}:browser`)],
-            [Builder, this.createBuilderDisposition(`${id}:builder`)],
-            [Memory, this.createMemoryDisposition(`${id}:memory`)],
+            Browser,
+            this.createBrowserDisposition(`${id}:browser`),
         ];
     }
 
+    private buildDesignCooky(): [CapabilityConstructor, Disposition] {
+        const {
+            id,
+        } = this;
+        return [
+            Design,
+            this.createDesignDisposition(`${id}:design`),
+        ];
+    }
+
+    private buildDecisionCooky(): [CapabilityConstructor, Disposition] {
+        const {
+            id,
+        } = this;
+        return [
+            Decision,
+            this.createDecisionDisposition(`${id}:decision`),
+        ];
+    }
+
+    private createDesignDisposition(id: string): Disposition {
+        const aim = this.createAim(Design.AIM, id);
+        return {
+            ...Design.disposition,
+            aim,
+        };
+    }
+
+    private createAim(description: string, id: string): Aim {
+        return {
+            description,
+            body: {
+                id,
+            },
+        };
+    }
+
     private createBrowserDisposition(id: string): Disposition {
+        const aim = this.createAim(Browser.AIM, id);
         return {
             ...Browser.disposition,
-            aim: {
-                description: Browser.AIM,
-                body: {
-                    id,
-                },
-            },
+            aim,
         };
     }
 
-    private createBuilderDisposition(id: string): Disposition {
+    private createDecisionDisposition(id: string): Disposition {
+        const aim = this.createAim(Decision.purpose, id);
         return {
-            ...Builder.disposition,
-            aim: {
-                description: Builder.purpose,
-                body: {
-                    id,
-                },
-            },
+            ...Decision.disposition,
+            aim,
         };
     }
 
-    private createMemoryDisposition(id: string): Disposition {
-        return {
-            ...Memory.disposition,
-            aim: {
-                description: Memory.purpose,
-                body: {
-                    namespace: id,
-                },
-            },
-        };
-    }
-
-    private handleDetect(): void {
-        this.pulse(BrowserSignalType.DETECT, undefined);
-    }
-
-    private handleBuild(signal: Signal): void {
+    private handleNavigate(signal: Signal): void {
         const {
             value,
         } = signal;
-        this.pulse(BuilderSignalType.BUILD, value as BuildRequest);
+        this.applyNavigation((value ?? {}) as Navigation);
+    }
+
+    private applyNavigation(navigation: Navigation): void {
+        const {
+            navigateTo: activePage,
+            parameters,
+        } = navigation;
+        this.updateDispositionBody({
+            activePage,
+            parameters,
+        });
     }
 
     private handleBrowserDetected(signal: Signal): void {
         const {
             value,
         } = signal;
-        this.requestStoredComposition(value as BrowserContext);
+        this.updateBrowserContext(value as Record<string, unknown>);
     }
 
     private handleBrowserChanged(signal: Signal): void {
         const {
             value,
         } = signal;
-        this.requestStoredComposition(value as BrowserContext);
+        this.updateBrowserContext(value as Record<string, unknown>);
     }
 
-    private requestStoredComposition(context: BrowserContext): void {
-        const {
-            id,
-        } = this;
-        this.pulse(MemorySignalType.GET, {
-            key: `${id}:composition`,
-            correlationId: JSON.stringify(context),
-        });
-    }
-
-    private handleMemoryRetrieved(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.dispatchMemoryRetrieved(value as RetrievedResult<Composition>);
-    }
-
-    private dispatchMemoryRetrieved(result: RetrievedResult<Composition>): void {
-        const {
-            value: savedComposition,
-            correlationId,
-        } = result ?? {};
-        if (correlationId) {
-            this.dispatchBuildWithMemory(correlationId, savedComposition ?? undefined);
-        }
-    }
-
-    private dispatchBuildWithMemory(correlationId: string, savedComposition?: Composition): void {
-        const context = JSON.parse(correlationId) as BrowserContext;
-        const request = this.createBuildRequest(context, savedComposition);
-        this.pulse(BuilderSignalType.BUILD, request);
-    }
-
-    private handleBuilderDecided(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.pulse(SignalType.BUILD_DECIDED, value as BuildResult);
-    }
-
-    private handleBuilderLayoutAreaCreated(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.pulse(SignalType.LAYOUT_AREA_CREATED, value as BuildLayoutAreaResult);
-    }
-
-    private handleBuilderViewElementCreated(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.pulse(
-            SignalType.VIEW_ELEMENT_CREATED,
-            value as BuildViewElementResult,
-        );
-    }
-
-    private handleBuilderViewCompleted(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        const completion = value as BuildViewCompleted;
-        this.persistComposition(completion);
-        this.pulse(
-            SignalType.VIEW_COMPLETED,
-            completion,
-        );
-    }
-
-    private persistComposition(completion: BuildViewCompleted): void {
-        const {
-            id,
-        } = this;
-        const {
-            composition,
-        } = completion;
-        this.pulse(MemorySignalType.SAVE, {
-            key: `${id}:composition`,
-            value: composition,
-        });
-    }
-
-    private handleBuilderError(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.pulse(SignalType.BUILD_ERROR, value as BuildFailure);
-    }
-
-    private createBrowserScreen(screen: ScreenContext): Record<string, unknown> {
-        const {
-            width,
-            height,
-            availWidth: availableWidth,
-            availHeight: availableHeight,
-        } = screen;
+    private mergeAimBody(aim: Aim<Body>, patch: Partial<Body>): Aim<Body> {
+        const body = {
+            ...aim.body,
+            ...patch,
+        };
         return {
-            width,
-            height,
-            availableWidth,
-            availableHeight,
+            ...aim,
+            body,
         };
     }
 
-    private createBrowserInteraction(browser: NavigatorContext): Record<string, unknown> {
+    private updateDispositionBody(patch: Partial<Body>): void {
         const {
-            touch,
-            maxTouchPoints: touchPoints,
-        } = browser;
-        return {
-            pointer: touch ? 'coarse' : 'fine',
-            hover: !touch,
-            touchPoints,
-        };
-    }
-
-    private createBrowserPreferences(browser: NavigatorContext): Record<string, unknown> {
-        const {
-            colorScheme,
-            reducedMotion,
-        } = browser;
-        return {
-            colorScheme,
-            contrast: 'no-preference',
-            reducedMotion,
-        };
-    }
-
-    private createBrowserPayload(context: BrowserContext): Record<string, unknown> {
-        const {
-            viewport,
-            screen,
-            browser,
-        } = context;
-        const {
-            pixelRatio,
-            language,
-            writingDirection,
-        } = this.extractBrowserMeta(screen, browser);
-        return {
-            area: viewport,
-            viewport,
-            screen: this.createBrowserScreen(screen),
-            pixelRatio,
-            language,
-            writingDirection,
-            interaction: this.createBrowserInteraction(browser),
-            preferences: this.createBrowserPreferences(browser),
-        };
-    }
-
-    private extractBrowserMeta(screen: ScreenContext, browser: NavigatorContext): Record<string, unknown> {
-        const {
-            pixelRatio,
-        } = screen;
-        const {
-            language,
-            writingDirection,
-        } = browser;
-        return {
-            pixelRatio,
-            language,
-            writingDirection,
-        };
-    }
-
-    private createBuildRequest(context: BrowserContext, savedComposition?: Composition): BuildRequest {
-        const {
-            aim: dispositionAim,
-        } = this.disposition;
-        const {
-            build,
-        } = dispositionAim.body ?? {};
-        const config = this.resolveBuildConfig(build, savedComposition);
-        return {
-            correlationId: crypto.randomUUID(),
-            browser: this.createBrowserPayload(context) as unknown as BuildRequest['browser'],
-            ...config,
-        } as BuildRequest;
-    }
-
-    private resolveBuildConfig(build?: Build, savedComposition?: Composition): Partial<BuildRequest> {
-        const {
-            areaId = AREA_ID,
-            design = DESIGN,
-            aim = BUILD_AIM,
-            context = BUILD_CONTEXT,
-            limits = LIMITS,
-            requirements = VIEW_REQUIREMENTS,
-            composition,
-        } = build ?? {};
-        const activeComposition = savedComposition ?? composition;
-        return {
-            areaId,
-            design,
             aim,
-            context,
-            limits,
-            requirements,
-            ...(activeComposition && {
-                composition: activeComposition,
-            }),
-        };
+        } = this.disposition;
+        const updatedAim = this.mergeAimBody(aim, patch);
+        this.pulse(this.updateEvent, {
+            ...this.disposition,
+            aim: updatedAim,
+        });
+    }
+
+    private updateBrowserContext(browserContext: Record<string, unknown>): void {
+        this.updateDispositionBody({
+            browserContext,
+        });
+        this.pulse(SignalType.BROWSER_CHANGED, browserContext);
+    }
+
+    private handleDecisionDecided(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        this.pulse(SignalType.DECIDED, value);
+    }
+
+    private handleDecisionError(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        this.pulse(SignalType.ERROR, value);
+    }
+
+    private handleThemeChanged(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        this.pulse(DesignSignalType.THEME_CHANGED, value);
     }
 }

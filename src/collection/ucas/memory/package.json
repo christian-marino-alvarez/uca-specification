@@ -43,9 +43,10 @@
     }
   },
   "dependencies": {
-    "@uca/capability-local-storage": "^0.1.0",
+    "@uca/capability-indexed-db": "^0.1.0",
     "@uca/core": "^0.1.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@uca/capability-schema": "^0.1.0"
   },
   "scripts": {
     "test": "tsx tests/index.ts"

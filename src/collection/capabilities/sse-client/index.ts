@@ -6,6 +6,8 @@ import {
     DEFAULT_ENDPOINT,
     JSON_HEADERS,
     MAX_FRAME_LENGTH,
+    PROMPT_LOG_MESSAGE,
+    RESPONSE_LOG_MESSAGE,
 } from './constants.js';
 import {
     type Body,
@@ -31,7 +33,9 @@ export class SseClient extends Capability<Body> {
             { signal: SignalType.ABORT, type: DataType.VOID, description: 'Abort active SSE streams' },
         ],
         outputs: [
+            { signal: SignalType.REQUESTED, type: DataType.REQUEST_LOG, description: 'LLM request contract sent to the SSE endpoint' },
             { signal: SignalType.STREAMED, type: DataType.STREAM_RESULT, description: 'SSE stream connected' },
+            { signal: SignalType.RESPONDED, type: DataType.RESPONSE_LOG, description: 'Complete textual LLM response received from the SSE endpoint' },
             { signal: SignalType.END, type: DataType.VOID, description: 'SSE stream finished' },
             { signal: SignalType.ERROR, type: DataType.ERROR_PAYLOAD, description: 'SSE stream failed' },
             { signal: SignalType.ABORTED, type: DataType.VOID, description: 'SSE stream aborted' },
@@ -83,8 +87,9 @@ export class SseClient extends Capability<Body> {
         const rawStream = await this.executeFetch(payload, controller);
         const { signal } = controller; signal.throwIfAborted();
         const reader = rawStream.getReader();
+        const response: string[] = [];
         const stream = new ReadableStream<string>({
-            pull: (consumer) => this.readChunk(reader, consumer, controller, requestId, correlationId, streamId, context),
+            pull: (consumer) => this.readChunk(reader, consumer, response, controller, requestId, correlationId, streamId, context),
             cancel: async (reason) => { controller.abort(reason); this.releaseController(requestId, controller); await reader.cancel(reason); },
         }, { highWaterMark: 0 });
         this.pulse(SignalType.STREAMED, {
@@ -102,6 +107,20 @@ export class SseClient extends Capability<Body> {
             ...body
         } = payload;
         const { signal } = controller;
+        const {
+            correlationId,
+            streamId,
+            provider,
+            model,
+        } = body;
+        this.pulse(SignalType.REQUESTED, {
+            message: PROMPT_LOG_MESSAGE,
+            correlationId,
+            streamId,
+            provider,
+            model,
+            request: body,
+        });
         const response = await fetch(endpoint, {
             method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(body), signal,
         });
@@ -169,24 +188,32 @@ export class SseClient extends Capability<Body> {
         return text;
     }
 
-    private async readChunk(reader: ReadableStreamDefaultReader<string>, controller: ReadableStreamDefaultController<string>, abort: AbortController, requestId?: string, correlationId?: string, streamId?: string, context?: unknown): Promise<void> {
+    private async readChunk(reader: ReadableStreamDefaultReader<string>, controller: ReadableStreamDefaultController<string>, response: string[], abort: AbortController, requestId?: string, correlationId?: string, streamId?: string, context?: unknown): Promise<void> {
         const { signal } = abort;
         try {
             signal.throwIfAborted();
             const result = await reader.read();
             signal.throwIfAborted();
-            this.deliverRead(result, controller, abort, requestId, correlationId, streamId, context);
+            this.deliverRead(result, controller, response, abort, requestId, correlationId, streamId, context);
         } catch (error) {
             this.releaseController(requestId, abort); controller.error(error); !signal.aborted && this.handleStreamError(error, correlationId, streamId, context);
         }
     }
 
-    private deliverRead(result: ReadResult, controller: ReadableStreamDefaultController<string>, abort: AbortController, requestId?: string, correlationId?: string, streamId?: string, context?: unknown): void {
+    private deliverRead(result: ReadResult, controller: ReadableStreamDefaultController<string>, response: string[], abort: AbortController, requestId?: string, correlationId?: string, streamId?: string, context?: unknown): void {
         const { done, value } = result;
         if (done) {
+            this.pulse(SignalType.RESPONDED, {
+                message: RESPONSE_LOG_MESSAGE,
+                correlationId,
+                streamId,
+                response: response.join(''),
+                context,
+            });
             this.releaseController(requestId, abort); controller.close(); this.pulse(SignalType.END, { correlationId, streamId, context });
         }
         else {
+            response.push(value);
             controller.enqueue(value);
         }
     }

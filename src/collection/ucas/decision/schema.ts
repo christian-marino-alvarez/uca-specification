@@ -4,6 +4,7 @@ import { SignalType as SchemaSignalType } from '@uca/capability-schema/types';
 import {
     Kind,
     QuestionType,
+    RequirementState,
     SignalType,
     DataType,
 } from './types.js';
@@ -20,28 +21,31 @@ export const itemSchema = z.object({
 export const itemsSchema = z.array(itemSchema).min(1).max(MAXIMUM_CANDIDATES);
 
 export const requestSchema = z.object({
-    type: z.literal(Kind.SELECTION),
+    type: z.literal(Kind.CONSTRUCTION),
     question: z.string().min(1),
     context: z.record(z.string(), z.unknown()),
     continuation: z.unknown().optional(),
     correlationId: z.string().min(1),
+    paths: itemsSchema,
     items: itemsSchema,
-}).strict();
-
-export const selectionSchema = z.object({
-    selectedId: z.string().min(1),
-    context: z.record(
-        z.string(),
-        z.unknown(),
-    ),
-    continuation: z.unknown().optional(),
+    selectionRequiresItems: z.array(z.string().min(1)),
 }).strict();
 
 export const resultSchema = z.object({
-    type: z.literal(Kind.SELECTION),
+    type: z.literal(Kind.CONSTRUCTION),
     correlationId: z.string().min(1),
-    result: selectionSchema,
+    result: z.object({
+        path: z.string().min(1),
+        requiredUcas: z.array(z.string().min(1)),
+        context: z.record(z.string(), z.unknown()),
+        continuation: z.unknown().optional(),
+    }).strict(),
 }).strict();
+
+export const decisionPayloadSchema = resultSchema.shape.result.pick({
+    path: true,
+    requiredUcas: true,
+});
 
 export const probabilitySchema = z.number().min(0).max(1);
 
@@ -52,9 +56,13 @@ export const choiceSchema = z.object({
     confidence: probabilitySchema,
 }).strict();
 
-export const answersSchema = z.object({
-    selection: choiceSchema,
-}).strict();
+export const requirementChoiceSchema = choiceSchema.extend({
+    choice: z.enum(RequirementState),
+    probabilities: z.record(
+        z.enum(RequirementState),
+        probabilitySchema,
+    ),
+});
 
 // Local transport context; Llm does not send it to the backend.
 export const metadataSchema = z.object({
@@ -73,7 +81,7 @@ export const identitySchema = z.object({
 });
 
 export const errorSchema = z.object({
-    type: z.literal(Kind.SELECTION),
+    type: z.enum(Kind),
     correlationId: z.string().min(1).nullable(),
     error: z.string(),
     attempts: z.number().int().min(0).max(MAXIMUM_RETRIES + 1),
@@ -136,7 +144,9 @@ export type Configuration = z.infer<typeof configurationSchema>;
 export type Item = z.infer<typeof itemSchema>;
 export type Request = z.infer<typeof requestSchema>;
 export type Result = z.infer<typeof resultSchema>;
+export type ConstructionResult = z.infer<typeof resultSchema>;
+export type ConstructionRequest = z.infer<typeof requestSchema>;
+export type DecisionPayload = z.infer<typeof decisionPayloadSchema>;
 export type Failure = z.infer<typeof errorSchema>;
-export type Answers = z.infer<typeof answersSchema>;
 export type Metadata = z.infer<typeof metadataSchema>;
 export type ValidationContext = z.infer<typeof validationContextSchema>;

@@ -1,6 +1,10 @@
 import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
-import { __ID__, AIM } from './constants.js';
+import {
+    __ID__,
+    AIM,
+    VALIDATION_ERROR_MESSAGE,
+} from './constants.js';
 import { createParser } from './parser.js';
 import { closeSession, createSession, expirePending, rejectPending, settlePending } from './resource.js';
 import { createPipeline } from './stream.js';
@@ -115,13 +119,34 @@ export class StreamTransformer extends Capability<Body> {
     }
 
     private request(fields: RequestFields, resolution: Resolution): Promise<Response> {
-        const { sessionId, correlationId, streamId, context, timeoutMs, signal, acceptedKeys, mode, maxBufferSize } = resolution;
+        const {
+            sessionId,
+            correlationId,
+            streamId,
+            context,
+            timeoutMs,
+            signal,
+            acceptedKeys,
+            mode,
+            maxBufferSize,
+        } = resolution;
+        const { error } = fields;
+        const { issues } = error as { issues?: unknown };
         signal.throwIfAborted();
         const requestId = crypto.randomUUID();
         return new Promise((resolve, reject) => {
             const timer = setTimeout(() => expirePending(this.pending, requestId), timeoutMs);
             this.pending.set(requestId, { sessionId, resolve, reject, timer, mode, maxBufferSize });
-            this.pulse(SignalType.RECOVER, { requestId, correlationId, streamId, context, acceptedKeys: [...acceptedKeys], ...fields });
+            this.pulse(SignalType.RECOVER, {
+                message: VALIDATION_ERROR_MESSAGE,
+                requestId,
+                correlationId,
+                streamId,
+                context,
+                acceptedKeys: [...acceptedKeys],
+                issues,
+                ...fields,
+            });
         });
     }
 

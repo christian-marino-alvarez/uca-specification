@@ -192,6 +192,9 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
     }
 
     private isDispositionChanged(current: unknown, incoming: unknown): boolean {
+        if (current === incoming) {
+            return false;
+        }
         const normalizedCurrent = JSON.stringify(this.normalizeKeys(current));
         const normalizedIncoming = JSON.stringify(this.normalizeKeys(incoming));
         return normalizedCurrent !== normalizedIncoming;

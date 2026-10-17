@@ -1,6 +1,18 @@
-export { type Body, type MediaRange, bodySchema, mediaRangeSchema } from './schema.js';
+export {
+    type Body,
+    type CacheContext,
+    type CacheResult,
+    type CacheValidation,
+    type Recall,
+    type Remember,
+    type StoredEntry,
+} from './schema.js';
 
 export enum SignalType {
+    RECALL = 'memory.recall',
+    REMEMBER = 'memory.remember',
+    RECALLED = 'memory.recalled',
+    REMEMBERED = 'memory.remembered',
     SAVE = 'memory.save',
     GET = 'memory.get',
     REMOVE = 'memory.remove',
@@ -13,49 +25,44 @@ export enum SignalType {
 }
 
 export enum DataType {
-    BODY = 'Body',
+    RECALL = 'Recall',
+    REMEMBER = 'Remember',
+    CACHE_RESULT = 'CacheResult',
     SAVE_PAYLOAD = 'SavePayload',
     GET_PAYLOAD = 'GetPayload',
     REMOVE_PAYLOAD = 'RemovePayload',
-    SAVED_RESULT = 'SavedResult',
-    RETRIEVED_RESULT = 'RetrievedResult',
-    REMOVED_RESULT = 'RemovedResult',
+    RESULT = 'Result',
     VOID = 'void',
     UNKNOWN = 'unknown',
 }
 
-export interface SavePayload<T = unknown> {
-    readonly id?: string;
+export enum CacheOperation {
+    RECALL = 'recall',
+    REMEMBER = 'remember',
+}
+
+export enum ValidationStage {
+    REQUEST = 'request',
+    ENTRY = 'entry',
+    ENTRIES = 'entries',
+}
+
+export enum StorageStage {
+    ENTRY = 'entry',
+    TOUCH = 'touch',
+    MISS = 'miss',
+    PRUNE = 'prune',
+}
+
+export interface SavePayload {
     readonly key: string;
-    readonly value: T;
+    readonly value: unknown;
     readonly correlationId?: string;
 }
 
 export interface GetPayload {
-    readonly id?: string;
     readonly key: string;
     readonly correlationId?: string;
 }
 
-export interface RemovePayload {
-    readonly id?: string;
-    readonly key: string;
-    readonly correlationId?: string;
-}
-
-export interface SavedResult<T = unknown> {
-    readonly key: string;
-    readonly value: T;
-    readonly correlationId?: string;
-}
-
-export interface RetrievedResult<T = unknown> {
-    readonly key: string;
-    readonly value: T | null;
-    readonly correlationId?: string;
-}
-
-export interface RemovedResult {
-    readonly key: string;
-    readonly correlationId?: string;
-}
+export interface RemovePayload extends GetPayload {}

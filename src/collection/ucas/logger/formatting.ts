@@ -10,6 +10,9 @@ export function extractContext(value: unknown): Context {
     } = payload;
     const {
         selectedId,
+        selectedIds,
+        path,
+        requiredUcas,
         context,
         continuation,
     } = result ?? {};
@@ -41,6 +44,9 @@ export function extractContext(value: unknown): Context {
         depth,
         correlationId,
         selectedId,
+        selectedIds,
+        path,
+        requiredUcas,
         aim,
     };
 }

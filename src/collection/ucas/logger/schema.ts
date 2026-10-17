@@ -12,6 +12,9 @@ export const contextSchema = z.object({
     depth: z.number().optional(),
     correlationId: z.string().optional(),
     selectedId: z.string().optional(),
+    selectedIds: z.array(z.string()).optional(),
+    path: z.string().optional(),
+    requiredUcas: z.array(z.string()).optional(),
     aim: z.string().optional(),
 });
 export type Context = z.infer<typeof contextSchema>;

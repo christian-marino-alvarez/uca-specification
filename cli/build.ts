@@ -4,7 +4,7 @@ import { execSync } from 'node:child_process';
 import { builtinModules } from 'node:module';
 import * as esbuild from 'esbuild';
 import { Css } from '@uca/capability-css';
-import { DESIGN } from '@uca/app/constants';
+import { DESIGN } from './design.js';
 
 try {
     process.loadEnvFile?.();

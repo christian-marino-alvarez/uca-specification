@@ -4,6 +4,8 @@ export enum SignalType {
     STREAMED = 'sse-client.streamed',
     CHUNK = 'sse-client.chunk',
     END = 'sse-client.end',
+    REQUESTED = 'sse-client.requested',
+    RESPONDED = 'sse-client.responded',
     ABORTED = 'sse-client.aborted',
     ERROR = 'sse-client.error',
 }
@@ -13,6 +15,8 @@ export enum DataType {
     STREAM_RESULT = 'StreamResult',
     CHUNK_PAYLOAD = 'ChunkPayload',
     ERROR_PAYLOAD = 'ErrorPayload',
+    REQUEST_LOG = 'RequestLog',
+    RESPONSE_LOG = 'ResponseLog',
     VOID = 'void',
     UNKNOWN = 'unknown',
 }
@@ -51,6 +55,23 @@ export interface ErrorPayload {
     readonly correlationId?: string;
     readonly streamId?: string;
     readonly error: string;
+    readonly context?: unknown;
+}
+
+export interface RequestLog {
+    readonly message: string;
+    readonly correlationId?: string;
+    readonly streamId?: string;
+    readonly provider?: string;
+    readonly model?: string;
+    readonly request: Record<string, unknown>;
+}
+
+export interface ResponseLog {
+    readonly message: string;
+    readonly correlationId?: string;
+    readonly streamId?: string;
+    readonly response: string;
     readonly context?: unknown;
 }
 

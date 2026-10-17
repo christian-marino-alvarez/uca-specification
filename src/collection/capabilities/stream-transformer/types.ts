@@ -35,10 +35,12 @@ export interface TransformPayload extends Identity {
 }
 export interface TransformResult extends Identity { readonly stream: ReadableStream<Record<string, unknown>>; }
 export interface RecoveryRequest extends Identity {
+    readonly message: string;
     readonly requestId: string;
     readonly value: unknown;
     readonly attempt: number;
     readonly error: unknown;
+    readonly issues?: unknown;
     readonly acceptedKeys?: readonly string[];
 }
 export interface RepairPayload {

@@ -28,14 +28,17 @@ import {
     MISMATCHED_CORRELATION,
     UNKNOWN_SELECTION,
     INVALID_PROBABILITIES,
+    EMPTY_REQUIREMENTS,
     PROBABILITY_TOLERANCE,
     MISSING_METADATA,
+    CONSTRUCTION_PATH_KEY,
 } from './constants.js';
 import {
     requestSchema,
     resultSchema,
     configurationSchema,
     choiceSchema,
+    requirementChoiceSchema,
     probabilitySchema,
     metadataSchema,
     identitySchema,
@@ -44,17 +47,19 @@ import {
 import {
     type Body,
     type Request,
-    type Answers,
     type Metadata,
     type ValidationContext,
+    type ConstructionRequest,
+    type DecisionPayload,
     DataType,
     Kind,
     QuestionType,
+    RequirementState,
     SignalType,
 } from './types.js';
 
 export class Decision extends Uca<Body> {
-    public static override purpose = 'Select one candidate according to the requested criterion with the lowest resource consumption and cost while meeting the required quality criteria';
+    public static override purpose = 'Select the single candidate or minimum candidate set that satisfies a bounded criterion with the lowest resource consumption and cost';
 
     public static override disposition: Disposition<Body> = {
         aim: {
@@ -239,7 +244,7 @@ export class Decision extends Uca<Body> {
         } = inferred;
         try {
             const operation = metadataSchema.parse(metadata);
-            const selectedId = this.validateInference(inferred, operation);
+            const decision = this.validateInference(inferred, operation);
             const {
                 replyTo,
                 request: {
@@ -253,7 +258,7 @@ export class Decision extends Uca<Body> {
                 type,
                 correlationId,
                 result: {
-                    selectedId,
+                    ...decision,
                     context,
                     ...(continuation !== undefined && {
                         continuation,
@@ -278,21 +283,27 @@ export class Decision extends Uca<Body> {
     }
 
     private createAnswerSchema(request: Request): Record<string, unknown> {
-        const {
-            items,
-        } = request;
-        const identifiers = items.map(({
-            id,
-        }) => id);
-        if (new Set(identifiers).size !== items.length) {
+        const identifiers = request.items.map(({ id }) => id);
+        if (new Set(identifiers).size !== request.items.length) {
             throw new Error(DUPLICATE_ITEMS);
         }
-        const candidates = z.enum(identifiers);
+        return this.createConstructionAnswerSchema(request);
+    }
+
+    private createConstructionAnswerSchema(request: ConstructionRequest): Record<string, unknown> {
+        const pathIdentifiers = request.paths.map(({ id }) => id);
+        const itemIdentifiers = request.items.map(({ id }) => id);
+        if (new Set(pathIdentifiers).size !== request.paths.length) {
+            throw new Error(DUPLICATE_ITEMS);
+        }
+        const paths = z.enum(pathIdentifiers);
+        const requirements = Object.fromEntries(itemIdentifiers.map((id) => [id, requirementChoiceSchema]));
         return z.toJSONSchema(z.object({
-            selection: choiceSchema.extend({
-                choice: candidates,
-                probabilities: z.record(candidates, probabilitySchema),
+            [CONSTRUCTION_PATH_KEY]: choiceSchema.extend({
+                choice: paths,
+                probabilities: z.record(paths, probabilitySchema),
             }),
+            ...requirements,
         }).strict());
     }
 
@@ -301,7 +312,6 @@ export class Decision extends Uca<Body> {
             question,
             context,
             correlationId,
-            items,
         } = request;
         const {
             aim: {
@@ -312,13 +322,7 @@ export class Decision extends Uca<Body> {
         const {
             configuration = DEFAULT_CONFIGURATION,
         } = body ?? {};
-        const criteria = Object.fromEntries(items.map(({
-            id,
-            data,
-        }) => [
-            id,
-            data,
-        ]));
+        const questions = this.createConstructionQuestions(request);
         this.pulse(LlmSignalType.INFER, {
             ...configurationSchema.parse(configuration),
             purpose: Decision.purpose,
@@ -328,13 +332,7 @@ export class Decision extends Uca<Body> {
             contextSchema: {
                 const: {
                     state: context,
-                    questions: {
-                        selection: {
-                            type: QuestionType.CHOICE,
-                            instructions: question,
-                            criteria,
-                        },
-                    },
+                    questions,
                 },
             },
             limits: {
@@ -349,7 +347,43 @@ export class Decision extends Uca<Body> {
         });
     }
 
-    private validateInference(inferred: InferResult, operation: Metadata): string {
+    private createConstructionQuestions(request: ConstructionRequest): Record<string, unknown> {
+        const criteria = Object.fromEntries(request.paths.map(({ id, data }) => [id, data]));
+        const requirements = this.createRequirementQuestions(request);
+        return {
+            [CONSTRUCTION_PATH_KEY]: {
+                type: QuestionType.CHOICE,
+                instructions: request.question,
+                criteria,
+            },
+            ...requirements,
+        };
+    }
+
+    private createRequirementQuestions(request: Request): Record<string, unknown> {
+        const {
+            question,
+            items,
+        } = request;
+        return Object.fromEntries(items.map(({
+            id,
+            data,
+        }) => [
+            id,
+            {
+                type: QuestionType.CHOICE,
+                instructions: `${question} Evaluate whether ${id} is required.`,
+                criteria: {
+                    [RequirementState.REQUIRED]: data,
+                    [RequirementState.NOT_REQUIRED]: {
+                        criterion: `The purpose can be fulfilled without ${id}.`,
+                    },
+                },
+            },
+        ]));
+    }
+
+    private validateInference(inferred: InferResult, operation: Metadata): DecisionPayload {
         const {
             request: sent,
             correlationId,
@@ -359,7 +393,6 @@ export class Decision extends Uca<Body> {
         const {
             request: {
                 correlationId: expectedCorrelationId,
-                items,
             },
         } = operation;
         const {
@@ -370,22 +403,25 @@ export class Decision extends Uca<Body> {
             throw new Error(MISMATCHED_CORRELATION);
         }
         const payload = data ?? JSON.parse(response ?? '');
-        const {
-            selection: {
-                choice,
-                probabilities,
-            },
-        } = z.fromJSONSchema(outputSchema).parse(payload) as Answers;
-        if (!items.some(({
-            id,
-        }) => id === choice)) {
-            throw new Error(UNKNOWN_SELECTION);
-        }
-        const total = Object.values(probabilities).reduce((sum, probability) => sum + probability, 0);
-        if (Math.abs(total - 1) > PROBABILITY_TOLERANCE) {
-            throw new Error(INVALID_PROBABILITIES);
-        }
-        return choice;
+        const answers = z.fromJSONSchema(outputSchema).parse(payload) as Record<string, z.infer<typeof choiceSchema>>;
+        return this.validateConstruction(answers, operation.request);
+    }
+
+    private validateConstruction(
+        answers: Record<string, z.infer<typeof choiceSchema>>,
+        request: ConstructionRequest,
+    ): DecisionPayload {
+        const path = answers[CONSTRUCTION_PATH_KEY]?.choice;
+        const requiredUcas = request.items.filter(({ id }) => answers[id]?.choice === RequirementState.REQUIRED).map(({ id }) => id);
+        const choices = Object.values(answers);
+        const valid = choices.every(({ probabilities }) => Math.abs(Object.values(probabilities).reduce((sum, value) => sum + value, 0) - 1) <= PROBABILITY_TOLERANCE);
+        if (!path || !request.paths.some(({ id }) => id === path)) { throw new Error(UNKNOWN_SELECTION); }
+        if (!valid) { throw new Error(INVALID_PROBABILITIES); }
+        if (request.selectionRequiresItems.includes(path) && !requiredUcas.length) { throw new Error(EMPTY_REQUIREMENTS); }
+        return {
+            path,
+            requiredUcas: request.selectionRequiresItems.includes(path) ? requiredUcas : [],
+        };
     }
 
     private recoverInference(inferred: InferResult | InferenceFailure, error: unknown, retry = true): void {
@@ -446,8 +482,9 @@ export class Decision extends Uca<Body> {
         const {
             correlationId = null,
         } = data ?? {};
+        const { type = Kind.CONSTRUCTION } = (identity ?? {}) as { type?: Kind };
         this.pulse(SignalType.ERROR, {
-            type: Kind.SELECTION,
+            type,
             correlationId,
             error: error instanceof Error ? error.message : String(error),
             attempts,

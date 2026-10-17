@@ -37,6 +37,8 @@ export type { Body } from './schema.js';
 
 export type { Context } from './schema.js';
 export interface ObservedPayload extends Context {
+    readonly message?: string;
+    readonly error?: unknown;
     readonly state?: Context;
     readonly area?: Context;
     readonly value?: Context;
@@ -45,6 +47,9 @@ export interface ObservedPayload extends Context {
 
 export interface ObservedResult {
     readonly selectedId?: string;
+    readonly selectedIds?: string[];
+    readonly path?: string;
+    readonly requiredUcas?: string[];
     readonly context?: ObservedDecisionContext;
     readonly continuation?: Context;
 }

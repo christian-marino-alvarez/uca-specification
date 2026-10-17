@@ -1,9 +1,7 @@
 export { Schema } from './schema/index.js';
 export { HttpClient } from './http-client/index.js';
-export { VisualInspection } from './visual-inspection/index.js';
-export { Designer } from './designer/index.js';
 export { Llm } from './llm/index.js';
-export { Render } from './render/index.js';
 export { Placeholder } from './placeholder/index.js';
-export { Catalog } from './catalog/index.js';
-export { Connection } from './connection/index.js';
+export { IndexedDatabase } from './indexed-db/index.js';
+export { Design } from './design/index.js';
+

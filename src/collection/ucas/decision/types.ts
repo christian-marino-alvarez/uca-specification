@@ -1,9 +1,14 @@
 export enum Kind {
-    SELECTION = 'selection',
+    CONSTRUCTION = 'construction',
 }
 
 export enum QuestionType {
     CHOICE = 'choice',
+}
+
+export enum RequirementState {
+    REQUIRED = 'REQUIRED',
+    NOT_REQUIRED = 'NOT_REQUIRED',
 }
 
 export enum SignalType {
@@ -24,8 +29,10 @@ export type {
     Item,
     Request,
     Result,
+    ConstructionResult,
+    ConstructionRequest,
+    DecisionPayload,
     Failure,
-    Answers,
     Metadata,
     ValidationContext,
 } from './schema.js';

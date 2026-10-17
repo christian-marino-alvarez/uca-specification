@@ -7,8 +7,38 @@ import { JEV_CONTEXT_INSTRUCTION } from './constants.js';
 import type { Command, EvaluationContext, Question } from './types.js';
 
 export function createCommand(payload: InferPayload, stream = false): Command {
-    const { provider = DEFAULT_PROVIDER, outputSchema, model, limit, imagination, thinkingBudget, thinkingLevel, correlationId, streamId } = payload;
-    const value = { prompt: serializeRequest(payload), schema: outputSchema, systemInstruction: SYSTEM_INSTRUCTION, temperature: imagination, maxOutputTokens: limit, thinkingBudget, thinkingLevel, correlationId, streamId };
+    const {
+        provider = DEFAULT_PROVIDER,
+        outputSchema,
+        model,
+        limit,
+        imagination,
+        thinkingBudget,
+        thinkingLevel,
+        correlationId,
+        streamId,
+        contextSchema,
+        purpose,
+        goal,
+        limits,
+    } = payload;
+    const prompt = JSON.stringify({
+        contextSchema,
+        purpose,
+        goal,
+        limits,
+    });
+    const value = {
+        prompt,
+        schema: outputSchema,
+        systemInstruction: SYSTEM_INSTRUCTION,
+        temperature: imagination,
+        maxOutputTokens: limit,
+        thinkingBudget,
+        thinkingLevel,
+        correlationId,
+        streamId,
+    };
     switch (provider) {
         case 'jev': return stream ? { property: LlmSignalType.ERROR, value: { error: 'Jev does not support streaming', correlationId } } : { property: JevSignalType.INFER, value: createEvaluation(payload) };
         case 'gemini': return { property: stream ? GeminiSignalType.STREAM : GeminiSignalType.GENERATE, value: { ...value, model: model ?? DEFAULT_GEMINI_MODEL } };

@@ -17,6 +17,14 @@ export const requestSchema = z.object({
     areaId: z.string().min(1),
     kind: z.string().min(1).optional(),
     dimensions: dimensionsSchema.optional(),
+    appearance: z.object({
+        colorScheme: z.enum([
+            'light',
+            'dark',
+            'no-preference',
+        ]),
+        reducedMotion: z.boolean(),
+    }).strict().optional(),
     context: z.unknown().optional(),
 }).strict();
 
