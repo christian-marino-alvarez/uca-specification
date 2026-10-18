@@ -39,13 +39,18 @@ Una **Capability** representa una habilidad funcional o mecánica pura, terminal
 4. **Desacoplamiento de Recursos de Dominio vs. Target Nervioso**:
    * El `target` de la capability es estrictamente nervioso (`EventTarget` para señales/impulsos).
    * Los recursos de dominio físicos o del entorno (ej. elementos HTML del DOM, sockets, buffers) deben gestionarse internamente en propiedades dedicadas de la capability (ej. `private readonly elements: Map<string, HTMLElement>`), nunca confundiéndolos con el `target` nervioso.
-5. **Emisión de Señales mediante `this.pulse`**:
+5. **`innervate()` y `denervate()` son Puramente de Instanciación/Infraestructura (NO Ciclo de Vida de Negocio)**:
+   * `innervate()` y `denervate()` **NO** forman parte del ciclo de vida ontológico o de negocio de la UCA/Capability.
+   * Su única y exclusiva responsabilidad es técnica: conectar o desconectar la instancia a un `EventTarget` (cableado nervioso).
+   * **Queda estrictamente prohibido introducir lógica de negocio, emisiones reactivas o lecturas iniciales de dominio dentro de `innervate()`**.
+   * Todo comportamiento de negocio es **100% reactivo**: debe desencadenarse a través de señales (`react(signal)`) o como respuesta a la disposición (`onDispositionUpdated`).
+6. **Emisión de Señales mediante `this.pulse`**:
    * Cuando se produzca un cambio observable, la capability debe emitir la señal mediante `this.pulse(property, value)`.
-6. **Invariante de Ausencia de Almacenamiento de Propiedades de Dominio**:
+7. **Invariante de Ausencia de Almacenamiento de Propiedades de Dominio**:
    * Las Capabilities **no deben almacenar propiedades de dominio como variables de estado de instancia** (`this.value`, `this.items`, etc.).
    * Son procesadores mecánicos reactivos: reciben los estímulos a través de su `react(signal: Signal)` o leen la configuración del receptor desde `this.disposition.aim.body`.
    * Los constructores son puramente identitarios (`constructor(id: string = '<default>')`) y no aceptan objetos de opciones o valores de dominio.
-7. **Lectura Obligatoria del Core**:
+8. **Lectura Obligatoria del Core**:
    * Antes de cualquier creación o modificación de una Capability, el agente **DEBE revisar la estructura y flow del Core** (`src/core/capability.ts`) sin ejecutar validaciones automáticas; las pruebas corresponden al usuario.
 
 ---

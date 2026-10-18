@@ -69,7 +69,12 @@ Una **UCA** (Unidad Cognitiva Autónoma) es la unidad primaria de comportamiento
    * Una UCA **no almacena estado de dominio ni propiedades en variables privadas de instancia** (`this.value`, `this.items`, etc.).
    * Las UCAs son entidades de orquestación y transducción cognitiva: **reaccionan dinámicamente a cambios de propiedades** transmitidas mediante señales (`Signal`) en su sistema nervioso (`target`) o configuradas a través de su disposición (`disposition.aim.body`).
    * Si una UCA necesita proyectar atributos iniciales hacia sus capacidades constitutivas (`Cooky`), debe extraerlos directamente de su propia disposición (`const { ... } = this.disposition.aim.body ?? {};`).
-7. **Lectura Obligatoria del Core**:
+7. **`innervate()` y `denervate()` son Puramente de Infraestructura/Instanciación (NO Ciclo de Vida de Negocio)**:
+   * `innervate()` y `denervate()` **NO** forman parte del ciclo de vida ontológico o de negocio de una UCA.
+   * Su función es estrictamente técnica y privada a nivel de arquitectura: cablear el canal nervioso (`EventTarget`) e instanciar las conexiones.
+   * Queda estrictamente prohibido introducir lógica de negocio, emisiones de pulsos o arrancar procesos dentro de `innervate()`.
+   * El ciclo de vida de negocio de una UCA es **100% reactivo**: se activa únicamente mediante estímulos/señales recibidas en `react(signal)` o cambios de disposición en `onDispositionUpdated(event)`.
+8. **Lectura Obligatoria del Core**:
    * Antes de cualquier creación o modificación de una UCA, el agente **DEBE revisar minuciosamente la estructura interna y el flujo reactivo del Core** (`src/core/uca.ts`, `src/core/types.ts`) sin ejecutar validaciones automáticas; las pruebas corresponden al usuario.
 
 ---

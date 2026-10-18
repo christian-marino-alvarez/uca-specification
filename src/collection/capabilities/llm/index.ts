@@ -126,7 +126,7 @@ export class Llm extends HttpClient {
                 endpoint = DEFAULT_ENDPOINT,
             } = body ?? {};
             await this.handleRequest({
-                endpoint,
+                endpoint: this.resolveEndpoint(endpoint),
                 payload,
                 correlationId,
                 context: {
@@ -205,5 +205,12 @@ export class Llm extends HttpClient {
             metadata,
             request,
         }, replyTo);
+    }
+
+    private resolveEndpoint(endpoint: string): string {
+        if (typeof window === 'undefined' && endpoint.startsWith('/')) {
+            return `http://localhost:3000${endpoint}`;
+        }
+        return endpoint;
     }
 }

@@ -98,11 +98,13 @@ Todo código producido en este repositorio debe respetar rigurosamente los sigui
    * **Propiedades y métodos estáticos (`static`)**: Siempre en la cabecera de la clase, por encima del constructor.
    * **Propiedades de instancia**: Justo antes del constructor.
    * **Constructor**: `public constructor(...)`.
-   * **Ciclo de vida principal**:
+   * **Conexión de Infraestructura (Instanciación privada / cableado técnico, NO ciclo de vida de negocio)**:
      1. `innervate(...)`
      2. `denervate()`
-     3. `react(...)`
-   * **Métodos públicos y protegidos auxiliares**: Ubicados inmediatamente después del bloque del ciclo de vida, cerca del constructor.
+   * **Ciclo de Vida Reactivo de Negocio**:
+     1. `react(...)` (reacción unívoca a señales y estímulos externos o internos)
+     2. `onDispositionUpdated(...)` (adaptación ante cambios en la disposición)
+   * **Métodos públicos y protegidos auxiliares**: Ubicados inmediatamente después del bloque reactivo, cerca del constructor.
    * **Métodos privados**: Siempre al final de la clase, ordenados tras los métodos públicos.
 13. **Invariante de Ausencia de Almacenamiento de Estado (UCAs y Capabilities No Guardan Propiedades)**:
    * **Ni las UCAs ni las Capabilities deben almacenar propiedades de dominio como estado mutable en variables privadas de instancia** (`this.value`, `this.items`, `this.selected`, etc.).

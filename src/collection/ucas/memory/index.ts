@@ -390,8 +390,16 @@ export class Memory extends Uca<Body> {
     }
 
     private handleGet(value: unknown): void {
-        const { key, correlationId } = value as GetPayload;
-        this.pulse(StorageSignalType.GET, { key, correlationId });
+        const {
+            key,
+            correlationId,
+            ...rest
+        } = (value ?? {}) as GetPayload & Record<string, unknown>;
+        this.pulse(StorageSignalType.GET, {
+            key,
+            correlationId,
+            ...rest,
+        });
     }
 
     private handleRemove(value: unknown): void {

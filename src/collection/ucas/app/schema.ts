@@ -30,9 +30,12 @@ export const browserContextSchema = z.object({
 }).strict();
 
 export const decisionResultSchema = z.object({
-    path: z.string().min(1),
-    requiredUcas: z.array(
-        z.string().min(1),
+    questionId: z.string().min(1),
+    choice: z.string().min(1),
+    confidence: z.number().min(0).max(1),
+    probabilities: z.record(
+        z.string(),
+        z.number(),
     ).optional(),
     context: z.record(
         z.string(),
@@ -41,10 +44,26 @@ export const decisionResultSchema = z.object({
     correlationId: z.string().optional(),
 }).strict();
 
+export const sessionSchema = z.object({
+    sessionId: z.string().min(1),
+    lastRoute: z.string().min(1),
+    timestamp: z.number(),
+    parameters: z.record(
+        z.string(),
+        z.unknown(),
+    ).optional(),
+}).strict();
+
 export const bodySchema = z.object({
     id: z.string().optional(),
     sessionId: z.string().optional(),
     activePage: z.string().optional(),
+    sessionState: z.enum([
+        'PROMPT_RESUME',
+        'FRESH',
+        'ACTIVE',
+    ]).optional(),
+    previousSession: sessionSchema.optional(),
     parameters: z.array(
         navigationParameterSchema,
     ).optional(),
@@ -58,4 +77,6 @@ export type NavigationParameter = z.infer<typeof navigationParameterSchema>;
 export type Navigation = z.infer<typeof navigationSchema>;
 export type BrowserContext = z.infer<typeof browserContextSchema>;
 export type DecisionResult = z.infer<typeof decisionResultSchema>;
+export type Session = z.infer<typeof sessionSchema>;
 export type Body = z.infer<typeof bodySchema>;
+

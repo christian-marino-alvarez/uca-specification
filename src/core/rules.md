@@ -42,7 +42,12 @@ El dominio `src/core` contiene **única y exclusivamente las primitivas ontológ
    * **Idempotencia**: `handleDispositionUpdate` verifica si hubo un cambio real comparando las estructuras con normalización recursiva de claves (`isDispositionChanged` / `normalizeKeys`). Si no hay cambio, la ejecución se detiene sin coste ni reconexión.
    * **Reconexión y Catálogo**: Si la disposición cambia efectivamente, se desconectan y reconectan los receptores, actualizándose `this.disposition`, y se invoca `onDispositionUpdated(event)`.
    * **Sincronización en `Uca`**: En `Uca.onDispositionUpdated()`, se ejecuta `syncCatalog()`, activando/inervando dinámicamente o silenciando/denervando capacidades según `disposition.reactTo`.
-6. **Pruebas Manuales de Core**:
+6. **`innervate()` y `denervate()` son Puramente de Infraestructura (NO Ciclo de Vida de Negocio)**:
+   * `innervate()` y `denervate()` **NO** forman parte del ciclo de vida reactivo u ontológico de una UCA o Capability.
+   * Su cometido es estrictamente técnico: instanciar y conectar el cableado del bus nervioso (`EventTarget`).
+   * Queda terminantemente prohibido ejecutar lógica de negocio, emitir señales de dominio o arrancar procesos dentro de `innervate()`.
+   * El ciclo de vida de negocio de UCA es **100% reactivo**: se activa mediante estímulos nerviosos (`react(signal)`) o actualizaciones de disposición (`onDispositionUpdated`).
+7. **Pruebas Manuales de Core**:
    * Las pruebas de integridad de Core corresponden al usuario. El agente solo ejecuta validaciones si el usuario las solicita expresamente.
 
 ---

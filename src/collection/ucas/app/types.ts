@@ -11,6 +11,8 @@ export enum SignalType {
     BROWSER_CHANGED = 'app.browser_changed',
     DECIDED = 'app.decided',
     ERROR = 'app.error',
+    SESSION_RESUME = 'app.session_resume',
+    SESSION_FRESH = 'app.session_fresh',
 }
 
 export enum DataType {

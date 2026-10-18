@@ -352,6 +352,9 @@ Una UCA no pasa por fases rígidas de arranque y finalización. Reacciona a los 
 ```
 
 > **Principio Fundamental**: Una UCA, desde su Conception, permanece funcionalmente vigente y reacciona a los Stimuli recibidos persiguiendo su Purpose dentro de los límites de sus Capabilities y conforme a la Disposition vigente de dichas Capabilities.
+> 
+> **Naturaleza de la Inervación frente al Ciclo de Vida**:
+> Las operaciones de inervación y desinervación (`innervate` y `denervate`) pertenecen exclusivamente a la infraestructura técnica de instanciación y conexión al bus nervioso (`EventTarget`). **No forman parte del ciclo de vida conceptual ni de negocio de la UCA ni de sus Capabilities**. En consecuencia, no deben contener lógica de negocio, lecturas de dominio iniciales ni emisiones de señales. El ciclo de vida de negocio es **estricta y exclusivamente reactivo**: opera mediante la recepción de estímulos (`react(signal)`) o cambios de disposición (`onDispositionUpdated`).
 
 ---
 

@@ -46,15 +46,19 @@ export function createCommand(payload: InferPayload, stream = false): Command {
     }
 }
 
+function buildQuestionCriteria(questions: Record<string, unknown>, contract: string): Record<string, unknown> {
+    return Object.fromEntries(Object.keys(questions).map((key) => {
+        const item = questions[key];
+        const { instructions = key, ...definition } = typeof item === 'string' ? { instructions: item } : item as Question;
+        return [key, { ...definition, instructions: `${instructions}\n${JEV_CONTEXT_INSTRUCTION}\n${contract}` }];
+    }));
+}
+
 export function createEvaluation(payload: InferPayload): Record<string, unknown> {
     const { contextSchema, goal, model = DEFAULT_JEV_MODEL, limit, correlationId } = payload;
     const { const: facts } = contextSchema;
-    const { state = facts, questions = { assessment: goal } } = (facts ?? {}) as EvaluationContext;
-    const contract = serializeRequest(payload);
-    const criteria = Object.fromEntries(Object.keys(questions).map((key) => {
-        const question = questions[key];
-        const { instructions = key, ...definition } = typeof question === 'string' ? { instructions: question } : question as Question;
-        return [key, { ...definition, instructions: `${instructions}\n${JEV_CONTEXT_INSTRUCTION}\n${contract}` }];
-    }));
+    const { state = facts, questions, question } = (facts ?? {}) as EvaluationContext & { question?: Question & { id?: string } };
+    const resolved = questions ?? (question ? { [question.id ?? 'question']: question } : { assessment: goal });
+    const criteria = buildQuestionCriteria(resolved, serializeRequest(payload));
     return { state, questions: criteria, model, limit, correlationId };
 }
