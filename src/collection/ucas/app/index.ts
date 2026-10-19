@@ -1,27 +1,19 @@
-import { Action } from '@uca/action';
-import { SignalType as ActionSignalType } from '@uca/action/types';
-import { Box } from '@uca/box';
-import { SignalType as BoxSignalType } from '@uca/box/types';
 import { Browser } from '@uca/capability-browser';
 import { SignalType as BrowserSignalType } from '@uca/capability-browser/types';
-import { Collection } from '@uca/collection';
-import { SignalType as CollectionSignalType } from '@uca/collection/types';
+import { Builder } from '@uca/builder';
+import {
+    SignalType as BuilderSignalType,
+    type Area,
+    type AreaCreated,
+} from '@uca/builder/types';
 import { Design } from '@uca/capability-design';
 import { SignalType as DesignSignalType } from '@uca/capability-design/types';
 import { Decision } from '@uca/decision';
 import { SignalType as DecisionSignalType } from '@uca/decision/types';
-import { Dropdown } from '@uca/dropdown';
-import { SignalType as DropdownSignalType } from '@uca/dropdown/types';
-import { Input } from '@uca/input';
-import { SignalType as InputSignalType } from '@uca/input/types';
 import { Memory } from '@uca/memory';
 import { SignalType as MemorySignalType } from '@uca/memory/types';
 import { Navigate } from '@uca/navigate';
 import { SignalType as NavigateSignalType } from '@uca/navigate/types';
-import { Options } from '@uca/options';
-import { SignalType as OptionsSignalType } from '@uca/options/types';
-import { Picture } from '@uca/picture';
-import { SignalType as PictureSignalType } from '@uca/picture/types';
 import { Uca } from '@uca/core/uca';
 import {
     DispositionSignal,
@@ -33,9 +25,12 @@ import {
     type Signal,
 } from '@uca/core/types';
 import {
+    AREA_DECISION_OPTIONS,
     DEFAULT_AIM_BODY,
     DEFAULT_AIM_DESCRIPTION,
+    DEFAULT_DESIGN_GUIDELINES,
     DEFAULT_PURPOSE,
+    ROOT_AREA_ID,
     __ID__,
 } from './constants.js';
 import {
@@ -70,14 +65,8 @@ export class App extends Uca<Body> {
             ...App.reactToNavigate(),
             ...App.reactToDesign(),
             ...App.reactToDecision(),
+            ...App.reactToBuilder(),
             ...App.reactToMemory(),
-            ...App.reactToBox(),
-            ...App.reactToAction(),
-            ...App.reactToInput(),
-            ...App.reactToPicture(),
-            ...App.reactToDropdown(),
-            ...App.reactToOptions(),
-            ...App.reactToCollection(),
         ],
         inputs: [
             {
@@ -109,6 +98,11 @@ export class App extends Uca<Body> {
                 type: DataType.DECISION_RESULT,
                 schema: decisionResultSchema,
                 description: 'Cognitive page composition decision result',
+            },
+            {
+                signal: SignalType.BUILT,
+                type: DataType.BUILT_RESULT,
+                description: 'Cognitive page structure built by builder UCA',
             },
             {
                 signal: SignalType.ERROR,
@@ -161,6 +155,18 @@ export class App extends Uca<Body> {
         ];
     }
 
+    private static reactToBuilder(): string[] {
+        const {
+            reactTo = [],
+        } = Builder.disposition;
+        return [
+            ...reactTo,
+            BuilderSignalType.BUILT,
+            BuilderSignalType.AREA_CREATED,
+            BuilderSignalType.ERROR,
+        ];
+    }
+
     private static reactToMemory(): string[] {
         const {
             reactTo = [],
@@ -169,96 +175,6 @@ export class App extends Uca<Body> {
             ...reactTo,
             MemorySignalType.RETRIEVED,
             MemorySignalType.SAVED,
-        ];
-    }
-
-    private static reactToBox(): string[] {
-        const {
-            reactTo = [],
-        } = Box.disposition;
-        return [
-            ...reactTo,
-            BoxSignalType.CREATED,
-            BoxSignalType.UPDATED,
-            BoxSignalType.REMOVED,
-            BoxSignalType.EVENT,
-        ];
-    }
-
-    private static reactToAction(): string[] {
-        const {
-            reactTo = [],
-        } = Action.disposition;
-        return [
-            ...reactTo,
-            ActionSignalType.CREATED,
-            ActionSignalType.UPDATED,
-            ActionSignalType.REMOVED,
-            ActionSignalType.EVENT,
-        ];
-    }
-
-    private static reactToInput(): string[] {
-        const {
-            reactTo = [],
-        } = Input.disposition;
-        return [
-            ...reactTo,
-            InputSignalType.CREATED,
-            InputSignalType.UPDATED,
-            InputSignalType.REMOVED,
-            InputSignalType.EVENT,
-        ];
-    }
-
-    private static reactToPicture(): string[] {
-        const {
-            reactTo = [],
-        } = Picture.disposition;
-        return [
-            ...reactTo,
-            PictureSignalType.CREATED,
-            PictureSignalType.UPDATED,
-            PictureSignalType.REMOVED,
-        ];
-    }
-
-    private static reactToDropdown(): string[] {
-        const {
-            reactTo = [],
-        } = Dropdown.disposition;
-        return [
-            ...reactTo,
-            DropdownSignalType.CREATED,
-            DropdownSignalType.UPDATED,
-            DropdownSignalType.REMOVED,
-            DropdownSignalType.EVENT,
-        ];
-    }
-
-    private static reactToOptions(): string[] {
-        const {
-            reactTo = [],
-        } = Options.disposition;
-        return [
-            ...reactTo,
-            OptionsSignalType.CREATED,
-            OptionsSignalType.UPDATED,
-            OptionsSignalType.REMOVED,
-            OptionsSignalType.EVENT,
-        ];
-    }
-
-    private static reactToCollection(): string[] {
-        const {
-            reactTo = [],
-        } = Collection.disposition;
-        return [
-            ...reactTo,
-            CollectionSignalType.CREATED,
-            CollectionSignalType.UPDATED,
-            CollectionSignalType.REMOVED,
-            CollectionSignalType.EVENT,
         ];
     }
 
@@ -272,14 +188,8 @@ export class App extends Uca<Body> {
             this.buildNavigateCooky(),
             this.buildDesignCooky(),
             this.buildDecisionCooky(),
+            this.buildBuilderCooky(),
             this.buildMemoryCooky(),
-            this.buildBoxCooky(),
-            this.buildActionCooky(),
-            this.buildInputCooky(),
-            this.buildPictureCooky(),
-            this.buildDropdownCooky(),
-            this.buildOptionsCooky(),
-            this.buildCollectionCooky(),
         ];
     }
 
@@ -318,17 +228,20 @@ export class App extends Uca<Body> {
             case DecisionSignalType.ERROR:
                 this.handleDecisionError(signal);
                 break;
+            case BuilderSignalType.AREA_CREATED:
+                this.handleBuilderAreaCreated(signal);
+                break;
+            case BuilderSignalType.BUILT:
+                this.handleBuilderBuilt(signal);
+                break;
+            case BuilderSignalType.ERROR:
+                this.handleBuilderError(signal);
+                break;
             case DesignSignalType.THEME_CHANGED:
                 this.handleThemeChanged(signal);
                 break;
             case DispositionSignal.PROVIDE:
                 this.handleDispositionProvide(signal);
-                break;
-            case ActionSignalType.EVENT:
-                this.handleActionEvent(signal);
-                break;
-            case BoxSignalType.EVENT:
-                this.handleBoxEvent(signal);
                 break;
             default:
                 break;
@@ -379,60 +292,23 @@ export class App extends Uca<Body> {
         ];
     }
 
+    private createBuilderDisposition(): Disposition {
+        const { aim } = Builder.disposition;
+        const body = { ...(aim.body ?? {}), containerElement: '#app' };
+        return { ...Builder.disposition, aim: { ...aim, body } };
+    }
+
+    private buildBuilderCooky(): [CapabilityConstructor, Disposition] {
+        const { id } = this;
+        const disposition = this.createBuilderDisposition();
+        return this.buildUcaCooky(Builder, Builder.purpose, `${id}:builder`, disposition);
+    }
+
     private buildMemoryCooky(): [CapabilityConstructor, Disposition] {
         const {
             id,
         } = this;
         return this.buildUcaCooky(Memory, Memory.purpose, `${id}:memory`, Memory.disposition);
-    }
-
-    private buildBoxCooky(): [CapabilityConstructor, Disposition] {
-        const {
-            id,
-        } = this;
-        return this.buildUcaCooky(Box, Box.purpose, `${id}:box`, Box.disposition);
-    }
-
-    private buildActionCooky(): [CapabilityConstructor, Disposition] {
-        const {
-            id,
-        } = this;
-        return this.buildUcaCooky(Action, Action.purpose, `${id}:action`, Action.disposition);
-    }
-
-    private buildInputCooky(): [CapabilityConstructor, Disposition] {
-        const {
-            id,
-        } = this;
-        return this.buildUcaCooky(Input, Input.purpose, `${id}:input`, Input.disposition);
-    }
-
-    private buildPictureCooky(): [CapabilityConstructor, Disposition] {
-        const {
-            id,
-        } = this;
-        return this.buildUcaCooky(Picture, Picture.purpose, `${id}:picture`, Picture.disposition);
-    }
-
-    private buildDropdownCooky(): [CapabilityConstructor, Disposition] {
-        const {
-            id,
-        } = this;
-        return this.buildUcaCooky(Dropdown, Dropdown.purpose, `${id}:dropdown`, Dropdown.disposition);
-    }
-
-    private buildOptionsCooky(): [CapabilityConstructor, Disposition] {
-        const {
-            id,
-        } = this;
-        return this.buildUcaCooky(Options, Options.purpose, `${id}:options`, Options.disposition);
-    }
-
-    private buildCollectionCooky(): [CapabilityConstructor, Disposition] {
-        const {
-            id,
-        } = this;
-        return this.buildUcaCooky(Collection, Collection.purpose, `${id}:collection`, Collection.disposition);
     }
 
     private buildUcaCooky(
@@ -441,7 +317,17 @@ export class App extends Uca<Body> {
         instanceId: string,
         defaults: Disposition,
     ): [CapabilityConstructor, Disposition] {
-        const aim = this.createAim(purpose, instanceId);
+        const {
+            aim: defaultAim,
+        } = defaults;
+        const aim = {
+            ...defaultAim,
+            description: purpose,
+            body: {
+                ...(defaultAim.body as Record<string, unknown>),
+                id: instanceId,
+            },
+        };
         return [
             Factory,
             {
@@ -631,56 +517,32 @@ export class App extends Uca<Body> {
         };
     }
 
-    private buildDecisionContext(input: unknown, session: unknown): Record<string, unknown> {
+    private resolveBrowserContext(): Record<string, unknown> {
         const {
-            browserContext,
-        } = this.disposition.aim.body ?? {};
+            aim,
+        } = this.disposition;
+        const {
+            browserContext = {},
+        } = aim.body ?? {};
+        return browserContext;
+    }
+
+    private buildDecisionContext(input: unknown, session: unknown): Record<string, unknown> {
         return {
             ...this.extractOntologyContext(),
             input,
             session: session ?? null,
-            browser: browserContext ?? {},
-            components: this.extractAvailableComponents(),
+            browser: this.resolveBrowserContext(),
+            design: DEFAULT_DESIGN_GUIDELINES,
         };
-    }
-
-    private buildAreaOptions(): Record<string, unknown>[] {
-        return [
-            {
-                id: 'LAYOUT',
-                label: 'Layout',
-                description: 'Partición en áreas específicas',
-                criteria: 'Elegir LAYOUT si cubrir las necesidades técnicas de intention y purpose en el contexto exige dividir el espacio en áreas específicas.',
-            },
-            {
-                id: 'VIEW',
-                label: 'View',
-                description: 'Representación directa y esencial',
-                criteria: 'Elegir VIEW si no hace falta usar más áreas específicas y intention bajo purpose se resuelve directamente con components del contexto.',
-            },
-        ];
     }
 
     private resolveCognitiveQuestion(_input: unknown): Record<string, unknown> {
         return {
             id: 'area_type',
             type: 'choice',
-            prompt: 'Determina si debemos usar LAYOUT o VIEW evaluando intention, purpose y components en el contexto provisto.',
-            options: this.buildAreaOptions(),
-        };
-    }
-
-    private extractAvailableComponents(): Record<string, { purpose: string }> {
-        return {
-            Box: { purpose: Box.purpose },
-            Action: { purpose: Action.purpose },
-            Input: { purpose: Input.purpose },
-            Picture: { purpose: Picture.purpose },
-            Dropdown: { purpose: Dropdown.purpose },
-            Options: { purpose: Options.purpose },
-            Collection: { purpose: Collection.purpose },
-            Navigate: { purpose: Navigate.purpose },
-            Memory: { purpose: Memory.purpose },
+            prompt: 'Determina si debemos usar LAYOUT o VIEW evaluando intention y purpose en el contexto provisto.',
+            options: AREA_DECISION_OPTIONS,
         };
     }
 
@@ -690,22 +552,6 @@ export class App extends Uca<Body> {
             return;
         }
         this.pulse(DispositionSignal.UPDATED, payload);
-    }
-
-    private handleActionEvent(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.consultSession(value);
-        this.pulse(ActionSignalType.EVENT, value);
-    }
-
-    private handleBoxEvent(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.consultSession(value);
-        this.pulse(BoxSignalType.EVENT, value);
     }
 
     private mergeAimBody(aim: Aim<Body>, patch: Partial<Body>): Aim<Body> {
@@ -735,6 +581,118 @@ export class App extends Uca<Body> {
             value,
         } = signal;
         this.pulse(SignalType.DECIDED, value);
+        this.requestBuild(value);
+    }
+
+    private extractDecisionChoice(decisionValue: unknown): 'LAYOUT' | 'VIEW' {
+        const {
+            result,
+            choice,
+        } = (decisionValue ?? {}) as { result?: { choice?: 'LAYOUT' | 'VIEW' }; choice?: 'LAYOUT' | 'VIEW' };
+        const {
+            choice: resultChoice,
+        } = result ?? {};
+        return resultChoice ?? choice ?? 'VIEW';
+    }
+
+    private requestBuild(decisionValue: unknown): void {
+        const {
+            correlationId,
+            context: decisionContext,
+        } = (decisionValue ?? {}) as {
+            correlationId?: string;
+            context?: Record<string, unknown>;
+        };
+        const choice = this.extractDecisionChoice(decisionValue);
+        const context = decisionContext ?? this.buildDecisionContext(null, null);
+        const { areaId, parentId, purpose, intention } = context as {
+            areaId?: string;
+            parentId?: string;
+            purpose?: string;
+            intention?: string;
+        };
+        this.pulse(BuilderSignalType.BUILD, {
+            choice,
+            areaId: areaId ?? ROOT_AREA_ID,
+            parentId,
+            purpose,
+            intention,
+            context,
+            correlationId: correlationId ?? `build-${Date.now()}`,
+        });
+    }
+
+    private handleBuilderBuilt(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        this.pulse(SignalType.BUILT, value);
+    }
+
+    private handleBuilderAreaCreated(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        this.sendAreaDecision(value as AreaCreated);
+    }
+
+
+
+
+
+    private sendAreaDecision(created: AreaCreated): void {
+        const {
+            area,
+            context,
+        } = created;
+        const {
+            id,
+            parentId,
+        } = area;
+        const areaContext = this.buildAreaContext(area, context);
+        const question = this.resolveAreaQuestion(area, parentId);
+        this.pulse(DecisionSignalType.DECIDE, {
+            correlationId: crypto.randomUUID(),
+            question,
+            context: areaContext,
+        });
+    }
+
+    private buildAreaContext(area: Area, inherited: Record<string, unknown>): Record<string, unknown> {
+        const {
+            id: areaId,
+            parentId,
+            role,
+            description,
+            purpose,
+            intention,
+        } = area;
+        return {
+            ...inherited,
+            areaId,
+            parentId,
+            role,
+            description,
+            purpose: purpose ?? inherited.purpose,
+            intention: intention ?? description ?? inherited.intention,
+        };
+    }
+
+    private resolveAreaQuestion(area: Area, parentId?: string): Record<string, unknown> {
+        const target = parentId ? `el área '${area.id}' (contenida en '${parentId}')` : `el área '${area.id}'`;
+        return {
+            id: `area_type_${area.id}`,
+            type: 'choice',
+            prompt: `Determina si ${target} debe ser LAYOUT o VIEW evaluando intention y purpose en el contexto provisto.`,
+            options: AREA_DECISION_OPTIONS,
+        };
+    }
+
+    private handleBuilderError(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        this.pulse(SignalType.ERROR, value);
     }
 
     private handleDecisionError(signal: Signal): void {

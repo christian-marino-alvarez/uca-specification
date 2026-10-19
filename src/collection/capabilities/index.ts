@@ -5,4 +5,4 @@ export { Placeholder } from './placeholder/index.js';
 export { IndexedDatabase } from './indexed-db/index.js';
 export { Design } from './design/index.js';
 export { History } from './history/index.js';
-
+export { Presentation } from './presentation/index.js';

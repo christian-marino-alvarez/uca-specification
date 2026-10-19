@@ -1,132 +1,88 @@
-import { Uca } from '@uca/core/uca';
-import type { Cooky, Disposition, Signal } from '@uca/core/types';
-import { WebComponent } from '@uca/capability-web-component';
-import { SignalType as WebComponentSignalType } from '@uca/capability-web-component/types';
-import { Css } from '@uca/capability-css';
-import { SignalType as CssSignalType } from '@uca/capability-css/types';
-import { __ID__, DEFAULT_EVENTS, DEFAULT_TAG, buildDropdownAttributes, buildDropdownContent, resolveContainerSelector } from './constants.js';
-import { type Body, type EventContext, DataType, SignalType } from './types.js';
+import { Choice } from '@uca/choice';
+import { type Body as ChoiceBody, SignalType as ChoiceSignalType } from '@uca/choice/types';
+import { InteractionType } from '@uca/capability-presentation/types';
+import type { Disposition, Signal } from '@uca/core/types';
+import { __ID__, SIGNALS } from './constants.js';
+import { SignalType, type Body } from './types.js';
 
-export class Dropdown extends Uca<Body> {
-    public static override purpose: string = 'Autonomous collapsible selection unit that renders and manages a dropdown select menu of options';
+/** @deprecated Use Choice; this adapter preserves legacy signal names. */
+export class Dropdown extends Choice {
+    public static override purpose = 'Choose one alternative from a bounded set independently of its presentation';
 
-    public static override disposition: Disposition<Body> = {
-        aim: { description: Dropdown.purpose },
+    public static override disposition: Disposition<ChoiceBody> = {
+        ...Choice.disposition,
         reactTo: [
+            ...Choice.disposition.reactTo ?? [],
             SignalType.RENDER,
             SignalType.UPDATE,
             SignalType.REMOVE,
-            WebComponentSignalType.RENDERED,
-            WebComponentSignalType.UPDATED,
-            WebComponentSignalType.REMOVED,
-            WebComponentSignalType.EVENT,
-            ...WebComponent.disposition.reactTo ?? [],
-            ...Css.disposition.reactTo ?? [],
         ],
-        inputs: [
-            { signal: SignalType.RENDER, type: DataType.RENDER_PAYLOAD, description: 'Command to render the dropdown select' },
-            { signal: SignalType.UPDATE, type: DataType.UPDATE_PAYLOAD, description: 'Command to update the dropdown select' },
-            { signal: SignalType.REMOVE, type: DataType.REMOVE_PAYLOAD, description: 'Command to remove the dropdown select' },
-        ],
-        outputs: [
-            { signal: SignalType.CREATED, type: DataType.CREATED_RESULT, description: 'Dropdown select created confirmation' },
-            { signal: SignalType.UPDATED, type: DataType.UPDATED_RESULT, description: 'Dropdown select updated confirmation' },
-            { signal: SignalType.REMOVED, type: DataType.REMOVED_RESULT, description: 'Dropdown select removed confirmation' },
-            { signal: SignalType.EVENT, type: DataType.EVENT_CONTEXT, description: 'Dropdown selection event triggered' },
-            { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'Dropdown error notification' },
-        ],
+        inputs: Choice.disposition.inputs?.map((port) => ({
+            ...port,
+            signal: SIGNALS[port.signal] ?? port.signal,
+        })),
+        outputs: Choice.disposition.outputs?.map((port) => ({
+            ...port,
+            signal: SIGNALS[port.signal] ?? port.signal,
+        })),
     };
 
     public constructor(id: string = __ID__) {
         super(id);
     }
 
-    protected override catalog(): Cooky {
-        const { id } = this;
-        const declarations: Cooky = [
-            [WebComponent, { aim: { description: WebComponent.AIM, body: { id: `${id}:web-component` } }, reactTo: [...WebComponent.disposition.reactTo ?? []] }],
-            [Css, { aim: { description: Css.AIM, body: { id: `${id}:css` } }, reactTo: [...Css.disposition.reactTo ?? []] }],
-        ];
-        return declarations;
-    }
-
     protected override react(signal: Signal): void {
-        const { property, value } = signal;
+        const {
+            property,
+        } = signal;
         switch (property) {
             case SignalType.RENDER:
-                this.handleRender(value);
+                this.handleLegacyRender(signal);
                 break;
             case SignalType.UPDATE:
-                this.handleUpdate(value);
+                this.handleLegacyUpdate(signal);
                 break;
             case SignalType.REMOVE:
-                this.handleRemove(value);
-                break;
-            case WebComponentSignalType.RENDERED:
-                this.handleComponentRendered(signal);
-                break;
-            case WebComponentSignalType.UPDATED:
-                this.handleComponentUpdated(signal);
-                break;
-            case WebComponentSignalType.REMOVED:
-                this.handleComponentRemoved(signal);
-                break;
-            case WebComponentSignalType.EVENT:
-                this.handleComponentEvent(signal);
+                this.handleLegacyRemove(signal);
                 break;
             default:
-                break;
+                super.react(signal);
         }
     }
 
-    private handleRender(value?: unknown): void {
-        const payload = (value ?? {}) as Body & { context?: unknown };
-        const { elementId = this.id, parentTo, containerElement, qualities, events = [...DEFAULT_EVENTS], context } = payload;
-        const targetContainer = resolveContainerSelector(containerElement, parentTo);
-        const attributes = buildDropdownAttributes(payload);
-        const content = buildDropdownContent(payload);
-        if (qualities) { this.pulse(CssSignalType.APPLY, { elementId, qualities }); }
-        this.pulse(WebComponentSignalType.RENDER, { elementId, tag: DEFAULT_TAG, containerElement: targetContainer, attributes, content, events, context });
+    protected override pulse(property: string, value: unknown, targetId?: string): Signal | undefined {
+        const mapped = SIGNALS[property] ?? property;
+        const payload = property === ChoiceSignalType.CHANGED ? this.legacyInteraction(value) : value;
+        return super.pulse(mapped, payload, targetId);
     }
 
-    private handleUpdate(value?: unknown): void {
-        const payload = (value ?? {}) as Body & { context?: unknown };
-        const { elementId = this.id, qualities, events, context } = payload;
-        const attributes = buildDropdownAttributes(payload);
-        const content = buildDropdownContent(payload);
-        if (qualities) { this.pulse(CssSignalType.APPLY, { elementId, qualities }); }
-        this.pulse(WebComponentSignalType.UPDATE, { elementId, attributes, content, events, context });
+    private handleLegacyRender(signal: Signal): void {
+        super.react({
+            ...signal,
+            property: ChoiceSignalType.RENDER,
+            value: signal.value,
+        });
     }
 
-    private handleRemove(value?: unknown): void {
-        const { elementId = this.id, context } = (value ?? {}) as Body & { context?: unknown };
-        this.pulse(CssSignalType.REMOVE, { elementId });
-        this.pulse(WebComponentSignalType.REMOVE, { elementId, context });
+    private handleLegacyUpdate(signal: Signal): void {
+        super.react({
+            ...signal,
+            property: ChoiceSignalType.UPDATE,
+            value: signal.value,
+        });
     }
 
-    private handleComponentRendered(signal: Signal): void {
-        const { value } = signal;
-        const { elementId = this.id, tag } = (value ?? {}) as { elementId?: string; tag?: string };
-        if (tag && tag !== DEFAULT_TAG) { return; }
-        this.pulse(SignalType.CREATED, { elementId, detail: value });
+    private handleLegacyRemove(signal: Signal): void {
+        super.react({
+            ...signal,
+            property: ChoiceSignalType.REMOVE,
+        });
     }
 
-    private handleComponentUpdated(signal: Signal): void {
-        const { value } = signal;
-        const { elementId = this.id } = (value ?? {}) as { elementId?: string };
-        this.pulse(SignalType.UPDATED, { elementId, detail: value });
+    private legacyInteraction(value: unknown): unknown {
+        return Object.assign({}, value, {
+            event: InteractionType.CHANGE,
+        });
     }
 
-    private handleComponentRemoved(signal: Signal): void {
-        const { value } = signal;
-        const { elementId = this.id } = (value ?? {}) as { elementId?: string };
-        this.pulse(SignalType.REMOVED, { elementId, detail: value });
-    }
-
-    private handleComponentEvent(signal: Signal): void {
-        const { value } = signal;
-        const { elementId, event, action, value: eventValue, checked, detail, context } = (value ?? {}) as EventContext & { context?: unknown };
-        if (!elementId) { return; }
-        this.pulse(SignalType.EVENT, { elementId, event, action, value: eventValue, checked, detail, context });
-    }
 }

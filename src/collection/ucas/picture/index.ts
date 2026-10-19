@@ -19,6 +19,7 @@ export class Picture extends Uca<Body> {
             WebComponentSignalType.RENDERED,
             WebComponentSignalType.UPDATED,
             WebComponentSignalType.REMOVED,
+            WebComponentSignalType.ERROR,
             ...WebComponent.disposition.reactTo ?? [],
             ...Css.disposition.reactTo ?? [],
         ],
@@ -65,6 +66,9 @@ export class Picture extends Uca<Body> {
                 break;
             case WebComponentSignalType.UPDATED:
                 this.handleComponentUpdated(value);
+                break;
+            case WebComponentSignalType.ERROR:
+                this.handleComponentError(signal);
                 break;
             case WebComponentSignalType.REMOVED:
                 this.handleComponentRemoved(value);
@@ -132,4 +136,11 @@ export class Picture extends Uca<Body> {
             }),
         });
     }
+    private handleComponentError(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        this.pulse(SignalType.ERROR, value);
+    }
+
 }

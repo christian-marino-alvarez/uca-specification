@@ -10,6 +10,7 @@ export enum SignalType {
     NAVIGATE = 'app.navigate',
     BROWSER_CHANGED = 'app.browser_changed',
     DECIDED = 'app.decided',
+    BUILT = 'app.built',
     ERROR = 'app.error',
     SESSION_RESUME = 'app.session_resume',
     SESSION_FRESH = 'app.session_fresh',
@@ -20,6 +21,7 @@ export enum DataType {
     NAVIGATION = 'Navigation',
     BROWSER_CONTEXT = 'BrowserContext',
     DECISION_RESULT = 'DecisionResult',
+    BUILT_RESULT = 'BuiltResult',
     ERROR = 'Error',
     VOID = 'void',
 }

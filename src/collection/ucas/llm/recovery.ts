@@ -11,7 +11,7 @@ export const describeFailure = (error: unknown): RepairFailure => {
 
 export const createRepairRequest = (original: InferPayload, recovery: RepairContext): InferPayload => {
     const { contextSchema, goal: originalGoal, limits } = original;
-    const { const: facts } = contextSchema;
+    const { const: facts } = (contextSchema ?? {}) as Record<string, unknown>;
     const { requestId, value, error, attempt, accepted, acceptedKeys } = recovery;
     const correction = { originalGoal, rejected: value, error: describeFailure(error), attempt, ...(accepted !== undefined && { accepted }), ...(acceptedKeys && { acceptedKeys }) };
     return { ...original, correlationId: requestId, contextSchema: { ...contextSchema, const: { original: facts, correction } }, goal: REPAIR_GOAL, limits: { ...limits, repairOnly: true } };

@@ -61,12 +61,37 @@ export class Css extends Capability<Body> {
         ],
     };
 
-    public static translateQualities(qualities: Qualities): Record<string, string> {
-        const { marginInline, custom } = qualities;
+    private static isTokenQualityKey(key: string): boolean {
+        return key === 'alignment' || TOKEN_PROPERTIES.some(([k]) => k === key) || DIMENSION_PROPERTIES.some(([k]) => k === key);
+    }
+
+    private static filterCustomByToken(custom: Record<string, string>, isToken: boolean): Record<string, string> {
+        return Object.fromEntries(
+            Object.entries(custom).filter(([key]) => Css.isTokenQualityKey(key) === isToken),
+        );
+    }
+
+    public static normalizeQualities(qualities: Qualities = {}): Qualities {
+        const { custom, ...rest } = qualities;
+        if (!custom) {
+            return qualities;
+        }
+        const hoisted = Css.filterCustomByToken(custom, true);
+        const cleanCustom = Css.filterCustomByToken(custom, false);
         return {
-            ...Css.resolveDimensions(qualities),
-            ...Css.resolveLayout(qualities),
-            ...Css.resolveTokenQualities(qualities),
+            ...hoisted,
+            ...rest,
+            ...(Object.keys(cleanCustom).length > 0 && { custom: cleanCustom }),
+        };
+    }
+
+    public static translateQualities(qualities: Qualities): Record<string, string> {
+        const normalized = Css.normalizeQualities(qualities);
+        const { marginInline, custom } = normalized;
+        return {
+            ...Css.resolveDimensions(normalized),
+            ...Css.resolveLayout(normalized),
+            ...Css.resolveTokenQualities(normalized),
             ...(marginInline === 'auto' && { 'margin-inline': marginInline }),
             ...(custom ?? {}),
         };

@@ -181,11 +181,18 @@ export class Decision extends Uca<Body> {
         }
     }
 
+    private logDecisionRequest(value: unknown): void {
+        const { correlationId, question, context } = (value ?? {}) as Request;
+        const options = question?.options?.map(({ id, label }) => ({ id, label }));
+        console.log('[DECISION::REQUEST]', { correlationId, prompt: question?.prompt, options, context });
+    }
+
     private handleDecide(signal: Signal): void {
         const {
             value,
             source,
         } = signal;
+        this.logDecisionRequest(value);
         this.pulse(SchemaSignalType.VALIDATE, {
             schema: requestSchema,
             value,
@@ -258,16 +265,19 @@ export class Decision extends Uca<Body> {
         }
     }
 
+    private logDecisionResponse(decision: DecisionPayload, correlationId: string): void {
+        const { choice, confidence, probabilities, assessment } = decision;
+        console.log('[DECISION::RESPONSE]', { correlationId, choice, confidence, probabilities, assessment });
+    }
+
     private emitDecided(decision: DecisionPayload, operation: Metadata): void {
-        const {
-            replyTo,
-            request: {
-                correlationId,
-            },
-        } = operation;
+        const { replyTo, request } = operation;
+        const { correlationId, context } = request;
+        this.logDecisionResponse(decision, correlationId);
         this.pulse(SignalType.DECIDED, {
             correlationId,
             result: decision,
+            context,
         }, replyTo);
     }
 
@@ -356,7 +366,7 @@ export class Decision extends Uca<Body> {
             outputSchema,
             contextSchema: {
                 const: {
-                    state: context,
+                    state: this.sanitizeEvaluationState(context),
                     question: {
                         id,
                         type: QuestionType.CHOICE,
@@ -375,6 +385,18 @@ export class Decision extends Uca<Body> {
                 attempt: 0,
             },
         };
+    }
+
+    private sanitizeEvaluationState(context?: Record<string, unknown>): Record<string, unknown> {
+        if (!context) {
+            return {};
+        }
+        const {
+            originalPayload,
+            replyTo,
+            ...state
+        } = context;
+        return state;
     }
 
     private validateInference(inferred: InferResult, operation: Metadata): DecisionPayload {

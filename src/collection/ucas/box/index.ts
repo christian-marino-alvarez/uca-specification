@@ -5,7 +5,7 @@ import { SignalType as WebComponentSignalType } from '@uca/capability-web-compon
 import { Css } from '@uca/capability-css';
 import { SignalType as CssSignalType } from '@uca/capability-css/types';
 import { __ID__ } from './constants.js';
-import { type Body, type EventContext, DataType, SignalType } from './types.js';
+import { type Body, type CreatedResult, type EventContext, DataType, SignalType } from './types.js';
 
 export class Box extends Uca<Body> {
     public static override purpose: string = 'Autonomous spatial container that groups, distributes, and visually delimits elements through dimension, layout, and appearance qualities';
@@ -20,6 +20,7 @@ export class Box extends Uca<Body> {
             WebComponentSignalType.UPDATED,
             WebComponentSignalType.REMOVED,
             WebComponentSignalType.EVENT,
+            WebComponentSignalType.ERROR,
             ...WebComponent.disposition.reactTo ?? [],
             ...Css.disposition.reactTo ?? [],
         ],
@@ -71,6 +72,9 @@ export class Box extends Uca<Body> {
             case WebComponentSignalType.REMOVED:
                 this.handleComponentRemoved(signal);
                 break;
+            case WebComponentSignalType.ERROR:
+                this.handleComponentError(signal);
+                break;
             case WebComponentSignalType.EVENT:
                 this.handleComponentEvent(signal);
                 break;
@@ -99,9 +103,24 @@ export class Box extends Uca<Body> {
     }
 
     private handleComponentRendered(signal: Signal): void {
-        const { value } = signal;
-        const { elementId = this.id } = (value ?? {}) as { elementId?: string };
-        this.pulse(SignalType.CREATED, { elementId, detail: value });
+        const {
+            value,
+        } = signal;
+        const {
+            elementId,
+            context,
+        } = value as CreatedResult;
+        this.pulse(SignalType.CREATED, {
+            elementId,
+            context,
+        });
+    }
+
+    private handleComponentError(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        this.pulse(SignalType.ERROR, value);
     }
 
     private handleComponentUpdated(signal: Signal): void {

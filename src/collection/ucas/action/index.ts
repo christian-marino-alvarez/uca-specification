@@ -19,6 +19,7 @@ export class Action extends Uca<Body> {
             WebComponentSignalType.RENDERED,
             WebComponentSignalType.UPDATED,
             WebComponentSignalType.REMOVED,
+            WebComponentSignalType.ERROR,
             WebComponentSignalType.EVENT,
             ...WebComponent.disposition.reactTo ?? [],
             ...Css.disposition.reactTo ?? [],
@@ -67,6 +68,9 @@ export class Action extends Uca<Body> {
                 break;
             case WebComponentSignalType.UPDATED:
                 this.handleComponentUpdated(signal);
+                break;
+            case WebComponentSignalType.ERROR:
+                this.handleComponentError(signal);
                 break;
             case WebComponentSignalType.REMOVED:
                 this.handleComponentRemoved(signal);
@@ -127,4 +131,11 @@ export class Action extends Uca<Body> {
         if (!elementId) { return; }
         this.pulse(SignalType.EVENT, { elementId, event, action, value: eventValue, checked, detail, context });
     }
+    private handleComponentError(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        this.pulse(SignalType.ERROR, value);
+    }
+
 }

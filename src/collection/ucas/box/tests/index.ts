@@ -15,6 +15,7 @@ globalThis.HTMLElement = dom.window.HTMLElement as unknown as typeof HTMLElement
 globalThis.HTMLStyleElement = dom.window.HTMLStyleElement as unknown as typeof HTMLStyleElement;
 globalThis.AbortController = dom.window.AbortController;
 globalThis.AbortSignal = dom.window.AbortSignal;
+globalThis.getComputedStyle = dom.window.getComputedStyle.bind(dom.window);
 
 function emitSignal(bus: EventTarget, property: string, value: unknown): void {
     const signal: Signal = { source: 'test', property, value, timestamp: Date.now() };

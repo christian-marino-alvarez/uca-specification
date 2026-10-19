@@ -31,3 +31,8 @@ export interface EventContext {
     readonly checked?: boolean;
     readonly detail?: unknown;
 }
+
+export interface CreatedResult {
+    readonly elementId: string;
+    readonly context?: unknown;
+}

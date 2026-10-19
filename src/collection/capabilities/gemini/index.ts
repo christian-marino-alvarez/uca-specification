@@ -178,14 +178,16 @@ export class Gemini extends Capability<Body> {
     }
 
     private resolveThinkingConfig(model: string, thinkingLevel?: ThinkingLevel, thinkingBudget?: number): Record<string, unknown> | undefined {
-        if (model.includes('lite')) { return undefined; }
+        if (model.includes('lite')) {
+            return undefined;
+        }
         if (thinkingBudget !== undefined) {
             return { thinkingBudget };
         }
         if (model.startsWith(THINKING_LEVEL_MODEL_PREFIX)) {
             return { thinkingLevel: thinkingLevel ?? DEFAULT_THINKING_LEVEL };
         }
-        return thinkingLevel ? { thinkingLevel } : { thinkingBudget: DEFAULT_THINKING_BUDGET };
+        return { thinkingBudget: DEFAULT_THINKING_BUDGET };
     }
 
     private formatResult(response: { text?: string; usageMetadata?: unknown }, prompt: string, model: string, correlationId?: string): GenerateResult {

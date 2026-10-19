@@ -119,13 +119,13 @@ const OPTIONS = [
         id: 'LAYOUT',
         label: 'Layout',
         description: 'Partición en áreas específicas',
-        criteria: 'Elegir LAYOUT si cubrir las necesidades técnicas de intention y purpose en el contexto exige dividir el espacio en áreas específicas.',
+        criteria: 'Elegir LAYOUT si la intención y propósito en el contexto exigen subdividir el espacio en áreas específicas diferenciadas.',
     },
     {
         id: 'VIEW',
         label: 'View',
-        description: 'Representación directa y esencial',
-        criteria: 'Elegir VIEW si no hace falta usar más áreas específicas y intention bajo purpose se resuelve directamente con components del contexto.',
+        description: 'Representación directa y autocontenida',
+        criteria: 'Elegir VIEW si no hace falta usar más áreas y la intención bajo el propósito se resuelve como una unidad autocontenida de interacción o presentación.',
     },
 ];
 
@@ -183,13 +183,12 @@ async function runTestCase(testCase: TestCase, decision: Decision, bus: EventTar
                     question: {
                         id: 'area_type',
                         type: 'choice',
-                        prompt: 'Determina si debemos usar LAYOUT o VIEW evaluando intention, purpose y components en el contexto provisto.',
+                        prompt: 'Determina si debemos usar LAYOUT o VIEW evaluando intention y purpose en el contexto provisto.',
                         options: OPTIONS,
                     },
                     context: {
                         purpose,
                         intention,
-                        components: COMPONENTS_CATALOG,
                         browser: BROWSER_TELEMETRY,
                         session: null,
                     },

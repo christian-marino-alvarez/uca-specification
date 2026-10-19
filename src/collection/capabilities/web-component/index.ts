@@ -82,6 +82,7 @@ export class WebComponent extends Capability<Body> {
     private mountElement(element: HTMLElement, container: Element, elementId: string, events?: readonly string[], context?: unknown): void {
         const controller = this.bindLifecycle(element, elementId, events, context);
         document.getElementById(elementId)?.remove();
+        container.querySelectorAll(':scope > svg').forEach((svg) => svg.remove());
         container.appendChild(element);
         if (!element.tagName.includes('-')) {
             this.handleConnected(element, elementId, controller.signal, events, context);
@@ -145,13 +146,15 @@ export class WebComponent extends Capability<Body> {
     }
 
     private handleRemove(value?: unknown): void {
-        const { elementId = this.id } = (value ?? {}) as RemovePayload;
+        const { elementId = this.id, context } = (value ?? {}) as RemovePayload;
         if (!elementId || typeof document === 'undefined') { return; }
-        const element = document.getElementById(elementId) as (HTMLElement & { onDisconnected?: () => void }) | null;
+        const element = document.getElementById(elementId) as (HTMLElement & { onDisconnected?: () => void; abortController?: AbortController }) | null;
         if (!element) { return; }
-        const { tagName, onDisconnected } = element;
+        const { tagName, abortController } = element;
         element.remove();
-        if (!tagName.includes('-')) { onDisconnected?.(); }
+        if (!tagName.includes('-') && abortController) {
+            this.handleDisconnected(elementId, abortController, context);
+        }
     }
 
     private registerElement(tag: string = DEFAULT_TAG): string {
@@ -162,13 +165,24 @@ export class WebComponent extends Capability<Body> {
     }
 
     private resolveContainerElement(selector?: string): Element | null {
-        if (typeof document === 'undefined') { return null; }
-        if (!selector) { return document.getElementById('app') ?? document.body; }
-        if (selector.startsWith('#')) {
-            const rawId = selector.slice(1);
-            return document.getElementById(rawId) ?? document.querySelector(`[id="${rawId}"]`) ?? document.getElementById('app') ?? document.body;
+        if (typeof document === 'undefined') {
+            return null;
         }
-        return document.querySelector(selector) ?? document.getElementById('app') ?? document.body;
+        if (!selector) {
+            return document.getElementById('app') ?? document.body;
+        }
+        return this.findRenderContainer(selector);
+    }
+
+    private findRenderContainer(selector: string): Element | null {
+        const container = selector.startsWith('#') ? document.getElementById(selector.slice(1)) : document.querySelector(selector);
+        if (!container) {
+            this.pulse(SignalType.ERROR, {
+                containerElement: selector,
+                error: `Missing render container: ${selector}`,
+            });
+        }
+        return container;
     }
 
     private applyAttributes(element: HTMLElement, attributes?: Record<string, string>): void {

@@ -220,8 +220,10 @@ export class Server extends Uca<Body> {
     private async handleLlmPost(context: RequestContext): Promise<Response> {
         const { body } = context;
         const payload = normalizeInference(body as InferenceRequest);
+        console.log(`[BACKEND::LLM::INPUT] [${payload.correlationId}]`, { purpose: payload.purpose, goal: payload.goal, model: payload.model, provider: payload.provider });
         try {
             const result = await this.requestLlmInference(payload);
+            console.log(`[BACKEND::LLM::RESPONSE] [${payload.correlationId}]`, { model: result.model });
             return Response.json(result);
         } catch (error) {
             const { correlationId } = payload;

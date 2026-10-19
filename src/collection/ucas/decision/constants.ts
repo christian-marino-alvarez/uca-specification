@@ -9,7 +9,7 @@ export const DEFAULT_CONFIGURATION = {
 
 export const MAXIMUM_CANDIDATES = 64;
 export const MAXIMUM_RETRIES = 1;
-export const PROBABILITY_TOLERANCE = 0.000001;
+export const PROBABILITY_TOLERANCE = 0.05;
 
 export const INFERENCE_LIMITS = {
     efficiency: 'Evaluate the choice question in one fast probabilistic inference.',

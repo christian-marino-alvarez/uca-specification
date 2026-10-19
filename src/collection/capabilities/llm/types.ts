@@ -4,6 +4,7 @@ export type { Contract, InferPayload, ProviderType } from './schema.js';
 export enum SignalType {
     INFER = 'llm.infer',
     STREAM = 'llm.stream',
+    STREAMING = 'llm.streaming',
     ABORT = 'llm.abort',
     STREAMED = 'llm.streamed',
     INFERRED = 'llm.inferred',
@@ -46,6 +47,7 @@ export interface InferResult {
 }
 
 export interface StreamResult {
+    readonly request?: InferPayload;
     readonly correlationId?: string;
     readonly streamId?: string;
     readonly stream: ReadableStream<string>;

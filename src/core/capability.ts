@@ -55,6 +55,7 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
         this.target = activeTarget;
         this.target.addEventListener(this.updateEvent, this);
         this.target.addEventListener(this.getEvent, this);
+        this.target.addEventListener(DispositionSignal.GET, this);
         return this;
     }
 
@@ -62,6 +63,7 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
         this.disconnectReceptors();
         this.target?.removeEventListener(this.updateEvent, this);
         this.target?.removeEventListener(this.getEvent, this);
+        this.target?.removeEventListener(DispositionSignal.GET, this);
         this.target = undefined;
         this._disposition = this.initialDisposition();
     }
@@ -79,6 +81,7 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
                 this.handleDispositionUpdate(event);
                 break;
             case this.getEvent:
+            case DispositionSignal.GET:
                 this.handleDispositionGet(event);
                 break;
             default:

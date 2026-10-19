@@ -24,9 +24,9 @@ async function* parseInput(reader: ReadableStreamDefaultReader<string>, state: P
 
 function* parseChunk(chunk: string, state: ParserState, mode: Mode, maximum: number): Generator<Record<string, unknown>, void, unknown> {
     for (let position = 0; position < chunk.length; position++) {
-        const entry = consumeCharacter(state, chunk[position]);
+        const entry = consumeCharacter(state, chunk[position], mode);
         enforceBuffer(state, maximum, mode);
-        if (entry && mode === Mode.ENTRIES) {
+        if (entry && (mode === Mode.ENTRIES || mode === Mode.ITEMS)) {
             yield entry;
         }
         if (entry && mode === Mode.DOCUMENT) {
@@ -44,13 +44,13 @@ function enforceBuffer(state: ParserState, maximum: number, mode: Mode): void {
     }
 }
 
-function consumeCharacter(state: ParserState, character: string): Record<string, unknown> | undefined {
+function consumeCharacter(state: ParserState, character: string, mode: Mode): Record<string, unknown> | undefined {
     const { started, completed, quoted } = state;
     switch (true) {
         case completed: state.suffix += character; return;
         case !started: openDocument(state, character); return;
         case quoted: consumeString(state, character); return;
-        default: return consumeToken(state, character);
+        default: return consumeToken(state, character, mode);
     }
 }
 
@@ -76,16 +76,52 @@ function consumeString(state: ParserState, character: string): void {
     }
 }
 
-function consumeToken(state: ParserState, character: string): Record<string, unknown> | undefined {
+function consumeToken(state: ParserState, character: string, mode: Mode): Record<string, unknown> | undefined {
     switch (character) {
         case '"': state.quoted = true; state.buffer += character; return;
-        case '{': state.depth++; state.buffer += character; return;
+        case '{': return handleOpenBrace(state, mode);
         case '[': state.depth++; state.buffer += character; return;
-        case '}': return closeBoundary(state);
+        case '}': return handleCloseBrace(state, mode);
         case ']': state.depth--; state.buffer += character; return;
-        case ',': return consumeSeparator(state);
+        case ',': return handleComma(state, mode);
         default: state.buffer += character; return;
     }
+}
+
+function handleOpenBrace(state: ParserState, mode: Mode): undefined {
+    state.depth++;
+    if (mode === Mode.ITEMS && state.depth === 3) {
+        state.buffer = '{';
+        return;
+    }
+    state.buffer += '{';
+    return;
+}
+
+function parseItemBuffer(state: ParserState): Record<string, unknown> | undefined {
+    try {
+        const item = JSON.parse(state.buffer) as Record<string, unknown>;
+        state.buffer = '';
+        return item;
+    } catch {
+        return undefined;
+    }
+}
+
+function handleCloseBrace(state: ParserState, mode: Mode): Record<string, unknown> | undefined {
+    if (mode === Mode.ITEMS && state.depth === 3) {
+        state.depth--;
+        state.buffer += '}';
+        return parseItemBuffer(state);
+    }
+    return closeBoundary(state, mode);
+}
+
+function handleComma(state: ParserState, mode: Mode): Record<string, unknown> | undefined {
+    if (mode === Mode.ITEMS && state.depth === 2) {
+        return;
+    }
+    return consumeSeparator(state);
 }
 
 function consumeSeparator(state: ParserState): Record<string, unknown> | undefined {
@@ -97,13 +133,18 @@ function consumeSeparator(state: ParserState): Record<string, unknown> | undefin
     return parseEntry(state);
 }
 
-function closeBoundary(state: ParserState): Record<string, unknown> | undefined {
+function closeBoundary(state: ParserState, mode: Mode): Record<string, unknown> | undefined {
     const { depth } = state;
     if (depth !== 1) {
-        state.depth--; state.buffer += '}';
+        state.depth--;
+        state.buffer += '}';
         return;
     }
     Object.assign(state, { completed: true, depth: 0 });
+    if (mode === Mode.ITEMS) {
+        state.buffer = '';
+        return undefined;
+    }
     return parseEntry(state, true);
 }
 

@@ -5,6 +5,8 @@ export enum SignalType {
     REPAIR = 'stream-transformer.repair',
     CANCEL = 'stream-transformer.cancel',
     TRANSFORMED = 'stream-transformer.transformed',
+    CHUNK = 'stream-transformer.chunk',
+    COMPLETE = 'stream-transformer.complete',
     RECOVER = 'stream-transformer.recover',
     ERROR = 'stream-transformer.error',
 }
@@ -12,6 +14,8 @@ export enum SignalType {
 export enum DataType {
     TRANSFORM_PAYLOAD = 'TransformPayload',
     TRANSFORM_RESULT = 'TransformResult',
+    CHUNK_RESULT = 'ChunkResult',
+    COMPLETE_RESULT = 'CompleteResult',
     RECOVERY_REQUEST = 'RecoveryRequest',
     RESPONSE = 'Response',
     CANCELLATION = 'Cancellation',
@@ -19,8 +23,22 @@ export enum DataType {
     UNKNOWN = 'unknown',
 }
 
-export enum Mode { ENTRIES = 'entries', DOCUMENT = 'document' }
+export enum Mode {
+    ENTRIES = 'entries',
+    DOCUMENT = 'document',
+    ITEMS = 'items',
+}
 export enum EventType { ABORT = 'abort' }
+
+export interface ChunkResult extends Identity {
+    readonly item: Record<string, unknown>;
+    readonly index: number;
+}
+
+export interface CompleteResult extends Identity {
+    readonly total: number;
+    readonly items: readonly Record<string, unknown>[];
+}
 
 export interface Body { readonly schema?: z.ZodType; readonly silent?: boolean; }
 export interface Identity { readonly correlationId?: string; readonly streamId?: string; readonly context?: unknown; }

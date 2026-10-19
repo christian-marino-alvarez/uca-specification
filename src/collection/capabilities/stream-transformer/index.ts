@@ -18,17 +18,50 @@ export class StreamTransformer extends Capability<Body> {
     public static readonly __ID__: string = __ID__;
     public static readonly AIM: string = AIM;
     public static override disposition: Disposition<Body> = {
-        aim: { description: StreamTransformer.AIM, body: {} },
-        reactTo: [SignalType.TRANSFORM, SignalType.REPAIR, SignalType.CANCEL],
+        aim: {
+            description: StreamTransformer.AIM,
+            body: {},
+        },
+        reactTo: [
+            SignalType.TRANSFORM,
+            SignalType.REPAIR,
+            SignalType.CANCEL,
+        ],
         inputs: [
-            { signal: SignalType.TRANSFORM, type: DataType.TRANSFORM_PAYLOAD },
-            { signal: SignalType.REPAIR, type: DataType.RESPONSE },
-            { signal: SignalType.CANCEL, type: DataType.CANCELLATION },
+            {
+                signal: SignalType.TRANSFORM,
+                type: DataType.TRANSFORM_PAYLOAD,
+            },
+            {
+                signal: SignalType.REPAIR,
+                type: DataType.RESPONSE,
+            },
+            {
+                signal: SignalType.CANCEL,
+                type: DataType.CANCELLATION,
+            },
         ],
         outputs: [
-            { signal: SignalType.TRANSFORMED, type: DataType.TRANSFORM_RESULT },
-            { signal: SignalType.RECOVER, type: DataType.RECOVERY_REQUEST },
-            { signal: SignalType.ERROR, type: DataType.UNKNOWN },
+            {
+                signal: SignalType.TRANSFORMED,
+                type: DataType.TRANSFORM_RESULT,
+            },
+            {
+                signal: SignalType.CHUNK,
+                type: DataType.CHUNK_RESULT,
+            },
+            {
+                signal: SignalType.COMPLETE,
+                type: DataType.COMPLETE_RESULT,
+            },
+            {
+                signal: SignalType.RECOVER,
+                type: DataType.RECOVERY_REQUEST,
+            },
+            {
+                signal: SignalType.ERROR,
+                type: DataType.UNKNOWN,
+            },
         ],
     };
 
@@ -77,14 +110,54 @@ export class StreamTransformer extends Capability<Body> {
             });
             return;
         }
+        this.processTransformPipeline(payload);
+    }
+
+    private processTransformPipeline(payload: TransformPayload): void {
         const { aim } = this.disposition;
         const { schema: defaultSchema } = aim.body ?? {};
-        const { correlationId, context, schema = defaultSchema } = payload;
+        const { correlationId, context, schema = defaultSchema, streamId } = payload;
         const session = createSession(payload, (sessionId, error) => this.cancelSession(sessionId, error));
         const { sessionId } = session;
         this.sessions.set(sessionId, session);
         const stream = createPipeline({ ...payload, schema }, session, (fields, resolution) => this.request(fields, resolution), (error) => this.finishSession(sessionId, error));
-        this.pulse(SignalType.TRANSFORMED, { correlationId, streamId, context, stream });
+        const [streamForPulse, streamForPump] = stream.tee();
+        this.pulse(SignalType.TRANSFORMED, { correlationId, streamId, context, stream: streamForPulse });
+        void this.pumpPipelineEvents(streamForPump, correlationId, streamId, context);
+    }
+
+    private async pumpPipelineEvents(
+        stream: ReadableStream<Record<string, unknown>>,
+        correlationId?: string,
+        streamId?: string,
+        context?: unknown,
+    ): Promise<void> {
+        const reader = stream.getReader();
+        const items: Record<string, unknown>[] = [];
+        try {
+            await this.readAndPulseChunks(reader, items, correlationId, streamId, context);
+            this.pulse(SignalType.COMPLETE, { correlationId, streamId, context, total: items.length, items });
+        } catch (error) {
+            this.pulse(SignalType.ERROR, { correlationId, streamId, context, error });
+        }
+    }
+
+    private async readAndPulseChunks(
+        reader: ReadableStreamDefaultReader<Record<string, unknown>>,
+        items: Record<string, unknown>[],
+        correlationId?: string,
+        streamId?: string,
+        context?: unknown,
+    ): Promise<void> {
+        let index = 0;
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
+                break;
+            }
+            items.push(value);
+            this.pulse(SignalType.CHUNK, { correlationId, streamId, context, item: value, index: index++ });
+        }
     }
 
     private async handleRepair(payload: RepairPayload): Promise<void> {
