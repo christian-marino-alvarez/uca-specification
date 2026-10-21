@@ -184,8 +184,8 @@ export class WebComponent extends Capability<Body> {
         if (typeof document === 'undefined') {
             return null;
         }
-        if (!selector) {
-            return document.getElementById('app') ?? document.body;
+        if (!selector || selector === 'body' || selector === '#body') {
+            return document.body;
         }
         return this.findRenderContainer(selector);
     }

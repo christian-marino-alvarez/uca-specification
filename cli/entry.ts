@@ -67,7 +67,7 @@ bus.addEventListener(AppSignalType.DECIDED, (event: Event) => {
 bus.addEventListener(LayoutSignalType.BUILD, (event: Event) => {
     const { detail } = event as CustomEvent;
     console.group('%c📐 [LAYOUT::BUILD] Petición de Layout', 'color: #D69E2E; font-weight: bold; font-size: 13px;');
-    console.log('Contexto:', detail?.value?.context);
+    console.log('Contexto:', detail?.value?.aim?.body ?? detail?.value?.context);
     console.groupEnd();
 });
 
@@ -79,7 +79,7 @@ bus.addEventListener(LayoutSignalType.AREA_DEFINED, (event: Event) => {
 bus.addEventListener(ViewSignalType.BUILD, (event: Event) => {
     const { detail } = event as CustomEvent;
     console.group('%c🎨 [VIEW::BUILD] Petición de Vista', 'color: #9B5DE5; font-weight: bold; font-size: 13px;');
-    console.log('Contexto:', detail?.value?.context);
+    console.log('Contexto:', detail?.value?.aim?.body ?? detail?.value?.context);
     console.groupEnd();
 });
 
@@ -148,10 +148,9 @@ if (typeof window !== 'undefined') {
 }
 
 if (typeof document !== 'undefined') {
-    const container = document.getElementById('app');
-    if (container) {
-        container.innerHTML = '';
-    }
+    document.querySelectorAll('ext-uca, style[id^="uca-"]').forEach((element) => {
+        element.remove();
+    });
 }
 
 // 1. Inicializa y sincroniza el catálogo de la UCA (conecta Memory, Decision, Browser...)

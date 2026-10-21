@@ -3,6 +3,9 @@ export type {
     BuildPayload,
     BuiltResult,
     ComponentItem,
+    CreatedResult,
+    RenderedResult,
+    ViewBody,
     ViewComposition,
 } from './schema.js';
 
@@ -24,6 +27,8 @@ export enum SignalType {
 export enum DataType {
     BUILD_PAYLOAD = 'BuildPayload',
     BUILT_RESULT = 'BuiltResult',
+    CREATED_RESULT = 'CreatedResult',
+    RENDERED_RESULT = 'RenderedResult',
     BODY = 'Body',
     ERROR = 'Error',
     UNKNOWN = 'unknown',

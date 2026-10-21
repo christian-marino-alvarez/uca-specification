@@ -31,6 +31,7 @@ import {
     type Disposition,
     type DispositionProvidePayload,
     type Signal,
+    type TransportPayload,
 } from '@uca/core/types';
 import {
     APP_DECISION_OPTIONS,
@@ -299,10 +300,6 @@ export class App extends Uca<Body> {
         }
     }
 
-    protected override onDispositionUpdated(event: Event): void {
-        super.onDispositionUpdated(event);
-    }
-
     private buildBrowserCooky(): [CapabilityConstructor, Disposition] {
         const {
             id,
@@ -349,7 +346,7 @@ export class App extends Uca<Body> {
         } = Layout.disposition;
         const body = {
             ...(aim.body ?? {}),
-            containerElement: '#app',
+            containerElement: 'body',
         };
         return {
             ...Layout.disposition,
@@ -374,7 +371,7 @@ export class App extends Uca<Body> {
         } = View.disposition;
         const body = {
             ...(aim.body ?? {}),
-            containerElement: '#app',
+            containerElement: 'body',
         };
         return {
             ...View.disposition,
@@ -732,17 +729,43 @@ export class App extends Uca<Body> {
         return context ?? this.buildDecisionContext(null, null);
     }
 
-    private createBuildPayload(areaId: string, parentId: string, context: Record<string, unknown>, correlationId?: string): Record<string, unknown> {
+    private resolveBuildIntention(choice: 'LAYOUT' | 'VIEW', area?: Area): string {
+        const isLayout = choice === 'LAYOUT';
+        const action = isLayout ? 'Estructurar distribución espacial' : 'Articular componentes visuales';
+        const targetId = area?.id ?? ROOT_AREA_ID;
+        const purpose = area?.purpose ?? area?.intention ?? 'Interacción y contenido funcional';
+        return `${action} para el área '${targetId}': "${purpose}"`;
+    }
+
+    private buildAimPayload(choice: 'LAYOUT' | 'VIEW', area?: Area, context?: Record<string, unknown>): Aim<Record<string, unknown>> {
+        const description = this.resolveBuildIntention(choice, area);
         return {
-            areaId,
-            parentId,
-            context,
+            description,
+            body: context ?? {},
+        };
+    }
+
+    private buildLimitsPayload(browser?: { viewport?: unknown }): Record<string, unknown> {
+        return {
+            viewport: browser?.viewport,
+        };
+    }
+
+    private assembleBuildPayload(aim: Aim<Record<string, unknown>>, browser?: { viewport?: unknown }, correlationId?: string): TransportPayload {
+        return {
+            aim,
+            limits: this.buildLimitsPayload(browser),
             correlationId: correlationId ?? `build-${Date.now()}`,
         };
     }
 
-    private dispatchBuild(choice: 'LAYOUT' | 'VIEW', context: Record<string, unknown>, areaId: string, parentId: string, correlationId?: string): void {
-        const payload = this.createBuildPayload(areaId, parentId, context, correlationId);
+    private createBuildPayload(choice: 'LAYOUT' | 'VIEW', context: Record<string, unknown>, correlationId?: string): TransportPayload {
+        const { area, browser } = context as { area?: Area; browser?: { viewport?: unknown } };
+        return this.assembleBuildPayload(this.buildAimPayload(choice, area, context), browser, correlationId);
+    }
+
+    private dispatchBuild(choice: 'LAYOUT' | 'VIEW', context: Record<string, unknown>, correlationId?: string): void {
+        const payload = this.createBuildPayload(choice, context, correlationId);
         const signal = choice === 'LAYOUT' ? LayoutSignalType.BUILD : ViewSignalType.BUILD;
         this.pulse(signal, payload);
     }
@@ -753,12 +776,7 @@ export class App extends Uca<Body> {
             correlationId,
         } = (decisionValue ?? {}) as { correlationId?: string };
         const choice = this.extractDecisionChoice(decisionValue);
-        const {
-            area,
-        } = context as { area?: Area };
-        const areaId = area?.id ?? ROOT_AREA_ID;
-        const parentId = area?.parentId ?? ROOT_AREA_ID;
-        this.dispatchBuild(choice, context, areaId, parentId, correlationId);
+        this.dispatchBuild(choice, context, correlationId);
     }
 
     private handleLayoutBuilt(signal: Signal): void {
@@ -787,7 +805,7 @@ export class App extends Uca<Body> {
             value,
         } = signal;
         const defined = value as AreaDefined;
-        if (defined?.area?.id === 'root' || defined?.area?.id === 'app') {
+        if (defined?.area?.id === 'root' || defined?.area?.id === 'app' || defined?.area?.id === 'body') {
             return;
         }
         this.sendAreaDecision(defined);
@@ -800,6 +818,7 @@ export class App extends Uca<Body> {
         return {
             area,
             browser,
+            guidelines: DEFAULT_DESIGN_GUIDELINES,
         };
     }
 

@@ -33,12 +33,13 @@ import {
     buildPayloadSchema,
     builtResultSchema,
     componentItemSchema,
+    createdResultSchema,
+    renderedResultSchema,
     viewCompositionSchema,
     type Body,
     type BuildPayload,
     type BuiltResult,
-    type ComponentItem,
-    type ViewComposition,
+    type ViewBody,
 } from './schema.js';
 import {
     DataType,
@@ -75,16 +76,19 @@ export class View extends Uca<Body> {
             {
                 signal: SignalType.BUILT,
                 type: DataType.BUILT_RESULT,
+                schema: builtResultSchema,
                 description: 'Emitted when view component hierarchy is constructed',
             },
             {
                 signal: SignalType.RENDERED,
-                type: DataType.BUILT_RESULT,
+                type: DataType.RENDERED_RESULT,
+                schema: renderedResultSchema,
                 description: 'Emitted when view components are rendered in the visual surface',
             },
             {
                 signal: SignalType.CREATED,
-                type: DataType.BUILT_RESULT,
+                type: DataType.CREATED_RESULT,
+                schema: createdResultSchema,
                 description: 'Emitted when view rendering completes for an area',
             },
             {
@@ -228,16 +232,17 @@ export class View extends Uca<Body> {
     private resolveAreaGoal(areaId?: string, context?: Record<string, unknown>): string {
         const area = (context?.area ?? {}) as { purpose?: string; disposicionEspacial?: string; disposicionInformacion?: string };
         const { purpose, disposicionEspacial, disposicionInformacion } = area;
-        const info = disposicionInformacion ? ` Información: ${disposicionInformacion}.` : '';
+        const info = disposicionInformacion ? ` Info: ${disposicionInformacion}.` : '';
         const space = disposicionEspacial ? ` Ubicación: ${disposicionEspacial}.` : '';
-        return `Construct complete visual components for '${areaId ?? 'main'}' (root container and all visible leaf elements: brand picture, headings, paragraphs, actions) to fulfill purpose: ${purpose ?? VIEW_GOAL}.${space}${info}`;
+        const style = ' Estilo: Tarjetas con surface: "card", border: "subtle", radius: "large", spacing: "medium", gap: "small". Botones primarios con surface: "brand", textColor: "dark". Flex con gap: "small".';
+        return `Construct visual components for '${areaId ?? 'main'}' (root container and leaf elements): ${purpose ?? VIEW_GOAL}.${space}${info}${style}`;
     }
 
     private resolveDispositionTarget(areaId?: string, parentId?: string): Record<string, unknown> {
         const target = areaId ?? 'main';
         return {
             targetArea: target,
-            parentArea: parentId ?? 'root',
+            parentArea: parentId ?? 'body',
         };
     }
 
@@ -256,22 +261,16 @@ export class View extends Uca<Body> {
         };
     }
 
-    private resolveViewIntention(target: string, area?: { purpose?: string; disposicionEspacial?: string; disposicionVisual?: string }): string {
-        const { purpose, disposicionEspacial, disposicionVisual } = area ?? {};
-        const purposeText = purpose ? ` para: "${purpose}"` : '';
-        const spatial = disposicionEspacial ? ` [Ubicación: ${disposicionEspacial}]` : '';
-        const visual = disposicionVisual ? ` [Visual: ${disposicionVisual}]` : '';
-        return `Articular componentes visuales para el área '${target}'${purposeText}${spatial}${visual}.`;
-    }
-
     private filterAreaContext(context: Record<string, unknown>): Record<string, unknown> {
         const {
             area,
             browser,
+            guidelines,
         } = context;
         return {
             area,
             browser,
+            guidelines,
         };
     }
 
@@ -284,11 +283,28 @@ export class View extends Uca<Body> {
         };
     }
 
-    private createInferMeta(goal: string, correlationId: string, streamId: string, areaId?: string): Record<string, unknown> {
+    private buildStreamMetadata(areaId?: string, body?: ViewBody): Record<string, unknown> {
         return {
-            metadata: { areaId },
+            areaId,
+            body,
+        };
+    }
+
+    private createInferMeta(
+        goal: string,
+        correlationId: string,
+        streamId: string,
+        metadata: Record<string, unknown>,
+        limits: Record<string, unknown> = {},
+    ): Record<string, unknown> {
+        return {
+            metadata,
             goal,
-            limits: { limit: DEFAULT_LIMIT, imagination: DEFAULT_IMAGINATION },
+            limits: {
+                limit: DEFAULT_LIMIT,
+                imagination: DEFAULT_IMAGINATION,
+                ...limits,
+            },
             correlationId,
             streamId,
         };
@@ -300,27 +316,26 @@ export class View extends Uca<Body> {
             intention,
             purpose: this.purpose,
             outputSchema: z.toJSONSchema(viewCompositionSchema) as Record<string, unknown>,
+            contextSchema: { const: context },
             context,
             ...meta,
         };
     }
 
-    private createInferRequest(context: Record<string, unknown>, correlationId: string, areaId?: string): Record<string, unknown> {
-        const id = areaId ? `view:${areaId}` : 'view';
-        const enrichedContext = this.buildEnrichedContext(context, areaId);
-        const { area } = context as { area?: { purpose?: string; disposicionEspacial?: string; disposicionVisual?: string } };
-        const intention = this.resolveViewIntention(areaId ?? 'main', area);
-        const goal = this.resolveAreaGoal(areaId, context);
-        const meta = this.createInferMeta(goal, correlationId, `${correlationId}:${id}`, areaId);
-        return this.assembleInferPayload(id, intention, enrichedContext, meta);
+    private createInferRequest(payload: BuildPayload, correlationId: string): Record<string, unknown> {
+        const { aim, limits = {} } = payload;
+        const { description, body } = aim;
+        const area = (body?.area ?? {}) as Record<string, unknown>;
+        const areaId = (area.id as string) ?? 'main';
+        const enrichedContext = this.buildEnrichedContext(body as Record<string, unknown>, areaId);
+        const goal = this.resolveAreaGoal(areaId, body as Record<string, unknown>);
+        const metadata = this.buildStreamMetadata(areaId, body as Record<string, unknown>);
+        const meta = this.createInferMeta(goal, correlationId, `${correlationId}:view:${areaId}`, metadata, limits);
+        return this.assembleInferPayload(`view:${areaId}`, description, enrichedContext, meta);
     }
 
     private dispatchLlmInfer(payload: BuildPayload, correlationId: string): void {
-        const {
-            context = {},
-            areaId,
-        } = payload;
-        const inferPayload = this.createInferRequest(context, correlationId, areaId);
+        const inferPayload = this.createInferRequest(payload, correlationId);
         this.pulse(LlmSignalType.INFER, inferPayload);
     }
 
@@ -452,12 +467,12 @@ export class View extends Uca<Body> {
             correlationId,
         } = this.extractTransformedPayload(signal);
         if (stream) {
-            await stream.pipeTo(this.createStreamConsumer(context as BuildPayload | undefined, correlationId));
+            await stream.pipeTo(this.createStreamConsumer(context as Record<string, unknown> | undefined, correlationId));
         }
     }
 
     private createStreamConsumer(
-        context?: BuildPayload,
+        context?: Record<string, unknown>,
         correlationId?: string,
     ): WritableStream<Record<string, unknown>> {
         return new WritableStream({
@@ -466,14 +481,11 @@ export class View extends Uca<Body> {
         });
     }
 
-    private handleStreamClose(context?: BuildPayload, correlationId?: string): void {
-        const {
-            areaId,
-        } = context ?? {};
+    private handleStreamClose(context?: Record<string, unknown>, correlationId?: string): void {
+        const areaId = (context?.areaId as string) ?? 'main';
         this.pulse(SignalType.CREATED, {
             areaId,
             correlationId,
-            context,
         });
     }
 
@@ -483,7 +495,7 @@ export class View extends Uca<Body> {
         areaId?: string,
     ): void {
         const componentId = (item.id as string) ?? (item.component as string) ?? 'box';
-        const title = `%c🎨 [VIEW::COMPONENT_DEFINED] %c${componentId}%c (area: ${areaId ?? 'root'})`;
+        const title = `%c🎨 [VIEW::COMPONENT_DEFINED] %c${componentId}%c (area: ${areaId ?? 'body'})`;
         console.log(title, 'color: #9B5DE5; font-weight: bold;', 'color: #F6E05E; font-weight: bold;', 'color: #888;', {
             item,
             areaId,
@@ -493,14 +505,13 @@ export class View extends Uca<Body> {
 
     private handleStreamChunk(
         item: Record<string, unknown>,
-        context?: BuildPayload,
+        context?: Record<string, unknown>,
         correlationId?: string,
     ): void {
-        const {
-            areaId,
-        } = context ?? {};
+        const areaId = (context?.areaId as string) ?? 'main';
+        const body = (context?.body ?? {}) as Record<string, unknown>;
         this.logComponent(item, correlationId, areaId);
-        this.dispatchRender([item], context?.context ?? {}, areaId);
+        this.dispatchRender([item], body, areaId);
     }
 
     private handleStreamTransformerRecover(signal: Signal): void {

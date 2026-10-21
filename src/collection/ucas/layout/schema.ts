@@ -10,7 +10,7 @@ export const areaConceptSchema = z.object({
     disposicionEspacial: z.string().min(1).describe('Ubicación y anclaje espacial respecto al contenedor padre y áreas hermanas (ej. franja horizontal superior, columna lateral izquierda de navegación, escenario central interactivo, franja inferior de estado)'),
     disposicionVisual: z.string().min(1).describe('Directrices de manifestación visual y flujo dimensional (ej. fila horizontal sin scroll, columna vertical con navegación, panel con desplazamiento interno)'),
     disposicionInformacion: z.string().min(1).describe('Naturaleza y alcance semántico de la información a albergar (ej. identidad ontológica y acciones globales, árbol de navegación y módulos, telemetría y estado cognitivo)'),
-    parentId: z.string().min(1).describe('Identificador del área padre actual contenedora (ej. root, main, etc.)'),
+    parentId: z.string().min(1).describe('Identificador del contenedor directo que se particiona (ej. body para franjas principales, workspace para sidebar/main). Debe coincidir con el contenedor actual.'),
     qualities: qualitiesSchema.describe('Cualidades dimensionales y espaciales inferidas del área (width, height, minHeight, direction, distribution, alignment, surface, spacing, flex, overflow) según tokens Lego'),
 });
 
@@ -23,30 +23,37 @@ export const layoutCompositionSchema = z.object({
 export const areaSchema = z.object({
     id: z.string().min(1),
     parentId: z.string().min(1).optional(),
-    role: z.string().optional(),
-    proportion: z.string().optional(),
-    description: z.string().optional(),
     purpose: z.string().optional(),
     intention: z.string().optional(),
-    proposito: z.string().optional(),
-    intencion: z.string().optional(),
     disposicionEspacial: z.string().optional(),
     disposicionVisual: z.string().optional(),
     disposicionInformacion: z.string().optional(),
     qualities: qualitiesSchema,
 });
 
-export const buildPayloadSchema = z.object({
-    areaId: z.string().optional(),
-    parentId: z.string().optional(),
+export const layoutBodySchema = z.object({
+    id: z.string().optional(),
     containerElement: z.string().optional(),
-    purpose: z.string().optional(),
-    intention: z.string().optional(),
-    context: z.record(
+    area: areaSchema.optional().describe('Especificación del área a particionar'),
+    browser: z.record(
         z.string(),
         z.unknown(),
-    ),
-    correlationId: z.string().optional(),
+    ).optional().describe('Dimensiones y capacidades del navegador'),
+    specification: z.unknown().optional().describe('Especificación funcional completa'),
+});
+
+export const bodySchema = layoutBodySchema;
+
+export const buildPayloadSchema = z.object({
+    aim: z.object({
+        description: z.string().min(1).describe('Intención cognitiva u objetivo del estímulo de layout'),
+        body: bodySchema.describe('Cuerpo de dominio con el área a estructurar y contexto'),
+    }),
+    limits: z.record(
+        z.string(),
+        z.unknown(),
+    ).optional().describe('Restricciones operativas (viewport, dimensiones, cuotas)'),
+    correlationId: z.string().optional().describe('Identificador para trazabilidad nerviosa'),
 });
 
 export const builtResultSchema = z.object({
@@ -60,21 +67,21 @@ export const builtResultSchema = z.object({
     correlationId: z.string().optional(),
 });
 
-export const bodySchema = z.object({
-    id: z.string().optional(),
-    containerElement: z.string().optional(),
+export const areaDefinedSchema = z.object({
+    area: areaSchema,
+    context: z.record(
+        z.string(),
+        z.unknown(),
+    ).optional(),
+    correlationId: z.string().optional(),
 });
 
 export type AreaConcept = z.infer<typeof areaConceptSchema>;
 export type LayoutComposition = z.infer<typeof layoutCompositionSchema>;
 export type Area = z.infer<typeof areaSchema>;
 export type Qualities = z.infer<typeof qualitiesSchema>;
+export type LayoutBody = z.infer<typeof layoutBodySchema>;
+export type Body = LayoutBody;
 export type BuildPayload = z.infer<typeof buildPayloadSchema>;
 export type BuiltResult = z.infer<typeof builtResultSchema>;
-export type Body = z.infer<typeof bodySchema>;
-
-export interface AreaDefined {
-    readonly area: Area;
-    readonly context: Record<string, unknown>;
-    readonly correlationId: string;
-}
+export type AreaDefined = z.infer<typeof areaDefinedSchema>;

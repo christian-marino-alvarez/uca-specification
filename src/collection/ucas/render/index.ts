@@ -459,7 +459,9 @@ export class Render extends Uca<Body> {
     }
 
     private isDescendantOfArea(parentId: string, areaId: string): boolean {
-        if (typeof document === 'undefined' || parentId === 'root') { return false; }
+        if (typeof document === 'undefined' || parentId === 'root' || parentId === 'app' || parentId === 'body') {
+            return false;
+        }
         const area = document.getElementById(areaId);
         const target = document.getElementById(parentId);
         return Boolean(area && target && area.contains(target));

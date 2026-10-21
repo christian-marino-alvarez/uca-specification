@@ -33,17 +33,32 @@ export const viewCompositionSchema = z.object({
     components: z.array(componentItemSchema).min(2).describe('Árbol fractal completo de componentes ontológicos que materializan la vista. Organiza la información en módulos y tarjetas visuales delimitadas (box con surface \'card\', border \'subtle\', padding), con títulos, párrafos, acciones y campos interactivos, logrando una estética visual limpia, moderna y con contraste'),
 });
 
-export const buildPayloadSchema = z.object({
-    areaId: z.string().optional(),
-    parentId: z.string().optional(),
+export const viewBodySchema = z.object({
+    id: z.string().optional(),
     containerElement: z.string().optional(),
-    purpose: z.string().optional(),
-    intention: z.string().optional(),
-    context: z.record(
+    area: z.record(
         z.string(),
         z.unknown(),
-    ),
-    correlationId: z.string().optional(),
+    ).optional().describe('Especificación del área donde se materializan los componentes'),
+    browser: z.record(
+        z.string(),
+        z.unknown(),
+    ).optional().describe('Dimensiones y capacidades del navegador'),
+    specification: z.unknown().optional().describe('Especificación funcional del sistema'),
+});
+
+export const bodySchema = viewBodySchema;
+
+export const buildPayloadSchema = z.object({
+    aim: z.object({
+        description: z.string().min(1).describe('Intención cognitiva u objetivo del estímulo de vista'),
+        body: bodySchema.describe('Cuerpo de dominio con el área a materializar y contexto'),
+    }),
+    limits: z.record(
+        z.string(),
+        z.unknown(),
+    ).optional().describe('Restricciones operativas (viewport, dimensiones, cuotas)'),
+    correlationId: z.string().optional().describe('Identificador para trazabilidad nerviosa'),
 });
 
 export const builtResultSchema = z.object({
@@ -57,13 +72,25 @@ export const builtResultSchema = z.object({
     correlationId: z.string().optional(),
 });
 
-export const bodySchema = z.object({
-    id: z.string().optional(),
-    containerElement: z.string().optional(),
+export const createdResultSchema = z.object({
+    areaId: z.string().optional(),
+    correlationId: z.string().optional(),
+    context: z.record(
+        z.string(),
+        z.unknown(),
+    ).optional(),
+});
+
+export const renderedResultSchema = z.object({
+    elementId: z.string().optional(),
+    context: z.unknown().optional(),
 });
 
 export type ComponentItem = z.infer<typeof componentItemSchema>;
 export type ViewComposition = z.infer<typeof viewCompositionSchema>;
+export type ViewBody = z.infer<typeof viewBodySchema>;
+export type Body = ViewBody;
 export type BuildPayload = z.infer<typeof buildPayloadSchema>;
 export type BuiltResult = z.infer<typeof builtResultSchema>;
-export type Body = z.infer<typeof bodySchema>;
+export type CreatedResult = z.infer<typeof createdResultSchema>;
+export type RenderedResult = z.infer<typeof renderedResultSchema>;

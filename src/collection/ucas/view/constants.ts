@@ -4,7 +4,7 @@ export const DEFAULT_LIMIT = 4096;
 
 export const DEFAULT_IMAGINATION = 0.2;
 
-export const DEFAULT_CONTAINER = '#app';
+export const DEFAULT_CONTAINER = 'body';
 
 export const VIEW_GOAL =
     'Construct view component composition hierarchy adhering to design context and area intention';

@@ -87,6 +87,9 @@ export class Css extends Capability<Body> {
     }
 
     public static formatSelector(elementId: string): string {
+        if (elementId === 'body' || elementId === 'html') {
+            return elementId;
+        }
         return elementId.includes(':') ? `[id="${elementId}"]` : `#${elementId}`;
     }
 

@@ -61,6 +61,16 @@ export interface Disposition<TBody = unknown> {
 }
 
 /**
+ * TransportPayload: Contrato ontológico universal de transporte de estímulos entre UCAs.
+ * Nutre y refleja directamente la anatomía de Disposition (aim, limits).
+ */
+export interface TransportPayload<TBody = unknown> {
+    readonly aim: Aim<TBody>;
+    readonly limits?: Record<string, unknown>;
+    readonly correlationId?: string;
+}
+
+/**
  * DispositionSignal: Señales nerviosas ontológicas para actualización reactiva de la disposición.
  */
 export enum DispositionSignal {

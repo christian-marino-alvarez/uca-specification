@@ -5,8 +5,6 @@ import {
     type InferResult,
     type StreamResult,
 } from '@uca/llm/types';
-import { Render } from '@uca/render';
-import { SignalType as RenderSignalType } from '@uca/render/types';
 import { StreamTransformer } from '@uca/capability-stream-transformer';
 import {
     Mode as StreamTransformerMode,
@@ -26,7 +24,6 @@ import { Uca } from '@uca/core/uca';
 import type {
     Cooky,
     Disposition,
-    ICapability,
     Signal,
 } from '@uca/core/types';
 import { z } from 'zod';
@@ -38,9 +35,11 @@ import {
     LAYOUT_INTENTION,
     LAYOUT_PURPOSE,
     ROOT_AREA_ID,
+    SPATIAL_PIECES,
 } from './constants.js';
 import {
     areaConceptSchema,
+    areaDefinedSchema,
     buildPayloadSchema,
     builtResultSchema,
     layoutCompositionSchema,
@@ -50,16 +49,21 @@ import {
     type Body,
     type BuildPayload,
     type BuiltResult,
-    type LayoutComposition,
+    type LayoutBody,
+    type Qualities,
 } from './schema.js';
 import {
     DataType,
     SignalType,
-    type VisualPrimitive,
+    type SpatialPiece,
 } from './types.js';
 
 export class Layout extends Uca<Body> {
     public static override purpose: string = LAYOUT_PURPOSE;
+
+    public static getSpatialPieces(): readonly SpatialPiece[] {
+        return SPATIAL_PIECES;
+    }
 
     public static override disposition: Disposition<Body> = {
         aim: {
@@ -69,7 +73,6 @@ export class Layout extends Uca<Body> {
         reactTo: [
             ...Layout.reactToSelf(),
             ...Layout.reactToLlm(),
-            ...Layout.reactToRender(),
             ...Layout.reactToStreamTransformer(),
             ...Layout.reactToBox(),
             ...Layout.reactToView(),
@@ -88,16 +91,19 @@ export class Layout extends Uca<Body> {
             {
                 signal: SignalType.AREA_DEFINED,
                 type: DataType.AREA_DEFINED,
+                schema: areaDefinedSchema,
                 description: 'Child area container defined and ready for cognitive evaluation',
             },
             {
                 signal: SignalType.AREA_CREATED,
                 type: DataType.AREA_CREATED,
+                schema: areaDefinedSchema,
                 description: 'Child area container mounted and ready for cognitive evaluation',
             },
             {
                 signal: SignalType.BUILT,
                 type: DataType.BUILT_RESULT,
+                schema: builtResultSchema,
                 description: 'Emitted when layout area partition structure is completed',
             },
             {
@@ -122,13 +128,6 @@ export class Layout extends Uca<Body> {
             LlmSignalType.STREAM_END,
             LlmSignalType.ERROR,
             ...Llm.disposition.reactTo ?? [],
-        ];
-    }
-
-    private static reactToRender(): string[] {
-        return [
-            RenderSignalType.ERROR,
-            ...Render.disposition.reactTo ?? [],
         ];
     }
 
@@ -184,20 +183,6 @@ export class Layout extends Uca<Body> {
                     },
                     reactTo: [
                         ...Llm.disposition.reactTo ?? [],
-                    ],
-                },
-            ],
-            [
-                Render,
-                {
-                    aim: {
-                        description: Render.purpose,
-                        body: {
-                            id: `${id}:render`,
-                        },
-                    },
-                    reactTo: [
-                        ...Render.disposition.reactTo ?? [],
                     ],
                 },
             ],
@@ -279,9 +264,6 @@ export class Layout extends Uca<Body> {
             case StreamTransformerSignalType.ERROR:
                 this.handleStreamTransformerError(signal);
                 break;
-            case RenderSignalType.ERROR:
-                this.handleRenderError(signal);
-                break;
             case BoxSignalType.CREATED:
                 this.handleBoxCreated(signal);
                 break;
@@ -291,78 +273,78 @@ export class Layout extends Uca<Body> {
         }
     }
 
-    private extractPrimitiveInfo(capability: ICapability): VisualPrimitive {
-        const {
-            id,
-            disposition,
-        } = capability;
-        const {
-            aim,
-        } = disposition;
-        const {
-            description,
-        } = aim;
-        const name = id.split(':').pop() ?? id;
-        const purpose = (capability as Uca).purpose ?? description;
-        return {
-            name,
-            proposito: purpose,
-            intencion: description,
-        };
-    }
-
-    private isVisualUca(capability: ICapability): boolean {
-        const isUca = (capability as Uca).purpose !== undefined;
-        const isNotCss = !capability.id.endsWith(':css');
-        return isUca && isNotCss;
-    }
-
-    private getVisualPrimitives(): VisualPrimitive[] {
-        const {
-            id,
-        } = this;
-        const render = this.getCapability(`${id}:render`) as Uca | undefined;
-        const list = render?.registry ? [...render.registry.values()] : [];
-        return list
-            .filter((cap) => this.isVisualUca(cap))
-            .map((cap) => this.extractPrimitiveInfo(cap));
-    }
-
     private resolveGoal(areaId?: string, parentId?: string): string {
-        if (areaId && areaId !== 'root' && areaId !== 'app') {
-            return `Generate layout sub-area partitions for area '${areaId}' (parent: '${parentId ?? 'root'}')`;
+        const target = areaId ?? ROOT_AREA_ID;
+        if (target !== 'root' && target !== 'app' && target !== 'body') {
+            return `Partition container '${target}' into its immediate direct child areas only (parent: '${parentId ?? 'body'}'). Declare direct children with parentId: '${target}'. Do NOT emit grandchildren.`;
         }
         return LAYOUT_GOAL;
     }
 
-    private buildInferContext(payload: BuildPayload): Record<string, unknown> {
+    private extractAreaContext(body?: LayoutBody): Record<string, unknown> {
         const {
-            areaId,
-            parentId,
-            context = {},
-        } = payload;
+            area,
+            browser,
+        } = body ?? {};
         return {
-            ...context,
-            areaId,
-            parentId,
-            visualPrimitives: this.getVisualPrimitives(),
+            area,
+            browser,
+        };
+    }
+
+    private buildInferContext(body?: LayoutBody): Record<string, unknown> {
+        const {
+            specification,
+        } = body ?? {};
+        return {
+            ...this.extractAreaContext(body),
+            specification,
+            spatialPieces: Layout.getSpatialPieces(),
+        };
+    }
+
+    private buildStreamMetadata(body?: LayoutBody): Record<string, unknown> {
+        return {
+            areaId: body?.area?.id,
+            parentId: body?.area?.parentId,
+            body,
+        };
+    }
+
+    private buildInferMeta(
+        goal: string,
+        correlationId?: string,
+        metadata: Record<string, unknown> = {},
+        limits: Record<string, unknown> = {},
+    ): Record<string, unknown> {
+        return {
+            metadata,
+            goal,
+            limits: {
+                limit: DEFAULT_LIMIT,
+                imagination: DEFAULT_IMAGINATION,
+                ...limits,
+            },
+            correlationId,
+            streamId: `${correlationId}:layout`,
         };
     }
 
     private createInferRequest(payload: BuildPayload, correlationId: string): Record<string, unknown> {
-        const { areaId, parentId, context = {} } = payload;
-        const intention = (context.visualIntention as string) ?? (context.intention as string) ?? LAYOUT_INTENTION;
+        const { aim, limits = {} } = payload;
+        const { description, body } = aim;
+        const contextData = this.buildInferContext(body);
+        const metadata = this.buildStreamMetadata(body);
+        const goal = this.resolveGoal(body?.area?.id, body?.area?.parentId);
+        const meta = this.buildInferMeta(goal, correlationId, metadata, limits);
         return {
             id: 'layout',
-            intention,
+            intention: description,
             purpose: this.purpose,
             outputSchema: z.toJSONSchema(layoutCompositionSchema) as Record<string, unknown>,
-            context: this.buildInferContext(payload),
-            metadata: { areaId, parentId },
-            goal: this.resolveGoal(areaId, parentId),
-            limits: { limit: DEFAULT_LIMIT, imagination: DEFAULT_IMAGINATION },
-            correlationId,
-            streamId: `${correlationId}:layout`,
+            contextSchema: { const: contextData },
+            context: contextData,
+            ...meta,
         };
     }
 
@@ -379,24 +361,21 @@ export class Layout extends Uca<Body> {
     }
 
     private normalizeParentId(parentId?: string): string | undefined {
-        if (!parentId || parentId === 'none' || parentId === 'app') {
+        if (!parentId || parentId === 'none' || parentId === 'app' || parentId === 'body' || parentId === 'root') {
             return undefined;
         }
         return parentId;
     }
 
     private resolveAreaId(id: string, currentAreaId?: string): string {
-        if (!currentAreaId || currentAreaId === 'root' || currentAreaId === 'app' || id.startsWith(`${currentAreaId}-`)) {
+        if (!currentAreaId || currentAreaId === 'root' || currentAreaId === 'app' || currentAreaId === 'body' || id.startsWith(`${currentAreaId}-`)) {
             return id;
         }
         return `${currentAreaId}-${id}`;
     }
 
-    private resolveParentId(parentId?: string, currentAreaId?: string): string | undefined {
-        if (currentAreaId && currentAreaId !== 'app') {
-            return currentAreaId;
-        }
-        return this.normalizeParentId(parentId);
+    private resolveParentId(_parentId?: string, currentAreaId?: string): string {
+        return currentAreaId ?? ROOT_AREA_ID;
     }
 
     private resolveAreaIdentity(id: string, parentId?: string, currentAreaId?: string): { id: string; parentId?: string } {
@@ -424,7 +403,7 @@ export class Layout extends Uca<Body> {
     }
 
     private logArea(area: Area, correlationId: string, context: Record<string, unknown>): void {
-        const title = `%c🏛️ [LAYOUT::AREA_DEFINED] %c${area.id}%c (parent: ${area.parentId ?? 'root'})`;
+        const title = `%c🏛️ [LAYOUT::AREA_DEFINED] %c${area.id}%c (parent: ${area.parentId ?? 'body'})`;
         console.log(title, 'color: #00B4D8; font-weight: bold;', 'color: #10B981; font-weight: bold;', 'color: #888;', {
             area,
             correlationId,
@@ -432,23 +411,65 @@ export class Layout extends Uca<Body> {
         });
     }
 
-    private emitArea(concept: AreaConcept, context: Record<string, unknown>, correlationId: string, currentAreaId?: string): void {
-        const area = this.buildAreaFromConcept(concept, currentAreaId);
-        this.logArea(area, correlationId, context);
+    private pulseAreaDefined(area: Area, context: Record<string, unknown>, correlationId: string): void {
         this.pulse(SignalType.AREA_DEFINED, {
             area,
             context,
             correlationId,
         });
+    }
+
+    private isContainerSelf(id: string, currentAreaId?: string): boolean {
+        const root = currentAreaId ?? ROOT_AREA_ID;
+        return id === root || id === 'root' || id === 'app' || id === 'body';
+    }
+
+    private handleContainerSelfConcept(qualities?: Qualities): void {
+        if (qualities) {
+            this.dispatchContainerQualities('body', qualities);
+        }
+    }
+
+    private isDirectChild(parentId: string | undefined, currentAreaId?: string): boolean {
+        const target = currentAreaId ?? ROOT_AREA_ID;
+        if (!parentId || parentId === 'none' || parentId === target) {
+            return true;
+        }
+        if (target === ROOT_AREA_ID) {
+            return parentId === 'root' || parentId === 'app' || parentId === 'body';
+        }
+        return parentId === target;
+    }
+
+    private shouldSkipConcept(concept: AreaConcept, currentAreaId?: string): boolean {
+        if (this.isContainerSelf(concept.id, currentAreaId)) {
+            this.handleContainerSelfConcept(concept.qualities);
+            return true;
+        }
+        return !this.isDirectChild(concept.parentId, currentAreaId);
+    }
+
+    private emitArea(concept: AreaConcept, context: Record<string, unknown>, correlationId: string, currentAreaId?: string): void {
+        this.ensureRootContainerLayout(currentAreaId);
+        if (this.shouldSkipConcept(concept, currentAreaId)) {
+            return;
+        }
+        this.dispatchNewArea(concept, context, correlationId, currentAreaId);
+    }
+
+    private dispatchNewArea(concept: AreaConcept, context: Record<string, unknown>, correlationId: string, currentAreaId?: string): void {
+        const area = this.buildAreaFromConcept(concept, currentAreaId);
+        this.logArea(area, correlationId, context);
+        this.pulseAreaDefined(area, context, correlationId);
         this.dispatchAreaBox(area, context, correlationId);
     }
 
     private resolveAreaContainer(parentId?: string): string {
         const {
-            containerElement = '#app',
+            containerElement = 'body',
         } = this.disposition.aim.body ?? {};
-        const fallback = containerElement.startsWith('#') ? containerElement : `#${containerElement}`;
-        if (!parentId || parentId === 'app') {
+        const fallback = containerElement.startsWith('#') ? containerElement : containerElement === 'body' ? 'body' : `#${containerElement}`;
+        if (!parentId || parentId === 'app' || parentId === 'body' || parentId === 'root') {
             return fallback;
         }
         const hasParent = typeof document !== 'undefined' && parentId && document.getElementById(parentId);
@@ -480,15 +501,57 @@ export class Layout extends Uca<Body> {
         return (comp.areas ?? (Array.isArray(composition) ? composition : [])) as AreaConcept[];
     }
 
-    private handleLayoutInferred(result: BuiltResult): void {
+    private resolveTargetContainerId(currentAreaId: string): string {
+        if (currentAreaId === ROOT_AREA_ID || currentAreaId === 'app' || currentAreaId === 'body' || currentAreaId === 'root') {
+            const {
+                containerElement = 'body',
+            } = this.disposition.aim.body ?? {};
+            return containerElement.replace('#', '');
+        }
+        return currentAreaId;
+    }
+
+    private dispatchContainerQualities(
+        elementId: string,
+        qualities: Qualities,
+    ): void {
+        this.pulse(BoxSignalType.UPDATE, {
+            elementId,
+            qualities,
+        });
+    }
+
+    private ensureRootContainerLayout(areaId?: string): void {
+        if (!areaId || areaId === ROOT_AREA_ID || areaId === 'app' || areaId === 'body' || areaId === 'root') {
+            this.dispatchContainerQualities('body', {
+                direction: 'column',
+                height: '100%',
+                width: '100%',
+            });
+        }
+    }
+
+    private emitCompositionAreas(result: BuiltResult, areaId: string): void {
         const {
             composition,
             context = {},
             correlationId = crypto.randomUUID(),
         } = result;
-        const currentAreaId = (context as { areaId?: string })?.areaId;
-        this.extractAreaList(composition).forEach((concept) => this.emitArea(concept, context, correlationId, currentAreaId));
-        this.removeAreaSkeleton(currentAreaId ?? ROOT_AREA_ID);
+        const areas = this.extractAreaList(composition);
+        areas.forEach((concept) => this.emitArea(concept, context, correlationId, areaId));
+    }
+
+    private resolveCurrentAreaId(context?: Record<string, unknown>): string {
+        const {
+            areaId = ROOT_AREA_ID,
+        } = (context ?? {}) as { areaId?: string };
+        return areaId;
+    }
+
+    private handleLayoutInferred(result: BuiltResult): void {
+        const areaId = this.resolveCurrentAreaId(result.context);
+        this.emitCompositionAreas(result, areaId);
+        this.removeAreaSkeleton(areaId);
         this.pulse(SignalType.BUILT, result);
     }
 
@@ -571,12 +634,12 @@ export class Layout extends Uca<Body> {
             correlationId,
         } = this.extractTransformedPayload(signal);
         if (stream) {
-            await stream.pipeTo(this.createStreamConsumer(context as BuildPayload | undefined, correlationId));
+            await stream.pipeTo(this.createStreamConsumer(context as Record<string, unknown> | undefined, correlationId));
         }
     }
 
     private createStreamConsumer(
-        context?: BuildPayload,
+        context?: Record<string, unknown>,
         correlationId?: string,
     ): WritableStream<Record<string, unknown>> {
         return new WritableStream({
@@ -585,29 +648,30 @@ export class Layout extends Uca<Body> {
         });
     }
 
-    private handleStreamClose(context?: BuildPayload, correlationId?: string): void {
-        const areaId = context?.areaId ?? ROOT_AREA_ID;
+    private handleStreamClose(context?: Record<string, unknown>, correlationId?: string): void {
+        const areaId = (context?.areaId as string) ?? ROOT_AREA_ID;
         this.removeAreaSkeleton(areaId);
         this.pulse(SignalType.BUILT, {
-            context,
+            areaId,
             correlationId,
         });
     }
 
     private handleStreamChunk(
         item: Record<string, unknown>,
-        context?: BuildPayload,
+        context?: Record<string, unknown>,
         correlationId?: string,
     ): void {
-        this.logStreamChunk(item, context, correlationId);
+        this.logStreamChunk(item, correlationId);
         const cid = correlationId ?? crypto.randomUUID();
-        const inherited = (context?.context ?? {}) as Record<string, unknown>;
-        this.emitArea(item as unknown as AreaConcept, inherited, cid, context?.areaId);
+        const body = (context?.body ?? {}) as LayoutBody;
+        const inherited = (body ?? {}) as Record<string, unknown>;
+        const currentAreaId = (context?.areaId as string) ?? body?.area?.id;
+        this.emitArea(item as unknown as AreaConcept, inherited, cid, currentAreaId);
     }
 
     private logStreamChunk(
         item: Record<string, unknown>,
-        context?: BuildPayload,
         correlationId?: string,
     ): void {
         console.log('%c🌊 [LAYOUT::STREAM::CHUNK]', 'color: #00B4D8; font-weight: bold;', {
@@ -633,10 +697,6 @@ export class Layout extends Uca<Body> {
     }
 
     private handleLlmError(signal: Signal): void {
-        this.pulse(SignalType.ERROR, signal.value);
-    }
-
-    private handleRenderError(signal: Signal): void {
         this.pulse(SignalType.ERROR, signal.value);
     }
 
@@ -666,12 +726,18 @@ export class Layout extends Uca<Body> {
         });
     }
 
+    private clearParentSkeleton(area?: Area): void {
+        const parentId = area?.parentId ?? ROOT_AREA_ID;
+        this.removeAreaSkeleton(parentId);
+    }
+
     private handleBoxCreated(signal: Signal): void {
         const {
             elementId = '',
             context: rawContext,
         } = (signal.value ?? {}) as BoxCreatedResult;
         const payload = (rawContext ?? {}) as AreaDefined;
+        this.clearParentSkeleton(payload.area);
         this.showAreaSkeleton(elementId);
         this.logAreaCreated(elementId, payload.correlationId);
         this.pulse(SignalType.AREA_CREATED, payload);
@@ -679,7 +745,7 @@ export class Layout extends Uca<Body> {
 
     private handleViewCreated(signal: Signal): void {
         const {
-            areaId = 'root',
+            areaId = 'body',
             correlationId,
         } = (signal.value ?? {}) as { areaId?: string; correlationId?: string };
         this.removeAreaSkeleton(areaId);

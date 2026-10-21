@@ -5,21 +5,23 @@ export type {
     Body,
     BuildPayload,
     BuiltResult,
+    LayoutBody,
     LayoutComposition,
     Qualities,
 } from './schema.js';
-
-export interface VisualPrimitive {
-    readonly name: string;
-    readonly proposito: string;
-    readonly intencion: string;
-}
 
 export interface ContractParams {
     readonly purpose: string;
     readonly goal: string;
     readonly outputSchema: Record<string, unknown>;
     readonly limits: Record<string, unknown>;
+}
+
+export interface SpatialPiece {
+    readonly name: string;
+    readonly category: string;
+    readonly description: string;
+    readonly values?: readonly string[];
 }
 
 export enum SignalType {

@@ -40,7 +40,7 @@ export function createCommand(payload: InferPayload, stream = false): Command {
         limits,
     } = payload;
     const prompt = JSON.stringify({
-        contextSchema,
+        contextSchema: contextSchema ?? (payload.context ? { const: payload.context } : undefined),
         purpose,
         goal,
         limits,
