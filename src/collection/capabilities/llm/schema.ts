@@ -4,7 +4,7 @@ export type ThinkingLevel = z.infer<typeof thinkingLevelSchema>;
 export const providerSchema = z.enum(['openai', 'gemini', 'jev']);
 export const jsonSchema = z.record(z.string(), z.unknown());
 export const contractSchema = z.object({
-    outputSchema: jsonSchema,
+    outputSchema: jsonSchema.optional(),
     contextSchema: jsonSchema.optional(),
     context: z.record(z.string(), z.unknown()).optional(),
     purpose: z.string().min(1),

@@ -25,6 +25,8 @@ export const AVAILABLE_MODELS = [
         provider: 'jev' as const,
         model: DEFAULT_JEV_MODEL,
         transport: 'batch' as const,
+        imagination: 0,
+        limit: 1024,
     },
     {
         id: 'gemini-3.5-flash',
@@ -34,6 +36,9 @@ export const AVAILABLE_MODELS = [
         provider: 'gemini' as const,
         model: DEFAULT_GEMINI_FLASH_MODEL,
         transport: 'stream' as const,
+        imagination: 0.8,
+        limit: 16384,
+        thinkingLevel: 'minimal' as const,
     },
     {
         id: 'gemini-3.5-flash-lite',
@@ -43,6 +48,8 @@ export const AVAILABLE_MODELS = [
         provider: 'gemini' as const,
         model: DEFAULT_GEMINI_FLASH_LITE_MODEL,
         transport: 'batch' as const,
+        imagination: 0.4,
+        limit: 4096,
     },
 ] as const;
 

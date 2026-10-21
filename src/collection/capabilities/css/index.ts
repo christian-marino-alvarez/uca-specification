@@ -2,7 +2,10 @@ import { Capability } from '@uca/core/capability';
 import type { Disposition, Signal } from '@uca/core/types';
 import {
     __ID__,
-    CONTROL_STATE_RULES, DIMENSION_PATTERN, DIMENSION_PROPERTIES, TOKEN_PROPERTIES, ALIGNMENT_DISTRIBUTIONS, IDENTIFIED_DESCENDANT_SELECTOR,
+    CONTROL_STATE_RULES,
+    DIMENSION_PROPERTIES,
+    TOKEN_PROPERTIES,
+    IDENTIFIED_DESCENDANT_SELECTOR,
     CSS_TOKENS_SUMMARY,
     DARK_SCHEME_QUERY,
     DESIGN_READY_PROPERTY,
@@ -16,7 +19,7 @@ import {
 import {
     type ApplyPayload,
     type DesignTokens,
-    type DesignToken, ControlType,
+    type DesignToken,
     type Body,
     type MountPayload,
     type Qualities,
@@ -25,6 +28,7 @@ import {
     type SchemaPayload,
     type StylesheetDesign,
     type ThemePayload,
+    ControlType,
     DataType,
     SignalType,
 } from './types.js';
@@ -62,38 +66,23 @@ export class Css extends Capability<Body> {
     };
 
     private static isTokenQualityKey(key: string): boolean {
-        return key === 'alignment' || TOKEN_PROPERTIES.some(([k]) => k === key) || DIMENSION_PROPERTIES.some(([k]) => k === key);
-    }
-
-    private static filterCustomByToken(custom: Record<string, string>, isToken: boolean): Record<string, string> {
-        return Object.fromEntries(
-            Object.entries(custom).filter(([key]) => Css.isTokenQualityKey(key) === isToken),
-        );
+        return TOKEN_PROPERTIES.some(([k]) => k === key) || DIMENSION_PROPERTIES.some(([k]) => k === key);
     }
 
     public static normalizeQualities(qualities: Qualities = {}): Qualities {
-        const { custom, ...rest } = qualities;
-        if (!custom) {
-            return qualities;
-        }
-        const hoisted = Css.filterCustomByToken(custom, true);
-        const cleanCustom = Css.filterCustomByToken(custom, false);
-        return {
-            ...hoisted,
-            ...rest,
-            ...(Object.keys(cleanCustom).length > 0 && { custom: cleanCustom }),
-        };
+        return qualities;
     }
 
     public static translateQualities(qualities: Qualities): Record<string, string> {
         const normalized = Css.normalizeQualities(qualities);
-        const { marginInline, custom } = normalized;
+        const {
+            marginInline,
+        } = normalized;
         return {
             ...Css.resolveDimensions(normalized),
             ...Css.resolveLayout(normalized),
             ...Css.resolveTokenQualities(normalized),
             ...(marginInline === 'auto' && { 'margin-inline': marginInline }),
-            ...(custom ?? {}),
         };
     }
 
@@ -101,8 +90,19 @@ export class Css extends Capability<Body> {
         return elementId.includes(':') ? `[id="${elementId}"]` : `#${elementId}`;
     }
 
+    private static toKebabCase(prop: string): string {
+        return prop.replace(/([A-Z])/g, '-$1').toLowerCase();
+    }
+
+    private static formatDeclaration(property: string, value: string | number): string {
+        if (property === 'style') {
+            return String(value).trim().endsWith(';') ? String(value) : `${value};`;
+        }
+        return `${Css.toKebabCase(property)}: ${value};`;
+    }
+
     public static formatCssRule(selector: string, declarations: Readonly<Record<string, string | number>>): string {
-        const rules = Object.entries(declarations).map(([k, v]) => `${k}: ${v};`).join(' ');
+        const rules = Object.entries(declarations).map(([k, v]) => Css.formatDeclaration(k, v)).join(' ');
         return `${selector} { ${rules} }`;
     }
 
@@ -166,40 +166,59 @@ export class Css extends Capability<Body> {
         return `var(--uca-${group}-${name}, ${fallback})`;
     }
 
+    private static resolveDimensionProperty(property: string, name?: string, viewport?: string): [string, string][] {
+        if (!name) {
+            return [];
+        }
+        if (name === 'screen') {
+            return viewport ? [[property, viewport]] : [];
+        }
+        const { dimensions } = DESIGN_TOKENS;
+        const tokens = dimensions as unknown as Record<string, DesignToken>;
+        const { $value } = tokens[name] ?? {};
+        const value = $value !== undefined ? Css.tokenReference('dimensions', name, String($value)) : name;
+        return [[property, value]];
+    }
+
     private static resolveDimensions(qualities: Qualities): Record<string, string> {
-        const { dimensions: { $type: categoryType, ...tokens } } = DESIGN_TOKENS;
-        return { 'box-sizing': 'border-box', ...Object.fromEntries(DIMENSION_PROPERTIES.flatMap(([quality, property, viewport]) => {
-            const { [quality]: name } = qualities;
-            const { $value } = (tokens as Record<string, DesignToken>)[name ?? ''] ?? {};
-            const resolved = name === 'screen'
-                ? viewport
-                : $value !== undefined && name
-                    ? Css.tokenReference('dimensions', name, String($value))
-                    : name && DIMENSION_PATTERN.test(name) ? name : undefined;
-            return resolved ? [[property, resolved]] : [];
-        })) };
+        return {
+            'box-sizing': 'border-box',
+            ...Object.fromEntries(DIMENSION_PROPERTIES.flatMap(([quality, property, viewport]) => {
+                const { [quality]: name } = qualities;
+                return Css.resolveDimensionProperty(property, name, viewport);
+            })),
+        };
+    }
+
+    private static resolveTokenProperty(property: string, group: string, name?: string): [string, string][] {
+        if (!name) {
+            return [];
+        }
+        const tokenCatalog = DESIGN_TOKENS as unknown as Record<string, Record<string, DesignToken<string | number>>>;
+        const groupTokens = tokenCatalog[group] ?? {};
+        const { $value } = groupTokens[name] ?? {};
+        const value = $value !== undefined ? Css.tokenReference(group, name, String($value)) : String(name);
+        return [[property, value]];
     }
 
     private static resolveTokenQualities(qualities: Qualities): Record<string, string> {
         return Object.fromEntries(TOKEN_PROPERTIES.flatMap(([quality, group, property]) => {
-            const { [quality]: name } = qualities, { [group]: { $type: categoryType, ...tokens } } = DESIGN_TOKENS;
-            const { $value } = (tokens as Record<string, DesignToken<string | number>>)[name ?? ''] ?? {};
-            return $value !== undefined && name
-                ? [[property, Css.tokenReference(group, name, String($value))]]
-                : [];
+            const { [quality]: name } = qualities;
+            return Css.resolveTokenProperty(property, group, name);
         }));
     }
 
     private static resolveLayout(qualities: Qualities): Record<string, string> {
-        const { direction, alignment, distribution, wrap } = qualities, { alignment: { $type: categoryType, ...tokens } } = DESIGN_TOKENS;
-        const { $value: aligned } = (tokens as Record<string, DesignToken>)[alignment ?? ''] ?? {};
-        const mainAxis = ALIGNMENT_DISTRIBUTIONS.includes(aligned ?? '') ? aligned : undefined;
-        const crossAxis = aligned && aligned !== 'space-between' ? aligned : undefined;
-        return {
-            ...((direction || aligned || distribution || wrap) && { display: 'flex' }),
-            ...(crossAxis && { 'align-items': crossAxis }),
-            ...(mainAxis && { 'justify-content': mainAxis }),
-        };
+        const {
+            direction,
+            alignment,
+            distribution,
+            wrap,
+            gap,
+            flex,
+        } = qualities;
+        const isFlex = Boolean(direction || alignment || distribution || wrap || gap || flex);
+        return isFlex ? { display: 'flex' } : {};
     }
 
     private static mountStyleElement(id: string, cssText: string): void {

@@ -20,3 +20,8 @@ export const buildActionAttributes = (
         ...(disabled && { disabled: 'disabled' }),
     };
 };
+
+export const DEFAULT_QUALITIES = {
+    spacingInline: 'small',
+    radius: 'medium',
+} as const;

@@ -1,11 +1,15 @@
 import { Browser } from '@uca/capability-browser';
 import { SignalType as BrowserSignalType } from '@uca/capability-browser/types';
-import { Builder } from '@uca/builder';
+import { Layout } from '@uca/layout';
 import {
-    SignalType as BuilderSignalType,
+    SignalType as LayoutSignalType,
     type Area,
-    type AreaCreated,
-} from '@uca/builder/types';
+    type AreaDefined,
+} from '@uca/layout/types';
+import { View } from '@uca/view';
+import {
+    SignalType as ViewSignalType,
+} from '@uca/view/types';
 import { Design } from '@uca/capability-design';
 import { SignalType as DesignSignalType } from '@uca/capability-design/types';
 import { Decision } from '@uca/decision';
@@ -14,6 +18,10 @@ import { Memory } from '@uca/memory';
 import { SignalType as MemorySignalType } from '@uca/memory/types';
 import { Navigate } from '@uca/navigate';
 import { SignalType as NavigateSignalType } from '@uca/navigate/types';
+import { Specification } from '@uca/capability-specification';
+import {
+    SignalType as SpecificationSignalType,
+} from '@uca/capability-specification/types';
 import { Uca } from '@uca/core/uca';
 import {
     DispositionSignal,
@@ -25,6 +33,7 @@ import {
     type Signal,
 } from '@uca/core/types';
 import {
+    APP_DECISION_OPTIONS,
     AREA_DECISION_OPTIONS,
     DEFAULT_AIM_BODY,
     DEFAULT_AIM_DESCRIPTION,
@@ -65,8 +74,10 @@ export class App extends Uca<Body> {
             ...App.reactToNavigate(),
             ...App.reactToDesign(),
             ...App.reactToDecision(),
-            ...App.reactToBuilder(),
+            ...App.reactToLayout(),
+            ...App.reactToView(),
             ...App.reactToMemory(),
+            ...App.reactToSpecification(),
         ],
         inputs: [
             {
@@ -155,15 +166,27 @@ export class App extends Uca<Body> {
         ];
     }
 
-    private static reactToBuilder(): string[] {
+    private static reactToLayout(): string[] {
         const {
             reactTo = [],
-        } = Builder.disposition;
+        } = Layout.disposition;
         return [
             ...reactTo,
-            BuilderSignalType.BUILT,
-            BuilderSignalType.AREA_CREATED,
-            BuilderSignalType.ERROR,
+            LayoutSignalType.BUILT,
+            LayoutSignalType.AREA_CREATED,
+            LayoutSignalType.ERROR,
+        ];
+    }
+
+    private static reactToView(): string[] {
+        const {
+            reactTo = [],
+        } = View.disposition;
+        return [
+            ...reactTo,
+            ViewSignalType.BUILT,
+            ViewSignalType.RENDERED,
+            ViewSignalType.ERROR,
         ];
     }
 
@@ -178,6 +201,17 @@ export class App extends Uca<Body> {
         ];
     }
 
+    private static reactToSpecification(): string[] {
+        const {
+            reactTo = [],
+        } = Specification.disposition;
+        return [
+            ...reactTo,
+            SpecificationSignalType.PARSED,
+            SpecificationSignalType.PROVIDED,
+        ];
+    }
+
     public constructor(id: string = __ID__) {
         super(id);
     }
@@ -188,8 +222,10 @@ export class App extends Uca<Body> {
             this.buildNavigateCooky(),
             this.buildDesignCooky(),
             this.buildDecisionCooky(),
-            this.buildBuilderCooky(),
+            this.buildLayoutCooky(),
+            this.buildViewCooky(),
             this.buildMemoryCooky(),
+            this.buildSpecificationCooky(),
         ];
     }
 
@@ -228,17 +264,32 @@ export class App extends Uca<Body> {
             case DecisionSignalType.ERROR:
                 this.handleDecisionError(signal);
                 break;
-            case BuilderSignalType.AREA_CREATED:
-                this.handleBuilderAreaCreated(signal);
+            case LayoutSignalType.AREA_CREATED:
+                this.handleLayoutAreaCreated(signal);
                 break;
-            case BuilderSignalType.BUILT:
-                this.handleBuilderBuilt(signal);
+            case LayoutSignalType.BUILT:
+                this.handleLayoutBuilt(signal);
                 break;
-            case BuilderSignalType.ERROR:
-                this.handleBuilderError(signal);
+            case LayoutSignalType.ERROR:
+                this.handleLayoutError(signal);
+                break;
+            case ViewSignalType.BUILT:
+                this.handleViewBuilt(signal);
+                break;
+            case ViewSignalType.RENDERED:
+                this.handleViewRendered(signal);
+                break;
+            case ViewSignalType.ERROR:
+                this.handleViewError(signal);
                 break;
             case DesignSignalType.THEME_CHANGED:
                 this.handleThemeChanged(signal);
+                break;
+            case SpecificationSignalType.PARSED:
+                this.handleSpecificationParsed(signal);
+                break;
+            case SpecificationSignalType.PROVIDED:
+                this.handleSpecificationProvided(signal);
                 break;
             case DispositionSignal.PROVIDE:
                 this.handleDispositionProvide(signal);
@@ -292,16 +343,54 @@ export class App extends Uca<Body> {
         ];
     }
 
-    private createBuilderDisposition(): Disposition {
-        const { aim } = Builder.disposition;
-        const body = { ...(aim.body ?? {}), containerElement: '#app' };
-        return { ...Builder.disposition, aim: { ...aim, body } };
+    private createLayoutDisposition(): Disposition {
+        const {
+            aim,
+        } = Layout.disposition;
+        const body = {
+            ...(aim.body ?? {}),
+            containerElement: '#app',
+        };
+        return {
+            ...Layout.disposition,
+            aim: {
+                ...aim,
+                body,
+            },
+        };
     }
 
-    private buildBuilderCooky(): [CapabilityConstructor, Disposition] {
-        const { id } = this;
-        const disposition = this.createBuilderDisposition();
-        return this.buildUcaCooky(Builder, Builder.purpose, `${id}:builder`, disposition);
+    private buildLayoutCooky(): [CapabilityConstructor, Disposition] {
+        const {
+            id,
+        } = this;
+        const disposition = this.createLayoutDisposition();
+        return this.buildUcaCooky(Layout, Layout.purpose, `${id}:layout`, disposition);
+    }
+
+    private createViewDisposition(): Disposition {
+        const {
+            aim,
+        } = View.disposition;
+        const body = {
+            ...(aim.body ?? {}),
+            containerElement: '#app',
+        };
+        return {
+            ...View.disposition,
+            aim: {
+                ...aim,
+                body,
+            },
+        };
+    }
+
+    private buildViewCooky(): [CapabilityConstructor, Disposition] {
+        const {
+            id,
+        } = this;
+        const disposition = this.createViewDisposition();
+        return this.buildUcaCooky(View, View.purpose, `${id}:view`, disposition);
     }
 
     private buildMemoryCooky(): [CapabilityConstructor, Disposition] {
@@ -309,6 +398,24 @@ export class App extends Uca<Body> {
             id,
         } = this;
         return this.buildUcaCooky(Memory, Memory.purpose, `${id}:memory`, Memory.disposition);
+    }
+
+    private buildSpecificationCooky(): [CapabilityConstructor, Disposition] {
+        const {
+            id,
+        } = this;
+        return [
+            Specification as unknown as CapabilityConstructor,
+            this.createSpecificationDisposition(`${id}:specification`),
+        ];
+    }
+
+    private createSpecificationDisposition(id: string): Disposition {
+        const aim = this.createAim(Specification.AIM, id);
+        return {
+            ...Specification.disposition,
+            aim,
+        };
     }
 
     private buildUcaCooky(
@@ -468,6 +575,7 @@ export class App extends Uca<Body> {
 
     private consultSession(input: unknown): void {
         this.ensureBrowserContext();
+        this.ensureSpecification();
         const correlationId = `session-${Date.now()}`;
         this.pulse(MemorySignalType.GET, {
             key: 'session',
@@ -482,6 +590,15 @@ export class App extends Uca<Body> {
         } = this.disposition.aim.body ?? {};
         if (!browserContext) {
             this.pulse(BrowserSignalType.DETECT, {});
+        }
+    }
+
+    private ensureSpecification(): void {
+        const {
+            specification,
+        } = this.disposition.aim.body ?? {};
+        if (!specification) {
+            this.pulse(SpecificationSignalType.LOAD, {});
         }
     }
 
@@ -511,9 +628,12 @@ export class App extends Uca<Body> {
         const {
             description: intention,
         } = this.disposition.aim;
+        const visualIntention = `${intention}\n${DEFAULT_DESIGN_GUIDELINES}`;
         return {
             purpose,
             intention,
+            visualIntention,
+            guidelines: DEFAULT_DESIGN_GUIDELINES,
         };
     }
 
@@ -524,16 +644,26 @@ export class App extends Uca<Body> {
         const {
             browserContext = {},
         } = aim.body ?? {};
-        return browserContext;
+        const {
+            viewport,
+        } = browserContext as { viewport?: { width?: number; height?: number } };
+        const width = viewport?.width ?? 1024;
+        const height = viewport?.height ?? 768;
+        const device = width < 768 ? 'mobile' : 'desktop';
+        return {
+            device,
+            viewport: {
+                width,
+                height,
+            },
+        };
     }
 
-    private buildDecisionContext(input: unknown, session: unknown): Record<string, unknown> {
+    private buildDecisionContext(_input: unknown, session: unknown): Record<string, unknown> {
         return {
             ...this.extractOntologyContext(),
-            input,
             session: session ?? null,
             browser: this.resolveBrowserContext(),
-            design: DEFAULT_DESIGN_GUIDELINES,
         };
     }
 
@@ -541,8 +671,8 @@ export class App extends Uca<Body> {
         return {
             id: 'area_type',
             type: 'choice',
-            prompt: 'Determina si debemos usar LAYOUT o VIEW evaluando intention y purpose en el contexto provisto.',
-            options: AREA_DECISION_OPTIONS,
+            prompt: 'Determina si la aplicación principal debe articularse mediante un LAYOUT estructural o como una VIEW unitaria.',
+            options: APP_DECISION_OPTIONS,
         };
     }
 
@@ -595,100 +725,125 @@ export class App extends Uca<Body> {
         return resultChoice ?? choice ?? 'VIEW';
     }
 
-    private requestBuild(decisionValue: unknown): void {
+    private resolveBuildContext(decisionValue: unknown): Record<string, unknown> {
         const {
-            correlationId,
-            context: decisionContext,
-        } = (decisionValue ?? {}) as {
-            correlationId?: string;
-            context?: Record<string, unknown>;
-        };
-        const choice = this.extractDecisionChoice(decisionValue);
-        const context = decisionContext ?? this.buildDecisionContext(null, null);
-        const { areaId, parentId, purpose, intention } = context as {
-            areaId?: string;
-            parentId?: string;
-            purpose?: string;
-            intention?: string;
-        };
-        this.pulse(BuilderSignalType.BUILD, {
-            choice,
-            areaId: areaId ?? ROOT_AREA_ID,
-            parentId,
-            purpose,
-            intention,
             context,
-            correlationId: correlationId ?? `build-${Date.now()}`,
-        });
+        } = (decisionValue ?? {}) as { context?: Record<string, unknown> };
+        return context ?? this.buildDecisionContext(null, null);
     }
 
-    private handleBuilderBuilt(signal: Signal): void {
+    private createBuildPayload(areaId: string, parentId: string, context: Record<string, unknown>, correlationId?: string): Record<string, unknown> {
+        return {
+            areaId,
+            parentId,
+            context,
+            correlationId: correlationId ?? `build-${Date.now()}`,
+        };
+    }
+
+    private dispatchBuild(choice: 'LAYOUT' | 'VIEW', context: Record<string, unknown>, areaId: string, parentId: string, correlationId?: string): void {
+        const payload = this.createBuildPayload(areaId, parentId, context, correlationId);
+        const signal = choice === 'LAYOUT' ? LayoutSignalType.BUILD : ViewSignalType.BUILD;
+        this.pulse(signal, payload);
+    }
+
+    private requestBuild(decisionValue: unknown): void {
+        const context = this.resolveBuildContext(decisionValue);
+        const {
+            correlationId,
+        } = (decisionValue ?? {}) as { correlationId?: string };
+        const choice = this.extractDecisionChoice(decisionValue);
+        const {
+            area,
+        } = context as { area?: Area };
+        const areaId = area?.id ?? ROOT_AREA_ID;
+        const parentId = area?.parentId ?? ROOT_AREA_ID;
+        this.dispatchBuild(choice, context, areaId, parentId, correlationId);
+    }
+
+    private handleLayoutBuilt(signal: Signal): void {
         const {
             value,
         } = signal;
         this.pulse(SignalType.BUILT, value);
     }
 
-    private handleBuilderAreaCreated(signal: Signal): void {
+    private handleViewBuilt(signal: Signal): void {
         const {
             value,
         } = signal;
-        this.sendAreaDecision(value as AreaCreated);
+        this.pulse(SignalType.BUILT, value);
     }
 
-
-
-
-
-    private sendAreaDecision(created: AreaCreated): void {
+    private handleViewRendered(signal: Signal): void {
         const {
+            value,
+        } = signal;
+        this.pulse(SignalType.BUILT, value);
+    }
+
+    private handleLayoutAreaCreated(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        const defined = value as AreaDefined;
+        if (defined?.area?.id === 'root' || defined?.area?.id === 'app') {
+            return;
+        }
+        this.sendAreaDecision(defined);
+    }
+
+    private createAreaContext(area: Area, context: Record<string, unknown>): Record<string, unknown> {
+        const {
+            browser = this.resolveBrowserContext(),
+        } = context as { browser?: Record<string, unknown> };
+        return {
             area,
-            context,
-        } = created;
-        const {
-            id,
-            parentId,
-        } = area;
-        const areaContext = this.buildAreaContext(area, context);
-        const question = this.resolveAreaQuestion(area, parentId);
+            browser,
+        };
+    }
+
+    private dispatchAreaPrompt(area: Area, context: Record<string, unknown>, correlationId?: string): void {
+        const nextId = `${correlationId ?? 'decision'}:${area.id}`;
+        const areaContext = this.createAreaContext(area, context);
+        const question = this.resolveAreaQuestion(area, area.parentId);
         this.pulse(DecisionSignalType.DECIDE, {
-            correlationId: crypto.randomUUID(),
+            correlationId: nextId,
             question,
             context: areaContext,
         });
     }
 
-    private buildAreaContext(area: Area, inherited: Record<string, unknown>): Record<string, unknown> {
+    private sendAreaDecision(defined: AreaDefined): void {
         const {
-            id: areaId,
-            parentId,
-            role,
-            description,
-            purpose,
-            intention,
-        } = area;
-        return {
-            ...inherited,
-            areaId,
-            parentId,
-            role,
-            description,
-            purpose: purpose ?? inherited.purpose,
-            intention: intention ?? description ?? inherited.intention,
-        };
+            area,
+            context = {},
+            correlationId,
+        } = defined;
+        this.dispatchAreaPrompt(area, context, correlationId);
     }
 
     private resolveAreaQuestion(area: Area, parentId?: string): Record<string, unknown> {
-        const target = parentId ? `el área '${area.id}' (contenida en '${parentId}')` : `el área '${area.id}'`;
+        const {
+            id,
+        } = area;
+        const target = parentId ? `el área '${id}' (contenida en '${parentId}')` : `el área '${id}'`;
         return {
-            id: `area_type_${area.id}`,
+            id: `area_type_${id}`,
             type: 'choice',
             prompt: `Determina si ${target} debe ser LAYOUT o VIEW evaluando intention y purpose en el contexto provisto.`,
             options: AREA_DECISION_OPTIONS,
         };
     }
 
-    private handleBuilderError(signal: Signal): void {
+    private handleLayoutError(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        this.pulse(SignalType.ERROR, value);
+    }
+
+    private handleViewError(signal: Signal): void {
         const {
             value,
         } = signal;
@@ -707,5 +862,23 @@ export class App extends Uca<Body> {
             value,
         } = signal;
         this.pulse(DesignSignalType.THEME_CHANGED, value);
+    }
+
+    private handleSpecificationParsed(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        this.updateDispositionBody({
+            specification: value as Record<string, unknown>,
+        });
+    }
+
+    private handleSpecificationProvided(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        this.updateDispositionBody({
+            specification: value as Record<string, unknown>,
+        });
     }
 }

@@ -157,6 +157,17 @@ process.on('SIGTERM', shutdown);
     fs.writeFileSync(path.join(DIST, 'server.js'), serverEntry);
 }
 
+function copySpecification(): void {
+    const files = ['SPECIFICATION.es.md', 'SPECIFICATION.md'];
+    for (const file of files) {
+        const sourcePath = path.join(ROOT, file);
+        if (fs.existsSync(sourcePath)) {
+            fs.copyFileSync(sourcePath, path.join(WEB_DIST, file));
+        }
+    }
+}
+
+
 async function build(): Promise<void> {
     console.log('⚡ Building UCA application and server...');
     fs.mkdirSync(WEB_DIST, { recursive: true });
@@ -173,6 +184,8 @@ async function build(): Promise<void> {
     console.log('🖼️  Visual design preview generated');
     buildAssets();
     console.log('🪪 Brand assets copied');
+    copySpecification();
+    console.log('📖 Specification document copied');
     buildHtml(importMap);
     console.log(`✔ Web app complete → ${WEB_DIST}`);
     buildServerEntry();

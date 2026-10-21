@@ -7,7 +7,9 @@ import {
     type Body,
     type AbortPayload,
     type ActiveStream,
+    type ApiFailure,
     type ConnectionConfig,
+    type Failure,
     type GeneratePayload,
     type GenerateResult,
     type ThinkingLevel,
@@ -82,7 +84,7 @@ export class Gemini extends Capability<Body> {
             const stream = await this.openStream(payload, requestId, controller);
             this.pulse(SignalType.STREAMED, { correlationId, streamId, stream });
         } catch (error) {
-            this.releaseController(requestId, controller); !signal.aborted && this.pulse(SignalType.ERROR, { error: String(error), correlationId });
+            this.releaseController(requestId, controller); !signal.aborted && this.pulse(SignalType.ERROR, this.describeFailure(error, payload));
         }
     }
 
@@ -145,8 +147,33 @@ export class Gemini extends Capability<Body> {
             const result = await this.executeGeneration(client, payload);
             this.pulse(SignalType.GENERATED, result);
         } catch (error) {
-            this.pulse(SignalType.ERROR, { error: String(error), correlationId: payload.correlationId });
+            this.pulse(SignalType.ERROR, this.describeFailure(error, payload));
         }
+    }
+
+    private describeFailure(error: unknown, payload: GeneratePayload): Failure {
+        const {
+            correlationId,
+        } = payload;
+        const {
+            model,
+            config,
+        } = this.resolveGenerationConfig(payload);
+        const {
+            message = String(error),
+            status,
+        } = error as ApiFailure;
+        const configuration = Object.keys(config).join(', ');
+        const schemaSize = JSON.stringify(config.responseJsonSchema ?? {}).length;
+        const description = `[${status ?? 'unknown'}] ${message} | model: ${model} | config: ${configuration} | schemaSize: ${schemaSize}`;
+        return {
+            error: description,
+            status,
+            model,
+            configuration,
+            schemaSize,
+            correlationId,
+        };
     }
 
     private async executeGeneration(client: GoogleGenAI, payload: GeneratePayload): Promise<GenerateResult> {
@@ -181,13 +208,13 @@ export class Gemini extends Capability<Body> {
         if (model.includes('lite')) {
             return undefined;
         }
-        if (thinkingBudget !== undefined) {
-            return { thinkingBudget };
-        }
         if (model.startsWith(THINKING_LEVEL_MODEL_PREFIX)) {
             return { thinkingLevel: thinkingLevel ?? DEFAULT_THINKING_LEVEL };
         }
-        return { thinkingBudget: DEFAULT_THINKING_BUDGET };
+        if (thinkingBudget !== undefined) {
+            return { thinkingBudget };
+        }
+        return { thinkingBudget: 0 };
     }
 
     private formatResult(response: { text?: string; usageMetadata?: unknown }, prompt: string, model: string, correlationId?: string): GenerateResult {

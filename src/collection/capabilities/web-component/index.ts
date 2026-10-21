@@ -73,10 +73,26 @@ export class WebComponent extends Capability<Body> {
     private handleRender(value?: unknown): void {
         const payload = (value ?? {}) as RenderPayload;
         const { elementId = this.id, tag, containerElement, attributes, content, events, context } = payload;
+        const existing = elementId && typeof document !== 'undefined' ? document.getElementById(elementId) : null;
+        if (existing) {
+            this.updateExistingElement(existing, attributes, content, context);
+            return;
+        }
         const container = this.resolveContainerElement(containerElement);
         const element = elementId && container ? this.createElement(this.registerElement(tag), elementId, attributes, content) : null;
-        if (!element || !container) { return; }
-        this.mountElement(element, container, elementId, events, context);
+        if (element && container) { this.mountElement(element, container, elementId, events, context); }
+    }
+
+    private updateExistingElement(existing: HTMLElement, attributes?: Record<string, string>, content?: string, context?: unknown): void {
+        this.applyAttributes(existing, attributes);
+        if (content !== undefined && existing.children.length === 0) {
+            existing.innerHTML = content;
+        }
+        this.pulse(SignalType.RENDERED, {
+            elementId: existing.id,
+            tag: existing.tagName.toLowerCase(),
+            ...(context !== undefined && { context }),
+        });
     }
 
     private mountElement(element: HTMLElement, container: Element, elementId: string, events?: readonly string[], context?: unknown): void {

@@ -4,8 +4,20 @@ import { WebComponent } from '@uca/capability-web-component';
 import { SignalType as WebComponentSignalType } from '@uca/capability-web-component/types';
 import { Css } from '@uca/capability-css';
 import { SignalType as CssSignalType } from '@uca/capability-css/types';
-import { __ID__, DEFAULT_ALT, DEFAULT_LOADING } from './constants.js';
-import { type Body, DataType, SignalType } from './types.js';
+import {
+    __ID__,
+    DEFAULT_ALT,
+    DEFAULT_DIMENSION,
+    DEFAULT_LOADING,
+    DEFAULT_PICTURE_HEIGHT,
+    DEFAULT_PICTURE_WIDTH,
+} from './constants.js';
+import {
+    type Body,
+    type Qualities,
+    DataType,
+    SignalType,
+} from './types.js';
 
 export class Picture extends Uca<Body> {
     public static override purpose: string = 'Autonomous visual representation unit that renders, adapts, and manages imagery, alternate text, and presentation qualities';
@@ -78,46 +90,158 @@ export class Picture extends Uca<Body> {
         }
     }
 
-    private handleRender(value?: unknown): void {
-        const { elementId = this.id, parentTo, containerElement, src, alt = DEFAULT_ALT, loading = DEFAULT_LOADING, qualities, context } = (value ?? {}) as Body & { context?: unknown };
-        const targetContainer = containerElement ?? (parentTo?.startsWith('#') ? parentTo : parentTo ? `#${parentTo}` : undefined);
-        if (qualities) { this.pulse(CssSignalType.APPLY, { elementId, qualities }); }
-        const attributes = { src: src ?? '', alt, loading };
+    private resolveQualities(qualities?: Qualities): Qualities {
+        const {
+            width = DEFAULT_DIMENSION,
+            ...rest
+        } = qualities ?? {};
+        return {
+            width,
+            ...rest,
+        };
+    }
+
+    private resolveTargetContainer(parentTo?: string, containerElement?: string): string | undefined {
+        return containerElement ?? (parentTo?.startsWith('#') ? parentTo : parentTo ? `#${parentTo}` : undefined);
+    }
+
+    private applyPictureQualities(elementId: string, qualities?: Qualities): void {
+        this.pulse(CssSignalType.APPLY, {
+            elementId,
+            qualities: this.resolveQualities(qualities),
+        });
+    }
+
+    private createImageAttributes(src?: string, alt?: string, loading?: string): Record<string, string> {
+        return {
+            src: src ?? '',
+            alt: alt ?? DEFAULT_ALT,
+            loading: loading ?? DEFAULT_LOADING,
+            width: DEFAULT_PICTURE_WIDTH,
+            height: DEFAULT_PICTURE_HEIGHT,
+        };
+    }
+
+    private dispatchPictureRender(elementId: string, container?: string, attributes?: Record<string, string>, context?: unknown): void {
         this.pulse(WebComponentSignalType.RENDER, {
             elementId,
             tag: 'img',
-            containerElement: targetContainer,
+            containerElement: container,
             attributes,
-            ...(context !== undefined && { context }),
+            ...(context !== undefined && {
+                context,
+            }),
+        });
+    }
+
+    private renderImageElement(elementId: string, container?: string, payload?: Body & { context?: unknown }): void {
+        const {
+            src,
+            alt,
+            loading,
+            context,
+        } = payload ?? {};
+        const attributes = this.createImageAttributes(src, alt, loading);
+        this.dispatchPictureRender(elementId, container, attributes, context);
+    }
+
+    private handleRender(value?: unknown): void {
+        const payload = (value ?? {}) as Body & { context?: unknown };
+        const {
+            elementId = this.id,
+            parentTo,
+            containerElement,
+            qualities,
+        } = payload;
+        const container = this.resolveTargetContainer(parentTo, containerElement);
+        this.applyPictureQualities(elementId, qualities);
+        this.renderImageElement(elementId, container, payload);
+    }
+
+    private createUpdateAttributes(src?: string, alt?: string, loading?: string): Record<string, string> {
+        return {
+            ...(src && {
+                src,
+            }),
+            ...(alt && {
+                alt,
+            }),
+            ...(loading && {
+                loading,
+            }),
+        };
+    }
+
+    private dispatchPictureUpdate(elementId: string, attributes?: Record<string, string>, context?: unknown): void {
+        this.pulse(WebComponentSignalType.UPDATE, {
+            elementId,
+            attributes,
+            ...(context !== undefined && {
+                context,
+            }),
         });
     }
 
     private handleUpdate(value?: unknown): void {
-        const { elementId = this.id, src, alt, loading, qualities, context } = (value ?? {}) as Body;
-        if (qualities) { this.pulse(CssSignalType.APPLY, { elementId, qualities }); }
-        const attributes = { ...(src && { src }), ...(alt && { alt }), ...(loading && { loading }) };
-        this.pulse(WebComponentSignalType.UPDATE, { elementId, attributes, context });
+        const {
+            elementId = this.id,
+            src,
+            alt,
+            loading,
+            qualities,
+            context,
+        } = (value ?? {}) as Body;
+        this.applyPictureQualities(elementId, qualities);
+        const attributes = this.createUpdateAttributes(src, alt, loading);
+        this.dispatchPictureUpdate(elementId, attributes, context);
     }
 
     private handleRemove(value?: unknown): void {
-        const { elementId = this.id, context } = (value ?? {}) as Body;
-        this.pulse(CssSignalType.REMOVE, { elementId });
-        this.pulse(WebComponentSignalType.REMOVE, { elementId, context });
-    }
-
-    private handleComponentRendered(value?: unknown): void {
-        const { elementId = this.id, tag, context } = (value ?? {}) as { elementId?: string; tag?: string; context?: unknown };
-        if (tag && tag !== 'img') { return; }
-        this.pulse(SignalType.CREATED, {
+        const {
+            elementId = this.id,
+            context,
+        } = (value ?? {}) as Body;
+        this.pulse(CssSignalType.REMOVE, {
             elementId,
-            detail: value,
-            ...(context !== undefined && { context }),
+        });
+        this.pulse(WebComponentSignalType.REMOVE, {
+            elementId,
+            ...(context !== undefined && {
+                context,
+            }),
         });
     }
 
+    private dispatchComponentRendered(elementId: string, value: unknown, context?: unknown): void {
+        this.pulse(SignalType.CREATED, {
+            elementId,
+            detail: value,
+            ...(context !== undefined && {
+                context,
+            }),
+        });
+    }
+
+    private handleComponentRendered(value?: unknown): void {
+        const {
+            elementId = this.id,
+            tag,
+            context,
+        } = (value ?? {}) as { elementId?: string; tag?: string; context?: unknown };
+        if (tag && tag !== 'img') {
+            return;
+        }
+        this.dispatchComponentRendered(elementId, value, context);
+    }
+
     private handleComponentUpdated(value?: unknown): void {
-        const { elementId = this.id } = (value ?? {}) as { elementId?: string };
-        this.pulse(SignalType.UPDATED, { elementId, detail: value });
+        const {
+            elementId = this.id,
+        } = (value ?? {}) as { elementId?: string };
+        this.pulse(SignalType.UPDATED, {
+            elementId,
+            detail: value,
+        });
     }
 
     private handleComponentRemoved(value?: unknown): void {
@@ -136,6 +260,7 @@ export class Picture extends Uca<Body> {
             }),
         });
     }
+
     private handleComponentError(signal: Signal): void {
         const {
             value,

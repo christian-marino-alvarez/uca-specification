@@ -39,6 +39,7 @@ import {
     DEFAULT_HOSTNAME,
     DEFAULT_PORT,
     DEFAULT_WEB_DIR,
+    MIME_MAP,
     WARMUP_CONTRACT,
 } from './constants.js';
 import {
@@ -226,6 +227,7 @@ export class Server extends Uca<Body> {
             console.log(`[BACKEND::LLM::RESPONSE] [${payload.correlationId}]`, { model: result.model });
             return Response.json(result);
         } catch (error) {
+            console.error(`[BACKEND::LLM::ERROR] [${payload.correlationId}]`, error);
             const { correlationId } = payload;
             return Response.json({ error: String(error), correlationId }, { status: 502 });
         }
@@ -334,15 +336,8 @@ export class Server extends Uca<Body> {
 
     private resolveMimeType(filePath: string): string {
         const extension = path.extname(filePath).toLowerCase();
-        const mimeMap: Record<string, string> = {
-            '.html': 'text/html; charset=utf-8',
-            '.js': 'application/javascript; charset=utf-8',
-            '.css': 'text/css; charset=utf-8',
-            '.json': 'application/json; charset=utf-8',
-            '.svg': 'image/svg+xml',
-            '.png': 'image/png',
-        };
-        return mimeMap[extension] ?? 'application/octet-stream';
+        return MIME_MAP[extension] ?? 'application/octet-stream';
     }
 }
+
 

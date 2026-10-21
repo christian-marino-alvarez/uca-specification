@@ -44,6 +44,8 @@ import {
     type ValidationContext,
     type TransportContext,
     type AbortPayload,
+    type ChosenModelConfig,
+    type ThinkingLevel,
     DataType,
     SignalType,
 } from './types.js';
@@ -320,8 +322,9 @@ export class Llm extends Uca<Body> {
     }
 
     private mapCandidateOption(item: typeof AVAILABLE_MODELS[number]): Record<string, unknown> {
-        const { id, label, description, criteria } = item;
-        return { id, label, description, criteria };
+        const { id, label, description, criteria, imagination, limit } = item;
+        const configSummary = `[config: imagination=${imagination}, limit=${limit}]`;
+        return { id, label, description: `${description} ${configSummary}`, criteria };
     }
 
     private buildModelSelectionQuestion(payload: InferPayload): Record<string, unknown> {
@@ -329,7 +332,7 @@ export class Llm extends Uca<Body> {
         return {
             id: 'model_selection',
             type: 'choice',
-            prompt: 'Select optimal model according to purpose, intention, and context',
+            prompt: 'Select optimal model and configuration profile according to purpose, intention, and context',
             options,
         };
     }
@@ -373,20 +376,27 @@ export class Llm extends Uca<Body> {
         });
     }
 
-    private resolveChosenModel(choice: string): { provider: ProviderType; model: string; transport: 'batch' | 'stream' } {
+    private extractModelConfig(candidate: typeof AVAILABLE_MODELS[number]): ChosenModelConfig {
+        const { provider, model, transport, imagination, limit } = candidate;
+        const thinkingBudget = 'thinkingBudget' in candidate ? (candidate.thinkingBudget as number) : undefined;
+        const thinkingLevel = 'thinkingLevel' in candidate ? (candidate.thinkingLevel as ThinkingLevel) : undefined;
+        return {
+            provider: provider as ProviderType,
+            model,
+            transport,
+            imagination,
+            limit,
+            ...(thinkingBudget !== undefined && { thinkingBudget }),
+            ...(thinkingLevel !== undefined && { thinkingLevel }),
+        };
+    }
+
+    private resolveChosenModel(choice: string): ChosenModelConfig {
         const candidate = AVAILABLE_MODELS.find(({ id }) => id === choice);
         if (candidate) {
-            return {
-                provider: candidate.provider as ProviderType,
-                model: candidate.model,
-                transport: candidate.transport,
-            };
+            return this.extractModelConfig(candidate);
         }
-        return {
-            provider: DEFAULT_PROVIDER as ProviderType,
-            model: DEFAULT_GEMINI_FLASH_LITE_MODEL,
-            transport: 'batch',
-        };
+        return { provider: DEFAULT_PROVIDER as ProviderType, model: DEFAULT_GEMINI_FLASH_LITE_MODEL, transport: 'batch' };
     }
 
     private handleDecisionDecided(signal: Signal): void {
@@ -401,7 +411,7 @@ export class Llm extends Uca<Body> {
         this.dispatchDecisionChoice(originalPayload, modelConfig, correlationId, replyTo);
     }
 
-    private dispatchDecisionChoice(payload: InferPayload, config: { provider: ProviderType; model: string; transport: 'batch' | 'stream' }, correlationId: string, replyTo?: string): void {
+    private dispatchDecisionChoice(payload: InferPayload, config: ChosenModelConfig, correlationId: string, replyTo?: string): void {
         const operation = config.transport === 'stream' ? SignalType.STREAM : SignalType.INFER;
         if (operation === SignalType.STREAM) {
             console.log('[LLM::STREAMING::START]', { correlationId, model: config.model, transport: 'stream' });

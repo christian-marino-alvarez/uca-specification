@@ -4,7 +4,7 @@ import { WebComponent } from '@uca/capability-web-component';
 import { SignalType as WebComponentSignalType } from '@uca/capability-web-component/types';
 import { Css } from '@uca/capability-css';
 import { SignalType as CssSignalType, ControlType } from '@uca/capability-css/types';
-import { __ID__, DEFAULT_EVENTS, DEFAULT_TAG, DEFAULT_TYPE, buildActionAttributes, resolveContainerSelector } from './constants.js';
+import { __ID__, DEFAULT_EVENTS, DEFAULT_QUALITIES, DEFAULT_TAG, DEFAULT_TYPE, buildActionAttributes, resolveContainerSelector } from './constants.js';
 import { type Body, type EventContext, DataType, SignalType } from './types.js';
 
 export class Action extends Uca<Body> {
@@ -88,7 +88,8 @@ export class Action extends Uca<Body> {
         const { elementId = this.id, parentTo, containerElement, label, content, qualities, events = [...DEFAULT_EVENTS], context } = payload;
         const targetContainer = resolveContainerSelector(containerElement, parentTo);
         const attributes = buildActionAttributes(payload, DEFAULT_TYPE);
-        this.pulse(CssSignalType.APPLY, { elementId, qualities: qualities ?? {}, control: ControlType.ACTION });
+        const resolvedQualities = { ...DEFAULT_QUALITIES, ...qualities };
+        this.pulse(CssSignalType.APPLY, { elementId, qualities: resolvedQualities, control: ControlType.ACTION });
         this.pulse(WebComponentSignalType.RENDER, { elementId, tag: DEFAULT_TAG, containerElement: targetContainer, attributes, content: label ?? content, events, context });
     }
 
@@ -96,7 +97,8 @@ export class Action extends Uca<Body> {
         const payload = (value ?? {}) as Body & { context?: unknown };
         const { elementId = this.id, label, content, qualities, events, context } = payload;
         const attributes = buildActionAttributes(payload);
-        this.pulse(CssSignalType.APPLY, { elementId, qualities: qualities ?? {}, control: ControlType.ACTION });
+        const resolvedQualities = { ...DEFAULT_QUALITIES, ...qualities };
+        this.pulse(CssSignalType.APPLY, { elementId, qualities: resolvedQualities, control: ControlType.ACTION });
         this.pulse(WebComponentSignalType.UPDATE, { elementId, attributes, content: label ?? content, events, context });
     }
 

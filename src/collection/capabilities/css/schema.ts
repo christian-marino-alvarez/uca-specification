@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DESIGN_TOKENS, DIMENSION_PATTERN } from './constants.js';
+import { DESIGN_TOKENS } from './constants.js';
 import type { DesignToken } from './types.js';
 
 const tokenSchema = (group: Record<string, unknown>, description: string) => {
@@ -12,8 +12,13 @@ const tokenSchema = (group: Record<string, unknown>, description: string) => {
     });
     return z.enum(entries.map(([name]) => name)).describe(`${description}. Tokens: ${meanings.join('; ')}.`);
 };
-export const dimensionSchema = z.union([tokenSchema(DESIGN_TOKENS.dimensions, 'Explicit size; screen uses viewport width for width constraints and viewport height for height constraints'), z.string().regex(DIMENSION_PATTERN)]);
-const maximumDimensionSchema = z.union([tokenSchema(Object.fromEntries(Object.entries(DESIGN_TOKENS.dimensions).filter(([name]) => name !== 'auto')), 'Maximum size; screen means viewport width'), z.string().regex(DIMENSION_PATTERN)]);
+export const dimensionSchema = tokenSchema(DESIGN_TOKENS.dimensions, 'Abstract size token');
+const maximumDimensionSchema = tokenSchema(
+    Object.fromEntries(
+        Object.entries(DESIGN_TOKENS.dimensions).filter(([name]) => name !== 'auto'),
+    ),
+    'Abstract maximum size token',
+);
 
 export const designTokenSchema = z.object({
     $value: z.unknown(),
@@ -43,11 +48,12 @@ export const qualitiesSchema = z.object({
     elevation: tokenSchema(DESIGN_TOKENS.elevation, 'Box shadow').optional(),
     radius: tokenSchema(DESIGN_TOKENS.radius, 'Corner radius').optional(),
     border: tokenSchema(DESIGN_TOKENS.border, 'Border around this element').optional(),
-    direction: tokenSchema(DESIGN_TOKENS.direction, 'Enable flex layout and select its main axis').optional(),
-    alignment: tokenSchema(DESIGN_TOKENS.alignment, 'Enable flex layout; start and stretch affect the cross axis, center and end affect both axes, between affects the main axis; explicit distribution overrides its main-axis choice').optional(),
-    distribution: tokenSchema(DESIGN_TOKENS.distribution, 'Enable flex layout and distribute children on the main axis only; direction selects the axis').optional(),
-    wrap: tokenSchema(DESIGN_TOKENS.wrap, 'Enable flex layout and choose whether children may continue on additional lines').optional(),
-    custom: z.record(z.string(), z.string()).optional(),
+    direction: tokenSchema(DESIGN_TOKENS.direction, 'Enable flex layout and select its main axis (row, column)').optional(),
+    alignment: tokenSchema(DESIGN_TOKENS.alignment, 'Cross-axis item alignment (start, center, end, stretch, baseline)').optional(),
+    distribution: tokenSchema(DESIGN_TOKENS.distribution, 'Main-axis item distribution (start, center, end, between, around, evenly)').optional(),
+    wrap: tokenSchema(DESIGN_TOKENS.wrap, 'Flex wrap behavior (nowrap, wrap, reverse)').optional(),
+    flex: tokenSchema(DESIGN_TOKENS.flex, 'Flex sizing and grow/shrink behavior (none, initial, auto, fill, grow, shrink)').optional(),
+    overflow: tokenSchema(DESIGN_TOKENS.overflow, 'Container overflow containment (visible, hidden, auto, scroll)').optional(),
 });
 
 export const baseRulesSchema = z.object({

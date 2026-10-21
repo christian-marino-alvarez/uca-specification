@@ -71,6 +71,10 @@ export const bodySchema = z.object({
         z.string(),
         z.unknown(),
     ).optional(),
+    specification: z.record(
+        z.string(),
+        z.unknown(),
+    ).optional(),
 }).strict();
 
 export type NavigationParameter = z.infer<typeof navigationParameterSchema>;

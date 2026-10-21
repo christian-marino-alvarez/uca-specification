@@ -96,3 +96,29 @@ export interface LayoutContext {
     readonly correlationId: string;
     readonly context: Record<string, unknown>;
 }
+
+export interface RenderChannel {
+    readonly id: string;
+    readonly queue: unknown[];
+    isDraining: boolean;
+}
+
+export interface ComponentDef {
+    readonly id?: string;
+    readonly parentId?: string;
+    readonly component?: string;
+    readonly content?: string | null;
+    readonly text?: string | null;
+    readonly label?: string | null;
+    readonly title?: string | null;
+    readonly src?: string | null;
+    readonly qualities?: Record<string, unknown> | null;
+    readonly attributes?: Record<string, string> | null;
+}
+
+export interface VisualPrimitive {
+    readonly name: string;
+    readonly proposito: string;
+    readonly intencion: string;
+}
+

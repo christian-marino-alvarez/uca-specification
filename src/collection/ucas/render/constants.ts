@@ -1,6 +1,8 @@
 export const __ID__ = 'render';
 
 export const DEFAULT_CONTAINER = '#app';
+export const DEFAULT_CHANNEL = 'root';
+export const BATCH_SIZE = 4;
 export const DEFAULT_SKELETON_KIND = 'container';
 export const VIEWBOX_WIDTH = 800;
 

@@ -23,3 +23,14 @@ export const WARMUP_CONTRACT = {
     outputSchema: { type: 'object', properties: { ready: { type: 'boolean' } }, required: ['ready'], additionalProperties: false },
     contextSchema: { const: {} }, purpose: 'Prepare the inference service', goal: 'Confirm readiness', limits: {},
 } as const;
+
+export const MIME_MAP: Record<string, string> = {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'application/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
+    '.svg': 'image/svg+xml',
+    '.png': 'image/png',
+    '.md': 'text/markdown; charset=utf-8',
+};
+

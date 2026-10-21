@@ -3,34 +3,51 @@ export const __ID__ = 'app';
 export const DEFAULT_PAGE = 'presentation';
 
 export const DEFAULT_PURPOSE =
-    'Demostrar la Arquitectura Cognitiva Universal (UCA) mediante una experiencia web interactiva donde la interfaz emerge de forma armónica a través de percepción, decisión y acción reactiva';
+    'Constituir la manifestación viva y emergente de la Arquitectura Cognitiva Universal (UCA): una experiencia interactiva disruptiva donde la propia aplicación es la demostración en tiempo real de su propia arquitectura ontológica';
 
 export const DEFAULT_AIM_DESCRIPTION =
-    'Construir una página de presentación coherente y profesional estructurada en 4 secciones canónicas directas: 1) header (barra de navegación con el logo exclusivo de marca assets/uca-logo.svg, enlaces Arquitectura y Principios, y botón Explorar); 2) hero (sección principal con título "La interfaz emerge en conjunto", texto lead explicativo y botones de acción); 3) principles (sección del modelo con 3 tarjetas: Percibir, Decidir y Actuar); 4) footer (pie de página con metadatos y enlaces del sistema)';
+    'Materializar una aplicación interactiva que evite scrolls trabajando exclusivamente con el área y viewport disponibles (100dvh con contención estricta), concibiendo una experiencia viva y exploratoria donde la interacción misma explica y demuestra la Arquitectura Cognitiva Universal (UCA), constituyendo la propia aplicación una demo en vivo de lo que es UCA (ontología viva, inervación de capacidades y flujo reactivo sin estado mutable).';
 
 export const DEFAULT_AIM_BODY = {
     activePage: DEFAULT_PAGE,
 } as const;
 
-export const AREA_DECISION_OPTIONS = [
-    {
-        id: 'VIEW',
-        label: 'View',
-        description: 'Representación directa y autocontenida mediante componentes UCA',
-        criteria:
-            'Elegir VIEW para todas las secciones funcionales de la página (header, hero, principles, footer, etc.) donde los elementos visuales se componen directamente. Es la opción obligatoria para cualquier sección hija de app.',
-    },
+export const APP_DECISION_OPTIONS = [
     {
         id: 'LAYOUT',
         label: 'Layout',
-        description: 'Partición estructural en áreas específicas',
+        description: 'Estructuración espacial de la aplicación en áreas funcionales',
         criteria:
-            'Elegir LAYOUT únicamente para el contenedor raíz (#app) para estructurarlo en sus 4 secciones canónicas (header, hero, principles, footer).',
+            'Elegir LAYOUT para estructurar la aplicación en áreas funcionales principales (cabecera, navegación, espacio de trabajo, barra lateral, contenido y pie).',
+    },
+    {
+        id: 'VIEW',
+        label: 'View',
+        description: 'Composición directa unitaria sin áreas estructurales',
+        criteria:
+            'Elegir VIEW únicamente si la aplicación completa es una vista única, simple y sin partición de áreas estructurales.',
+    },
+] as const;
+
+export const AREA_DECISION_OPTIONS = [
+    {
+        id: 'LAYOUT',
+        label: 'Layout',
+        description: 'Subdivisión espacial en áreas funcionales internas',
+        criteria:
+            'Elegir LAYOUT exclusivamente cuando el área requiera una partición macro-espacial primaria (ejes estructurales entre barra lateral y cuerpo principal). Evitar en áreas que ya albergan un contenido funcional directo.',
+    },
+    {
+        id: 'VIEW',
+        label: 'View',
+        description: 'Composición directa de componentes visuales',
+        criteria:
+            'Elegir VIEW cuando el área ya tiene un propósito funcional directo que materializar mediante una composición visual rica de componentes (tarjetas de métricas, formularios, cuadros de mando, listados, barras de navegación o acciones).',
     },
 ] as const;
 
 export const ROOT_AREA_ID = 'app';
 
 export const DEFAULT_DESIGN_GUIDELINES =
-    'Design guidelines: Minimalist, modern pro UI. Brand Logo: use picture with src "assets/uca-logo.svg" and alt "UCA" ONLY in the navigation header, NEVER duplicate in other sections or cards. Containers: use box with direction (column/row), spacing (medium/large), gap (medium/large), surface (card/muted/dark/transparent), border (subtle), radius (large), elevation (card). Navigation: use action with surface (transparent/muted) or access with destination and label. Buttons: use action with surface (brand/muted), textColor (light), radius (medium), label or content. Headings: use heading with textSize (display/title/large), fontWeight (bold/semibold). Paragraphs: use paragraph with textColor (muted/light), textSize (medium). Always declare visual qualities.';
+    'Design guidelines (Universal Emergent & 2-Color Positive/Negative Viewport System): 1) Strict 2-Color Positive/Negative Palette: Exclusively two colors across the entire application: deep matte dark (#070A12) for all surfaces and backgrounds (negative), and blanco grisáceo (#e2e8f0, #cbd5e1, #94a3b8) for all texts, borders, controls, and active elements (positive). Strictly NO pure white (#ffffff), NO dark text on dark backgrounds, NO chromatic colors (no blues, oranges, reds, or yellows). Contrast is produced through opacity (e.g. #e2e8f0 for primary texts and brand actions, #94a3b8 for secondary texts, rgba(226, 232, 240, 0.12) for subtle borders and cards). 2) Zero Scroll & Flow Integrity: 100dvh strict containment without scrollbars. PROHIBITED: NEVER use "position: fixed" or "position: sticky". NEVER use "height: 100vh" on inner components. Rely strictly on natural flexbox flow ("direction", "alignment", "distribution", "wrap: nowrap"). 3) Area Structural Integrity: The root layout articulates cleanly into a top header (direction: row, height: auto), a central workspace row (direction: row, flex: 1, holding sidebar + interactive canvas side-by-side), and a compact footer (direction: row, height: auto). 4) Interactive Live UCA Demo: The UI serves as a live, interactive manifestation explaining the Universal Cognitive Architecture (UCA Core) itself: perception, decision, innervation, capabilities, and signals. 5) Controls & Cards: Buttons use surface "brand" (blanco grisáceo) with textColor "dark" (#070A12) for primary actions, or surface "transparent" with border "subtle" and textColor "light" for secondary actions. Cards use surface "card" (#0d111c) with border "subtle" and radius "large".';
 

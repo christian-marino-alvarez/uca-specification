@@ -189,3 +189,11 @@ Todo código producido en este repositorio debe respetar rigurosamente los sigui
 * No ejecutar validaciones automáticas previas por iniciativa propia, incluidas las de Core. La lectura de las reglas y del código necesaria para implementar sigue siendo obligatoria.
 * Una petición de implementar no autoriza por sí misma pruebas o revisiones. Las peticiones expresas de revisión o prueba se limitan al alcance indicado por el usuario.
 * Esta política sustituye cualquier obligación anterior de ejecutar validaciones antes o después de modificar el repositorio. No altera las validaciones de datos que forman parte del funcionamiento de la aplicación.
+
+---
+
+## 6. Análisis Rápidos, Concisos y Foco en la Petición
+
+* **Análisis Rápidos y No Extensos**: Las explicaciones, análisis de errores y respuestas deben ir directamente al grano, ser concisas y concretas.
+* **Prohibido Reinspeccionar Masivamente el Repositorio**: No releer ni buscar en todos los ficheros repetidamente cuando el contexto o los logs ya proporcionan la información necesaria. Limitarse al punto exacto del problema reportado por el usuario.
+

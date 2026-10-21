@@ -11,13 +11,14 @@
 
 export const BRAND_ASSETS = {
   logo: {
-    symbolSvg: `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M8 6V18C8 22.4183 11.5817 26 16 26C20.4183 26 24 22.4183 24 18V6" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
-</svg>`,
-    wordmarkSvg: `<svg viewBox="0 0 100 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M4 3V16C4 21.5228 8.47715 26 14 26C19.5228 26 24 21.5228 24 16V3H19.5V16C19.5 19.0376 17.0376 21.5 14 21.5C10.9624 21.5 8.5 19.0376 8.5 16V3H4Z" fill="currentColor"/>
-  <path d="M54 9C52.5 5 48.5 3 43.5 3C36.0442 3 30 9.04416 30 16.5C30 23.9558 36.0442 30 43.5 30C48.5 30 52.5 28 54 24H48.5C47.2 25.5 45.5 26 43.5 26C38.2533 26 34.5 21.7467 34.5 16.5C34.5 11.2533 38.2533 7 43.5 7C45.5 7 47.2 7.5 48.5 9H54Z" fill="currentColor"/>
-  <path d="M74 3L62 26H67L69.5 21H78.5L81 26H86L74 3ZM74 12L76.8 17.5H71.2L74 12Z" fill="currentColor"/>
+    symbolSvg: `<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="32" cy="32" r="28" stroke="#6366f1" stroke-width="1" stroke-dasharray="3 4" opacity="0.25"/>
+  <path d="M18 16V34C18 41.732 24.268 48 32 48C39.732 48 46 41.732 46 34V16" stroke="#38bdf8" stroke-width="4" stroke-linecap="round"/>
+  <polygon points="32,20 41,30 32,40 23,30" fill="#6366f1"/>
+  <circle cx="32" cy="30" r="2.5" fill="#ffffff"/>
+  <circle cx="18" cy="16" r="3.5" fill="#38bdf8"/>
+  <circle cx="46" cy="16" r="3.5" fill="#a855f7"/>
+  <circle cx="32" cy="48" r="3" fill="#6366f1"/>
 </svg>`,
   },
 } as const;

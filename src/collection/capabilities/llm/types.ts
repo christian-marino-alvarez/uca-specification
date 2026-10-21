@@ -1,5 +1,16 @@
-import type { InferPayload } from './schema.js';
-export type { Contract, InferPayload, ProviderType } from './schema.js';
+import type {
+    Contract,
+    InferPayload,
+    ProviderType,
+    ThinkingLevel,
+} from './schema.js';
+
+export type {
+    Contract,
+    InferPayload,
+    ProviderType,
+    ThinkingLevel,
+};
 
 export enum SignalType {
     INFER = 'llm.infer',
@@ -98,3 +109,13 @@ export interface RepairFailure {
 }
 
 export interface TransportContext extends InferPayload { readonly replyTo?: string; }
+
+export interface ChosenModelConfig {
+    readonly provider: ProviderType;
+    readonly model: string;
+    readonly transport: 'batch' | 'stream';
+    readonly imagination?: number;
+    readonly limit?: number;
+    readonly thinkingBudget?: number;
+    readonly thinkingLevel?: ThinkingLevel;
+}

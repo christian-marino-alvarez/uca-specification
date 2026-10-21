@@ -1,5 +1,5 @@
 {
-  "name": "@uca/builder",
+  "name": "@uca/layout",
   "version": "0.1.0",
   "type": "module",
   "main": "./index.js",
@@ -42,27 +42,11 @@
     }
   },
   "dependencies": {
-    "@uca/capability-css": "^0.1.0",
     "@uca/capability-stream-transformer": "^0.1.0",
     "@uca/core": "^0.1.0",
     "@uca/decision": "^0.1.0",
     "@uca/llm": "^0.1.0",
     "@uca/render": "^0.1.0",
-    "zod": "^4.6.5",
-    "@uca/heading": "^0.1.0",
-    "@uca/paragraph": "^0.1.0",
-    "@uca/access": "^0.1.0",
-    "@uca/choice": "^0.1.0",
-    "@uca/toggle": "^0.1.0",
-    "@uca/range": "^0.1.0",
-    "@uca/quantity": "^0.1.0",
-    "@uca/moment": "^0.1.0",
-    "@uca/symbol": "^0.1.0",
-    "@uca/status": "^0.1.0",
-    "@uca/progress": "^0.1.0",
-    "@uca/separator": "^0.1.0"
-  },
-  "scripts": {
-    "test": "tsx tests/index.ts"
+    "zod": "^4.6.5"
   }
 }

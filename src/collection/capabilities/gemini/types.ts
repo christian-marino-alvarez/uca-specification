@@ -108,3 +108,17 @@ export interface AbortPayload {
 }
 
 export type StreamIterator = AsyncIterator<{ text?: string }>;
+
+export interface ApiFailure {
+    readonly message?: string;
+    readonly status?: number;
+}
+
+export interface Failure {
+    readonly error: string;
+    readonly status?: number;
+    readonly model: string;
+    readonly configuration: string;
+    readonly schemaSize: number;
+    readonly correlationId?: string;
+}

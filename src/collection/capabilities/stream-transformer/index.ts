@@ -121,43 +121,7 @@ export class StreamTransformer extends Capability<Body> {
         const { sessionId } = session;
         this.sessions.set(sessionId, session);
         const stream = createPipeline({ ...payload, schema }, session, (fields, resolution) => this.request(fields, resolution), (error) => this.finishSession(sessionId, error));
-        const [streamForPulse, streamForPump] = stream.tee();
-        this.pulse(SignalType.TRANSFORMED, { correlationId, streamId, context, stream: streamForPulse });
-        void this.pumpPipelineEvents(streamForPump, correlationId, streamId, context);
-    }
-
-    private async pumpPipelineEvents(
-        stream: ReadableStream<Record<string, unknown>>,
-        correlationId?: string,
-        streamId?: string,
-        context?: unknown,
-    ): Promise<void> {
-        const reader = stream.getReader();
-        const items: Record<string, unknown>[] = [];
-        try {
-            await this.readAndPulseChunks(reader, items, correlationId, streamId, context);
-            this.pulse(SignalType.COMPLETE, { correlationId, streamId, context, total: items.length, items });
-        } catch (error) {
-            this.pulse(SignalType.ERROR, { correlationId, streamId, context, error });
-        }
-    }
-
-    private async readAndPulseChunks(
-        reader: ReadableStreamDefaultReader<Record<string, unknown>>,
-        items: Record<string, unknown>[],
-        correlationId?: string,
-        streamId?: string,
-        context?: unknown,
-    ): Promise<void> {
-        let index = 0;
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) {
-                break;
-            }
-            items.push(value);
-            this.pulse(SignalType.CHUNK, { correlationId, streamId, context, item: value, index: index++ });
-        }
+        this.pulse(SignalType.TRANSFORMED, { correlationId, streamId, context, stream });
     }
 
     private async handleRepair(payload: RepairPayload): Promise<void> {
