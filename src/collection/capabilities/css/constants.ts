@@ -244,24 +244,84 @@ export const DIMENSION_PROPERTIES = [
     ['minHeight', 'min-height', '100vh'],
 ] as const satisfies readonly DimensionProperty[];
 
-export const BASE_RULES = { 'box-sizing': 'border-box' } as const;
-export const CONTAINER_RULES = {
+export const BASE_RULES = {
     'box-sizing': 'border-box',
 } as const;
+
+export const CONTAINER_RULES = {
+    'box-sizing': 'border-box',
+    display: 'block',
+} as const;
+
 export const MEDIA_RULES = {
     'max-width': '100%',
     height: 'auto',
     display: 'block',
 } as const;
+
 export const CONTROL_INHERITANCE_RULES = {
     font: 'inherit',
+    'font-size': 'inherit',
+    'font-family': 'inherit',
+    'font-weight': 'inherit',
+    'line-height': 'inherit',
     color: 'inherit',
     background: 'transparent',
     border: 'none',
     padding: '0',
     margin: '0',
     'text-decoration': 'none',
+    width: '100%',
+    height: '100%',
+    outline: 'none',
+    'box-sizing': 'border-box',
 } as const;
+
+export const HEADING_RULES = {
+    margin: '0',
+    font: 'inherit',
+    'font-size': 'inherit',
+    'font-weight': 'inherit',
+    'line-height': 'inherit',
+    color: 'inherit',
+} as const;
+
+export const SEPARATOR_RULES = {
+    border: 'none',
+    margin: '0',
+    padding: '0',
+    width: '100%',
+    height: '100%',
+    background: 'currentColor',
+} as const;
+
+export const PICTURE_RULES = {
+    width: '100%',
+    height: '100%',
+    'object-fit': 'cover',
+    display: 'block',
+} as const;
+
+export const UCA_ELEMENTS = [
+    'ext-uca',
+    'ext-uca-app',
+    'ext-uca-layout',
+    'ext-uca-view',
+    'ext-uca-box',
+    'ext-uca-heading',
+    'ext-uca-paragraph',
+    'ext-uca-picture',
+    'ext-uca-action',
+    'ext-uca-input',
+    'ext-uca-separator',
+    'ext-uca-progress',
+    'ext-uca-list',
+    '[id^="ext-uca"]',
+    '[class*="ext-uca"]',
+] as const;
+
+export const UCA_ELEMENTS_SELECTOR = UCA_ELEMENTS.join(', ');
+
 export const IDENTIFIED_DESCENDANT_SELECTOR = '[id]';
 
 export const GRID_EXCLUDED_QUALITIES = [
@@ -272,15 +332,22 @@ export const GRID_EXCLUDED_QUALITIES = [
 export const formatDeclarations = (declarations: Record<string, string>): string =>
     Object.entries(declarations).map(([property, value]) => `${property}: ${value};`).join(' ');
 
+export const BASE_STYLESHEET_RULES = [
+    `*, *::before, *::after { ${formatDeclarations(BASE_RULES)} }`,
+    'html, body { min-block-size: 100%; margin: 0; }',
+    'body { min-block-size: 100vh; }',
+    'h1, h2, h3, h4, h5, h6, p, ul, ol, menu, figure, blockquote { margin: 0; }',
+    'ul, ol, menu { padding: 0; list-style: none; }',
+    `${UCA_ELEMENTS_SELECTOR} { ${formatDeclarations(CONTAINER_RULES)} }`,
+    `img, svg, video, canvas { ${formatDeclarations(MEDIA_RULES)} }`,
+    `ext-uca-picture > img { ${formatDeclarations(PICTURE_RULES)} }`,
+    `ext-uca-heading > :is(h1, h2, h3, h4, h5, h6) { ${formatDeclarations(HEADING_RULES)} }`,
+    `ext-uca-separator > hr { ${formatDeclarations(SEPARATOR_RULES)} }`,
+    `input, button, select, textarea, a { ${formatDeclarations(CONTROL_INHERITANCE_RULES)} }`,
+] as const;
+
 export const generateBaseRulesCss = (): string =>
-    `*, *::before, *::after { ${formatDeclarations(BASE_RULES)} } ` +
-    `html, body { min-block-size: 100%; margin: 0; } ` +
-    `body { min-block-size: 100vh; } ` +
-    `h1, h2, h3, h4, h5, h6, p, ul, ol, menu, figure, blockquote { margin: 0; } ` +
-    `ul, ol, menu { padding: 0; list-style: none; } ` +
-    `ext-uca, [id^="ext-uca"], [class*="ext-uca"] { ${formatDeclarations(CONTAINER_RULES)} } ` +
-    `img, svg, video, canvas { ${formatDeclarations(MEDIA_RULES)} } ` +
-    `input, button, select, textarea, a { ${formatDeclarations(CONTROL_INHERITANCE_RULES)} }`;
+    BASE_STYLESHEET_RULES.join(' ');
 
 export const ACCESSIBLE_CONTROL_STATES = [
     { suffix: ':focus-visible', declarations: { outline: 'auto' } },

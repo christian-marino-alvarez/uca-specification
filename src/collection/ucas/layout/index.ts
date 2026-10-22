@@ -431,14 +431,7 @@ export class Layout extends Uca<Body> {
         };
     }
 
-    private logArea(area: Area, correlationId: string, context: Record<string, unknown>): void {
-        const title = `%c🏛️ [LAYOUT::AREA_DEFINED] %c${area.id}%c (parent: ${area.parentId ?? 'body'})`;
-        console.log(title, 'color: #00B4D8; font-weight: bold;', 'color: #10B981; font-weight: bold;', 'color: #888;', {
-            area,
-            correlationId,
-            context,
-        });
-    }
+
 
     private pulseAreaDefined(area: Area, context: Record<string, unknown>, correlationId: string): void {
         this.pulse(SignalType.AREA_DEFINED, {
@@ -489,7 +482,6 @@ export class Layout extends Uca<Body> {
 
     private dispatchNewArea(concept: AreaConcept, context: Record<string, unknown>, correlationId: string, currentAreaId?: string): void {
         const area = this.buildAreaFromConcept(concept, currentAreaId, context);
-        this.logArea(area, correlationId, context);
         this.pulseAreaDefined(area, context, correlationId);
         this.dispatchAreaBox(area, context, correlationId);
     }
@@ -610,13 +602,7 @@ export class Layout extends Uca<Body> {
         this.handleLayoutInferred(result);
     }
 
-    private handleLlmStreaming(signal: Signal): void {
-        const {
-            correlationId,
-            model,
-        } = (signal.value ?? {}) as { correlationId?: string; model?: string };
-        console.log('[LAYOUT::STREAM::START]', { correlationId, model });
-    }
+    private handleLlmStreaming(_signal: Signal): void {}
 
     private buildTransformPayload(result: StreamResult): Record<string, unknown> {
         const {
@@ -642,13 +628,7 @@ export class Layout extends Uca<Body> {
         this.pulse(StreamTransformerSignalType.TRANSFORM, this.buildTransformPayload(result));
     }
 
-    private handleLlmStreamEnd(signal: Signal): void {
-        const {
-            correlationId,
-            model,
-        } = (signal.value ?? {}) as { correlationId?: string; model?: string };
-        console.log('[LAYOUT::STREAM::END]', { correlationId, model });
-    }
+    private handleLlmStreamEnd(_signal: Signal): void {}
 
     private extractTransformedPayload(signal: Signal): StreamTransformerResult {
         const {
@@ -701,22 +681,11 @@ export class Layout extends Uca<Body> {
         context?: Record<string, unknown>,
         correlationId?: string,
     ): void {
-        this.logStreamChunk(item, correlationId);
         const cid = correlationId ?? crypto.randomUUID();
         const body = (context?.body ?? {}) as LayoutBody;
         const inherited = (body ?? {}) as Record<string, unknown>;
         const currentAreaId = (context?.areaId as string) ?? body?.area?.id;
         this.emitArea(item as unknown as AreaConcept, inherited, cid, currentAreaId);
-    }
-
-    private logStreamChunk(
-        item: Record<string, unknown>,
-        correlationId?: string,
-    ): void {
-        console.log('%c🌊 [LAYOUT::STREAM::CHUNK]', 'color: #00B4D8; font-weight: bold;', {
-            correlationId,
-            item,
-        });
     }
 
     private handleStreamTransformerRecover(signal: Signal): void {
@@ -751,20 +720,6 @@ export class Layout extends Uca<Body> {
         });
     }
 
-    private logAreaCreated(elementId: string, correlationId?: string): void {
-        console.log(`%c📦 [LAYOUT::AREA_CREATED] %c${elementId}%c Contenedor montado en DOM`, 'color: #00B4D8; font-weight: bold;', 'color: #10B981; font-weight: bold;', 'color: #888;', {
-            elementId,
-            correlationId,
-        });
-    }
-
-    private logViewCreated(areaId: string, correlationId?: string): void {
-        console.log(`%c👁️ [LAYOUT::VIEW_CREATED] %c${areaId}%c Vista completada`, 'color: #00B4D8; font-weight: bold;', 'color: #F6E05E; font-weight: bold;', 'color: #888;', {
-            areaId,
-            correlationId,
-        });
-    }
-
     private clearParentSkeleton(area?: Area): void {
         const parentId = area?.parentId ?? ROOT_AREA_ID;
         this.removeAreaSkeleton(parentId);
@@ -778,16 +733,13 @@ export class Layout extends Uca<Body> {
         const payload = (rawContext ?? {}) as AreaDefined;
         this.clearParentSkeleton(payload.area);
         this.showAreaSkeleton(elementId);
-        this.logAreaCreated(elementId, payload.correlationId);
         this.pulse(SignalType.AREA_CREATED, payload);
     }
 
     private handleViewCreated(signal: Signal): void {
         const {
             areaId = 'body',
-            correlationId,
         } = (signal.value ?? {}) as { areaId?: string; correlationId?: string };
         this.removeAreaSkeleton(areaId);
-        this.logViewCreated(areaId, correlationId);
     }
 }

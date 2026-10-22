@@ -301,7 +301,6 @@ export class View extends Uca<Body> {
 
     private dispatchLlmInfer(payload: BuildPayload, correlationId: string): void {
         const inferPayload = this.createInferRequest(payload, correlationId);
-        console.log('%c🎨 [VIEW::DESPACHO::INFERENCIA]', 'color: #9B5DE5; font-weight: bold;', inferPayload);
         this.pulse(LlmSignalType.INFER, inferPayload);
     }
 
@@ -374,16 +373,7 @@ export class View extends Uca<Body> {
         this.handleViewInferred(result);
     }
 
-    private handleLlmStreaming(signal: Signal): void {
-        const {
-            correlationId,
-            model,
-        } = (signal.value ?? {}) as { correlationId?: string; model?: string };
-        console.log('%c🎨 [VIEW::STREAM::INICIO]', 'color: #9B5DE5; font-weight: bold;', {
-            correlationId,
-            model,
-        });
-    }
+    private handleLlmStreaming(_signal: Signal): void {}
 
     private buildTransformPayload(result: StreamResult): Record<string, unknown> {
         const {
@@ -409,16 +399,7 @@ export class View extends Uca<Body> {
         this.pulse(StreamTransformerSignalType.TRANSFORM, this.buildTransformPayload(result));
     }
 
-    private handleLlmStreamEnd(signal: Signal): void {
-        const {
-            correlationId,
-            model,
-        } = (signal.value ?? {}) as { correlationId?: string; model?: string };
-        console.log('%c🎨 [VIEW::STREAM::FIN]', 'color: #9B5DE5; font-weight: bold;', {
-            correlationId,
-            model,
-        });
-    }
+    private handleLlmStreamEnd(_signal: Signal): void {}
 
     private extractTransformedPayload(signal: Signal): StreamTransformerResult {
         const {
@@ -469,28 +450,13 @@ export class View extends Uca<Body> {
         });
     }
 
-    private logComponent(
-        item: Record<string, unknown>,
-        correlationId?: string,
-        areaId?: string,
-    ): void {
-        const componentId = (item.id as string) ?? (item.component as string) ?? 'box';
-        const title = `%c🎨 [VIEW::COMPONENTE_DEFINIDO] %c${componentId}%c (área: ${areaId ?? 'body'})`;
-        console.log(title, 'color: #9B5DE5; font-weight: bold;', 'color: #F6E05E; font-weight: bold;', 'color: #888;', {
-            item,
-            areaId,
-            correlationId,
-        });
-    }
-
     private handleStreamChunk(
         item: Record<string, unknown>,
         context?: Record<string, unknown>,
-        correlationId?: string,
+        _correlationId?: string,
     ): void {
         const areaId = (context?.areaId as string) ?? 'main';
         const body = (context?.body ?? {}) as Record<string, unknown>;
-        this.logComponent(item, correlationId, areaId);
         this.dispatchRender([item], body, areaId);
     }
 

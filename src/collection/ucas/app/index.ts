@@ -22,6 +22,7 @@ import { Specification } from '@uca/capability-specification';
 import {
     SignalType as SpecificationSignalType,
 } from '@uca/capability-specification/types';
+import { Telemetry } from '@uca/capability-telemetry';
 import { Uca } from '@uca/core/uca';
 import {
     DispositionSignal,
@@ -79,6 +80,7 @@ export class App extends Uca<Body> {
             ...App.reactToView(),
             ...App.reactToMemory(),
             ...App.reactToSpecification(),
+            ...App.reactToTelemetry(),
         ],
         inputs: [
             {
@@ -213,6 +215,15 @@ export class App extends Uca<Body> {
         ];
     }
 
+    private static reactToTelemetry(): string[] {
+        const {
+            reactTo = [],
+        } = Telemetry.disposition;
+        return [
+            ...reactTo,
+        ];
+    }
+
     public constructor(id: string = __ID__) {
         super(id);
     }
@@ -227,6 +238,7 @@ export class App extends Uca<Body> {
             this.buildViewCooky(),
             this.buildMemoryCooky(),
             this.buildSpecificationCooky(),
+            this.buildTelemetryCooky(),
         ];
     }
 
@@ -417,10 +429,28 @@ export class App extends Uca<Body> {
         ];
     }
 
+    private buildTelemetryCooky(): [CapabilityConstructor, Disposition] {
+        const {
+            id,
+        } = this;
+        return [
+            Telemetry as unknown as CapabilityConstructor,
+            this.createTelemetryDisposition(`${id}:telemetry`),
+        ];
+    }
+
     private createSpecificationDisposition(id: string): Disposition {
         const aim = this.createAim(Specification.AIM, id);
         return {
             ...Specification.disposition,
+            aim,
+        };
+    }
+
+    private createTelemetryDisposition(id: string): Disposition {
+        const aim = this.createAim(Telemetry.AIM, id);
+        return {
+            ...Telemetry.disposition,
             aim,
         };
     }
