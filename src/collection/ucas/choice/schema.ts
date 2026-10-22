@@ -20,5 +20,13 @@ export const bodySchema = identitySchema.extend({
 });
 
 export const qualitiesSchema = identitySchema.shape.qualities;
+
+export const renderPayloadSchema = bodySchema.required({
+    items: true,
+}).extend({
+    items: z.array(itemSchema).min(1),
+});
+
 export type Qualities = z.infer<typeof qualitiesSchema>;
 export type Body = z.infer<typeof bodySchema>;
+export type RenderPayload = z.infer<typeof renderPayloadSchema>;

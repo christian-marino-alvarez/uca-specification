@@ -20,5 +20,15 @@ export const bodySchema = z.object({
     events: z.array(z.string()).optional(),
 });
 
+export const renderPayloadSchema = bodySchema.extend({
+    type: z.enum(['text', 'email', 'password', 'search', 'tel', 'url', 'number']).optional().default('text'),
+}).refine(
+    (data) => Boolean((data.name && data.name.trim().length > 0) || (data.placeholder && data.placeholder.trim().length > 0) || data.type),
+    {
+        message: 'Input requires a name, placeholder, or type',
+    },
+);
+
 export type Qualities = z.infer<typeof qualitiesSchema>;
 export type Body = z.infer<typeof bodySchema>;
+export type RenderPayload = z.infer<typeof renderPayloadSchema>;

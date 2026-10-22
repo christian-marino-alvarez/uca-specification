@@ -14,6 +14,10 @@ export const DEFAULT_OPENAI_MODEL = 'gpt-4o';
 export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
 export const DEFAULT_GEMINI_FLASH_MODEL = 'gemini-3.5-flash';
 export const DEFAULT_GEMINI_FLASH_LITE_MODEL = 'gemini-3.5-flash-lite';
+export const DEFAULT_GEMINI_2_5_FLASH_MODEL = 'gemini-2.5-flash';
+export const DEFAULT_GEMINI_2_5_FLASH_LITE_MODEL = 'gemini-2.5-flash-lite';
+export const DEFAULT_GEMINI_3_8_FLASH_MODEL = 'gemini-3.8-flash';
+export const DEFAULT_GEMINI_4_ARGON_MODEL = 'gemini-4-argon';
 export const DEFAULT_JEV_MODEL = 'jev-1.13.0';
 
 export const AVAILABLE_MODELS = [
@@ -27,6 +31,29 @@ export const AVAILABLE_MODELS = [
         transport: 'batch' as const,
         imagination: 0,
         limit: 1024,
+    },
+    {
+        id: 'gemini-2.5-flash',
+        label: 'gemini 2.5 flash',
+        description: 'High-speed balanced multimodal synthesis, structured reasoning, and responsive generation',
+        criteria: 'Choose gemini 2.5 flash for low-latency balanced reasoning, structural decomposition, and general component synthesis.',
+        provider: 'gemini' as const,
+        model: DEFAULT_GEMINI_2_5_FLASH_MODEL,
+        transport: 'stream' as const,
+        imagination: 0.7,
+        limit: 8192,
+        thinkingBudget: 0,
+    },
+    {
+        id: 'gemini-2.5-flash-lite',
+        label: 'gemini 2.5 flash lite',
+        description: 'Ultra low-latency lightweight single component synthesis and fast transactional responses',
+        criteria: 'Choose gemini 2.5 flash lite for instantaneous lightweight evaluations, single-property generations, and minimal overhead.',
+        provider: 'gemini' as const,
+        model: DEFAULT_GEMINI_2_5_FLASH_LITE_MODEL,
+        transport: 'batch' as const,
+        imagination: 0.3,
+        limit: 4096,
     },
     {
         id: 'gemini-3.5-flash',
@@ -50,6 +77,30 @@ export const AVAILABLE_MODELS = [
         transport: 'batch' as const,
         imagination: 0.4,
         limit: 4096,
+    },
+    {
+        id: 'gemini-3.8-flash',
+        label: 'gemini 3.8 flash',
+        description: 'Advanced multimodal and reasoning model with accelerated inference for complex layouts',
+        criteria: 'Choose gemini 3.8 flash for advanced spatial layouts, complex compositional synthesis, and high-accuracy structured specifications.',
+        provider: 'gemini' as const,
+        model: DEFAULT_GEMINI_3_8_FLASH_MODEL,
+        transport: 'stream' as const,
+        imagination: 0.85,
+        limit: 16384,
+        thinkingBudget: 0,
+    },
+    {
+        id: 'gemini-4-argon',
+        label: 'gemini 4 argon',
+        description: 'Next-generation frontier reasoning engine for deep cognitive planning and intricate multi-system orchestration',
+        criteria: 'Choose gemini 4 argon for complex architectural orchestrations, high-difficulty reasoning, and frontier creative/structural synthesis.',
+        provider: 'gemini' as const,
+        model: DEFAULT_GEMINI_4_ARGON_MODEL,
+        transport: 'stream' as const,
+        imagination: 0.9,
+        limit: 32768,
+        thinkingBudget: 0,
     },
 ] as const;
 

@@ -9,12 +9,12 @@ import { Css } from '@uca/capability-css';
 import { SignalType as CssSignalType } from '@uca/capability-css/types';
 import { stylePayload, cssDeclaration, presentationDeclaration, schemaDeclaration } from '../declaration.js';
 import { Operation, type Interaction, type Lifecycle } from '../types.js';
-import { bodySchema } from './schema.js';
+import { bodySchema, renderPayloadSchema } from './schema.js';
 import {
     __ID__,
     OPERATIONS,
-    INVALID_BOUNDS,
     ACCESS_VISUAL_DISPOSITION,
+    resolveAccessQualities,
 } from './constants.js';
 import { DataType, SignalType, type Body } from './types.js';
 
@@ -38,8 +38,8 @@ export class Access extends Uca<Body> {
         inputs: [
             {
                 signal: SignalType.RENDER,
-                type: DataType.BODY,
-                schema: bodySchema,
+                type: DataType.RENDER_PAYLOAD,
+                schema: renderPayloadSchema,
             },
             {
                 signal: SignalType.UPDATE,
@@ -173,7 +173,7 @@ export class Access extends Uca<Body> {
 
     private handleRender(value: unknown): void {
         this.pulse(SchemaSignalType.VALIDATE, {
-            schema: bodySchema,
+            schema: renderPayloadSchema,
             value: this.domainBody(value),
             context: Operation.RENDER,
         });
@@ -223,7 +223,14 @@ export class Access extends Uca<Body> {
         const {
             context: body,
         } = payload;
-        this.pulse(CssSignalType.APPLY, stylePayload(body));
+        const {
+            qualities,
+        } = body;
+        const resolved = {
+            ...body,
+            qualities: resolveAccessQualities(qualities),
+        };
+        this.pulse(CssSignalType.APPLY, stylePayload(resolved));
         this.pulse(SignalType.CREATED, body);
     }
 
@@ -231,7 +238,14 @@ export class Access extends Uca<Body> {
         const {
             context: body,
         } = payload;
-        this.pulse(CssSignalType.APPLY, stylePayload(body));
+        const {
+            qualities,
+        } = body;
+        const resolved = {
+            ...body,
+            qualities: resolveAccessQualities(qualities),
+        };
+        this.pulse(CssSignalType.APPLY, stylePayload(resolved));
         this.pulse(SignalType.UPDATED, body);
     }
 

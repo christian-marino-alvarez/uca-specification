@@ -16,6 +16,13 @@ export const componentItemSchema = z.object({
     title: z.string().describe('Título textual del componente').nullable().optional(),
     text: z.string().describe('Cuerpo de texto o contenido explicativo').nullable().optional(),
     src: z.string().describe('Ruta de imagen: únicamente assets/uca-logo.svg o assets/favicon.svg; no inventar rutas').nullable().optional(),
+    items: z.array(z.unknown()).describe('Elementos o alternativas para choice, options, dropdown, list o collection').nullable().optional(),
+    value: z.unknown().describe('Valor numérico, seleccionado o actual para range, quantity, status o progress').nullable().optional(),
+    minimum: z.number().describe('Límite inferior para range o quantity').nullable().optional(),
+    maximum: z.number().describe('Límite superior para range o quantity').nullable().optional(),
+    unit: z.string().describe('Unidad de medida para quantity').nullable().optional(),
+    step: z.number().describe('Paso de incremento para range o quantity').nullable().optional(),
+    disabled: z.boolean().describe('Estado deshabilitado').nullable().optional(),
     properties: z.record(
         z.string(),
         z.unknown(),
@@ -27,6 +34,7 @@ export const componentItemSchema = z.object({
             'Para heading (titulares): tipografía (textSize: "xlarge"|"large"|"medium", fontWeight: "bold"|"semibold", textColor: "light"|"brand", lineHeight: "tight"), separación (marginBlock: "small"|"none"), flex: "none". Prohibido ponerle surface o border de tarjeta. ' +
             'Para paragraph (textos): tipografía (textSize: "small"|"medium", textColor: "muted"|"light", lineHeight: "normal"), separación (marginBlock: "small"|"none"). ' +
             'Para action (botones): apariencia (surface: "brand"|"card"|"transparent", border: "subtle"|"none", radius: "medium"|"full"), respiración interna (spacingInline: "medium"|"large", spacingBlock: "small"), tipografía (textSize: "small", fontWeight: "medium", textColor: "dark"|"light"), flex: "none". ' +
+            'Para access (enlaces navegables): requiere text y destination obligatorios; respiración interna (spacingInline: "small", spacingBlock: "none"), tipografía (textColor: "accent", textSize: "small", fontWeight: "medium"). ' +
             'Para input (campos): dimensiones (width: "full", height: "medium"), respiración interna (spacingInline: "small", spacingBlock: "small"), apariencia (surface: "card", border: "subtle", radius: "medium", textColor: "light", textSize: "small"). ' +
             'Para picture (logos e iconos): dimensiones (width: "small"|"medium", height: "auto", maxWidth: "full"), forma (radius: "small"|"full"), flex: "none". Prohibido añadirle padding.'),
 });

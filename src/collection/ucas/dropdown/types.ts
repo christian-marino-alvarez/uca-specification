@@ -1,4 +1,13 @@
-export { type Body, type DropdownItem, type Qualities, bodySchema, dropdownItemSchema, qualitiesSchema } from './schema.js';
+export {
+    type Body,
+    type DropdownItem,
+    type Qualities,
+    type RenderPayload,
+    bodySchema,
+    dropdownItemSchema,
+    qualitiesSchema,
+    renderPayloadSchema,
+} from './schema.js';
 
 export enum SignalType {
     RENDER = 'dropdown.render',

@@ -25,6 +25,13 @@ export const bodySchema = z.object({
     events: z.array(z.string()).optional(),
 });
 
+export const renderPayloadSchema = bodySchema.required({
+    items: true,
+}).extend({
+    items: z.array(optionItemSchema).min(1),
+});
+
 export type OptionItem = z.infer<typeof optionItemSchema>;
 export type Qualities = z.infer<typeof qualitiesSchema>;
 export type Body = z.infer<typeof bodySchema>;
+export type RenderPayload = z.infer<typeof renderPayloadSchema>;

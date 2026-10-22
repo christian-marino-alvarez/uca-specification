@@ -8,5 +8,12 @@ export const bodySchema = identitySchema.extend({
     text: z.string().optional(),
 });
 
+export const renderPayloadSchema = bodySchema.required({
+    text: true,
+}).extend({
+    text: z.string().min(1),
+});
+
 export type Qualities = z.infer<typeof qualitiesSchema>;
 export type Body = z.infer<typeof bodySchema>;
+export type RenderPayload = z.infer<typeof renderPayloadSchema>;

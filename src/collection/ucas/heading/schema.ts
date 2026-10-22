@@ -9,6 +9,13 @@ export const bodySchema = identitySchema.extend({
     importance: z.number().int().min(1).max(6).optional(),
 });
 
+export const renderPayloadSchema = bodySchema.required({
+    text: true,
+}).extend({
+    text: z.string().min(1),
+});
+
 export type Qualities = z.infer<typeof qualitiesSchema>;
 export type Body = z.infer<typeof bodySchema>;
+export type RenderPayload = z.infer<typeof renderPayloadSchema>;
 

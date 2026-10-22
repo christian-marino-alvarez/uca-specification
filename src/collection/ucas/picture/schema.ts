@@ -7,13 +7,16 @@ export const bodySchema = z.object({
     elementId: z.string().optional(),
     parentTo: z.string().optional(),
     containerElement: z.string().optional(),
-    src: z.string().min(1).describe('Source URI or data URI of the image'),
-    alt: z.string().optional().describe('Alternative description for accessibility'),
+    src: z.string().min(1, 'Source URI or data URI is required').describe('Source URI or data URI of the image'),
+    alt: z.string().min(1, 'Alternative description is required').describe('Alternative description for accessibility'),
     loading: z.enum(['lazy', 'eager']).optional().describe('Native image loading strategy'),
     aspectRatio: z.string().optional().describe('Aspect ratio constraint'),
     qualities: qualitiesSchema,
     context: z.unknown().optional(),
-}).strict();
+});
+
+export const renderPayloadSchema = bodySchema;
 
 export type Qualities = z.infer<typeof qualitiesSchema>;
 export type Body = z.infer<typeof bodySchema>;
+export type RenderPayload = z.infer<typeof renderPayloadSchema>;

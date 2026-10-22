@@ -16,5 +16,13 @@ export const bodySchema = z.object({
     events: z.array(z.string()).optional(),
 });
 
+export const renderPayloadSchema = bodySchema.refine(
+    (data) => Boolean((data.label && data.label.trim().length > 0) || (data.content && data.content.trim().length > 0)),
+    {
+        message: 'Action requires a non-empty label or content',
+    },
+);
+
 export type Qualities = z.infer<typeof qualitiesSchema>;
 export type Body = z.infer<typeof bodySchema>;
+export type RenderPayload = z.infer<typeof renderPayloadSchema>;

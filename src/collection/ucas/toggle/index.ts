@@ -9,7 +9,7 @@ import { Css } from '@uca/capability-css';
 import { SignalType as CssSignalType } from '@uca/capability-css/types';
 import { stylePayload, cssDeclaration, presentationDeclaration, schemaDeclaration } from '../declaration.js';
 import { Operation, type Interaction, type Lifecycle } from '../types.js';
-import { bodySchema } from './schema.js';
+import { bodySchema, renderPayloadSchema } from './schema.js';
 import {
     __ID__,
     OPERATIONS,
@@ -38,8 +38,8 @@ export class Toggle extends Uca<Body> {
         inputs: [
             {
                 signal: SignalType.RENDER,
-                type: DataType.BODY,
-                schema: bodySchema,
+                type: DataType.RENDER_PAYLOAD,
+                schema: renderPayloadSchema,
             },
             {
                 signal: SignalType.UPDATE,
@@ -173,7 +173,7 @@ export class Toggle extends Uca<Body> {
 
     private handleRender(value: unknown): void {
         this.pulse(SchemaSignalType.VALIDATE, {
-            schema: bodySchema,
+            schema: renderPayloadSchema,
             value: this.domainBody(value),
             context: Operation.RENDER,
         });

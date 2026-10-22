@@ -2,6 +2,7 @@ export type {
     Body,
     ListItem,
     Qualities,
+    RenderPayload,
 } from './schema.js';
 
 export enum SignalType {

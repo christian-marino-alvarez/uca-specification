@@ -34,6 +34,14 @@ import { List } from '../list/index.js';
 import { SignalType as ListSignalType } from '../list/types.js';
 import { Toggle } from '@uca/toggle';
 import { SignalType as ToggleSignalType } from '@uca/toggle/types';
+import { Choice } from '@uca/choice';
+import { SignalType as ChoiceSignalType } from '@uca/choice/types';
+import { Range } from '@uca/range';
+import { SignalType as RangeSignalType } from '@uca/range/types';
+import { Quantity } from '@uca/quantity';
+import { SignalType as QuantitySignalType } from '@uca/quantity/types';
+import { Moment } from '@uca/moment';
+import { SignalType as MomentSignalType } from '@uca/moment/types';
 import {
     type Body,
     type ComponentDef,
@@ -101,6 +109,22 @@ const PRIMITIVE_UCAS = [
         name: 'toggle',
         uca: Toggle,
     },
+    {
+        name: 'choice',
+        uca: Choice,
+    },
+    {
+        name: 'range',
+        uca: Range,
+    },
+    {
+        name: 'quantity',
+        uca: Quantity,
+    },
+    {
+        name: 'moment',
+        uca: Moment,
+    },
 ] as const;
 
 
@@ -152,6 +176,10 @@ export class Render extends Uca<Body> {
             StatusSignalType.CREATED,
             ProgressSignalType.CREATED,
             ToggleSignalType.CREATED,
+            ChoiceSignalType.CREATED,
+            RangeSignalType.CREATED,
+            QuantitySignalType.CREATED,
+            MomentSignalType.CREATED,
         ];
     }
 
@@ -315,6 +343,18 @@ export class Render extends Uca<Body> {
             case ToggleSignalType.CREATED:
                 this.handleToggleCreated(value);
                 break;
+            case ChoiceSignalType.CREATED:
+                this.handleChoiceCreated(value);
+                break;
+            case RangeSignalType.CREATED:
+                this.handleRangeCreated(value);
+                break;
+            case QuantitySignalType.CREATED:
+                this.handleQuantityCreated(value);
+                break;
+            case MomentSignalType.CREATED:
+                this.handleMomentCreated(value);
+                break;
             case WebComponentSignalType.ERROR:
                 this.handleComponentError(value);
                 break;
@@ -377,6 +417,21 @@ export class Render extends Uca<Body> {
         this.handleComponentRendered(value);
     }
 
+    private handleChoiceCreated(value: unknown): void {
+        this.handleComponentRendered(value);
+    }
+
+    private handleRangeCreated(value: unknown): void {
+        this.handleComponentRendered(value);
+    }
+
+    private handleQuantityCreated(value: unknown): void {
+        this.handleComponentRendered(value);
+    }
+
+    private handleMomentCreated(value: unknown): void {
+        this.handleComponentRendered(value);
+    }
 
     private handleComponentRendered(value: unknown): void {
         // Confirmation received from primitive UCA or WebComponent
@@ -469,6 +524,14 @@ export class Render extends Uca<Body> {
                 return ProgressSignalType.RENDER;
             case 'toggle':
                 return ToggleSignalType.RENDER;
+            case 'choice':
+                return ChoiceSignalType.RENDER;
+            case 'range':
+                return RangeSignalType.RENDER;
+            case 'quantity':
+                return QuantitySignalType.RENDER;
+            case 'moment':
+                return MomentSignalType.RENDER;
             default:
                 return BoxSignalType.RENDER;
         }
@@ -490,6 +553,14 @@ export class Render extends Uca<Body> {
             title: item.title,
             src: item.src,
             qualities: item.qualities ?? undefined,
+            items: item.items ?? undefined,
+            value: item.value ?? undefined,
+            minimum: item.minimum ?? undefined,
+            maximum: item.maximum ?? undefined,
+            unit: item.unit ?? undefined,
+            step: item.step ?? undefined,
+            disabled: item.disabled ?? undefined,
+            ...item.properties,
         };
     }
 

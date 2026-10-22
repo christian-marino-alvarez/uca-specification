@@ -1,4 +1,4 @@
-export type { Body, Qualities } from './schema.js';
+export type { Body, Qualities, RenderPayload } from './schema.js';
 
 export enum SignalType {
     RENDER = 'access.render',
@@ -12,6 +12,7 @@ export enum SignalType {
 }
 
 export enum DataType {
+    RENDER_PAYLOAD = 'RenderPayload',
     BODY = 'Body',
     ERROR = 'Error',
 }

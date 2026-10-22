@@ -208,7 +208,7 @@ export class Gemini extends Capability<Body> {
         if (model.includes('lite')) {
             return undefined;
         }
-        if (model.startsWith(THINKING_LEVEL_MODEL_PREFIX)) {
+        if (model.includes('3.5')) {
             return { thinkingLevel: thinkingLevel ?? DEFAULT_THINKING_LEVEL };
         }
         if (thinkingBudget !== undefined) {

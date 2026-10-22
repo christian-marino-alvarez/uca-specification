@@ -21,6 +21,13 @@ export const bodySchema = z.object({
     context: z.unknown().optional(),
 }).strict();
 
+export const renderPayloadSchema = bodySchema.required({
+    items: true,
+}).extend({
+    items: z.array(z.union([z.string(), listItemSchema])).min(1),
+});
+
 export type Qualities = z.infer<typeof qualitiesSchema>;
 export type ListItem = z.infer<typeof listItemSchema>;
 export type Body = z.infer<typeof bodySchema>;
+export type RenderPayload = z.infer<typeof renderPayloadSchema>;

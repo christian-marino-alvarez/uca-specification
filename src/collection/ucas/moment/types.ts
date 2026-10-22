@@ -1,4 +1,11 @@
-export { type Body, type Qualities, bodySchema, qualitiesSchema } from './schema.js';
+export {
+    type Body,
+    type Qualities,
+    type RenderPayload,
+    bodySchema,
+    qualitiesSchema,
+    renderPayloadSchema,
+} from './schema.js';
 
 export enum SignalType {
     RENDER = 'moment.render',
@@ -13,5 +20,6 @@ export enum SignalType {
 
 export enum DataType {
     BODY = 'Body',
+    RENDER_PAYLOAD = 'RenderPayload',
     ERROR = 'Error',
 }

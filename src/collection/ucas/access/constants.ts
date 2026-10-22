@@ -22,6 +22,13 @@ export const DEFAULT_ACCESS_QUALITIES: Qualities = {
     spacingBlock: 'none',
 };
 
+export const resolveAccessQualities = (qualities?: Qualities): Qualities => {
+    return {
+        ...DEFAULT_ACCESS_QUALITIES,
+        ...qualities,
+    };
+};
+
 export const ACCESS_VISUAL_DISPOSITION = {
     role: 'navigation',
     defaultQualities: DEFAULT_ACCESS_QUALITIES,

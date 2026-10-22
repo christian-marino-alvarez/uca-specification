@@ -113,6 +113,14 @@ export interface ComponentDef {
     readonly title?: string | null;
     readonly src?: string | null;
     readonly qualities?: Record<string, unknown> | null;
+    readonly items?: unknown[] | null;
+    readonly value?: unknown | null;
+    readonly minimum?: number | null;
+    readonly maximum?: number | null;
+    readonly unit?: string | null;
+    readonly step?: number | null;
+    readonly disabled?: boolean | null;
+    readonly properties?: Record<string, unknown> | null;
 }
 
 export interface VisualPrimitive {

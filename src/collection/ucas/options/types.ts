@@ -1,4 +1,13 @@
-export { type Body, type OptionItem, type Qualities, bodySchema, optionItemSchema, qualitiesSchema } from './schema.js';
+export {
+    type Body,
+    type OptionItem,
+    type Qualities,
+    type RenderPayload,
+    bodySchema,
+    optionItemSchema,
+    qualitiesSchema,
+    renderPayloadSchema,
+} from './schema.js';
 
 export enum SignalType {
     RENDER = 'options.render',
