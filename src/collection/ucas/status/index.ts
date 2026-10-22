@@ -10,11 +10,18 @@ import { SignalType as CssSignalType } from '@uca/capability-css/types';
 import { stylePayload, cssDeclaration, presentationDeclaration, schemaDeclaration } from '../declaration.js';
 import { Operation, type Interaction, type Lifecycle } from '../types.js';
 import { bodySchema } from './schema.js';
-import { __ID__, OPERATIONS, INVALID_BOUNDS } from './constants.js';
+import {
+    __ID__,
+    OPERATIONS,
+    INVALID_BOUNDS,
+    STATUS_VISUAL_DISPOSITION,
+} from './constants.js';
 import { DataType, SignalType, type Body } from './types.js';
 
 export class Status extends Uca<Body> {
     public static override purpose = 'Communicate the current condition of an entity or operation';
+
+    public static readonly visualDisposition = STATUS_VISUAL_DISPOSITION;
 
     public static override disposition: Disposition<Body> = {
         aim: {

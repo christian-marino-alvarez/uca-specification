@@ -448,15 +448,21 @@ Primitive Capability
     │   ├── Function
     │   ├── Nature
     │   └── Value
+    │   └── ...
     │
-    └── reactTo (Observable sources to which the Capability reacts)
+    ├── reactTo (Observable sources to which the Capability reacts)
+    │
+    └── Ports (Formal interconnection ports)
+        ├── inputs (incoming signals, DataType, schema derived from Body)
+        └── outputs (emitted signals, DataType, schema derived from Body)
 ```
 
 In summary:
 - **Mechanism** = concrete internal procedure providing the functional capability.
 - **Definition** = self-describing constitution and parametrization of the Capability (how it is constituted and tuned).
 - **reactTo** = what it reacts to (determines the local reactive connection with other Capabilities or stimuli).
-- **Disposition** = `Definition` + `reactTo`.
+- **Ports** = formal input and output ports (`inputs` and `outputs`) with `DataType` types and `Body`-based validation schemas.
+- **Disposition** = `Definition` + `reactTo` + `Ports`.
 
 #### Definition of Mechanism
 
@@ -824,6 +830,17 @@ External Signal
 Therefore:
 - `Stimulus` operates at the **inter-UCA / exterior → UCA** level (external signal crossing the UCA boundary and triggering its reaction).
 - **Internal reactive signals (`reactTo`)** operate at the **intra-UCA / Capability → Capability** level (intermediate internal events or outcomes emitted within the unit to which local capabilities declared in the Disposition subscribe via `reactTo` to coordinate the emergent reactive process).
+
+#### Ontological Communication Contract: Signal, Body as Schema, and Continuous Disposition Update
+
+Communication between UCAs and their Capabilities is governed by three ontological invariants:
+
+1. **Nervous Channel `Signal`**:
+   All reactive communication travels structured via the primitive `Signal` (`source`, `property`, `value`). No direct imperative calls between units or opaque backchannels exist.
+2. **`Body` as Schema for `inputs` and `outputs`**:
+   The body contract (`Body`), formalized and validated using formal schemas (Zod), is the single source of truth and the structural schema for input ports (`inputs`) and output ports (`outputs`) declared in the `Disposition`. Each port formally specifies its signal (`signal`), its ontological type (`type: DataType`), its description, and its schema (`schema`). Data carried in `signal.value` or pulsed out strictly validates against this schema, eliminating untyped data and ad-hoc payloads.
+3. **Continuous Disposition Update in Communication**:
+   All inter-UCA communication, coordination, and propagation must always update and synchronize the receiver's `Disposition` (`aim.body`). The `Disposition` is the universal medium for ontological communication and persistence: information travels updating the disposition through Core's idempotent cycle (`Capability.updateEvent(id)`), triggering catalog synchronization (`syncCatalog`) without mutable private instance state.
 
 ---
 

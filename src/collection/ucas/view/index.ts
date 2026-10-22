@@ -7,6 +7,7 @@ import {
 import { Render } from '@uca/render';
 import { SignalType as RenderSignalType } from '@uca/render/types';
 import { StreamTransformer } from '@uca/capability-stream-transformer';
+import { Css } from '@uca/capability-css';
 import {
     Mode as StreamTransformerMode,
     SignalType as StreamTransformerSignalType,
@@ -234,9 +235,10 @@ export class View extends Uca<Body> {
         const { purpose, disposicionEspacial, disposicionInformacion } = area;
         const info = disposicionInformacion ? ` Info: ${disposicionInformacion}.` : '';
         const space = disposicionEspacial ? ` Ubicación: ${disposicionEspacial}.` : '';
-        const style = ' Estilo: Tarjetas con surface: "card", border: "subtle", radius: "large", spacing: "medium", gap: "small". Botones primarios con surface: "brand", textColor: "dark". Flex con gap: "small".';
-        return `Construct visual components for '${areaId ?? 'main'}' (root container and leaf elements): ${purpose ?? VIEW_GOAL}.${space}${info}${style}`;
+        const target = areaId ?? 'main';
+        return `Articulate visual components directly inside '${target}' (container already mounted; do NOT create a redundant wrapper): ${purpose ?? VIEW_GOAL}.${space}${info}`;
     }
+
 
     private resolveDispositionTarget(areaId?: string, parentId?: string): Record<string, unknown> {
         const target = areaId ?? 'main';
@@ -248,10 +250,11 @@ export class View extends Uca<Body> {
 
     private buildVisualDisposition(areaId?: string, context?: Record<string, unknown>): Record<string, unknown> {
         const { area, browser } = (context ?? {}) as { area?: Record<string, unknown>; browser?: { viewport?: unknown; device?: string } };
-        const { parentId, qualities, disposicionEspacial, disposicionVisual, disposicionInformacion } = (area ?? {}) as Record<string, unknown>;
+        const { parentId, qualities, container, disposicionEspacial, disposicionVisual, disposicionInformacion } = (area ?? {}) as Record<string, unknown>;
         return {
             ...this.resolveDispositionTarget(areaId, parentId as string | undefined),
             qualities: qualities ?? {},
+            container: container ?? {},
             disposicionEspacial,
             disposicionVisual,
             disposicionInformacion,
@@ -260,6 +263,7 @@ export class View extends Uca<Body> {
             containment: 'strict-viewport-fit',
         };
     }
+
 
     private filterAreaContext(context: Record<string, unknown>): Record<string, unknown> {
         const {
@@ -280,6 +284,7 @@ export class View extends Uca<Body> {
             ...clean,
             visualDisposition: this.buildVisualDisposition(areaId, clean),
             visualPrimitives: Render.getVisualPrimitives(),
+            visualLanguage: Css.visualLanguage(),
         };
     }
 
@@ -475,14 +480,27 @@ export class View extends Uca<Body> {
         context?: Record<string, unknown>,
         correlationId?: string,
     ): WritableStream<Record<string, unknown>> {
+        const components: Record<string, unknown>[] = [];
         return new WritableStream({
-            write: (item) => this.handleStreamChunk(item, context, correlationId),
-            close: () => this.handleStreamClose(context, correlationId),
+            write: (item) => {
+                components.push(item);
+                this.handleStreamChunk(item, context, correlationId);
+            },
+            close: () => this.handleStreamClose(components, context, correlationId),
         });
     }
 
-    private handleStreamClose(context?: Record<string, unknown>, correlationId?: string): void {
+    private handleStreamClose(
+        components: Record<string, unknown>[],
+        context?: Record<string, unknown>,
+        correlationId?: string,
+    ): void {
         const areaId = (context?.areaId as string) ?? 'main';
+        this.pulse(SignalType.BUILT, {
+            composition: { components },
+            areaId,
+            correlationId,
+        });
         this.pulse(SignalType.CREATED, {
             areaId,
             correlationId,

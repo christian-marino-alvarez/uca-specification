@@ -47,7 +47,11 @@ El dominio `src/core` contiene **única y exclusivamente las primitivas ontológ
    * Su cometido es estrictamente técnico: instanciar y conectar el cableado del bus nervioso (`EventTarget`).
    * Queda terminantemente prohibido ejecutar lógica de negocio, emitir señales de dominio o arrancar procesos dentro de `innervate()`.
    * El ciclo de vida de negocio de UCA es **100% reactivo**: se activa mediante estímulos nerviosos (`react(signal)`) o actualizaciones de disposición (`onDispositionUpdated`).
-7. **Pruebas Manuales de Core**:
+7. **Contrato Ontológico de Comunicación: `Signal`, `Body` como Schema y Actualización de Disposición**:
+   * **Canal Nervioso `Signal`**: Toda interacción observable viaja encapsulada como `Signal<T>` (`source`, `property`, `value`), prohibiendo cualquier vía de llamada imperativa u oculta.
+   * **`Body` como Schema de `inputs` y `outputs`**: Los puertos formales de entrada y salida (`Port`) declaran el esquema ontológico (`schema`) que valida y tipifica las señales recibidas y emitidas, derivado o coincidente con el `Body` de la entidad.
+   * **Actualización Permanente de la Disposición**: La comunicación reactiva que transporta cambios de contexto, estructurales, espaciales o de dominio debe canalizarse actualizando la `Disposition` (`aim.body`) a través del ciclo idempotente del Core (`Capability.updateEvent(id)`), garantizando que el organismo preserve su estado reactivo de forma declarativa y sincronice su catálogo (`syncCatalog`).
+8. **Pruebas Manuales de Core**:
    * Las pruebas de integridad de Core corresponden al usuario. El agente solo ejecuta validaciones si el usuario las solicita expresamente.
 
 ---

@@ -48,10 +48,6 @@ export const inferencePayloadSchema = z.object({
         z.unknown(),
     ).nullable().optional(),
     properties: z.record(z.string(), z.unknown()).optional(),
-    attributes: z.record(
-        z.string(),
-        z.unknown(),
-    ).nullable().optional(),
     events: z.array(
         z.string(),
     ).optional(),

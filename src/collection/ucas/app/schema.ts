@@ -58,6 +58,18 @@ export const bodySchema = z.object({
     id: z.string().optional(),
     sessionId: z.string().optional(),
     activePage: z.string().optional(),
+    structural: z.record(
+        z.string(),
+        z.unknown(),
+    ).optional(),
+    spatial: z.record(
+        z.string(),
+        z.unknown(),
+    ).optional(),
+    design: z.record(
+        z.string(),
+        z.unknown(),
+    ).optional(),
     sessionState: z.enum([
         'PROMPT_RESUME',
         'FRESH',

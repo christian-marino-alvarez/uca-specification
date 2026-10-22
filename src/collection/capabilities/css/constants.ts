@@ -182,6 +182,24 @@ export const DESIGN_TOKENS = {
         wrap: { $value: 'wrap', $description: 'Allow children to wrap onto further flex lines' },
         reverse: { $value: 'wrap-reverse', $description: 'Wrap children with reversed cross axis line order' },
     },
+    division: {
+        $type: 'string',
+        single: { $value: 'repeat(1, 1fr)', $description: 'Single continuous full-width column' },
+        halves: { $value: 'repeat(2, 1fr)', $description: 'Two equal proportional columns' },
+        thirds: { $value: 'repeat(3, 1fr)', $description: 'Three equal proportional columns' },
+        quarters: { $value: 'repeat(4, 1fr)', $description: 'Four equal proportional columns' },
+        'sidebar-main': { $value: '260px 1fr', $description: 'Compact sidebar rail alongside flexible main space' },
+        'main-sidebar': { $value: '1fr 260px', $description: 'Flexible main space alongside compact sidebar rail' },
+        'sidebar-main-aside': { $value: '260px 1fr 260px', $description: 'Three-pane layout: sidebar, main canvas and inspector' },
+        auto: { $value: 'repeat(auto-fit, minmax(240px, 1fr))', $description: 'Adaptive columns responding to available width' },
+    },
+    span: {
+        $type: 'string',
+        single: { $value: 'span 1', $description: 'Span across a single grid cell' },
+        double: { $value: 'span 2', $description: 'Span across two grid cells' },
+        triple: { $value: 'span 3', $description: 'Span across three grid cells' },
+        full: { $value: '1 / -1', $description: 'Span across all available columns in the grid track' },
+    },
 } as const;
 
 export const CSS_TOKENS_SUMMARY = `Design tokens: ${Object.entries(DESIGN_TOKENS).map(([category, group]) => `${category}: ${Object.keys(group).filter((name) => !name.startsWith('$')).join(', ')}`).join('. ')}.`;
@@ -191,6 +209,7 @@ export const TOKEN_PROPERTIES = [
     ['spacingInline', 'spacing', 'padding-inline'],
     ['spacingBlock', 'spacing', 'padding-block'],
     ['marginInline', 'spacing', 'margin-inline'],
+    ['marginBlock', 'spacing', 'margin-block'],
     ['gap', 'spacing', 'gap'],
     ['tone', 'tone', 'background-color'],
     ['surface', 'surface', 'background-color'],
@@ -203,10 +222,16 @@ export const TOKEN_PROPERTIES = [
     ['elevation', 'elevation', 'box-shadow'],
     ['radius', 'radius', 'border-radius'],
     ['border', 'border', 'border'],
+    ['borderBottom', 'border', 'border-bottom'],
+    ['borderTop', 'border', 'border-top'],
+    ['borderRight', 'border', 'border-right'],
+    ['borderLeft', 'border', 'border-left'],
     ['direction', 'direction', 'flex-direction'],
     ['alignment', 'alignment', 'align-items'],
     ['distribution', 'distribution', 'justify-content'],
     ['wrap', 'wrap', 'flex-wrap'],
+    ['division', 'division', 'grid-template-columns'],
+    ['span', 'span', 'grid-column'],
     ['flex', 'flex', 'flex'],
     ['overflow', 'overflow', 'overflow'],
 ] as const satisfies readonly TokenProperty[];
@@ -244,6 +269,8 @@ export const formatDeclarations = (declarations: Record<string, string>): string
 
 export const generateBaseRulesCss = (): string =>
     `*, *::before, *::after { ${formatDeclarations(BASE_RULES)} } ` +
+    `html, body { min-block-size: 100%; margin: 0; } ` +
+    `body { min-block-size: 100vh; } ` +
     `ext-uca { ${formatDeclarations(CONTAINER_RULES)} } ` +
     `img, svg, video, canvas { ${formatDeclarations(MEDIA_RULES)} } ` +
     `input, button, select, textarea, a { ${formatDeclarations(CONTROL_INHERITANCE_RULES)} }`;

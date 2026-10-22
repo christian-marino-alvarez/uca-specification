@@ -1,4 +1,4 @@
-export type { Body } from './schema.js';
+export type { Body, Qualities } from './schema.js';
 
 export enum SignalType {
     RENDER = 'separator.render',

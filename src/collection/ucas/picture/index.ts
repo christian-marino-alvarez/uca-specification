@@ -5,12 +5,14 @@ import { SignalType as WebComponentSignalType } from '@uca/capability-web-compon
 import { Css } from '@uca/capability-css';
 import { SignalType as CssSignalType } from '@uca/capability-css/types';
 import {
-    __ID__,
     DEFAULT_ALT,
     DEFAULT_DIMENSION,
     DEFAULT_LOADING,
     DEFAULT_PICTURE_HEIGHT,
     DEFAULT_PICTURE_WIDTH,
+    PICTURE_VISUAL_DISPOSITION,
+    __ID__,
+    resolvePictureQualities,
 } from './constants.js';
 import {
     type Body,
@@ -21,6 +23,8 @@ import {
 
 export class Picture extends Uca<Body> {
     public static override purpose: string = 'Autonomous visual representation unit that renders, adapts, and manages imagery, alternate text, and presentation qualities';
+
+    public static readonly visualDisposition = PICTURE_VISUAL_DISPOSITION;
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Picture.purpose },
@@ -91,14 +95,7 @@ export class Picture extends Uca<Body> {
     }
 
     private resolveQualities(qualities?: Qualities): Qualities {
-        const {
-            width = DEFAULT_DIMENSION,
-            ...rest
-        } = qualities ?? {};
-        return {
-            width,
-            ...rest,
-        };
+        return resolvePictureQualities(qualities);
     }
 
     private resolveTargetContainer(parentTo?: string, containerElement?: string): string | undefined {

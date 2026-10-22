@@ -7,8 +7,8 @@ import {
     TOKEN_PROPERTIES,
     IDENTIFIED_DESCENDANT_SELECTOR,
     CSS_TOKENS_SUMMARY,
-    DARK_SCHEME_QUERY,
     DESIGN_READY_PROPERTY,
+    DARK_SCHEME_QUERY,
     DESIGN_TOKENS,
     LIGHT_SCHEME_QUERY,
     REDUCED_MOTION_QUERY,
@@ -70,7 +70,22 @@ export class Css extends Capability<Body> {
     }
 
     public static normalizeQualities(qualities: Qualities = {}): Qualities {
-        return qualities;
+        return {
+            ...qualities,
+        };
+    }
+
+    public static visualLanguage(): Record<string, unknown> {
+        const {
+            aim,
+        } = Css.disposition;
+        const {
+            tokens,
+        } = aim.body ?? {};
+        return {
+            tokens,
+            summary: CSS_TOKENS_SUMMARY,
+        };
     }
 
     public static translateQualities(qualities: Qualities): Record<string, string> {
@@ -82,9 +97,10 @@ export class Css extends Capability<Body> {
             ...Css.resolveDimensions(normalized),
             ...Css.resolveLayout(normalized),
             ...Css.resolveTokenQualities(normalized),
-            ...(marginInline === 'auto' && { 'margin-inline': marginInline }),
+            ...(marginInline === 'auto' && { 'margin-inline': 'auto' }),
         };
     }
+
 
     public static formatSelector(elementId: string): string {
         if (elementId === 'body' || elementId === 'html') {
@@ -213,6 +229,7 @@ export class Css extends Capability<Body> {
 
     private static resolveLayout(qualities: Qualities): Record<string, string> {
         const {
+            division,
             direction,
             alignment,
             distribution,
@@ -220,6 +237,9 @@ export class Css extends Capability<Body> {
             gap,
             flex,
         } = qualities;
+        if (division) {
+            return { display: 'grid' };
+        }
         const isFlex = Boolean(direction || alignment || distribution || wrap || gap || flex);
         return isFlex ? { display: 'flex' } : {};
     }
@@ -286,8 +306,6 @@ export class Css extends Capability<Body> {
     private ensureTokensMounted(): void {
         if (typeof document === 'undefined') { return; }
         if (document.getElementById(TOKENS_STYLE_ID)) { return; }
-        const readiness = getComputedStyle(document.documentElement).getPropertyValue(DESIGN_READY_PROPERTY);
-        if (readiness.trim()) { return; }
         const { aim } = this.disposition;
         const tokens = aim.body?.tokens as DesignTokens | undefined
             ?? DESIGN_TOKENS as unknown as DesignTokens;

@@ -442,14 +442,19 @@ Primitive Capability
     │   │   └── Value
     │   └── ...
     │
-    └── reactTo (Fuentes observables ante las que reacciona)
+    ├── reactTo (Fuentes observables ante las que reacciona)
+    │
+    └── Ports (Puertos formales de interconexión)
+        ├── inputs (señales de entrada, DataType, schema derivado de Body)
+        └── outputs (señales emitidas, DataType, schema derivado de Body)
 ```
 
 En forma resumida:
 - **Mechanism** = procedimiento interno concreto que proporciona la capacidad funcional.
 - **Definition** = constitución y parametrización autodescriptiva de la Capability (cómo está constituida y ajustada).
 - **reactTo** = aquello ante lo que reacciona (determina la conexión reactiva local con otras Capabilities o estímulos).
-- **Disposition** = `Definition` + `reactTo`.
+- **Ports** = puertos formales de entrada y salida (`inputs` y `outputs`) con tipos `DataType` y esquemas de validación de datos basados en `Body`.
+- **Disposition** = `Definition` + `reactTo` + `Ports`.
 
 #### Definición de Mechanism
 
@@ -804,6 +809,17 @@ External Signal
 Por tanto:
 - `Stimulus` opera a nivel **inter-UCA / exterior → UCA** (señal o perturbación externa que cruza la frontera de una UCA y detona su reacción).
 - Las **señales reactivas internas (`reactTo`)** operan a nivel **intra-UCA / Capability → Capability** (eventos u outcomes intermedios generados dentro de la unidad a los que reaccionan otras capacidades locales declaradas en la Disposition mediante `reactTo` para coordinar el proceso reactivo emergente).
+
+#### Contrato de Comunicación Ontológica: Signal, Body como Schema y Actualización de Disposición
+
+La comunicación entre UCAs y sus Capabilities se rige por tres invariantes ontológicas:
+
+1. **Canal Nervioso `Signal`**:
+   Toda comunicación reactiva viaja estructurada mediante la primitiva `Signal` (`source`, `property`, `value`). No existen llamadas directas imperativas entre unidades ni atajos fuera del bus reactivo.
+2. **El `Body` como Schema de `inputs` y `outputs`**:
+   El contrato del cuerpo (`Body`), formalizado y validado mediante esquemas rigurosos (Zod), es la única fuente de verdad y el esquema estructural de los puertos de entrada (`inputs`) y salida (`outputs`) declarados en la `Disposition`. Cada puerto declara formalmente su señal (`signal`), su tipo ontológico (`type: DataType`), su descripción y su esquema (`schema`). Lo que viaja en `signal.value` o se emite en un pulso valida estrictamente contra este esquema, erradicando datos no tipados o estructuras ad-hoc.
+3. **Actualización Permanente de la Disposición en la Comunicación**:
+   Toda interacción, coordinación o propagación entre UCAs debe actualizar y sincronizar siempre la `Disposition` de la unidad receptora (`aim.body`). La `Disposition` es el medio universal de comunicación y persistencia ontológica: la información viaja actualizando la disposición mediante el ciclo idempotente de Core (`Capability.updateEvent(id)`), permitiendo la sincronización reactiva del catálogo (`syncCatalog`) sin almacenar variables mutables de estado privado.
 
 ---
 

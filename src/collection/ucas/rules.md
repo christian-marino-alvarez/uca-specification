@@ -74,7 +74,11 @@ Una **UCA** (Unidad Cognitiva Autónoma) es la unidad primaria de comportamiento
    * Su función es estrictamente técnica y privada a nivel de arquitectura: cablear el canal nervioso (`EventTarget`) e instanciar las conexiones.
    * Queda estrictamente prohibido introducir lógica de negocio, emisiones de pulsos o arrancar procesos dentro de `innervate()`.
    * El ciclo de vida de negocio de una UCA es **100% reactivo**: se activa únicamente mediante estímulos/señales recibidas en `react(signal)` o cambios de disposición en `onDispositionUpdated(event)`.
-8. **Lectura Obligatoria del Core**:
+8. **Contrato Ontológico de Comunicación (Signal, Body como Schema y Actualización de Disposición)**:
+   * Toda interacción o estímulo inter-UCA viaja estructurado mediante `Signal`.
+   * El `Body` formalizado con Zod en `schema.ts` constituye la fuente de verdad y el esquema formal de validación (`schema`) para los puertos de entrada (`inputs`) y salida (`outputs`).
+   * Toda coordinación, delegación o comunicación entre UCAs **debe actualizar y sincronizar siempre la `Disposition` receptora** (`aim.body`), activando el ciclo idempotente de actualización y sincronización de catálogo del Core (`onDispositionUpdated` y `syncCatalog`). Prohibido emitir datos o comandos fuera del contrato de disposición.
+9. **Lectura Obligatoria del Core**:
    * Antes de cualquier creación o modificación de una UCA, el agente **DEBE revisar minuciosamente la estructura interna y el flujo reactivo del Core** (`src/core/uca.ts`, `src/core/types.ts`) sin ejecutar validaciones automáticas; las pruebas corresponden al usuario.
 
 ---
@@ -144,6 +148,7 @@ Una **UCA** (Unidad Cognitiva Autónoma) es la unidad primaria de comportamiento
 13. **Declaración Explícita de Puertos con Enumerado `DataType` (`inputs` y `outputs`) en Disposiciones**:
     * Toda UCA declara en su `Disposition` formalmente los estímulos de entrada (`inputs`) que orquesta y las señales de dominio de salida (`outputs`) que emite hacia el bus nervioso, garantizando la descubribilidad e interconectabilidad fractal entre organismos UCA.
     * Los tipos de datos de los puertos (`type`) deben agruparse en un enumerado formal `DataType` en el archivo `types.ts` del dominio correspondiente (sin usar cadenas mágicas ni firmas inline `{ ... }`).
+    * **El `Body` como Schema de los Puertos**: La propiedad `schema` de cada puerto debe enlazar directamente con el esquema Zod formal del cuerpo (`bodySchema`) o con sus sub-esquemas de dominio correspondientes en `schema.ts`. Lo que viaja como `signal.value` en los estímulos de entrada o en los pulsos emitidos valida estrictamente contra este esquema.
     * Aplicar el formato vertical de `AGENTS.md` a desestructuraciones, objetos y arrays no vacíos: una propiedad o elemento por línea, incluidos spreads y estructuras anidadas, incluso con un único elemento.
     * En `inputs` y `outputs`, cada objeto de puerto debe presentar sus propiedades (`signal`, `type`, `schema`, `description`, cuando correspondan) en líneas independientes. Solo los literales vacíos (`{}` y `[]`) pueden permanecer inline.
 14. **Programación Minimalista y Cero Validaciones Defensivas Redundantes**:
@@ -158,7 +163,8 @@ Una **UCA** (Unidad Cognitiva Autónoma) es la unidad primaria de comportamiento
 17. **Máxima Ontológica de UCA: Superación del "Prompt sin Propósito" y la Disposición (`Disposition`) como Medio de Comunicación**:
     * **La UCA no es un prompt**: Una UCA es una Unidad Cognitiva Autónoma definida formalmente por su identidad teleológica inmutable (`purpose`), su disposición situacional (`aim`: `description` + `body`), sus puertos reactivos (`inputs`, `outputs`) y sus capacidades (`capabilities` / `Cooky`).
     * **Prohibición Estricta de Ficheros de Plantillas de Prompt (`prompt.ts`)**: Queda terminantemente prohibido crear archivos `prompt.ts` con cadenas imperativas de texto ("Eres un asistente...", "TAREA: ..."). UCA existe precisamente para erradicar la ingeniería artesanal de prompts sin propósito y sustituirla por arquitectura ontológica tipada.
-    * **La Disposición (`Disposition`) como Medio Universal de Comunicación Cognitiva (en especial con LLMs)**:
+    * **La Disposición (`Disposition`) como Medio Universal de Comunicación Cognitiva e Inter-UCA**:
+      * **Actualización Permanente de la Disposición**: Toda comunicación entre UCAs (por ejemplo, `App` -> `Layout`, `Layout` -> `View`) o interacción fractal debe actualizar formalmente la disposición receptora (`aim.body`). Queda estrictamente prohibido comunicar datos o comandos mediante atajos o canales paralelos sin actualizar la `disposition` a través de los ciclos reactivos de Core (`Capability.updateEvent(id)`).
       * Al interactuar con capacidades o terminales de inteligencia artificial (ej. `LlmWeb`, `Llm`), la UCA **comunica directamente su propia ontología**:
         - Su identidad ontológica: `this.purpose`.
         - Su teleología situacional: `this.disposition.aim` (`description` como misión activa y `body` como contexto/características de dominio).

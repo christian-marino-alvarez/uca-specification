@@ -13,3 +13,22 @@ export const OPERATIONS = {
 export const INVALID_BOUNDS = {
     error: 'The value and bounds are inconsistent with the domain contract',
 } as const;
+
+export const HEADING_VISUAL_DISPOSITION = {
+    role: 'typography',
+    defaultQualities: {
+        textSize: 'title',
+        fontWeight: 'bold',
+        textColor: 'light',
+        lineHeight: 'tight',
+    },
+    supportedQualities: [
+        'textSize',
+        'fontWeight',
+        'textColor',
+        'lineHeight',
+        'textAlign',
+        'marginBlock',
+    ],
+    description: 'Encabezado o título jerárquico de sección',
+} as const;

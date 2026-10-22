@@ -113,12 +113,15 @@ export interface ComponentDef {
     readonly title?: string | null;
     readonly src?: string | null;
     readonly qualities?: Record<string, unknown> | null;
-    readonly attributes?: Record<string, string> | null;
 }
 
 export interface VisualPrimitive {
     readonly name: string;
     readonly proposito: string;
     readonly intencion: string;
+    readonly disposicionVisual?: Record<
+        string,
+        unknown
+    >;
 }
 

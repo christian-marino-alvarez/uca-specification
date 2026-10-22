@@ -11,8 +11,8 @@ export const SKELETON_CSS = `
 }
 .uca-skeleton {
     width: 100%;
-    min-height: 72px;
-    border-radius: 12px;
+    min-height: 48px;
+    border-radius: 8px;
     background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.03) 75%);
     background-size: 200% 100%;
     animation: uca-skeleton-shimmer 1.8s infinite ease-in-out;

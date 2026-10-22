@@ -30,6 +30,10 @@ import { Status } from '@uca/status';
 import { SignalType as StatusSignalType } from '@uca/status/types';
 import { Progress } from '@uca/progress';
 import { SignalType as ProgressSignalType } from '@uca/progress/types';
+import { List } from '../list/index.js';
+import { SignalType as ListSignalType } from '../list/types.js';
+import { Toggle } from '@uca/toggle';
+import { SignalType as ToggleSignalType } from '@uca/toggle/types';
 import {
     type Body,
     type ComponentDef,
@@ -48,6 +52,10 @@ const PRIMITIVE_UCAS = [
     {
         name: 'box',
         uca: Box,
+    },
+    {
+        name: 'list',
+        uca: List,
     },
     {
         name: 'heading',
@@ -89,18 +97,27 @@ const PRIMITIVE_UCAS = [
         name: 'progress',
         uca: Progress,
     },
+    {
+        name: 'toggle',
+        uca: Toggle,
+    },
 ] as const;
+
 
 export class Render extends Uca<Body> {
     public static override purpose: string =
         'Materialize and orchestrate autonomous spatial layouts and visual elements through Web UCAs';
 
     public static getVisualPrimitives(): VisualPrimitive[] {
-        return PRIMITIVE_UCAS.map(({ name, uca }) => ({
-            name,
-            proposito: uca.purpose,
-            intencion: uca.disposition.aim.description,
-        }));
+        return PRIMITIVE_UCAS.map(({ name, uca }) => {
+            const visual = (uca as unknown as { visualDisposition?: Record<string, unknown> }).visualDisposition;
+            return {
+                name,
+                proposito: uca.purpose,
+                intencion: uca.disposition.aim.description,
+                ...(visual && { disposicionVisual: visual }),
+            };
+        });
     }
 
 
@@ -123,6 +140,7 @@ export class Render extends Uca<Body> {
     private static reactToPrimitives(): string[] {
         return [
             BoxSignalType.CREATED,
+            ListSignalType.CREATED,
             HeadingSignalType.CREATED,
             ParagraphSignalType.CREATED,
             ActionSignalType.CREATED,
@@ -133,8 +151,10 @@ export class Render extends Uca<Body> {
             SymbolSignalType.CREATED,
             StatusSignalType.CREATED,
             ProgressSignalType.CREATED,
+            ToggleSignalType.CREATED,
         ];
     }
+
 
     public static override disposition: Disposition<Body> = {
         aim: {
@@ -259,6 +279,9 @@ export class Render extends Uca<Body> {
             case BoxSignalType.CREATED:
                 this.handleBoxCreated(value);
                 break;
+            case ListSignalType.CREATED:
+                this.handleListCreated(value);
+                break;
             case HeadingSignalType.CREATED:
                 this.handleHeadingCreated(value);
                 break;
@@ -289,21 +312,30 @@ export class Render extends Uca<Body> {
             case ProgressSignalType.CREATED:
                 this.handleProgressCreated(value);
                 break;
+            case ToggleSignalType.CREATED:
+                this.handleToggleCreated(value);
+                break;
             case WebComponentSignalType.ERROR:
                 this.handleComponentError(value);
                 break;
             default:
                 break;
         }
+
     }
 
     private handleBoxCreated(value: unknown): void {
         this.handleComponentRendered(value);
     }
 
+    private handleListCreated(value: unknown): void {
+        this.handleComponentRendered(value);
+    }
+
     private handleHeadingCreated(value: unknown): void {
         this.handleComponentRendered(value);
     }
+
 
     private handleParagraphCreated(value: unknown): void {
         this.handleComponentRendered(value);
@@ -340,6 +372,11 @@ export class Render extends Uca<Body> {
     private handleProgressCreated(value: unknown): void {
         this.handleComponentRendered(value);
     }
+
+    private handleToggleCreated(value: unknown): void {
+        this.handleComponentRendered(value);
+    }
+
 
     private handleComponentRendered(value: unknown): void {
         // Confirmation received from primitive UCA or WebComponent
@@ -408,6 +445,8 @@ export class Render extends Uca<Body> {
 
     private resolveComponentSignal(component?: string): string {
         switch (component) {
+            case 'list':
+                return ListSignalType.RENDER;
             case 'heading':
                 return HeadingSignalType.RENDER;
             case 'paragraph':
@@ -428,9 +467,12 @@ export class Render extends Uca<Body> {
                 return StatusSignalType.RENDER;
             case 'progress':
                 return ProgressSignalType.RENDER;
+            case 'toggle':
+                return ToggleSignalType.RENDER;
             default:
                 return BoxSignalType.RENDER;
         }
+
     }
 
     private buildComponentPayload(item: ComponentDef, areaId: string): Record<string, unknown> {
@@ -448,11 +490,20 @@ export class Render extends Uca<Body> {
             title: item.title,
             src: item.src,
             qualities: item.qualities ?? undefined,
-            attributes: item.attributes ?? undefined,
         };
     }
 
+    private clearAreaSkeleton(areaId: string): void {
+        if (typeof document === 'undefined') {
+            return;
+        }
+        document.querySelectorAll(`[data-skeleton="${areaId}"]`).forEach((node) => {
+            node.remove();
+        });
+    }
+
     private renderComponentItem(item: ComponentDef, areaId: string): void {
+        this.clearAreaSkeleton(areaId);
         const signal = this.resolveComponentSignal(item.component);
         const payload = this.buildComponentPayload(item, areaId);
         this.pulse(signal, payload);

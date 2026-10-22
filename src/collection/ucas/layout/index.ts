@@ -20,6 +20,7 @@ import {
 import { Skeleton } from '@uca/capability-skeleton';
 import { SignalType as SkeletonSignalType } from '@uca/capability-skeleton/types';
 import { SignalType as ViewSignalType } from '@uca/view/types';
+import { Css } from '@uca/capability-css';
 import { Uca } from '@uca/core/uca';
 import type {
     Cooky,
@@ -31,9 +32,11 @@ import {
     __ID__,
     DEFAULT_IMAGINATION,
     DEFAULT_LIMIT,
+    LAYOUT_BOX_ROLE_PROPERTIES,
     LAYOUT_GOAL,
     LAYOUT_INTENTION,
     LAYOUT_PURPOSE,
+    LAYOUT_VISUAL_DISPOSITION,
     ROOT_AREA_ID,
     SPATIAL_PIECES,
 } from './constants.js';
@@ -60,6 +63,7 @@ import {
 
 export class Layout extends Uca<Body> {
     public static override purpose: string = LAYOUT_PURPOSE;
+    public static readonly visualDisposition = LAYOUT_VISUAL_DISPOSITION;
 
     public static getSpatialPieces(): readonly SpatialPiece[] {
         return SPATIAL_PIECES;
@@ -276,7 +280,7 @@ export class Layout extends Uca<Body> {
     private resolveGoal(areaId?: string, parentId?: string): string {
         const target = areaId ?? ROOT_AREA_ID;
         if (target !== 'root' && target !== 'app' && target !== 'body') {
-            return `Partition container '${target}' into its immediate direct child areas only (parent: '${parentId ?? 'body'}'). Declare direct children with parentId: '${target}'. Do NOT emit grandchildren.`;
+            return `Partition container '${target}' into immediate child areas with explicit spatial layout qualities: flow, dimensions, spacing (medium/large padding), gap (medium), surface, and boundaries (subtle borderRight/borderBottom/borderTop).`;
         }
         return LAYOUT_GOAL;
     }
@@ -292,14 +296,32 @@ export class Layout extends Uca<Body> {
         };
     }
 
+    private extractDispositionContext(): Record<string, unknown> {
+        const { aim } = this.disposition;
+        const { structural, spatial, design } = (aim.body ?? {}) as Record<string, unknown>;
+        return { structural, spatial, design };
+    }
+
+    private mergeContextDispositions(body?: LayoutBody): Record<string, unknown> {
+        const { structural, spatial, design } = this.extractDispositionContext();
+        return {
+            structural: body?.structural ?? structural,
+            spatial: body?.spatial ?? spatial,
+            design: body?.design ?? design,
+        };
+    }
+
     private buildInferContext(body?: LayoutBody): Record<string, unknown> {
-        const {
-            specification,
-        } = body ?? {};
+        const { specification } = body ?? {};
         return {
             ...this.extractAreaContext(body),
+            ...this.mergeContextDispositions(body),
             specification,
+            boxCustomizableProperties: Box.visualDisposition,
+            boxRoleProperties: LAYOUT_BOX_ROLE_PROPERTIES,
             spatialPieces: Layout.getSpatialPieces(),
+            visualDisposition: Layout.visualDisposition,
+            visualLanguage: Css.visualLanguage(),
         };
     }
 
@@ -385,7 +407,7 @@ export class Layout extends Uca<Body> {
         };
     }
 
-    private buildAreaFromConcept(concept: AreaConcept, currentAreaId?: string): Area {
+    private buildAreaFromConcept(concept: AreaConcept, currentAreaId?: string, context?: Record<string, unknown>): Area {
         const {
             id,
             parentId,
@@ -394,10 +416,16 @@ export class Layout extends Uca<Body> {
             ...dispositions
         } = concept;
         const identity = this.resolveAreaIdentity(id, parentId, currentAreaId);
+        const parentArea = (context?.area ?? {}) as Area;
+        const container = {
+            id: currentAreaId ?? ROOT_AREA_ID,
+            qualities: parentArea.qualities,
+        };
         return {
             ...identity,
             purpose: proposito,
             intention: intencion,
+            container,
             ...dispositions,
         };
     }
@@ -424,9 +452,10 @@ export class Layout extends Uca<Body> {
         return id === root || id === 'root' || id === 'app' || id === 'body';
     }
 
-    private handleContainerSelfConcept(qualities?: Qualities): void {
+    private handleContainerSelfConcept(qualities?: Qualities, currentAreaId?: string): void {
         if (qualities) {
-            this.dispatchContainerQualities('body', qualities);
+            const targetId = this.resolveTargetContainerId(currentAreaId ?? ROOT_AREA_ID);
+            this.dispatchContainerQualities(targetId, qualities);
         }
     }
 
@@ -443,7 +472,7 @@ export class Layout extends Uca<Body> {
 
     private shouldSkipConcept(concept: AreaConcept, currentAreaId?: string): boolean {
         if (this.isContainerSelf(concept.id, currentAreaId)) {
-            this.handleContainerSelfConcept(concept.qualities);
+            this.handleContainerSelfConcept(concept.qualities, currentAreaId);
             return true;
         }
         return !this.isDirectChild(concept.parentId, currentAreaId);
@@ -458,7 +487,7 @@ export class Layout extends Uca<Body> {
     }
 
     private dispatchNewArea(concept: AreaConcept, context: Record<string, unknown>, correlationId: string, currentAreaId?: string): void {
-        const area = this.buildAreaFromConcept(concept, currentAreaId);
+        const area = this.buildAreaFromConcept(concept, currentAreaId, context);
         this.logArea(area, correlationId, context);
         this.pulseAreaDefined(area, context, correlationId);
         this.dispatchAreaBox(area, context, correlationId);
@@ -642,16 +671,25 @@ export class Layout extends Uca<Body> {
         context?: Record<string, unknown>,
         correlationId?: string,
     ): WritableStream<Record<string, unknown>> {
+        const areas: Record<string, unknown>[] = [];
         return new WritableStream({
-            write: (item) => this.handleStreamChunk(item, context, correlationId),
-            close: () => this.handleStreamClose(context, correlationId),
+            write: (item) => {
+                areas.push(item);
+                this.handleStreamChunk(item, context, correlationId);
+            },
+            close: () => this.handleStreamClose(areas, context, correlationId),
         });
     }
 
-    private handleStreamClose(context?: Record<string, unknown>, correlationId?: string): void {
+    private handleStreamClose(
+        areas: Record<string, unknown>[],
+        context?: Record<string, unknown>,
+        correlationId?: string,
+    ): void {
         const areaId = (context?.areaId as string) ?? ROOT_AREA_ID;
         this.removeAreaSkeleton(areaId);
         this.pulse(SignalType.BUILT, {
+            composition: { areas },
             areaId,
             correlationId,
         });

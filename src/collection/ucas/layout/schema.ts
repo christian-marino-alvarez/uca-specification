@@ -11,7 +11,7 @@ export const areaConceptSchema = z.object({
     disposicionVisual: z.string().min(1).describe('Directrices de manifestación visual y flujo dimensional (ej. fila horizontal sin scroll, columna vertical con navegación, panel con desplazamiento interno)'),
     disposicionInformacion: z.string().min(1).describe('Naturaleza y alcance semántico de la información a albergar (ej. identidad ontológica y acciones globales, árbol de navegación y módulos, telemetría y estado cognitivo)'),
     parentId: z.string().min(1).describe('Identificador del contenedor directo que se particiona (ej. body para franjas principales, workspace para sidebar/main). Debe coincidir con el contenedor actual.'),
-    qualities: qualitiesSchema.describe('Cualidades dimensionales y espaciales inferidas del área (width, height, minHeight, direction, distribution, alignment, surface, spacing, flex, overflow) según tokens Lego'),
+    qualities: visualQualitiesSchema.describe('Cualidades dimensionales y espaciales inferidas explícitamente para el área según visualLanguage; no omitirlas.'),
 });
 
 export const layoutCompositionSchema = z.object({
@@ -19,6 +19,11 @@ export const layoutCompositionSchema = z.object({
         areaConceptSchema,
     ).min(1).describe('Colección de áreas conceptuales que estructuran el layout educando a sus hijos en su disposición espacial, visual e informacional'),
 });
+
+export const containerQualitiesSchema = z.object({
+    id: z.string().optional(),
+    qualities: qualitiesSchema.optional(),
+}).optional().describe('Cualidades espaciales del contenedor padre que delimitan y educan al área');
 
 export const areaSchema = z.object({
     id: z.string().min(1),
@@ -29,6 +34,7 @@ export const areaSchema = z.object({
     disposicionVisual: z.string().optional(),
     disposicionInformacion: z.string().optional(),
     qualities: qualitiesSchema,
+    container: containerQualitiesSchema,
 });
 
 export const layoutBodySchema = z.object({
@@ -40,6 +46,9 @@ export const layoutBodySchema = z.object({
         z.unknown(),
     ).optional().describe('Dimensiones y capacidades del navegador'),
     specification: z.unknown().optional().describe('Especificación funcional completa'),
+    structural: z.unknown().optional().describe('Disposición estructural recibida de App'),
+    spatial: z.unknown().optional().describe('Disposición espacial recibida de App'),
+    design: z.unknown().optional().describe('Directrices de diseño recibidas de App'),
 });
 
 export const bodySchema = layoutBodySchema;

@@ -10,11 +10,18 @@ import { SignalType as CssSignalType } from '@uca/capability-css/types';
 import { stylePayload, cssDeclaration, presentationDeclaration, schemaDeclaration } from '../declaration.js';
 import { Operation, type Interaction, type Lifecycle } from '../types.js';
 import { bodySchema } from './schema.js';
-import { __ID__, OPERATIONS, INVALID_BOUNDS } from './constants.js';
+import {
+    INVALID_BOUNDS,
+    OPERATIONS,
+    SEPARATOR_VISUAL_DISPOSITION,
+    __ID__,
+} from './constants.js';
 import { DataType, SignalType, type Body } from './types.js';
 
 export class Separator extends Uca<Body> {
     public static override purpose = 'Mark a boundary between adjacent contents';
+
+    public static readonly visualDisposition = SEPARATOR_VISUAL_DISPOSITION;
 
     public static override disposition: Disposition<Body> = {
         aim: {

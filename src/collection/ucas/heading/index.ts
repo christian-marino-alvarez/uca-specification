@@ -10,11 +10,18 @@ import { SignalType as CssSignalType } from '@uca/capability-css/types';
 import { stylePayload, cssDeclaration, presentationDeclaration, schemaDeclaration } from '../declaration.js';
 import { Operation, type Interaction, type Lifecycle } from '../types.js';
 import { bodySchema } from './schema.js';
-import { __ID__, OPERATIONS, INVALID_BOUNDS } from './constants.js';
+import {
+    HEADING_VISUAL_DISPOSITION,
+    INVALID_BOUNDS,
+    OPERATIONS,
+    __ID__,
+} from './constants.js';
 import { DataType, SignalType, type Body } from './types.js';
 
 export class Heading extends Uca<Body> {
     public static override purpose = 'Identify a content section through a heading with relative importance';
+
+    public static readonly visualDisposition = HEADING_VISUAL_DISPOSITION;
 
     public static override disposition: Disposition<Body> = {
         aim: {

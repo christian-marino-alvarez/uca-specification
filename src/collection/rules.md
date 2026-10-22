@@ -40,6 +40,10 @@ src/collection/
      export * from './capabilities/index.js';
      export * from './ucas/index.js';
      ```
+4. **Contrato Universal de Comunicación (Signal, Body como Schema y Actualización de Disposición)**:
+   * Toda UCA y Capability en la colección comunica sus interacciones observables exclusivamente a través de la primitiva `Signal`.
+   * El `Body` formalizado en `schema.ts` actúa como el esquema de validación estructural (`schema`) de los puertos `inputs` y `outputs`.
+   * La coordinación y propagación entre entidades actualiza siempre su `Disposition` (`aim.body`), gobernada por el ciclo idempotente de actualización del Core.
 
 ---
 

@@ -9,6 +9,7 @@ export { View } from './view/index.js';
 
 export { Heading } from './heading/index.js';
 export { Paragraph } from './paragraph/index.js';
+export { List } from './list/index.js';
 export { Access } from './access/index.js';
 export { Choice } from './choice/index.js';
 export { Toggle } from './toggle/index.js';

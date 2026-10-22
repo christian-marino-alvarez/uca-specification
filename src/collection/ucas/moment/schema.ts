@@ -9,4 +9,6 @@ export const bodySchema = identitySchema.extend({
     disabled: z.boolean().optional(),
 });
 
+export const qualitiesSchema = identitySchema.shape.qualities;
+export type Qualities = z.infer<typeof qualitiesSchema>;
 export type Body = z.infer<typeof bodySchema>;

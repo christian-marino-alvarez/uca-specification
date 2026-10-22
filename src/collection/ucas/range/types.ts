@@ -1,4 +1,4 @@
-export type { Body } from './schema.js';
+export { type Body, type Qualities, bodySchema, qualitiesSchema } from './schema.js';
 
 export enum SignalType {
     RENDER = 'range.render',

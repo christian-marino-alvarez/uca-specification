@@ -10,11 +10,19 @@ import { SignalType as CssSignalType } from '@uca/capability-css/types';
 import { stylePayload, cssDeclaration, presentationDeclaration, schemaDeclaration } from '../declaration.js';
 import { Operation, type Interaction, type Lifecycle } from '../types.js';
 import { bodySchema } from './schema.js';
-import { __ID__, OPERATIONS, INVALID_BOUNDS } from './constants.js';
+import {
+    INVALID_BOUNDS,
+    OPERATIONS,
+    PARAGRAPH_VISUAL_DISPOSITION,
+    __ID__,
+    resolveParagraphQualities,
+} from './constants.js';
 import { DataType, SignalType, type Body } from './types.js';
 
 export class Paragraph extends Uca<Body> {
     public static override purpose = 'Express one coherent block of textual content';
+
+    public static readonly visualDisposition = PARAGRAPH_VISUAL_DISPOSITION;
 
     public static override disposition: Disposition<Body> = {
         aim: {
@@ -212,11 +220,23 @@ export class Paragraph extends Uca<Body> {
 
 
 
+    private applyParagraphQualities(body: Body): void {
+        const {
+            elementId,
+            qualities,
+        } = body;
+        const resolvedQualities = resolveParagraphQualities(qualities);
+        this.pulse(CssSignalType.APPLY, {
+            elementId,
+            qualities: resolvedQualities,
+        });
+    }
+
     private handleCreated(payload: Lifecycle<Body>): void {
         const {
             context: body,
         } = payload;
-        this.pulse(CssSignalType.APPLY, stylePayload(body));
+        this.applyParagraphQualities(body);
         this.pulse(SignalType.CREATED, body);
     }
 
@@ -224,7 +244,7 @@ export class Paragraph extends Uca<Body> {
         const {
             context: body,
         } = payload;
-        this.pulse(CssSignalType.APPLY, stylePayload(body));
+        this.applyParagraphQualities(body);
         this.pulse(SignalType.UPDATED, body);
     }
 

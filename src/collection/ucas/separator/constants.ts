@@ -13,3 +13,17 @@ export const OPERATIONS = {
 export const INVALID_BOUNDS = {
     error: 'The value and bounds are inconsistent with the domain contract',
 } as const;
+
+export const SEPARATOR_VISUAL_DISPOSITION = {
+    role: 'divider',
+    defaultQualities: {
+        border: 'subtle',
+    },
+    supportedQualities: [
+        'border',
+        'direction',
+        'width',
+        'height',
+    ],
+    description: 'Línea de división y separación visual entre bloques',
+} as const;

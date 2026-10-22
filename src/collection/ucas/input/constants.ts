@@ -1,3 +1,5 @@
+import type { Qualities } from './schema.js';
+
 export const __ID__ = 'input';
 
 export const DEFAULT_TAG = 'input' as const;
@@ -36,3 +38,30 @@ export const buildInputAttributes = (
         ...(required && { required: 'required' }),
     };
 };
+
+export const DEFAULT_INPUT_QUALITIES: Qualities = {
+    surface: 'card',
+    border: 'subtle',
+    radius: 'medium',
+    spacingInline: 'small',
+    spacingBlock: 'small',
+    textColor: 'light',
+    textSize: 'small',
+    width: 'full',
+};
+
+export const INPUT_VISUAL_DISPOSITION = {
+    role: 'control',
+    defaultQualities: DEFAULT_INPUT_QUALITIES,
+    supportedQualities: [
+        'surface',
+        'border',
+        'radius',
+        'spacingInline',
+        'spacingBlock',
+        'width',
+        'textColor',
+        'textSize',
+    ],
+    description: 'Campo interactivo de entrada de datos o búsqueda',
+} as const;

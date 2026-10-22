@@ -50,7 +50,11 @@ Una **Capability** representa una habilidad funcional o mecánica pura, terminal
    * Las Capabilities **no deben almacenar propiedades de dominio como variables de estado de instancia** (`this.value`, `this.items`, etc.).
    * Son procesadores mecánicos reactivos: reciben los estímulos a través de su `react(signal: Signal)` o leen la configuración del receptor desde `this.disposition.aim.body`.
    * Los constructores son puramente identitarios (`constructor(id: string = '<default>')`) y no aceptan objetos de opciones o valores de dominio.
-8. **Lectura Obligatoria del Core**:
+8. **Contrato Ontológico de Comunicación (Signal, Body como Schema y Actualización de Disposición)**:
+   * Las Capabilities reciben y emiten información exclusivamente a través de la primitiva `Signal`.
+   * El `Body` tipado define el esquema formal de validación (`schema`) para los puertos de entrada (`inputs`) y salida (`outputs`).
+   * Cualquier cambio o reconfiguración operativa viaja actualizando su `disposition` a través de los eventos del Core (`Capability.updateEvent(id)`), permitiendo el manejo idempotente y la reconexión limpia de receptores.
+9. **Lectura Obligatoria del Core**:
    * Antes de cualquier creación o modificación de una Capability, el agente **DEBE revisar la estructura y flow del Core** (`src/core/capability.ts`) sin ejecutar validaciones automáticas; las pruebas corresponden al usuario.
 
 ---
@@ -100,13 +104,27 @@ Una **Capability** representa una habilidad funcional o mecánica pura, terminal
     * Se utiliza en la creación de su disposición o aim por defecto: `{ aim: { description: <Clase>.AIM } }`.
 14. **Declaración Explícita de Puertos con Enumerado `DataType` (`inputs` y `outputs`)**:
     * Para garantizar la descubribilidad, introspección y orquestación declarativa, toda `Disposition` **DEBE** declarar formalmente qué señales de entrada acepta (`inputs`) y qué señales de salida emite (`outputs`).
-    * Los tipos de datos de los puertos (`type`) deben agruparse en un enumerado formal `DataType` en el archivo `types.ts` del dominio correspondiente (sin usar cadenas mágicas ni firmas inline `{ ... }`):
+    * Los tipos de datos de los puertos (`type`) deben agruparse en un enumerado formal `DataType` en el archivo `types.ts` del dominio correspondiente (sin usar cadenas mágicas ni firmas inline `{ ... }`).
+    * **El `Body` como Schema de los Puertos**: Cada puerto en `inputs` y `outputs` debe vincular su propiedad `schema` con el esquema formal del `Body` (o sus sub-esquemas de datos). Los estímulos consumidos en `react(signal)` y los pulsos emitidos con `this.pulse(property, value)` deben validar estrictamente contra este esquema.
+    * Formato vertical obligatorio según `AGENTS.md`: cada propiedad (`signal`, `type`, `schema`, `description`) en líneas separadas.
       ```typescript
       public static override disposition: Disposition<Body> = {
           aim: { description: <Clase>.AIM },
           reactTo: [SignalType.EVALUATE],
-          inputs: [{ signal: SignalType.EVALUATE, type: DataType.OPERANDS, description: 'Operands [a, b]' }],
-          outputs: [{ signal: SignalType.EVALUATED, type: DataType.BOOLEAN, description: 'Evaluation result' }],
+          inputs: [
+              {
+                  signal: SignalType.EVALUATE,
+                  type: DataType.OPERANDS,
+                  description: 'Operands [a, b]',
+              },
+          ],
+          outputs: [
+              {
+                  signal: SignalType.EVALUATED,
+                  type: DataType.BOOLEAN,
+                  description: 'Evaluation result',
+              },
+          ],
       };
       ```
 15. **Programación Minimalista y Cero Validaciones Defensivas Redundantes**:

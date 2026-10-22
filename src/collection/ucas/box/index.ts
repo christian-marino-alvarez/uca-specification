@@ -4,11 +4,16 @@ import { WebComponent } from '@uca/capability-web-component';
 import { SignalType as WebComponentSignalType } from '@uca/capability-web-component/types';
 import { Css } from '@uca/capability-css';
 import { SignalType as CssSignalType } from '@uca/capability-css/types';
-import { __ID__ } from './constants.js';
+import {
+    BOX_VISUAL_DISPOSITION,
+    __ID__,
+} from './constants.js';
 import { type Body, type CreatedResult, type EventContext, DataType, SignalType } from './types.js';
 
 export class Box extends Uca<Body> {
     public static override purpose: string = 'Autonomous spatial container that groups, distributes, and visually delimits elements through dimension, layout, and appearance qualities';
+
+    public static readonly visualDisposition = BOX_VISUAL_DISPOSITION;
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Box.purpose },
@@ -86,13 +91,17 @@ export class Box extends Uca<Body> {
     private handleRender(value?: unknown): void {
         const { elementId = this.id, parentTo, containerElement, content, qualities, events, context } = (value ?? {}) as Body & { context?: unknown };
         const targetContainer = containerElement ?? (parentTo?.startsWith('#') ? parentTo : parentTo ? `#${parentTo}` : undefined);
-        if (qualities) { this.pulse(CssSignalType.APPLY, { elementId, qualities }); }
+        if (qualities) {
+            this.pulse(CssSignalType.APPLY, { elementId, qualities });
+        }
         this.pulse(WebComponentSignalType.RENDER, { elementId, containerElement: targetContainer, content, events, context });
     }
 
     private handleUpdate(value?: unknown): void {
         const { elementId = this.id, content, qualities, events, context } = (value ?? {}) as Body & { context?: unknown };
-        if (qualities) { this.pulse(CssSignalType.APPLY, { elementId, qualities }); }
+        if (qualities) {
+            this.pulse(CssSignalType.APPLY, { elementId, qualities });
+        }
         this.pulse(WebComponentSignalType.UPDATE, { elementId, content, events, context });
     }
 

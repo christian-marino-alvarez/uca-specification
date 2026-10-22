@@ -340,20 +340,25 @@ export class App extends Uca<Body> {
         ];
     }
 
-    private createLayoutDisposition(): Disposition {
-        const {
-            aim,
-        } = Layout.disposition;
-        const body = {
+    private createLayoutBody(): Record<string, unknown> {
+        const { aim } = Layout.disposition;
+        const { structural, spatial, design } = this.disposition.aim.body ?? {};
+        const containerElement = (structural as { containerElement?: string })?.containerElement ?? 'body';
+        return {
             ...(aim.body ?? {}),
-            containerElement: 'body',
+            structural,
+            spatial,
+            design,
+            containerElement,
         };
+    }
+
+    private createLayoutDisposition(): Disposition {
+        const { aim } = Layout.disposition;
+        const body = this.createLayoutBody();
         return {
             ...Layout.disposition,
-            aim: {
-                ...aim,
-                body,
-            },
+            aim: { ...aim, body },
         };
     }
 
@@ -365,20 +370,25 @@ export class App extends Uca<Body> {
         return this.buildUcaCooky(Layout, Layout.purpose, `${id}:layout`, disposition);
     }
 
-    private createViewDisposition(): Disposition {
-        const {
-            aim,
-        } = View.disposition;
-        const body = {
+    private createViewBody(): Record<string, unknown> {
+        const { aim } = View.disposition;
+        const { structural, spatial, design } = this.disposition.aim.body ?? {};
+        const containerElement = (structural as { containerElement?: string })?.containerElement ?? 'body';
+        return {
             ...(aim.body ?? {}),
-            containerElement: 'body',
+            structural,
+            spatial,
+            design,
+            containerElement,
         };
+    }
+
+    private createViewDisposition(): Disposition {
+        const { aim } = View.disposition;
+        const body = this.createViewBody();
         return {
             ...View.disposition,
-            aim: {
-                ...aim,
-                body,
-            },
+            aim: { ...aim, body },
         };
     }
 
@@ -619,17 +629,17 @@ export class App extends Uca<Body> {
     }
 
     private extractOntologyContext(): Record<string, unknown> {
-        const {
-            purpose,
-        } = this;
-        const {
-            description: intention,
-        } = this.disposition.aim;
+        const { purpose } = this;
+        const { description: intention, body } = this.disposition.aim;
+        const { structural, spatial, design } = body ?? {};
         const visualIntention = `${intention}\n${DEFAULT_DESIGN_GUIDELINES}`;
         return {
             purpose,
             intention,
             visualIntention,
+            structural,
+            spatial,
+            design,
             guidelines: DEFAULT_DESIGN_GUIDELINES,
         };
     }

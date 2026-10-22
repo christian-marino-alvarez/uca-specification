@@ -4,11 +4,22 @@ import { WebComponent } from '@uca/capability-web-component';
 import { SignalType as WebComponentSignalType } from '@uca/capability-web-component/types';
 import { Css } from '@uca/capability-css';
 import { SignalType as CssSignalType, ControlType } from '@uca/capability-css/types';
-import { __ID__, DEFAULT_EVENTS, DEFAULT_TAG, DEFAULT_TYPE, buildInputAttributes, resolveContainerSelector } from './constants.js';
+import {
+    DEFAULT_EVENTS,
+    DEFAULT_INPUT_QUALITIES,
+    DEFAULT_TAG,
+    DEFAULT_TYPE,
+    INPUT_VISUAL_DISPOSITION,
+    __ID__,
+    buildInputAttributes,
+    resolveContainerSelector,
+} from './constants.js';
 import { type Body, type EventContext, DataType, SignalType } from './types.js';
 
 export class Input extends Uca<Body> {
     public static override purpose: string = 'Autonomous text entry unit that captures, validates, and emits user text input through a native input field';
+
+    public static readonly visualDisposition = INPUT_VISUAL_DISPOSITION;
 
     public static override disposition: Disposition<Body> = {
         aim: { description: Input.purpose },
@@ -88,7 +99,8 @@ export class Input extends Uca<Body> {
         const { elementId = this.id, parentTo, containerElement, qualities, events = [...DEFAULT_EVENTS], context } = payload;
         const targetContainer = resolveContainerSelector(containerElement, parentTo);
         const attributes = buildInputAttributes(payload, DEFAULT_TYPE);
-        this.pulse(CssSignalType.APPLY, { elementId, qualities: qualities ?? {}, control: ControlType.INPUT });
+        const resolvedQualities = { ...DEFAULT_INPUT_QUALITIES, ...qualities };
+        this.pulse(CssSignalType.APPLY, { elementId, qualities: resolvedQualities, control: ControlType.INPUT });
         this.pulse(WebComponentSignalType.RENDER, { elementId, tag: DEFAULT_TAG, containerElement: targetContainer, attributes, events, context });
     }
 
@@ -96,7 +108,8 @@ export class Input extends Uca<Body> {
         const payload = (value ?? {}) as Body & { context?: unknown };
         const { elementId = this.id, qualities, events, context } = payload;
         const attributes = buildInputAttributes(payload);
-        this.pulse(CssSignalType.APPLY, { elementId, qualities: qualities ?? {}, control: ControlType.INPUT });
+        const resolvedQualities = { ...DEFAULT_INPUT_QUALITIES, ...qualities };
+        this.pulse(CssSignalType.APPLY, { elementId, qualities: resolvedQualities, control: ControlType.INPUT });
         this.pulse(WebComponentSignalType.UPDATE, { elementId, attributes, events, context });
     }
 
