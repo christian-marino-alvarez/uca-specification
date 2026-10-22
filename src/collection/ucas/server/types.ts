@@ -93,3 +93,8 @@ export interface StreamSourceRequest {
     readonly request: () => void;
     readonly cancel: () => void;
 }
+
+export interface VisualPlan {
+    readonly answers: Record<string, unknown>;
+    readonly domains: readonly string[];
+}

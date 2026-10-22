@@ -8,6 +8,7 @@ export type {
     LayoutBody,
     LayoutComposition,
     Qualities,
+    ContainerQualities,
 } from './schema.js';
 
 export interface ContractParams {

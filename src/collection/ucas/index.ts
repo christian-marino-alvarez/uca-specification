@@ -5,6 +5,7 @@ export { Memory } from './memory/index.js';
 export { Navigate } from './navigate/index.js';
 export { Render } from './render/index.js';
 export { View } from './view/index.js';
+export { VisualComposition } from './visual-composition/index.js';
 
 
 export { Heading } from './heading/index.js';

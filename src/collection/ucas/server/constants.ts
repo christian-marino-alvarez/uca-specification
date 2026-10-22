@@ -33,4 +33,3 @@ export const MIME_MAP: Record<string, string> = {
     '.png': 'image/png',
     '.md': 'text/markdown; charset=utf-8',
 };
-

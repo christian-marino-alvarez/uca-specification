@@ -10,6 +10,7 @@ import {
     DESIGN_READY_PROPERTY,
     DARK_SCHEME_QUERY,
     DESIGN_TOKENS,
+    GRID_EXCLUDED_QUALITIES,
     LIGHT_SCHEME_QUERY,
     REDUCED_MOTION_QUERY,
     STYLE_PREFIX,
@@ -221,7 +222,11 @@ export class Css extends Capability<Body> {
     }
 
     private static resolveTokenQualities(qualities: Qualities): Record<string, string> {
+        const { division } = qualities;
         return Object.fromEntries(TOKEN_PROPERTIES.flatMap(([quality, group, property]) => {
+            if (division && GRID_EXCLUDED_QUALITIES.includes(quality as typeof GRID_EXCLUDED_QUALITIES[number])) {
+                return [];
+            }
             const { [quality]: name } = qualities;
             return Css.resolveTokenProperty(property, group, name);
         }));
@@ -235,13 +240,19 @@ export class Css extends Capability<Body> {
             distribution,
             wrap,
             gap,
-            flex,
+            order,
         } = qualities;
         if (division) {
-            return { display: 'grid' };
+            return {
+                display: 'grid',
+                ...(order !== undefined && { order: String(order) }),
+            };
         }
-        const isFlex = Boolean(direction || alignment || distribution || wrap || gap || flex);
-        return isFlex ? { display: 'flex' } : {};
+        const isFlex = Boolean(direction || alignment || distribution || wrap || gap);
+        return {
+            ...(isFlex && { display: 'flex' }),
+            ...(order !== undefined && { order: String(order) }),
+        };
     }
 
     private static mountStyleElement(id: string, cssText: string): void {

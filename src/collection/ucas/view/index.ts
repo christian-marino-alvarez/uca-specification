@@ -230,13 +230,21 @@ export class View extends Uca<Body> {
         }
     }
 
-    private resolveAreaGoal(areaId?: string, context?: Record<string, unknown>): string {
-        const area = (context?.area ?? {}) as { purpose?: string; disposicionEspacial?: string; disposicionInformacion?: string };
-        const { purpose, disposicionEspacial, disposicionInformacion } = area;
-        const info = disposicionInformacion ? ` Info: ${disposicionInformacion}.` : '';
+    private formatAreaSpatialDirectives(area: Record<string, unknown>): string {
+        const { disposicionEspacial, disposicionVisual, disposicionInformacion, qualities } = area;
         const space = disposicionEspacial ? ` Ubicación: ${disposicionEspacial}.` : '';
+        const visual = disposicionVisual ? ` Flujo visual: ${disposicionVisual}.` : '';
+        const layout = qualities ? ` Cualidades del área: ${JSON.stringify(qualities)}.` : '';
+        const info = disposicionInformacion ? ` Contenido: ${disposicionInformacion}.` : '';
+        return `${space}${visual}${layout}${info}`;
+    }
+
+    private resolveAreaGoal(areaId?: string, context?: Record<string, unknown>): string {
+        const area = (context?.area ?? {}) as Record<string, unknown>;
+        const { purpose } = area as { purpose?: string };
+        const directives = this.formatAreaSpatialDirectives(area);
         const target = areaId ?? 'main';
-        return `Articulate visual components directly inside '${target}' (container already mounted; do NOT create a redundant wrapper): ${purpose ?? VIEW_GOAL}.${space}${info}`;
+        return `Articulate visual components directly inside '${target}' (container already mounted; do NOT create a redundant wrapper): ${purpose ?? VIEW_GOAL}.${directives} For every Box with descendants, infer direction or division and choose gap, spacing, or marginBlock when its role needs separation; preserve semantic tree order unless a distinct visual sequence is required. flex only sizes an item in an already declared parent flow. Leaf primitives must not invent container flow.`;
     }
 
 
@@ -334,7 +342,7 @@ export class View extends Uca<Body> {
         const areaId = (area.id as string) ?? 'main';
         const enrichedContext = this.buildEnrichedContext(body as Record<string, unknown>, areaId);
         const goal = this.resolveAreaGoal(areaId, body as Record<string, unknown>);
-        const metadata = this.buildStreamMetadata(areaId, body as Record<string, unknown>);
+        const metadata = this.buildStreamMetadata(areaId, body);
         const meta = this.createInferMeta(goal, correlationId, `${correlationId}:view:${areaId}`, metadata, limits);
         return this.assembleInferPayload(`view:${areaId}`, description, enrichedContext, meta);
     }

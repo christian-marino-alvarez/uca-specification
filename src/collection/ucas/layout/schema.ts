@@ -3,6 +3,25 @@ import { qualitiesSchema as visualQualitiesSchema } from '@uca/capability-css/sc
 
 export const qualitiesSchema = visualQualitiesSchema.optional();
 
+export const layoutQualitiesDirectionSchema = visualQualitiesSchema.required({
+    direction: true,
+    spacing: true,
+    border: true,
+    marginBlock: true,
+});
+
+export const layoutQualitiesDivisionSchema = visualQualitiesSchema.required({
+    division: true,
+    spacing: true,
+    border: true,
+    marginBlock: true,
+});
+
+export const layoutQualitiesSchema = z.union([
+    layoutQualitiesDirectionSchema,
+    layoutQualitiesDivisionSchema,
+]);
+
 export const areaConceptSchema = z.object({
     id: z.string().min(1).describe('Identificador único o nombre del área (ej. header, sidebar, main, footer, workspace)'),
     proposito: z.string().min(1).describe('Propósito funcional del área'),
@@ -11,7 +30,12 @@ export const areaConceptSchema = z.object({
     disposicionVisual: z.string().min(1).describe('Directrices de manifestación visual y flujo dimensional (ej. fila horizontal sin scroll, columna vertical con navegación, panel con desplazamiento interno)'),
     disposicionInformacion: z.string().min(1).describe('Naturaleza y alcance semántico de la información a albergar (ej. identidad ontológica y acciones globales, árbol de navegación y módulos, telemetría y estado cognitivo)'),
     parentId: z.string().min(1).describe('Identificador del contenedor directo que se particiona (ej. body para franjas principales, workspace para sidebar/main). Debe coincidir con el contenedor actual.'),
-    qualities: visualQualitiesSchema.describe('Cualidades dimensionales y espaciales inferidas explícitamente para el área según visualLanguage; no omitirlas.'),
+    qualities: layoutQualitiesSchema.describe('Cualidades espaciales obligatorias del área: debe declarar direction o division para organizar a sus hijos; ' +
+        'debe declarar spacing ("none"|"small"|"medium"|"large"|"xlarge") para respiración interior; ' +
+        'debe declarar border ("subtle"|"strong"|"outline"|"none") para delimitar su frontera perimetral; ' +
+        'debe declarar marginBlock ("none"|"small"|"medium"|"large") para respiración exterior vertical; ' +
+        'debe declarar surface ("default"|"card"|"muted"); y si contiene elementos múltiples declarar gap ("small"|"medium"). ' +
+        'flex solo dimensiona el área dentro de su padre.'),
 });
 
 export const layoutCompositionSchema = z.object({
@@ -21,18 +45,18 @@ export const layoutCompositionSchema = z.object({
 });
 
 export const containerQualitiesSchema = z.object({
-    id: z.string().optional(),
-    qualities: qualitiesSchema.optional(),
-}).optional().describe('Cualidades espaciales del contenedor padre que delimitan y educan al área');
+    id: z.string().min(1).describe('Identificador único del contenedor padre directo'),
+    qualities: visualQualitiesSchema.describe('Cualidades espaciales declaradas en el contenedor padre que delimitan y educan al área'),
+}).describe('Cualidades espaciales del contenedor padre que delimitan y educan al área');
 
 export const areaSchema = z.object({
     id: z.string().min(1),
     parentId: z.string().min(1).optional(),
-    purpose: z.string().optional(),
-    intention: z.string().optional(),
-    disposicionEspacial: z.string().optional(),
-    disposicionVisual: z.string().optional(),
-    disposicionInformacion: z.string().optional(),
+    purpose: z.string().min(1).describe('Propósito ontológico obligatorio del área'),
+    intention: z.string().min(1).describe('Intención de composición obligatoria del área'),
+    disposicionEspacial: z.string().min(1).describe('Disposición espacial obligatoria del área'),
+    disposicionVisual: z.string().min(1).describe('Disposición visual obligatoria del área'),
+    disposicionInformacion: z.string().min(1).describe('Disposición informacional obligatoria del área'),
     qualities: qualitiesSchema,
     container: containerQualitiesSchema,
 });
@@ -94,3 +118,4 @@ export type Body = LayoutBody;
 export type BuildPayload = z.infer<typeof buildPayloadSchema>;
 export type BuiltResult = z.infer<typeof builtResultSchema>;
 export type AreaDefined = z.infer<typeof areaDefinedSchema>;
+export type ContainerQualities = z.infer<typeof containerQualitiesSchema>;

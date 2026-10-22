@@ -1,7 +1,6 @@
 import { Logger } from '@uca/logger';
 import { SignalType as LoggerSignalType, Scope } from '@uca/logger/types';
 import { normalizeInference } from './constants.js';
-import { createSseStream, requestStreamSource } from './sse.js';
 import type { InferenceRequest, ValidationContext } from './types.js';
 import { Schema } from '@uca/capability-schema';
 import { SignalType as SchemaSignalType, type ValidatedResult, type ErrorResult } from '@uca/capability-schema/types';
@@ -12,6 +11,11 @@ import * as path from 'node:path';
 import { Uca } from '@uca/core/uca';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
 import { HttpServer } from '@uca/capability-http-server';
+import { SseServer } from '../../capabilities/sse-server/index.js';
+import {
+    SignalType as SseServerSignalType,
+    type OpenedPayload,
+} from '../../capabilities/sse-server/types.js';
 import {
     SignalType as HttpServerSignalType,
     type Body as HttpServerBody,
@@ -24,7 +28,9 @@ import { Openai } from '@uca/capability-openai';
 import { SignalType as JevSignalType, type InferResult as JevResult } from '@uca/capability-jev/types';
 import { SignalType as GeminiSignalType, type GenerateResult } from '@uca/capability-gemini/types';
 import { SignalType as OpenaiSignalType } from '@uca/capability-openai/types';
-import { createCommand } from './inference.js';
+import {
+    createCommand,
+} from './command.js';
 import { DEFAULT_PROVIDER } from '@uca/llm/constants';
 import {
     SignalType as LlmSignalType,
@@ -63,6 +69,9 @@ export class Server extends Uca<Body> {
             SignalType.STOP,
             SignalType.ROUTE,
             SignalType.RESPOND,
+            SseServerSignalType.OPEN,
+            LlmSignalType.INFER,
+            LlmSignalType.STREAM,
             HttpServerSignalType.LISTENING,
             HttpServerSignalType.CLOSED,
             HttpServerSignalType.REQUEST,
@@ -79,6 +88,8 @@ export class Server extends Uca<Body> {
             { signal: SignalType.STOP, type: DataType.VOID, description: 'Stop HTTP server' },
             { signal: SignalType.ROUTE, type: DataType.ROUTE_CONFIG, description: 'Register an endpoint route' },
             { signal: SignalType.RESPOND, type: DataType.RESPOND_CONFIG, description: 'Respond to an in-flight request' },
+            { signal: LlmSignalType.INFER, type: DataType.INFER_RESULT, description: 'Dispatch a non-streaming inference from a composed UCA' },
+            { signal: LlmSignalType.STREAM, type: DataType.INFER_RESULT, description: 'Dispatch a streaming inference from a composed UCA' },
         ],
         outputs: [
             { signal: SignalType.STARTED, type: DataType.STARTED_STATUS, description: 'Server started successfully' },
@@ -92,15 +103,11 @@ export class Server extends Uca<Body> {
         ],
     };
 
-    private readonly streams = new Map<string, AbortController>();
-
     public constructor(id: string = __ID__) {
         super(id);
     }
 
     public override denervate(): void {
-        this.streams.forEach((controller) => controller.abort());
-        this.streams.clear();
         this.registry.forEach((capability) => capability.denervate());
         super.denervate();
     }
@@ -119,6 +126,12 @@ export class Server extends Uca<Body> {
                 break;
             case SignalType.RESPOND:
                 this.pulse(HttpServerSignalType.RESPOND, value);
+                break;
+            case LlmSignalType.INFER:
+                this.handleInferRequest(value as InferPayload);
+                break;
+            case LlmSignalType.STREAM:
+                this.handleStreamRequest(value as InferPayload);
                 break;
             case JevSignalType.INFERRED: this.handleJevInferred(signal); break;
             case JevSignalType.ERROR: this.handleJevError(signal); break;
@@ -151,6 +164,7 @@ export class Server extends Uca<Body> {
             [Gemini, { ...Gemini.disposition, aim: { description: Gemini.AIM, body: { id: `${this.id}:gemini` } } }],
             [Openai, { ...Openai.disposition, aim: { description: Openai.AIM, body: { id: `${this.id}:openai` } } }],
             [Schema, { ...Schema.disposition, aim: { description: Schema.AIM, body: { id: `${this.id}:schema` } } }],
+            [SseServer, { ...SseServer.disposition, aim: { description: SseServer.AIM, body: { id: `${this.id}:sse-server` } } }],
         ];
     }
 
@@ -249,17 +263,77 @@ export class Server extends Uca<Body> {
         this.target?.removeEventListener(LlmSignalType.ERROR, onError);
     }
 
-    private handleLlmSse(context: RequestContext): Response {
-        const { target, id: source } = this;
+    private async handleLlmSse(context: RequestContext): Promise<Response> {
         const { query, body } = context;
         const payload = normalizeInference({ ...query, ...(body as InferenceRequest) });
         const { correlationId = crypto.randomUUID(), provider = DEFAULT_PROVIDER } = payload;
-        const controller = new AbortController(); const { signal: abort } = controller; this.streams.set(correlationId, controller);
-        const request = () => this.pulse(SchemaSignalType.VALIDATE, { schema: inferenceSchema, value: payload, context: { stream: true, correlationId } });
-        const cancel = () => this.pulse(provider === 'openai' ? OpenaiSignalType.ABORT : GeminiSignalType.ABORT, { correlationId });
-        const response = requestStreamSource({ target, source, correlationId, abort, request, cancel });
-        const stream = createSseStream(response, correlationId, controller, () => this.streams.delete(correlationId), () => this.pulse(LlmSignalType.STREAM_END, { correlationId }));
+        const stream = await this.openSseStream(payload, correlationId, provider);
         return new Response(stream, { headers: SSE_HEADERS });
+    }
+
+    private openSseStream(payload: InferPayload, correlationId: string, provider: string): Promise<ReadableStream<Uint8Array>> {
+        return new Promise((resolve, reject) => {
+            const opened = (event: Event) => this.handleSseOpened(event, correlationId, resolve, reject, opened, failed);
+            const failed = (event: Event) => this.handleSseFailure(event, correlationId, reject, opened, failed);
+            this.target?.addEventListener(SseServerSignalType.OPENED, opened);
+            this.target?.addEventListener(SseServerSignalType.ERROR, failed);
+            const request = (_abort: AbortSignal) => this.requestStream(payload, correlationId);
+            const cancel = () => this.pulse(provider === 'openai' ? OpenaiSignalType.ABORT : GeminiSignalType.ABORT, { correlationId });
+            this.pulse(SseServerSignalType.OPEN, { correlationId, request, cancel });
+        });
+    }
+
+    private handleSseOpened(event: Event, correlationId: string, resolve: (stream: ReadableStream<Uint8Array>) => void, reject: (error: unknown) => void, opened: (event: Event) => void, failed: (event: Event) => void): void {
+        const { detail: { source, value } } = event as CustomEvent<Signal<OpenedPayload>>;
+        const { correlationId: receivedId, stream } = value;
+        if (source !== `${this.id}:sse-server` || receivedId !== correlationId) { return; }
+        this.removeSseListeners(opened, failed);
+        stream ? resolve(stream) : reject(new Error('SSE stream was not opened'));
+    }
+
+    private handleSseFailure(event: Event, correlationId: string, reject: (error: unknown) => void, opened: (event: Event) => void, failed: (event: Event) => void): void {
+        const { detail: { source, value } } = event as CustomEvent<Signal<{ correlationId?: string; error: unknown }>>;
+        const { correlationId: receivedId, error } = value;
+        if (source !== `${this.id}:sse-server` || receivedId !== correlationId) { return; }
+        this.removeSseListeners(opened, failed);
+        reject(error);
+    }
+
+    private removeSseListeners(opened: (event: Event) => void, failed: (event: Event) => void): void {
+        this.target?.removeEventListener(SseServerSignalType.OPENED, opened);
+        this.target?.removeEventListener(SseServerSignalType.ERROR, failed);
+    }
+
+    private requestStream(payload: InferPayload, correlationId: string): void {
+        this.requestValidatedStream(payload, correlationId);
+    }
+
+    private requestValidatedStream(payload: InferPayload, correlationId: string): void {
+        this.pulse(SchemaSignalType.VALIDATE, {
+            schema: inferenceSchema,
+            value: payload,
+            context: {
+                stream: true,
+                correlationId,
+            },
+        });
+    }
+
+    private handleInferRequest(payload: InferPayload): void {
+        const { correlationId } = payload;
+        this.pulse(SchemaSignalType.VALIDATE, {
+            schema: inferenceSchema,
+            value: payload,
+            context: {
+                stream: false,
+                correlationId,
+            },
+        });
+    }
+
+    private handleStreamRequest(payload: InferPayload): void {
+        const { correlationId } = payload;
+        this.requestValidatedStream(payload, correlationId ?? crypto.randomUUID());
     }
 
     private handleJevInferred(signal: Signal): void {
@@ -339,5 +413,3 @@ export class Server extends Uca<Body> {
         return MIME_MAP[extension] ?? 'application/octet-stream';
     }
 }
-
-

@@ -8,4 +8,4 @@ export { Presentation } from './presentation/index.js';
 export { Schema } from './schema/index.js';
 export { Skeleton } from './skeleton/index.js';
 export { Specification } from './specification/index.js';
-
+export { SseServer } from './sse-server/index.js';

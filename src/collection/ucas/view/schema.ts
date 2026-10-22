@@ -2,6 +2,7 @@ import { z } from 'zod';
 import {
     qualitiesSchema as visualQualitiesSchema,
 } from '@uca/capability-css/schema';
+import { areaSchema } from '@uca/layout/schema';
 
 export const qualitiesSchema = visualQualitiesSchema
     .describe('Abstract visual Lego tokens; combine them to compose layout and appearance');
@@ -21,7 +22,8 @@ export const componentItemSchema = z.object({
     ).nullable().optional(),
     qualities: qualitiesSchema
         .describe('Cualidades visuales ontológicas delimitadas por UCA: ' +
-            'Para box (tarjetas y contenedores): layout (direction: "row"|"column", division: "halves"|"thirds"|"sidebar-main"|"auto", gap: "small"|"medium"), espaciado (spacing: "medium"|"large", marginBlock), dimensiones (width, height, flex: "fill"|"none", span), apariencia (surface: "card"|"muted", border: "subtle", radius: "medium", elevation: "low"|"medium", overflow: "hidden"|"auto"). ' +
+            'Para box con hijos: debe declarar direction o division para expresar el flujo de sus descendientes, nunca ambos. Si tiene dos o más hijos directos, debe declarar gap ("small"|"medium") para separarlos entre sí. Usa order solo si el orden visual debe diferir del orden semántico del árbol. flex dimensiona el box dentro de su padre y no activa ni sustituye el flujo. Para box hoja: no declares direction, division ni gap sin descendientes. ' +
+            'Para box (tarjetas y contenedores): respiración interna perimetral obligatoria mediante padding (spacing: "medium"|"large") si tiene surface ("card"|"muted") o border ("subtle") para que su contenido no toque los bordes; layout (direction: "row"|"column", division: "halves"|"thirds"|"sidebar-main"|"auto", gap: "small"|"medium"), dimensiones (width, height, flex: "fill"|"none", span), apariencia (surface: "card"|"muted", border: "subtle", radius: "medium", elevation: "low"|"medium", overflow: "hidden"|"auto"). ' +
             'Para heading (titulares): tipografía (textSize: "xlarge"|"large"|"medium", fontWeight: "bold"|"semibold", textColor: "light"|"brand", lineHeight: "tight"), separación (marginBlock: "small"|"none"), flex: "none". Prohibido ponerle surface o border de tarjeta. ' +
             'Para paragraph (textos): tipografía (textSize: "small"|"medium", textColor: "muted"|"light", lineHeight: "normal"), separación (marginBlock: "small"|"none"). ' +
             'Para action (botones): apariencia (surface: "brand"|"card"|"transparent", border: "subtle"|"none", radius: "medium"|"full"), respiración interna (spacingInline: "medium"|"large", spacingBlock: "small"), tipografía (textSize: "small", fontWeight: "medium", textColor: "dark"|"light"), flex: "none". ' +
@@ -36,10 +38,7 @@ export const viewCompositionSchema = z.object({
 export const viewBodySchema = z.object({
     id: z.string().optional(),
     containerElement: z.string().optional(),
-    area: z.record(
-        z.string(),
-        z.unknown(),
-    ).optional().describe('Especificación del área donde se materializan los componentes'),
+    area: areaSchema.optional().describe('Especificación del área donde se materializan los componentes'),
     browser: z.record(
         z.string(),
         z.unknown(),
@@ -52,13 +51,15 @@ export const bodySchema = viewBodySchema;
 export const buildPayloadSchema = z.object({
     aim: z.object({
         description: z.string().min(1).describe('Intención cognitiva u objetivo del estímulo de vista'),
-        body: bodySchema.describe('Cuerpo de dominio con el área a materializar y contexto'),
+        body: bodySchema.required({
+            area: true,
+        }).describe('Cuerpo de dominio con el área obligatoria a materializar y contexto'),
     }),
     limits: z.record(
         z.string(),
         z.unknown(),
-    ).optional().describe('Restricciones operativas (viewport, dimensiones, cuotas)'),
-    correlationId: z.string().optional().describe('Identificador para trazabilidad nerviosa'),
+    ).describe('Restricciones operativas (viewport, dimensiones, cuotas)'),
+    correlationId: z.string().min(1).describe('Identificador para trazabilidad nerviosa'),
 });
 
 export const builtResultSchema = z.object({

@@ -264,6 +264,11 @@ export const CONTROL_INHERITANCE_RULES = {
 } as const;
 export const IDENTIFIED_DESCENDANT_SELECTOR = '[id]';
 
+export const GRID_EXCLUDED_QUALITIES = [
+    'direction',
+    'wrap',
+] as const;
+
 export const formatDeclarations = (declarations: Record<string, string>): string =>
     Object.entries(declarations).map(([property, value]) => `${property}: ${value};`).join(' ');
 
@@ -271,6 +276,8 @@ export const generateBaseRulesCss = (): string =>
     `*, *::before, *::after { ${formatDeclarations(BASE_RULES)} } ` +
     `html, body { min-block-size: 100%; margin: 0; } ` +
     `body { min-block-size: 100vh; } ` +
+    `h1, h2, h3, h4, h5, h6, p, ul, ol, menu, figure, blockquote { margin: 0; } ` +
+    `ul, ol, menu { padding: 0; list-style: none; } ` +
     `ext-uca { ${formatDeclarations(CONTAINER_RULES)} } ` +
     `img, svg, video, canvas { ${formatDeclarations(MEDIA_RULES)} } ` +
     `input, button, select, textarea, a { ${formatDeclarations(CONTROL_INHERITANCE_RULES)} }`;

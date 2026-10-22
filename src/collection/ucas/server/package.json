@@ -35,12 +35,14 @@
   "dependencies": {
     "@uca/core": "^0.1.0",
     "@uca/capability-http-server": "^0.1.0",
+    "@uca/capability-sse-server": "^0.1.0",
     "@uca/llm": "^0.1.0",
     "@uca/capability-jev": "^0.1.0",
     "@uca/capability-gemini": "^0.1.0",
     "@uca/capability-openai": "^0.1.0",
     "@uca/logger": "^0.1.0",
-    "@uca/capability-schema": "^0.1.0"
+    "@uca/capability-schema": "^0.1.0",
+    "@uca/visual-composition": "^0.1.0"
   },
   "scripts": {
     "test": "tsx tests/index.ts && tsx tests/inference.ts && tsx tests/sse.ts"

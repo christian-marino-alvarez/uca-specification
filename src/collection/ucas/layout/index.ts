@@ -37,6 +37,7 @@ import {
     LAYOUT_INTENTION,
     LAYOUT_PURPOSE,
     LAYOUT_VISUAL_DISPOSITION,
+    ROOT_AREA,
     ROOT_AREA_ID,
     SPATIAL_PIECES,
 } from './constants.js';
@@ -280,14 +281,14 @@ export class Layout extends Uca<Body> {
     private resolveGoal(areaId?: string, parentId?: string): string {
         const target = areaId ?? ROOT_AREA_ID;
         if (target !== 'root' && target !== 'app' && target !== 'body') {
-            return `Partition container '${target}' into immediate child areas with explicit spatial layout qualities: flow, dimensions, spacing (medium/large padding), gap (medium), surface, and boundaries (subtle borderRight/borderBottom/borderTop).`;
+            return `Partition container '${target}' into immediate child areas. Infer every spatial quality from purpose and context: each structural area must declare direction or division for its own children; grant each child area its own delimited breathing space via perimeter padding (spacing), boundaries (border), perimeter margin (marginBlock), and surface; declare gap to separate multiple sibling areas. Flex sizes an area within its parent and never replaces its child-flow declaration.`;
         }
         return LAYOUT_GOAL;
     }
 
     private extractAreaContext(body?: LayoutBody): Record<string, unknown> {
         const {
-            area,
+            area = ROOT_AREA as unknown as Area,
             browser,
         } = body ?? {};
         return {
@@ -419,7 +420,7 @@ export class Layout extends Uca<Body> {
         const parentArea = (context?.area ?? {}) as Area;
         const container = {
             id: currentAreaId ?? ROOT_AREA_ID,
-            qualities: parentArea.qualities,
+            qualities: parentArea.qualities ?? { direction: 'column' },
         };
         return {
             ...identity,
