@@ -25,6 +25,7 @@ export interface Body {
     readonly attributes?: Record<string, string>;
     readonly content?: string;
     readonly events?: readonly string[];
+    readonly defaultTag?: string;
 }
 
 export interface RenderPayload {

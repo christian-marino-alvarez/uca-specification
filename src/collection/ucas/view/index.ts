@@ -239,8 +239,7 @@ export class View extends Uca<Body> {
         return `${space}${visual}${layout}${info}`;
     }
 
-    private resolveAreaGoal(areaId?: string, context?: Record<string, unknown>): string {
-        const area = (context?.area ?? {}) as Record<string, unknown>;
+    private getGoal(areaId?: string, area: Record<string, unknown> = {}): string {
         const { purpose } = area as { purpose?: string };
         const directives = this.formatAreaSpatialDirectives(area);
         const target = areaId ?? 'main';
@@ -248,58 +247,24 @@ export class View extends Uca<Body> {
     }
 
 
-    private resolveDispositionTarget(areaId?: string, parentId?: string): Record<string, unknown> {
-        const target = areaId ?? 'main';
-        return {
-            targetArea: target,
-            parentArea: parentId ?? 'body',
-        };
-    }
-
-    private buildVisualDisposition(areaId?: string, context?: Record<string, unknown>): Record<string, unknown> {
-        const { area, browser } = (context ?? {}) as { area?: Record<string, unknown>; browser?: { viewport?: unknown; device?: string } };
-        const { parentId, qualities, container, disposicionEspacial, disposicionVisual, disposicionInformacion } = (area ?? {}) as Record<string, unknown>;
-        return {
-            ...this.resolveDispositionTarget(areaId, parentId as string | undefined),
-            qualities: qualities ?? {},
-            container: container ?? {},
-            disposicionEspacial,
-            disposicionVisual,
-            disposicionInformacion,
-            viewport: browser?.viewport ?? { width: 1024, height: 768 },
-            device: browser?.device ?? 'desktop',
-            containment: 'strict-viewport-fit',
-        };
-    }
-
-
-    private filterAreaContext(context: Record<string, unknown>): Record<string, unknown> {
+    private buildEnrichedContext(body?: ViewBody): Record<string, unknown> {
         const {
             area,
+            id,
+            containerElement,
             browser,
-            guidelines,
-        } = context;
+            specification,
+        } = body ?? {};
+        const visualPrimitives = Render.getVisualPrimitives();
+        const visualLanguage = Css.visualLanguage();
         return {
             area,
+            id,
+            containerElement,
             browser,
-            guidelines,
-        };
-    }
-
-    private buildEnrichedContext(context: Record<string, unknown>, areaId?: string): Record<string, unknown> {
-        const clean = this.filterAreaContext(context);
-        return {
-            ...clean,
-            visualDisposition: this.buildVisualDisposition(areaId, clean),
-            visualPrimitives: Render.getVisualPrimitives(),
-            visualLanguage: Css.visualLanguage(),
-        };
-    }
-
-    private buildStreamMetadata(areaId?: string, body?: ViewBody): Record<string, unknown> {
-        return {
-            areaId,
-            body,
+            specification,
+            visualPrimitives,
+            visualLanguage,
         };
     }
 
@@ -323,32 +288,20 @@ export class View extends Uca<Body> {
         };
     }
 
-    private assembleInferPayload(id: string, intention: string, context: Record<string, unknown>, meta: Record<string, unknown>): Record<string, unknown> {
-        return {
-            id,
-            intention,
-            purpose: this.purpose,
-            outputSchema: z.toJSONSchema(viewCompositionSchema) as Record<string, unknown>,
-            contextSchema: { const: context },
-            context,
-            ...meta,
-        };
-    }
-
     private createInferRequest(payload: BuildPayload, correlationId: string): Record<string, unknown> {
         const { aim, limits = {} } = payload;
-        const { description, body } = aim;
+        const { description: intention, body } = aim;
         const area = (body?.area ?? {}) as Record<string, unknown>;
         const areaId = (area.id as string) ?? 'main';
-        const enrichedContext = this.buildEnrichedContext(body as Record<string, unknown>, areaId);
-        const goal = this.resolveAreaGoal(areaId, body as Record<string, unknown>);
-        const metadata = this.buildStreamMetadata(areaId, body);
-        const meta = this.createInferMeta(goal, correlationId, `${correlationId}:view:${areaId}`, metadata, limits);
-        return this.assembleInferPayload(`view:${areaId}`, description, enrichedContext, meta);
+        const context = this.buildEnrichedContext(body);
+        const goal = this.getGoal(areaId, area);
+        const meta = this.createInferMeta(goal, correlationId, `${correlationId}:view:${areaId}`, { areaId, body }, limits);
+        return { purpose: this.purpose, goal, intention, context, outputSchema: z.toJSONSchema(viewCompositionSchema), contextSchema: { const: context }, ...meta };
     }
 
     private dispatchLlmInfer(payload: BuildPayload, correlationId: string): void {
         const inferPayload = this.createInferRequest(payload, correlationId);
+        console.log('%c🎨 [VIEW::DESPACHO::INFERENCIA]', 'color: #9B5DE5; font-weight: bold;', inferPayload);
         this.pulse(LlmSignalType.INFER, inferPayload);
     }
 
@@ -391,6 +344,7 @@ export class View extends Uca<Body> {
         this.pulse(SignalType.CREATED, {
             areaId,
             context,
+            correlationId: result.correlationId,
         });
     }
 
@@ -425,7 +379,7 @@ export class View extends Uca<Body> {
             correlationId,
             model,
         } = (signal.value ?? {}) as { correlationId?: string; model?: string };
-        console.log('%c🎨 [VIEW::STREAM::START]', 'color: #9B5DE5; font-weight: bold;', {
+        console.log('%c🎨 [VIEW::STREAM::INICIO]', 'color: #9B5DE5; font-weight: bold;', {
             correlationId,
             model,
         });
@@ -460,7 +414,7 @@ export class View extends Uca<Body> {
             correlationId,
             model,
         } = (signal.value ?? {}) as { correlationId?: string; model?: string };
-        console.log('%c🎨 [VIEW::STREAM::END]', 'color: #9B5DE5; font-weight: bold;', {
+        console.log('%c🎨 [VIEW::STREAM::FIN]', 'color: #9B5DE5; font-weight: bold;', {
             correlationId,
             model,
         });
@@ -521,7 +475,7 @@ export class View extends Uca<Body> {
         areaId?: string,
     ): void {
         const componentId = (item.id as string) ?? (item.component as string) ?? 'box';
-        const title = `%c🎨 [VIEW::COMPONENT_DEFINED] %c${componentId}%c (area: ${areaId ?? 'body'})`;
+        const title = `%c🎨 [VIEW::COMPONENTE_DEFINIDO] %c${componentId}%c (área: ${areaId ?? 'body'})`;
         console.log(title, 'color: #9B5DE5; font-weight: bold;', 'color: #F6E05E; font-weight: bold;', 'color: #888;', {
             item,
             areaId,

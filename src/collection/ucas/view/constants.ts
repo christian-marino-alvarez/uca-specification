@@ -7,10 +7,10 @@ export const DEFAULT_IMAGINATION = 0.2;
 export const DEFAULT_CONTAINER = 'body';
 
 export const VIEW_GOAL =
-    'Construct view component composition hierarchy adhering to area spatial context, configuring containers with flow or grid division, spacing, and gap, and children with proportional flex and span to distribute available space harmoniously';
+    'Construir la jerarquía de composición de componentes de la vista adaptándose al contexto espacial del área, configurando contenedores con dirección de flujo o división por cuadrícula, espaciado y separación (gap), y elementos hijos con flex y span proporcionales para distribuir armónicamente el espacio disponible';
 
 export const VIEW_PURPOSE =
-    'Construct autonomous view component compositions and visual element hierarchies';
+    'Construir composiciones autónomas de componentes de vista y jerarquías de elementos visuales';
 
 export const VIEW_INTENTION =
     'Interpretar el propósito y la delimitación espacial del área para articular y ensamblar las primitivas visuales. Los contenedores (Box, List) configuran la distribución (dirección o división), separación (gap) y respiración (spacing) del espacio que ofrecen a sus hijos, mientras que los componentes articulan su participación elástica (flex, span, dimensiones) para lograr una composición armónica, viva y equilibrada';

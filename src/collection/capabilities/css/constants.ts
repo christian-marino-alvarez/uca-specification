@@ -278,7 +278,7 @@ export const generateBaseRulesCss = (): string =>
     `body { min-block-size: 100vh; } ` +
     `h1, h2, h3, h4, h5, h6, p, ul, ol, menu, figure, blockquote { margin: 0; } ` +
     `ul, ol, menu { padding: 0; list-style: none; } ` +
-    `ext-uca { ${formatDeclarations(CONTAINER_RULES)} } ` +
+    `ext-uca, [id^="ext-uca"], [class*="ext-uca"] { ${formatDeclarations(CONTAINER_RULES)} } ` +
     `img, svg, video, canvas { ${formatDeclarations(MEDIA_RULES)} } ` +
     `input, button, select, textarea, a { ${formatDeclarations(CONTROL_INHERITANCE_RULES)} }`;
 

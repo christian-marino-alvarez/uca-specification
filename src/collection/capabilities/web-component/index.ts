@@ -5,6 +5,7 @@ import {
     DEFAULT_EVENTS,
     DEFAULT_TAG,
     INPUT_TAG,
+    TAG_PREFIX,
 } from './constants.js';
 import {
     type Body,
@@ -54,10 +55,10 @@ export class WebComponent extends Capability<Body> {
     }
 
     protected override react(signal: Signal): void {
-        const { property, value } = signal;
+        const { property, value, source } = signal;
         switch (property) {
             case SignalType.RENDER:
-                this.handleRender(value);
+                this.handleRender(value, source);
                 break;
             case SignalType.UPDATE:
                 this.handleUpdate(value);
@@ -70,29 +71,47 @@ export class WebComponent extends Capability<Body> {
         }
     }
 
-    private handleRender(value?: unknown): void {
+    private handleRender(value?: unknown, source?: string): void {
         const payload = (value ?? {}) as RenderPayload;
-        const { elementId = this.id, tag, containerElement, attributes, content, events, context } = payload;
+        const { elementId = this.id, attributes, content, context } = payload;
         const existing = elementId && typeof document !== 'undefined' ? document.getElementById(elementId) : null;
         if (existing) {
             this.updateExistingElement(existing, attributes, content, context);
             return;
         }
+        this.renderNewElement(payload, source);
+    }
+
+    private renderNewElement(payload: RenderPayload, source?: string): void {
+        const { elementId = this.id, tag, containerElement, attributes, content, events, context } = payload;
         const container = this.resolveContainerElement(containerElement);
-        const element = elementId && container ? this.createElement(this.registerElement(tag), elementId, attributes, content) : null;
-        if (element && container) { this.mountElement(element, container, elementId, events, context); }
+        const customTag = this.registerElement(tag, source);
+        const element = elementId && container ? this.createElement(customTag, elementId, tag, attributes, content) : null;
+        if (element && container) {
+            this.mountElement(element, container, elementId, events, context);
+        }
     }
 
     private updateExistingElement(existing: HTMLElement, attributes?: Record<string, string>, content?: string, context?: unknown): void {
         this.applyAttributes(existing, attributes);
-        if (content !== undefined && existing.children.length === 0) {
-            existing.innerHTML = content;
-        }
+        this.updateInnerOrSelf(existing, attributes, content);
         this.pulse(SignalType.RENDERED, {
             elementId: existing.id,
             tag: existing.tagName.toLowerCase(),
             ...(context !== undefined && { context }),
         });
+    }
+
+    private updateInnerOrSelf(existing: HTMLElement, attributes?: Record<string, string>, content?: string): void {
+        const inner = existing.firstElementChild as HTMLElement | null;
+        if (inner) {
+            this.applyAttributes(inner, attributes);
+            if (content !== undefined) { inner.innerHTML = content; }
+            return;
+        }
+        if (content !== undefined && existing.children.length === 0) {
+            existing.innerHTML = content;
+        }
     }
 
     private mountElement(element: HTMLElement, container: Element, elementId: string, events?: readonly string[], context?: unknown): void {
@@ -134,13 +153,29 @@ export class WebComponent extends Capability<Body> {
         });
     }
 
-    private createElement(tag: string, elementId: string, attributes?: Record<string, string>, content?: string): HTMLElement | null {
+    private createElement(customTag: string, elementId: string, tag?: string, attributes?: Record<string, string>, content?: string): HTMLElement | null {
         if (typeof document === 'undefined') { return null; }
-        const element = document.createElement(tag);
+        const element = document.createElement(customTag);
         element.id = elementId;
+        this.populateElement(element, customTag, tag, attributes, content);
+        return element;
+    }
+
+    private populateElement(element: HTMLElement, customTag: string, tag?: string, attributes?: Record<string, string>, content?: string): void {
+        const innerTag = tag && tag !== customTag && !tag.startsWith('ext-') ? tag : null;
+        if (innerTag) {
+            this.appendNativeInner(element, innerTag, attributes, content);
+            return;
+        }
         this.applyAttributes(element, attributes);
         if (content) { element.innerHTML = content; }
-        return element;
+    }
+
+    private appendNativeInner(element: HTMLElement, innerTag: string, attributes?: Record<string, string>, content?: string): void {
+        const inner = document.createElement(innerTag);
+        this.applyAttributes(inner, attributes);
+        if (content) { inner.innerHTML = content; }
+        element.appendChild(inner);
     }
 
     private handleUpdate(value?: unknown): void {
@@ -149,7 +184,7 @@ export class WebComponent extends Capability<Body> {
         const element = document.getElementById(elementId) as (HTMLElement & { abortController?: AbortController }) | null;
         if (!element) { return; }
         this.applyAttributes(element, attributes);
-        if (content !== undefined) { element.innerHTML = content; }
+        this.updateInnerOrSelf(element, attributes, content);
         if (events) { this.updateEventListeners(element, elementId, events, context); }
         this.pulse(SignalType.UPDATED, { elementId, updated: true, context });
     }
@@ -173,11 +208,21 @@ export class WebComponent extends Capability<Body> {
         }
     }
 
-    private registerElement(tag: string = DEFAULT_TAG): string {
-        if (typeof customElements !== 'undefined' && tag.includes('-') && !customElements.get(tag)) {
-            customElements.define(tag, WebComponent.createCustomElementClass());
+    private resolveTag(tag?: string, source?: string): string {
+        if (tag && tag.startsWith('ext-')) {
+            return tag;
         }
-        return tag;
+        const origin = source && source !== __ID__ ? source : this.id;
+        const candidate = origin.split(':').filter((part) => part && part !== __ID__ && part !== 'presentation').pop();
+        return candidate ? `${TAG_PREFIX}${candidate}` : DEFAULT_TAG;
+    }
+
+    private registerElement(tag?: string, source?: string): string {
+        const resolvedTag = this.resolveTag(tag, source);
+        if (typeof customElements !== 'undefined' && resolvedTag.includes('-') && !customElements.get(resolvedTag)) {
+            customElements.define(resolvedTag, WebComponent.createCustomElementClass());
+        }
+        return resolvedTag;
     }
 
     private resolveContainerElement(selector?: string): Element | null {
@@ -224,7 +269,8 @@ export class WebComponent extends Capability<Body> {
         const resolved = eventTarget?.closest?.('[data-action], [id]') ?? eventTarget;
         const elementId = resolved?.id || rootElementId;
         const action = resolved?.getAttribute?.('data-action') ?? eventName;
-        const { value, checked } = (resolved as HTMLInputElement | null) ?? {};
+        const input = (eventTarget as HTMLInputElement | null) ?? (resolved as HTMLInputElement | null);
+        const { value, checked } = input ?? {};
         const { detail } = event as CustomEvent;
         this.pulse(SignalType.EVENT, { elementId, event: eventName, action, value, checked, detail, context });
     }
