@@ -8,7 +8,11 @@ import {
 } from '@uca/llm/types';
 import {
     __ID__,
+    PLAN_GOAL,
+    PLAN_INSTRUCTIONS,
+    PLAN_PURPOSE,
     VISUAL_DOMAIN_NAMES,
+    VISUAL_GOAL_DIRECTIVE,
 } from './constants.js';
 import { bodySchema } from './schema.js';
 import {
@@ -198,52 +202,40 @@ export class VisualComposition extends Uca<Body> {
         };
     }
 
-    private createPlanRequest(): InferPayload {
-        const request = this.request();
-        const { purpose, goal, limits } = request;
+    private createPlanContext(): Record<string, unknown> {
+        const { purpose, goal, context, contextSchema } = this.request();
+        const facts = (context ?? (contextSchema as { const?: unknown })?.const ?? {}) as Record<string, unknown>;
         const { structure } = this.currentBody();
-        const facts = (request.contextSchema as { const?: Record<string, unknown> } | undefined)?.const ?? request.context ?? {};
+        const state = { purpose, goal, structure, visualLanguage: facts.visualLanguage };
+        const questions = { visualPlan: { type: 'noul', instructions: PLAN_INSTRUCTIONS } };
+        return { state, questions };
+    }
+
+    private createPlanRequest(): InferPayload {
+        const correlationId = `${this.correlationId()}:plan`;
+        const context = this.createPlanContext();
         return {
             provider: 'jev',
-            correlationId: `${this.correlationId()}:plan`,
-            purpose: 'Select visual domain names from a finite CSS catalog',
-            goal: 'Select only the CSS domain names required by each node to satisfy its purpose and intention.',
-            limits,
-            contextSchema: {
-                const: {
-                    state: {
-                        purpose,
-                        goal,
-                        structure,
-                        visualLanguage: (facts as Record<string, unknown>).visualLanguage,
-                    },
-                    questions: {
-                        visualPlan: {
-                            type: 'noul',
-                            instructions: `Return a plan keyed by structural node id. Each value is an array containing only justified names from: ${VISUAL_DOMAIN_NAMES.join(', ')}. Select domain names, never CSS values. For every node with two or more direct children, include gap, spacing, or marginBlock. Select direction or division, never both. Include surface and textColor together whenever a node visibly contains text.`,
-                        },
-                    },
-                },
-            },
+            correlationId,
+            purpose: PLAN_PURPOSE,
+            goal: PLAN_GOAL,
+            context,
         };
+    }
+
+    private createVisualContext(): Record<string, unknown> {
+        const { context, contextSchema } = this.request();
+        const facts = (context ?? (contextSchema as { const?: unknown })?.const ?? {}) as Record<string, unknown>;
+        const { structure, visualPlan } = this.currentBody();
+        return { ...facts, structure, visualPlan };
     }
 
     private createVisualRequest(): InferPayload {
         const request = this.request();
-        const { contextSchema, context, goal, intention } = request;
-        const facts = (contextSchema as { const?: Record<string, unknown> } | undefined)?.const ?? context ?? {};
-        const { structure, visualPlan } = this.currentBody();
-        return {
-            ...request,
-            contextSchema: {
-                const: {
-                    ...facts,
-                    structure,
-                    visualPlan,
-                },
-            },
-            goal: `${goal ?? intention ?? ''} Preserve the supplied structure exactly. Assign qualities only for domain names selected in visualPlan. For nodes with two or more direct children, choose one separation quality: gap, spacing, or marginBlock. Choose direction or division, never both. Pair every visible surface with a contrasting textColor: dark on light brand or accent surfaces; light or muted on dark surfaces.`,
-        };
+        const { goal, intention } = request;
+        const context = this.createVisualContext();
+        const visualGoal = `${goal ?? intention ?? ''} ${VISUAL_GOAL_DIRECTIVE}`;
+        return { ...request, context, goal: visualGoal };
     }
 
     private updateComposition(body: Body): void {

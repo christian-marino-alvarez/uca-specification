@@ -54,6 +54,7 @@
     "@uca/memory": "^0.1.0",
     "@uca/navigate": "^0.1.0",
     "@uca/view": "^0.1.0",
+    "@uca/capability-zod": "^0.1.0",
     "zod": "^4.6.5"
   }
 }

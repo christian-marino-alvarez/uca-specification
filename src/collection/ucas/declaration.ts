@@ -1,8 +1,10 @@
 import { Presentation } from '@uca/capability-presentation';
 import { Css } from '@uca/capability-css';
+import { Zod } from '@uca/capability-zod';
 import type { Aim, Declaration, Disposition } from '@uca/core/types';
 import type { StyledBody } from './types.js';
 import type { Kind } from '@uca/capability-presentation/types';
+import type { z } from 'zod';
 
 function identifiedAim(aim: Aim, body: object): Aim {
     return {
@@ -49,4 +51,14 @@ export function stylePayload(body: StyledBody): object {
         elementId,
         qualities,
     };
+}
+
+export function zodDeclaration(id: string, schema?: z.ZodType): Declaration {
+    return [
+        Zod,
+        identifiedDisposition(Zod.disposition, {
+            id: `${id}:zod`,
+            ...(schema && { schema }),
+        }),
+    ];
 }

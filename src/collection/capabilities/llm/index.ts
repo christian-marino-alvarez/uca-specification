@@ -104,50 +104,26 @@ export class Llm extends HttpClient {
     }
 
     private async handleInfer(signal: Signal): Promise<void> {
-        const {
-            value,
-            source: replyTo,
-        } = signal;
+        const { value, source: replyTo } = signal;
         const request = value as InferPayload;
         try {
-            const {
-                metadata,
-                ...payload
-            } = inferenceSchema.parse(request);
-            const {
-                correlationId,
-            } = payload;
-            const {
-                aim: {
-                    body,
-                },
-            } = this.disposition;
-            const {
-                endpoint = DEFAULT_ENDPOINT,
-            } = body ?? {};
-            await this.handleRequest({
-                endpoint: this.resolveEndpoint(endpoint),
-                payload,
-                correlationId,
-                context: {
-                    ...payload,
-                    metadata,
-                    replyTo,
-                },
-            });
+            const payload = inferenceSchema.parse(request);
+            await this.dispatchInferenceRequest(payload, replyTo);
+        } catch (error) {
+            this.emitInferError(String(error), request.correlationId, replyTo);
         }
-        catch (error) {
-            const {
-                correlationId,
-                metadata,
-            } = request;
-            this.pulse(SignalType.ERROR, {
-                error: String(error),
-                correlationId,
-                metadata,
-                request,
-            }, replyTo);
-        }
+    }
+
+    private async dispatchInferenceRequest(payload: InferPayload, replyTo?: string): Promise<void> {
+        const { correlationId } = payload;
+        const { aim } = this.disposition;
+        const { endpoint = DEFAULT_ENDPOINT } = aim.body ?? {};
+        const url = this.resolveEndpoint(endpoint);
+        await this.handleRequest({ endpoint: url, payload, correlationId, context: { ...payload, replyTo } });
+    }
+
+    private emitInferError(error: string, correlationId?: string, replyTo?: string): void {
+        this.pulse(SignalType.ERROR, { error, correlationId }, replyTo);
     }
 
     private handleAbortInference(signal: Signal): void {
@@ -157,54 +133,26 @@ export class Llm extends HttpClient {
         this.handleAbort(value as AbortPayload);
     }
 
+    private resolveResponseContext(requestContext?: unknown, responseContext?: unknown): unknown {
+        const req = (requestContext ?? {}) as Record<string, unknown>;
+        const res = (responseContext ?? {}) as Record<string, unknown>;
+        return Object.keys(res).length > 0 ? { ...req, ...res } : requestContext;
+    }
+
     private handleResponse(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        const {
-            data,
-            context,
-            correlationId,
-        } = value as ResponsePayload;
-        const {
-            replyTo,
-            ...request
-        } = context as TransportContext;
-        const {
-            metadata,
-        } = request;
-        const {
-            correlationId: receivedCorrelationId = correlationId,
-            ...result
-        } = data as InferResult;
-        this.pulse(SignalType.INFERRED, {
-            ...result,
-            correlationId: receivedCorrelationId,
-            metadata,
-            request,
-        }, replyTo);
+        const { value } = signal;
+        const { context: transportCtx, data, correlationId } = value as ResponsePayload;
+        const { replyTo, context: requestContext } = (transportCtx ?? {}) as TransportContext;
+        const { correlationId: receivedId = correlationId, context: responseContext, ...result } = (data ?? {}) as InferResult;
+        const finalContext = this.resolveResponseContext(requestContext, responseContext);
+        this.pulse(SignalType.INFERRED, { ...result, context: finalContext, correlationId: receivedId }, replyTo);
     }
 
     private handleError(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        const {
-            context,
-            ...failure
-        } = value as ErrorPayload;
-        const {
-            replyTo,
-            ...request
-        } = context as TransportContext;
-        const {
-            metadata,
-        } = request;
-        this.pulse(SignalType.ERROR, {
-            ...failure,
-            metadata,
-            request,
-        }, replyTo);
+        const { value } = signal;
+        const { context, ...failure } = (value ?? {}) as ErrorPayload;
+        const { replyTo, correlationId, context: requestContext } = (context ?? {}) as TransportContext;
+        this.pulse(SignalType.ERROR, { ...failure, context: requestContext, correlationId }, replyTo);
     }
 
     private resolveEndpoint(endpoint: string): string {

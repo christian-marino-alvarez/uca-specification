@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import {
-    DataType,
     QuestionType,
-    SignalType,
 } from './types.js';
 import {
     MAXIMUM_CANDIDATES,
@@ -37,7 +35,7 @@ export const requestSchema = z.object({
         z.string(),
         z.unknown(),
     ).optional(),
-}).strict();
+}).passthrough();
 
 export const choiceResultSchema = z.object({
     assessment: z.string().optional(),
@@ -65,9 +63,13 @@ export const decisionPayloadSchema = z.object({
 }).passthrough();
 
 export const resultSchema = z.object({
-    correlationId: z.string().min(1),
     result: decisionPayloadSchema,
-}).strict();
+    context: z.record(
+        z.string(),
+        z.unknown(),
+    ).optional(),
+    correlationId: z.string().optional(),
+}).passthrough();
 
 export const metadataSchema = z.object({
     request: requestSchema,

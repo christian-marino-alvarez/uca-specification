@@ -156,16 +156,19 @@ export class Render extends Uca<Body> {
     public static override purpose: string =
         'Materialize and orchestrate autonomous spatial layouts and visual elements through Web UCAs';
 
+    private static createVisualPrimitive(name: string, uca: (typeof PRIMITIVE_UCAS)[number]['uca']): VisualPrimitive {
+        const visual = (uca as unknown as { visualDisposition?: Record<string, unknown> }).visualDisposition;
+        return {
+            name,
+            nombre: name,
+            proposito: uca.purpose,
+            intencion: uca.disposition.aim.description,
+            ...(visual && { disposicionVisual: visual }),
+        };
+    }
+
     public static getVisualPrimitives(): VisualPrimitive[] {
-        return PRIMITIVE_UCAS.map(({ name, uca }) => {
-            const visual = (uca as unknown as { visualDisposition?: Record<string, unknown> }).visualDisposition;
-            return {
-                name,
-                proposito: uca.purpose,
-                intencion: uca.disposition.aim.description,
-                ...(visual && { disposicionVisual: visual }),
-            };
-        });
+        return PRIMITIVE_UCAS.map(({ name, uca }) => this.createVisualPrimitive(name, uca));
     }
 
 

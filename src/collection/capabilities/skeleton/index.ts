@@ -104,11 +104,15 @@ export class Skeleton extends Capability<Body> {
         if (typeof document === 'undefined') {
             return null;
         }
-        if (containerElement) {
-            const selector = containerElement.startsWith('#') ? containerElement.slice(1) : containerElement;
-            return document.getElementById(selector) ?? document.querySelector(containerElement);
+        return this.findTargetElement(containerElement ?? elementId);
+    }
+
+    private findTargetElement(target: string): Element | null {
+        if (target === 'body' || target === '#body') {
+            return document.body;
         }
-        return document.getElementById(elementId);
+        const id = target.startsWith('#') ? target.slice(1) : target;
+        return document.getElementById(id) ?? document.querySelector(target);
     }
 
     private mountSkeletonElement(container: Element, elementId: string): void {

@@ -243,32 +243,32 @@ export const DESIGN: StylesheetDesign = {
         textColor: {
             light: {
                 $type: 'color',
-                $value: '#e2e8f0',
-                $description: 'Primary foreground on dark surfaces',
+                $value: 'var(--md-sys-color-on-primary, #ffffff)',
+                $description: 'Light foreground for dark or high-emphasis colored surfaces',
             },
             dark: {
                 $type: 'color',
-                $value: '#070A12',
+                $value: 'var(--md-sys-color-on-surface, #202124)',
                 $description: 'Primary foreground on light surfaces',
             },
             muted: {
                 $type: 'color',
-                $value: '#94a3b8',
+                $value: 'var(--md-sys-color-on-surface-variant, #5f6368)',
                 $description: 'Secondary readable foreground',
             },
             brand: {
                 $type: 'color',
-                $value: '#e2e8f0',
-                $description: 'Brand foreground in blanco grisáceo',
+                $value: 'var(--md-sys-color-primary, #1a73e8)',
+                $description: 'Brand primary foreground',
             },
             accent: {
                 $type: 'color',
-                $value: '#cbd5e1',
-                $description: 'Highlight foreground in blanco grisáceo',
+                $value: 'var(--md-sys-color-primary, #1a73e8)',
+                $description: 'Highlight foreground for interactive targets',
             },
             danger: {
                 $type: 'color',
-                $value: '#e2e8f0',
+                $value: 'var(--md-sys-color-error, #d93025)',
                 $description: 'Error foreground',
             },
         },
@@ -708,7 +708,7 @@ export const DESIGN: StylesheetDesign = {
         ':root': {
             'color-scheme': 'dark light',
             'font-family': 'var(--uca-typeface-sans)',
-            color: 'var(--uca-textColor-light)',
+            color: 'var(--uca-textColor-dark)',
             'background-color': 'var(--uca-surface-default)',
             'font-synthesis': 'none',
             'text-rendering': 'optimizeLegibility',
@@ -728,7 +728,7 @@ export const DESIGN: StylesheetDesign = {
             display: 'flex',
             'flex-direction': 'column',
             overflow: 'hidden',
-            color: 'var(--uca-textColor-light)',
+            color: 'var(--uca-textColor-dark)',
             'background-color': 'var(--uca-surface-default)',
         },
         'ext-uca': {

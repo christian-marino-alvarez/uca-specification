@@ -125,11 +125,13 @@ export interface ComponentDef {
 
 export interface VisualPrimitive {
     readonly name: string;
+    readonly nombre?: string;
     readonly proposito: string;
     readonly intencion: string;
-    readonly disposicionVisual?: Record<
-        string,
-        unknown
-    >;
+    readonly limites?: Record<string, unknown>;
+    readonly intencionVisual?: Record<string, unknown>;
+    readonly disposicionVisual?: Record<string, unknown>;
+    readonly intencionInformacion?: string;
+    readonly disposicionInformacion?: string;
 }
 

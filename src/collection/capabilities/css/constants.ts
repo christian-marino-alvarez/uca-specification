@@ -90,12 +90,12 @@ export const DESIGN_TOKENS = {
     },
     textColor: {
         $type: 'color',
-        light: { $value: '#e2e8f0', $description: 'Primary positive blanco grisáceo foreground' },
-        dark: { $value: '#070a12', $description: 'Negative dark foreground for high-contrast positive surfaces' },
-        muted: { $value: '#94a3b8', $description: 'Secondary readable blanco grisáceo foreground' },
-        brand: { $value: '#e2e8f0', $description: 'Positive blanco grisáceo brand foreground' },
-        accent: { $value: '#cbd5e1', $description: 'Secondary blanco grisáceo foreground' },
-        danger: { $value: '#e2e8f0', $description: 'Contrast foreground for warnings' },
+        light: { $value: 'var(--md-sys-color-on-primary, #ffffff)', $description: 'Light foreground for dark or high-emphasis colored surfaces' },
+        dark: { $value: 'var(--md-sys-color-on-surface, #202124)', $description: 'High-contrast dark foreground for light surfaces' },
+        muted: { $value: 'var(--md-sys-color-on-surface-variant, #5f6368)', $description: 'Secondary readable muted foreground' },
+        brand: { $value: 'var(--md-sys-color-primary, #1a73e8)', $description: 'Brand primary foreground' },
+        accent: { $value: 'var(--md-sys-color-primary, #1a73e8)', $description: 'Accent foreground for links and interactive targets' },
+        danger: { $value: 'var(--md-sys-color-error, #d93025)', $description: 'Contrast foreground for warnings' },
     },
     typeface: {
         $type: 'fontFamily',

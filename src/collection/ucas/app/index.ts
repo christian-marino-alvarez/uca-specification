@@ -26,6 +26,8 @@ import { Telemetry } from '@uca/capability-telemetry';
 import { Material } from '@uca/capability-material';
 import { SignalType as MaterialSignalType } from '@uca/capability-material/types';
 import { Uca } from '@uca/core/uca';
+import { Zod } from '@uca/capability-zod';
+import { signalBodySchema } from '../schema.js';
 import {
     DispositionSignal,
     type Aim,
@@ -682,13 +684,12 @@ export class App extends Uca<Body> {
     }
 
     private sendDecisionRequest(input: unknown, session: unknown, correlationId?: string): void {
-        const context = this.buildDecisionContext(input, session);
         const question = this.resolveCognitiveQuestion(input);
-        this.pulse(DecisionSignalType.DECIDE, {
-            correlationId: correlationId ?? `decide-${Date.now()}`,
-            question,
-            context,
-        });
+        const context = this.buildDecisionContext(input, session, question);
+        const signalBody = this.createDecisionSignalBody(question, context);
+        signalBodySchema.parse(signalBody);
+        const cid = correlationId ?? `decide-${Date.now()}`;
+        this.pulse(DecisionSignalType.DECIDE, signalBody, undefined, cid);
     }
 
     private extractOntologyContext(): Record<string, unknown> {
@@ -729,11 +730,45 @@ export class App extends Uca<Body> {
         };
     }
 
-    private buildDecisionContext(_input: unknown, session: unknown): Record<string, unknown> {
+    private assembleRootDimensions(): Record<string, unknown> {
         return {
-            ...this.extractOntologyContext(),
+            width: '100%',
+            height: '100%',
+            flex: '1',
+        };
+    }
+
+    private assembleRootArea(ontology: Record<string, unknown>): Record<string, unknown> {
+        const {
+            visualIntention: _v,
+            guidelines: _g,
+            ...rest
+        } = ontology;
+        return {
+            id: 'body',
+            ...rest,
+        };
+    }
+
+    private assembleDecisionEnvironment(session: unknown, question?: Record<string, unknown>): Record<string, unknown> {
+        const browser = this.resolveBrowserContext();
+        return {
+            browser,
+            limits: this.buildLimitsPayload(browser as { viewport?: unknown }),
+            guidelines: DEFAULT_DESIGN_GUIDELINES,
             session: session ?? null,
-            browser: this.resolveBrowserContext(),
+            ...(question && { question }),
+        };
+    }
+
+    private buildDecisionContext(_input: unknown, session: unknown, question?: Record<string, unknown>): Record<string, unknown> {
+        const ontology = this.extractOntologyContext();
+        return {
+            containerId: 'root',
+            areaContainerDimensions: this.assembleRootDimensions(),
+            visualIntention: ontology.visualIntention as string,
+            ...this.assembleDecisionEnvironment(session, question),
+            area: this.assembleRootArea(ontology),
         };
     }
 
@@ -779,9 +814,10 @@ export class App extends Uca<Body> {
     private handleDecisionDecided(signal: Signal): void {
         const {
             value,
+            correlationId,
         } = signal;
-        this.pulse(SignalType.DECIDED, value);
-        this.requestBuild(value);
+        this.pulse(SignalType.DECIDED, value, undefined, correlationId);
+        this.requestBuild(value, correlationId);
     }
 
     private extractDecisionChoice(decisionValue: unknown): 'LAYOUT' | 'VIEW' {
@@ -806,8 +842,8 @@ export class App extends Uca<Body> {
         const isLayout = choice === 'LAYOUT';
         const action = isLayout ? 'Estructurar distribución espacial' : 'Articular componentes visuales';
         const targetId = area?.id ?? ROOT_AREA_ID;
-        const purpose = area?.purpose ?? area?.intention ?? 'Interacción y contenido funcional';
-        return `${action} para el área '${targetId}': "${purpose}"`;
+        const targetIntention = area?.intention ?? area?.purpose ?? 'Interacción y contenido funcional';
+        return `${action} para el área '${targetId}': "${targetIntention}"`;
     }
 
     private buildAimPayload(choice: 'LAYOUT' | 'VIEW', area?: Area, context?: Record<string, unknown>): Aim<Record<string, unknown>> {
@@ -824,93 +860,194 @@ export class App extends Uca<Body> {
         };
     }
 
-    private assembleBuildPayload(aim: Aim<Record<string, unknown>>, browser?: { viewport?: unknown }, correlationId?: string): TransportPayload {
+    private assembleBuildPayload(aim: Aim<Record<string, unknown>>): TransportPayload {
         return {
             aim,
-            limits: this.buildLimitsPayload(browser),
-            correlationId: correlationId ?? `build-${Date.now()}`,
         };
     }
 
-    private createBuildPayload(choice: 'LAYOUT' | 'VIEW', context: Record<string, unknown>, correlationId?: string): TransportPayload {
+    private sanitizeBuildContext(context: Record<string, unknown>): Record<string, unknown> {
+        const {
+            question: _question,
+            options: _options,
+            session: _session,
+            state: _state,
+            ...rest
+        } = context;
+        return rest;
+    }
+
+    private createBuildPayload(choice: 'LAYOUT' | 'VIEW', context: Record<string, unknown>): TransportPayload {
         const { area, browser } = context as { area?: Area; browser?: { viewport?: unknown } };
-        return this.assembleBuildPayload(this.buildAimPayload(choice, area, context), browser, correlationId);
+        const limits = (context.limits ?? this.buildLimitsPayload(browser)) as Record<string, unknown>;
+        const cleanContext = this.sanitizeBuildContext(context);
+        return this.assembleBuildPayload(this.buildAimPayload(choice, area, {
+            ...cleanContext,
+            limits,
+        }));
     }
 
     private dispatchBuild(choice: 'LAYOUT' | 'VIEW', context: Record<string, unknown>, correlationId?: string): void {
-        const payload = this.createBuildPayload(choice, context, correlationId);
+        const payload = this.createBuildPayload(choice, context);
         const signal = choice === 'LAYOUT' ? LayoutSignalType.BUILD : ViewSignalType.BUILD;
-        this.pulse(signal, payload);
+        this.pulse(signal, payload, undefined, correlationId);
     }
 
-    private requestBuild(decisionValue: unknown): void {
+    private requestBuild(decisionValue: unknown, correlationId?: string): void {
         const context = this.resolveBuildContext(decisionValue);
-        const {
-            correlationId,
-        } = (decisionValue ?? {}) as { correlationId?: string };
+        const cid = correlationId ?? (decisionValue as { correlationId?: string })?.correlationId;
         const choice = this.extractDecisionChoice(decisionValue);
-        this.dispatchBuild(choice, context, correlationId);
+        this.dispatchBuild(choice, context, cid);
     }
 
     private handleLayoutBuilt(signal: Signal): void {
         const {
             value,
+            correlationId,
         } = signal;
-        this.pulse(SignalType.BUILT, value);
+        this.pulse(SignalType.BUILT, value, undefined, correlationId);
     }
 
     private handleViewBuilt(signal: Signal): void {
         const {
             value,
+            correlationId,
         } = signal;
-        this.pulse(SignalType.BUILT, value);
+        this.pulse(SignalType.BUILT, value, undefined, correlationId);
     }
 
     private handleViewRendered(signal: Signal): void {
         const {
             value,
+            correlationId,
         } = signal;
-        this.pulse(SignalType.BUILT, value);
+        this.pulse(SignalType.BUILT, value, undefined, correlationId);
     }
 
     private handleLayoutAreaCreated(signal: Signal): void {
         const {
             value,
+            correlationId,
         } = signal;
         const defined = value as AreaDefined;
         if (defined?.area?.id === 'root' || defined?.area?.id === 'app' || defined?.area?.id === 'body') {
             return;
         }
-        this.sendAreaDecision(defined);
+        this.sendAreaDecision(defined, correlationId);
     }
 
-    private createAreaContext(area: Area, context: Record<string, unknown>): Record<string, unknown> {
+    private pickAreaIdentity(area: Area): Record<string, unknown> {
         const {
-            browser = this.resolveBrowserContext(),
-        } = context as { browser?: Record<string, unknown> };
+            id,
+            purpose,
+            intention,
+        } = area;
         return {
-            area,
+            id,
+            purpose,
+            intention,
+        };
+    }
+
+    private pickAreaStructure(area: Area): Record<string, unknown> {
+        const {
+            qualities,
+            container,
+        } = area;
+        return {
+            qualities,
+            container,
+        };
+    }
+
+    private pickAreaDispositions(area: Area): Record<string, unknown> {
+        const {
+            disposicionEspacial,
+            disposicionVisual,
+            disposicionInformacion,
+            dimensions,
+        } = area;
+        return {
+            disposicionEspacial,
+            disposicionVisual,
+            disposicionInformacion,
+            dimensions,
+        };
+    }
+
+    private extractRemainingArea(area: Area): Record<string, unknown> {
+        return {
+            ...this.pickAreaIdentity(area),
+            ...this.pickAreaStructure(area),
+            ...this.pickAreaDispositions(area),
+        };
+    }
+
+    private extractAreaDirectives(area: Area): Record<string, unknown> {
+        const {
+            parentId = 'body',
+            dimensions = {},
+            visualIntention = area.intention,
+            disposicionEspacial,
+            disposicionInformacion,
+        } = area;
+        return {
+            containerId: parentId,
+            areaContainerDimensions: dimensions,
+            visualIntention,
+            disposicionEspacial,
+            disposicionInformacion,
+        };
+    }
+
+    private buildAreaDirectives(area: Area, browser: Record<string, unknown>): Record<string, unknown> {
+        return {
+            ...this.extractAreaDirectives(area),
             browser,
+            limits: this.buildLimitsPayload(browser as { viewport?: unknown }),
             guidelines: DEFAULT_DESIGN_GUIDELINES,
+        };
+    }
+
+    private buildAreaDecisionContext(
+        area: Area,
+        question: Record<string, unknown>,
+        browser: Record<string, unknown>,
+    ): Record<string, unknown> {
+        return {
+            ...this.buildAreaDirectives(area, browser),
+            question,
+            area: this.extractRemainingArea(area),
+        };
+    }
+
+    private createDecisionSignalBody(
+        question: Record<string, unknown>,
+        context: Record<string, unknown>,
+    ): Record<string, unknown> {
+        return {
+            id: this.id,
+            purpose: App.purpose,
+            intention: question.prompt as string,
+            outputSchema: Zod.toJsonSchema(decisionResultSchema),
+            context,
         };
     }
 
     private dispatchAreaPrompt(area: Area, context: Record<string, unknown>, correlationId?: string): void {
         const nextId = `${correlationId ?? 'decision'}:${area.id}`;
-        const areaContext = this.createAreaContext(area, context);
+        const { browser = this.resolveBrowserContext() } = context as { browser?: Record<string, unknown> };
         const question = this.resolveAreaQuestion(area, area.parentId);
-        this.pulse(DecisionSignalType.DECIDE, {
-            correlationId: nextId,
-            question,
-            context: areaContext,
-        });
+        const decisionContext = this.buildAreaDecisionContext(area, question, browser as Record<string, unknown>);
+        const signalBody = this.createDecisionSignalBody(question, decisionContext);
+        signalBodySchema.parse(signalBody);
+        this.pulse(DecisionSignalType.DECIDE, signalBody, undefined, nextId);
     }
 
-    private sendAreaDecision(defined: AreaDefined): void {
+    private sendAreaDecision(defined: AreaDefined, correlationId?: string): void {
         const {
             area,
             context = {},
-            correlationId,
         } = defined;
         this.dispatchAreaPrompt(area, context, correlationId);
     }

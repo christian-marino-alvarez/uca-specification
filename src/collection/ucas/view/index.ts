@@ -20,6 +20,15 @@ import type {
     Disposition,
     Signal,
 } from '@uca/core/types';
+import { Zod } from '@uca/capability-zod';
+import { SignalType as ZodSignalType } from '@uca/capability-zod/types';
+import { Skeleton } from '@uca/capability-skeleton';
+import { SignalType as SkeletonSignalType } from '@uca/capability-skeleton/types';
+import {
+    webContextSchema,
+    webSignalBodySchema,
+} from '../schema.js';
+import type { WebContext } from '../types.js';
 import { z } from 'zod';
 import {
     __ID__,
@@ -63,6 +72,8 @@ export class View extends Uca<Body> {
             ...View.reactToLlm(),
             ...View.reactToRender(),
             ...View.reactToStreamTransformer(),
+            ...View.reactToZod(),
+            ...View.reactToSkeleton(),
         ],
         inputs: [
             {
@@ -134,6 +145,26 @@ export class View extends Uca<Body> {
         ];
     }
 
+    private static reactToZod(): string[] {
+        return [
+            ZodSignalType.VALIDATE,
+            ZodSignalType.VALIDATED,
+            ZodSignalType.DESCRIBE,
+            ZodSignalType.DESCRIBED,
+            ZodSignalType.ERROR,
+            ...Zod.disposition.reactTo ?? [],
+        ];
+    }
+
+    private static reactToSkeleton(): string[] {
+        return [
+            SkeletonSignalType.SHOWN,
+            SkeletonSignalType.REMOVED,
+            SkeletonSignalType.ERROR,
+            ...Skeleton.disposition.reactTo ?? [],
+        ];
+    }
+
     public constructor(id: string = __ID__) {
         super(id);
     }
@@ -185,6 +216,34 @@ export class View extends Uca<Body> {
                     ],
                 },
             ],
+            [
+                Zod,
+                {
+                    aim: {
+                        description: Zod.AIM,
+                        body: {
+                            id: `${id}:zod`,
+                        },
+                    },
+                    reactTo: [
+                        ...Zod.disposition.reactTo ?? [],
+                    ],
+                },
+            ],
+            [
+                Skeleton,
+                {
+                    aim: {
+                        description: Skeleton.AIM,
+                        body: {
+                            id: `${id}:skeleton`,
+                        },
+                    },
+                    reactTo: [
+                        ...Skeleton.disposition.reactTo ?? [],
+                    ],
+                },
+            ],
         ];
     }
 
@@ -195,7 +254,7 @@ export class View extends Uca<Body> {
         } = signal;
         switch (property) {
             case SignalType.BUILD:
-                this.handleBuild(value as BuildPayload);
+                this.handleBuild(signal);
                 break;
             case LlmSignalType.INFERRED:
                 this.handleLlmInferred(signal);
@@ -227,98 +286,150 @@ export class View extends Uca<Body> {
             case RenderSignalType.ERROR:
                 this.handleRenderError(signal);
                 break;
+            case SkeletonSignalType.SHOWN:
+            case SkeletonSignalType.REMOVED:
+            case SkeletonSignalType.ERROR:
+                break;
         }
     }
 
     private formatAreaSpatialDirectives(area: Record<string, unknown>): string {
-        const { disposicionEspacial, disposicionVisual, disposicionInformacion, qualities } = area;
+        const { disposicionEspacial, disposicionVisual, disposicionInformacion, qualities, visualIntention } = area;
         const space = disposicionEspacial ? ` Ubicación: ${disposicionEspacial}.` : '';
-        const visual = disposicionVisual ? ` Flujo visual: ${disposicionVisual}.` : '';
+        const visualTarget = visualIntention ?? disposicionVisual;
+        const visual = visualTarget ? ` Flujo visual: ${visualTarget}.` : '';
         const layout = qualities ? ` Cualidades del área: ${JSON.stringify(qualities)}.` : '';
-        const info = disposicionInformacion ? ` Contenido: ${disposicionInformacion}.` : '';
+        const info = disposicionInformacion ? ` Información a cubrir: ${disposicionInformacion}.` : '';
         return `${space}${visual}${layout}${info}`;
     }
 
     private getGoal(areaId?: string, area: Record<string, unknown> = {}): string {
-        const { purpose } = area as { purpose?: string };
+        const { purpose, intention } = area as { purpose?: string; intention?: string };
         const directives = this.formatAreaSpatialDirectives(area);
         const target = areaId ?? 'main';
-        return `Articulate visual components directly inside '${target}' (container already mounted; do NOT create a redundant wrapper): ${purpose ?? VIEW_GOAL}.${directives} For every Box with descendants, infer direction or division and choose gap, spacing, or marginBlock when its role needs separation; preserve semantic tree order unless a distinct visual sequence is required. flex only sizes an item in an already declared parent flow. Leaf primitives must not invent container flow.`;
+        const targetDesc = intention ?? purpose ?? VIEW_GOAL;
+        const contrast = ' Contrast rule: on light surfaces use textColor dark, muted, or brand; use light only on dark surfaces.';
+        return `Articular componentes visuales directamente en '${target}' (container mounted): ${targetDesc}.${directives} Infer direction/gap for boxes with children.${contrast}`;
     }
 
+    private resolveAreaVisual(area?: Record<string, unknown>): string {
+        const { visualIntention = VIEW_INTENTION } = area ?? {};
+        return visualIntention as string;
+    }
 
-    private buildEnrichedContext(body?: ViewBody): Record<string, unknown> {
-        const {
-            area,
-            id,
-            containerElement,
-            browser,
-            specification,
-        } = body ?? {};
-        const visualPrimitives = Render.getVisualPrimitives();
-        const visualLanguage = Css.visualLanguage();
+    private extractAreaDescriptors(area?: Record<string, unknown>): { containerId: string; dimensions: Record<string, unknown> } {
+        const { id, dimensions = {}, parentId = 'root' } = area ?? {};
         return {
-            area,
-            id,
-            containerElement,
-            browser,
-            specification,
-            visualPrimitives,
-            visualLanguage,
+            containerId: (id ?? parentId) as string,
+            dimensions: dimensions as Record<string, unknown>,
         };
+    }
+
+    private assembleContextLimits(limits: Record<string, unknown> = {}): Record<string, unknown> {
+        return {
+            limit: DEFAULT_LIMIT,
+            imagination: DEFAULT_IMAGINATION,
+            ...limits,
+        };
+    }
+
+    private createBaseWebContext(containerId: string, areaId: string, dimensions: Record<string, unknown>, capabilities: unknown[]) {
+        return {
+            containerId,
+            areaId,
+            areaContainerDimensions: dimensions,
+            webCapabilitiesAvailables: capabilities as Record<string, unknown>[],
+            styleDomains: this.resolveStyleDomains(),
+        };
+    }
+
+    private enrichContextWithArea(
+        base: ReturnType<typeof this.createBaseWebContext>,
+        area?: Record<string, unknown>,
+        limits: Record<string, unknown> = {},
+    ): WebContext {
+        const { disposicionEspacial, disposicionInformacion } = area ?? {};
+        return {
+            ...base,
+            visualIntention: this.resolveAreaVisual(area),
+            disposicionEspacial: disposicionEspacial as string | undefined,
+            disposicionInformacion: disposicionInformacion as string | undefined,
+            theme: 'light',
+            contrastRule: 'Use textColor dark/brand on light surfaces; light on dark/primary surfaces',
+            limits: this.assembleContextLimits(limits),
+        };
+    }
+
+    private buildEnrichedContext(body?: ViewBody): WebContext {
+        const { area, limits = {} } = (body ?? {}) as { area?: Record<string, unknown>; limits?: Record<string, unknown> };
+        const { containerId, dimensions } = this.extractAreaDescriptors(area);
+        const areaId = (area?.id as string) ?? containerId;
+        const capabilities = this.resolveAvailableCapabilities();
+        const base = this.createBaseWebContext(containerId, areaId, dimensions, capabilities);
+        return this.enrichContextWithArea(base, area, limits);
+    }
+
+    private resolveAvailableCapabilities(): unknown[] {
+        return Render.getVisualPrimitives();
+    }
+
+    private resolveStyleDomains(): string[] {
+        const { tokens } = Css.visualLanguage() as { tokens?: Record<string, unknown> };
+        return Object.keys(tokens ?? {});
     }
 
     private createInferMeta(
         goal: string,
         correlationId: string,
         streamId: string,
-        metadata: Record<string, unknown>,
-        limits: Record<string, unknown> = {},
     ): Record<string, unknown> {
         return {
-            metadata,
             goal,
-            limits: {
-                limit: DEFAULT_LIMIT,
-                imagination: DEFAULT_IMAGINATION,
-                ...limits,
-            },
             correlationId,
             streamId,
         };
     }
 
-    private resolveLayoutId(area: Record<string, unknown>, correlationId: string): string {
-        const {
-            parentId,
-        } = area as { parentId?: string };
-        if (parentId && parentId !== 'none' && parentId !== 'root') {
-            return parentId;
-        }
-        return correlationId.includes(':') ? correlationId.split(':')[0] : correlationId;
-    }
-
     private createInferRequest(payload: BuildPayload, correlationId: string): Record<string, unknown> {
-        const { aim, limits = {} } = payload;
+        const { aim } = payload;
         const { description: intention, body } = aim;
         const area = (body?.area ?? {}) as Record<string, unknown>;
         const areaId = (area.id as string) ?? 'main';
-        const layoutId = this.resolveLayoutId(area, correlationId);
         const context = this.buildEnrichedContext(body);
         const goal = this.getGoal(areaId, area);
-        const meta = this.createInferMeta(goal, correlationId, `${correlationId}:view:${areaId}`, { areaId, layoutId, body }, limits);
-        return { id: 'view', purpose: this.purpose, goal, intention, context, outputSchema: z.toJSONSchema(viewCompositionSchema), contextSchema: { const: context }, ...meta };
+        const meta = this.createInferMeta(goal, correlationId, `${correlationId}:view:${areaId}`);
+        const outputSchema = Zod.toJsonSchema(viewCompositionSchema);
+        return { id: 'view', purpose: this.purpose, goal, intention, context, outputSchema, ...meta };
     }
 
     private dispatchLlmInfer(payload: BuildPayload, correlationId: string): void {
         const inferPayload = this.createInferRequest(payload, correlationId);
-        this.pulse(LlmSignalType.INFER, inferPayload);
+        webSignalBodySchema.parse(inferPayload);
+        this.pulse(LlmSignalType.INFER, inferPayload, undefined, correlationId);
     }
 
-    private handleBuild(payload: BuildPayload): void {
+    private showAreaSkeleton(elementId: string): void {
+        this.pulse(SkeletonSignalType.SHOW, {
+            elementId,
+        });
+    }
+
+    private removeAreaSkeleton(elementId: string): void {
+        this.pulse(SkeletonSignalType.REMOVE, {
+            elementId,
+        });
+    }
+
+    private handleBuild(signal: Signal): void {
         const {
             correlationId = crypto.randomUUID(),
-        } = payload;
+            value,
+        } = signal;
+        const payload = value as BuildPayload;
+        const areaId = (payload?.aim?.body?.area as { id?: string })?.id;
+        if (areaId) {
+            this.showAreaSkeleton(areaId);
+        }
         this.dispatchLlmInfer(payload, correlationId);
     }
 
@@ -342,36 +453,35 @@ export class View extends Uca<Body> {
         return (comp.components ?? comp.items ?? []) as unknown[];
     }
 
-    private handleViewInferred(result: BuiltResult): void {
+    private handleViewInferred(result: BuiltResult, correlationId?: string): void {
         const {
             composition,
             context = {},
             areaId,
         } = result;
+        if (areaId) {
+            this.removeAreaSkeleton(areaId);
+        }
         const list = this.extractComponentList(composition);
         this.dispatchRender(list, context, areaId);
-        this.pulse(SignalType.BUILT, result);
+        this.pulse(SignalType.BUILT, result, undefined, correlationId);
         this.pulse(SignalType.CREATED, {
             areaId,
             context,
-            correlationId: result.correlationId,
-        });
+        }, undefined, correlationId);
     }
 
-    private resolveInferredAreaId(context: Record<string, unknown>, metadata: Record<string, unknown>): string | undefined {
-        const { areaId } = context as { areaId?: string };
-        return areaId ?? (metadata.areaId as string);
+    private resolveInferredAreaId(context: Record<string, unknown>): string | undefined {
+        const { areaId, containerId } = context as { areaId?: string; containerId?: string };
+        return areaId ?? containerId;
     }
 
     private extractInferredResult(value: unknown): BuiltResult {
-        const { data, response, correlationId, request } = (value ?? {}) as InferResult;
-        const metadata = (request?.metadata ?? {}) as Record<string, unknown>;
-        const context = (request?.context ?? metadata) as Record<string, unknown>;
-        const areaId = this.resolveInferredAreaId(context, metadata);
+        const { data, response, context = {} } = (value ?? {}) as InferResult & { context?: Record<string, unknown> };
+        const areaId = this.resolveInferredAreaId(context);
         return {
             composition: data ?? response,
             context,
-            correlationId,
             areaId,
         };
     }
@@ -379,29 +489,23 @@ export class View extends Uca<Body> {
     private handleLlmInferred(signal: Signal): void {
         const {
             value,
+            correlationId = (signal.value as InferResult)?.correlationId,
         } = signal;
         const result = this.extractInferredResult(value);
-        this.handleViewInferred(result);
+        this.handleViewInferred(result, correlationId);
     }
 
     private handleLlmStreaming(_signal: Signal): void {}
 
     private buildTransformPayload(result: StreamResult): Record<string, unknown> {
-        const {
-            correlationId,
-            stream,
-            request,
-        } = result;
-        const binding = (request?.metadata ?? {}) as BuildPayload;
+        const { correlationId, stream, context, request } = result as StreamResult & { context?: Record<string, unknown> };
+        const resolvedContext = context ?? request?.context ?? (request as unknown as Record<string, unknown>) ?? {};
         return {
             correlationId,
             stream,
             schema: componentItemSchema,
             mode: StreamTransformerMode.ITEMS,
-            context: {
-                ...binding,
-                request,
-            },
+            context: resolvedContext,
         };
     }
 
@@ -420,13 +524,12 @@ export class View extends Uca<Body> {
     }
 
     private async handleStreamTransformerTransformed(signal: Signal): Promise<void> {
-        const {
-            stream,
-            context,
-            correlationId,
-        } = this.extractTransformedPayload(signal);
-        if (stream) {
+        const { stream, context, correlationId } = this.extractTransformedPayload(signal);
+        if (!stream) { return; }
+        try {
             await stream.pipeTo(this.createStreamConsumer(context as Record<string, unknown> | undefined, correlationId));
+        } catch (error) {
+            this.pulse(SignalType.ERROR, error, undefined, correlationId);
         }
     }
 
@@ -449,16 +552,16 @@ export class View extends Uca<Body> {
         context?: Record<string, unknown>,
         correlationId?: string,
     ): void {
-        const areaId = (context?.areaId as string) ?? 'main';
+        const areaId = (context?.areaId as string) ?? (context?.containerId as string) ?? 'main';
+        this.removeAreaSkeleton(areaId);
         this.pulse(SignalType.BUILT, {
             composition: { components },
             areaId,
-            correlationId,
-        });
+        }, undefined, correlationId);
         this.pulse(SignalType.CREATED, {
             areaId,
-            correlationId,
-        });
+            context,
+        }, undefined, correlationId);
     }
 
     private handleStreamChunk(
@@ -466,8 +569,8 @@ export class View extends Uca<Body> {
         context?: Record<string, unknown>,
         _correlationId?: string,
     ): void {
-        const areaId = (context?.areaId as string) ?? 'main';
-        const body = (context?.body ?? {}) as Record<string, unknown>;
+        const areaId = (context?.areaId as string) ?? (context?.containerId as string) ?? 'main';
+        const body = (context?.body ?? context ?? {}) as Record<string, unknown>;
         this.dispatchRender([item], body, areaId);
     }
 
@@ -488,7 +591,12 @@ export class View extends Uca<Body> {
     }
 
     private handleLlmError(signal: Signal): void {
-        this.pulse(SignalType.ERROR, signal.value);
+        const { correlationId, value } = signal;
+        const areaId = (value as { context?: { areaId?: string } })?.context?.areaId;
+        if (areaId) {
+            this.removeAreaSkeleton(areaId);
+        }
+        this.pulse(SignalType.ERROR, value, undefined, correlationId);
     }
 
     private handleRenderRendered(signal: Signal): void {

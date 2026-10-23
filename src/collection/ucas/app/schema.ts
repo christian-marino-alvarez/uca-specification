@@ -42,7 +42,7 @@ export const decisionResultSchema = z.object({
         z.unknown(),
     ).optional(),
     correlationId: z.string().optional(),
-}).strict();
+}).passthrough();
 
 export const sessionSchema = z.object({
     sessionId: z.string().min(1),
@@ -84,6 +84,10 @@ export const bodySchema = z.object({
         z.unknown(),
     ).optional(),
     specification: z.record(
+        z.string(),
+        z.unknown(),
+    ).optional(),
+    limits: z.record(
         z.string(),
         z.unknown(),
     ).optional(),

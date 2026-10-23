@@ -47,8 +47,6 @@ export interface ValidationContext {
 }
 
 export interface InferResult {
-    readonly metadata?: unknown;
-    readonly request?: InferPayload;
     readonly correlationId?: string;
     readonly response?: string;
     readonly data?: unknown;
@@ -62,6 +60,8 @@ export interface StreamResult {
     readonly correlationId?: string;
     readonly streamId?: string;
     readonly stream: ReadableStream<string>;
+    readonly context?: unknown;
+    readonly model?: string;
 }
 
 export interface AbortPayload { readonly correlationId?: string; }
@@ -87,8 +87,6 @@ export type GenerationResult = InferResult;
 export type { Body } from './schema.js';
 
 export interface Failure {
-    readonly metadata?: unknown;
-    readonly request?: InferPayload;
     readonly error?: unknown;
     readonly correlationId?: string;
     readonly context?: unknown;
@@ -118,4 +116,11 @@ export interface ChosenModelConfig {
     readonly limit?: number;
     readonly thinkingBudget?: number;
     readonly thinkingLevel?: ThinkingLevel;
+}
+
+export interface PendingInference {
+    readonly payload: InferPayload;
+    readonly replyTo: string;
+    readonly cacheKey?: string;
+    readonly operation?: SignalType;
 }

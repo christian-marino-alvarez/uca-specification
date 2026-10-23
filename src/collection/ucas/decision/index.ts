@@ -11,7 +11,6 @@ import {
     type InferResult,
     type Failure as InferenceFailure,
 } from '@uca/capability-llm/types';
-import { inferenceSchema } from '@uca/capability-llm/schema';
 import {
     __ID__,
     DEFAULT_CONFIGURATION,
@@ -33,12 +32,15 @@ import {
     identitySchema,
     metadataSchema,
     probabilitySchema,
+    questionSchema,
     requestSchema,
     resultSchema,
     type Body,
     type Configuration,
     type DecisionPayload,
     type Metadata,
+    type OptionItem,
+    type Question,
     type Request,
     type ValidationContext,
 } from './schema.js';
@@ -145,19 +147,32 @@ export class Decision extends Uca<Body> {
         }
     }
 
-    private logDecisionRequest(value: unknown): void {
-        const { correlationId, question, context } = (value ?? {}) as Request;
-        const options = question?.options?.map(({ id, label }) => ({ id, label }));
-        console.log('[DECISION::REQUEST]', { correlationId, prompt: question?.prompt, options, context });
+    private extractDecisionQuestion(value: Record<string, unknown>, context: Record<string, unknown>): Question {
+        const direct = value.question as Question | undefined;
+        const fromContext = context.question as Question | undefined;
+        return (direct ?? fromContext) as Question;
+    }
+
+    private normalizeDecisionRequest(value: unknown, correlationId?: string): Request {
+        const val = (value ?? {}) as Record<string, unknown>;
+        const context = (val.context ?? val) as Record<string, unknown>;
+        const question = this.extractDecisionQuestion(val, context);
+        const resolvedId = correlationId ?? (val.correlationId as string) ?? crypto.randomUUID();
+        return {
+            correlationId: resolvedId,
+            question,
+            context,
+        };
     }
 
     private handleDecide(signal: Signal): void {
         const {
             value,
             source,
+            correlationId,
         } = signal;
-        this.logDecisionRequest(value);
-        this.processValidatedRequest(value as Request, source);
+        const request = this.normalizeDecisionRequest(value, correlationId);
+        this.processValidatedRequest(request, source);
     }
 
     private processValidatedRequest(request: Request, replyTo: string): void {
@@ -175,10 +190,8 @@ export class Decision extends Uca<Body> {
             value,
         } = signal;
         const inferred = value as InferResult;
-        const {
-            metadata,
-        } = inferred;
-        this.processLlmInferred(inferred, metadata);
+        const operation = this.extractDecisionOperation(inferred.context);
+        this.processLlmInferred(inferred, operation);
     }
 
     private processLlmInferred(inferred: InferResult, metadata: unknown): void {
@@ -192,20 +205,13 @@ export class Decision extends Uca<Body> {
         }
     }
 
-    private logDecisionResponse(decision: DecisionPayload, correlationId: string): void {
-        const { choice, confidence, probabilities, assessment } = decision;
-        console.log('[DECISION::RESPONSE]', { correlationId, choice, confidence, probabilities, assessment });
-    }
-
     private emitDecided(decision: DecisionPayload, operation: Metadata): void {
         const { replyTo, request } = operation;
         const { correlationId, context } = request;
-        this.logDecisionResponse(decision, correlationId);
         this.pulse(SignalType.DECIDED, {
-            correlationId,
             result: decision,
             context,
-        }, replyTo);
+        }, replyTo, correlationId);
     }
 
     private handleLlmError(signal: Signal): void {
@@ -266,52 +272,10 @@ export class Decision extends Uca<Body> {
         return configurationSchema.parse(configuration);
     }
 
-    private buildInferencePayload(
-        request: Request,
-        outputSchema: Record<string, unknown>,
-        replyTo: string,
-        config: Configuration,
-    ): Record<string, unknown> {
-        const {
-            question: {
-                prompt,
-                id,
-                options,
-                criteria,
-            },
-            context,
-            correlationId,
-        } = request;
-        const criteriaMap = Object.fromEntries(
+    private buildCriteriaMap(options: OptionItem[]): Record<string, unknown> {
+        return Object.fromEntries(
             options.map((opt) => [opt.id, opt.criteria ?? opt.description ?? opt.label ?? opt.id]),
         );
-        return {
-            ...config,
-            purpose: Decision.purpose,
-            goal: prompt,
-            correlationId,
-            outputSchema,
-            contextSchema: {
-                const: {
-                    state: this.sanitizeEvaluationState(context),
-                    question: {
-                        id,
-                        type: QuestionType.CHOICE,
-                        instructions: prompt,
-                        criteria: criteriaMap,
-                    },
-                },
-            },
-            limits: {
-                ...this.disposition.limits,
-                ...INFERENCE_LIMITS,
-            },
-            metadata: {
-                request,
-                replyTo,
-                attempt: 0,
-            },
-        };
     }
 
     private sanitizeEvaluationState(context?: Record<string, unknown>): Record<string, unknown> {
@@ -319,37 +283,81 @@ export class Decision extends Uca<Body> {
             return {};
         }
         const {
-            originalPayload,
-            replyTo,
+            originalPayload: _originalPayload,
+            replyTo: _replyTo,
             ...state
         } = context;
         return state;
     }
 
-    private validateInference(inferred: InferResult, operation: Metadata): DecisionPayload {
-        const {
-            request: sent,
+    private buildDecisionContext(
+        request: Request,
+        criteriaMap: Record<string, unknown>,
+        replyTo: string,
+        attempt = 0,
+    ): Record<string, unknown> {
+        const { question, context, correlationId } = request;
+        const { id, prompt, options } = question;
+        const limits = { ...this.disposition.limits, ...INFERENCE_LIMITS };
+        const state = this.sanitizeEvaluationState(context);
+        const questionData = { id, type: QuestionType.CHOICE, instructions: prompt, criteria: criteriaMap, options };
+        return { state, question: questionData, limits, replyTo, correlationId, attempt, requestContext: context };
+    }
+
+    private buildInferencePayload(
+        request: Request,
+        outputSchema: Record<string, unknown>,
+        replyTo: string,
+        config: Configuration,
+        attempt = 0,
+    ): Record<string, unknown> {
+        const { question, correlationId } = request;
+        const criteriaMap = this.buildCriteriaMap(question.options);
+        const context = this.buildDecisionContext(request, criteriaMap, replyTo, attempt);
+        return { ...config, purpose: Decision.purpose, goal: question.prompt, correlationId, outputSchema, context };
+    }
+
+    private reconstructRequest(ctx: {
+        correlationId?: string;
+        requestContext?: Record<string, unknown>;
+        state?: Record<string, unknown>;
+        question?: { id: string; options: OptionItem[]; instructions?: string; prompt?: string };
+    }): Request {
+        const { correlationId = '', requestContext, state = {}, question } = ctx;
+        return {
             correlationId,
-            data,
-            response,
-        } = inferred;
-        const {
-            request: {
-                correlationId: expectedId,
-                question: {
-                    id: questionId,
-                    options,
-                },
-                context,
+            question: {
+                id: question?.id ?? 'question',
+                type: QuestionType.CHOICE,
+                prompt: question?.prompt ?? question?.instructions ?? '',
+                options: question?.options ?? [],
             },
-        } = operation;
+            context: requestContext ?? state,
+        };
+    }
+
+    private extractDecisionOperation(context: unknown): Metadata {
+        const ctx = (context ?? {}) as { replyTo?: string; attempt?: number };
+        const { replyTo = '', attempt = 0 } = ctx;
+        const request = this.reconstructRequest(ctx as Parameters<typeof this.reconstructRequest>[0]);
+        return { replyTo, attempt, request };
+    }
+
+    private extractAnswerPayload(inferred: InferResult, questionId: string): Record<string, unknown> {
+        const { data, response } = inferred;
+        const payload = (data ?? JSON.parse(response ?? '')) as Record<string, unknown>;
+        return (payload[questionId] ?? payload) as Record<string, unknown>;
+    }
+
+    private validateInference(inferred: InferResult, operation: Metadata): DecisionPayload {
+        const { correlationId } = inferred;
+        const { request: { correlationId: expectedId, question: { id: questionId, options } } } = operation;
         if (correlationId !== expectedId) {
             throw new Error(MISMATCHED_CORRELATION);
         }
-        const payload = (data ?? JSON.parse(response ?? '')) as Record<string, unknown>;
-        const answer = (payload[questionId] ?? payload) as Record<string, unknown>;
+        const answer = this.extractAnswerPayload(inferred, questionId);
         const choiceResult = choiceResultSchema.parse(answer);
-        return this.verifyChoice(choiceResult, questionId, options, context);
+        return this.verifyChoice(choiceResult, questionId, options);
     }
 
     private validateProbabilities(options: Request['question']['options'], choice: string, probabilities: Record<string, number>): void {
@@ -367,7 +375,6 @@ export class Decision extends Uca<Body> {
         result: z.infer<typeof choiceResultSchema>,
         questionId: string,
         options: Request['question']['options'],
-        context?: Record<string, unknown>,
     ): DecisionPayload {
         const {
             choice,
@@ -384,32 +391,25 @@ export class Decision extends Uca<Body> {
             ...(assessment && {
                 assessment,
             }),
-            ...(context && {
-                context,
-            }),
         };
     }
 
     private recoverInference(inferred: InferResult | InferenceFailure, error: unknown, retry = true): void {
         const {
-            metadata,
-            request: sent,
+            context,
             correlationId,
         } = inferred;
-        const {
-            data: operation,
-        } = metadataSchema.safeParse(metadata);
-        if (!operation) {
+        const operation = this.extractDecisionOperation(context);
+        if (!operation.replyTo && !correlationId) {
             this.emitFailure(MISSING_METADATA, { correlationId }, undefined, 1);
             return;
         }
-        this.executeRecoveryAttempt(inferred, operation, sent, error, retry);
+        this.executeRecoveryAttempt(inferred, operation, error, retry);
     }
 
     private executeRecoveryAttempt(
         inferred: InferResult | InferenceFailure,
         operation: Metadata,
-        sent: unknown,
         error: unknown,
         retry: boolean,
     ): void {
@@ -418,47 +418,47 @@ export class Decision extends Uca<Body> {
             replyTo,
             attempt,
         } = operation;
-        const {
-            data: original,
-        } = inferenceSchema.safeParse(sent);
-        if (!retry || !original || attempt >= MAXIMUM_RETRIES) {
+        if (!retry || attempt >= MAXIMUM_RETRIES) {
             this.emitFailure(error, request, replyTo, attempt + 1);
             return;
         }
-        this.dispatchRecovery(inferred, original, operation, error);
+        this.dispatchRecovery(inferred, operation, error);
+    }
+
+    private buildRecoveryLimits(limits: Record<string, unknown>, rejected: unknown, error: unknown): Record<string, unknown> {
+        return {
+            ...limits,
+            recovery: {
+                instruction: RECOVERY_INSTRUCTION,
+                rejected,
+                error: error instanceof Error ? error.message : String(error),
+            },
+        };
+    }
+
+    private assembleRecoveryPayload(
+        operation: Metadata,
+        rejected: unknown,
+        error: unknown,
+    ): Record<string, unknown> {
+        const { request, replyTo, attempt } = operation;
+        const config = this.resolveInferenceConfig();
+        const outputSchema = this.createAnswerSchema(request);
+        const basePayload = this.buildInferencePayload(request, outputSchema, replyTo, config, attempt + 1);
+        const context = basePayload.context as Record<string, unknown>;
+        const limits = (context.limits ?? {}) as Record<string, unknown>;
+        const recoveryLimits = this.buildRecoveryLimits(limits, rejected, error);
+        return { ...basePayload, context: { ...context, limits: recoveryLimits } };
     }
 
     private dispatchRecovery(
         inferred: InferResult | InferenceFailure,
-        original: z.infer<typeof inferenceSchema>,
         operation: Metadata,
         error: unknown,
     ): void {
-        const {
-            attempt,
-        } = operation;
-        const {
-            limits,
-        } = original;
-        const {
-            data,
-            response,
-        } = inferred as InferResult;
-        this.pulse(LlmSignalType.INFER, {
-            ...original,
-            metadata: {
-                ...operation,
-                attempt: attempt + 1,
-            },
-            limits: {
-                ...limits,
-                recovery: {
-                    instruction: RECOVERY_INSTRUCTION,
-                    rejected: data ?? response,
-                    error: error instanceof Error ? error.message : String(error),
-                },
-            },
-        });
+        const { data, response } = inferred as InferResult;
+        const payload = this.assembleRecoveryPayload(operation, data ?? response, error);
+        this.pulse(LlmSignalType.INFER, payload);
     }
 
     private emitFailure(error: unknown, identity: unknown, replyTo?: string, attempts = 0): void {

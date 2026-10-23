@@ -133,7 +133,7 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
     }
 
     /** Emits domain data; Uca resolves a unique active catalog recipient unless targetId is supplied. */
-    protected pulse(property: string, value: unknown, targetId?: string): Signal | undefined {
+    protected pulse(property: string, value: unknown, targetId?: string, correlationId?: string): Signal | undefined {
         const {
             target,
             id,
@@ -150,6 +150,9 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
             property,
             value,
             timestamp: Date.now(),
+            ...(correlationId && {
+                correlationId,
+            }),
         };
         target.dispatchEvent(new CustomEvent(property, { detail: signal, bubbles: true }));
         if (property !== '*') {

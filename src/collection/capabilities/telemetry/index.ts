@@ -33,6 +33,7 @@ import {
 import { SignalType as AppSignalType } from '@uca/app/types';
 import { SignalType as DecisionSignalType } from '@uca/decision/types';
 import { SignalType as LayoutSignalType } from '@uca/layout/types';
+import { SignalType as LlmSignalType } from '@uca/capability-llm/types';
 import { SignalType as MemorySignalType } from '@uca/memory/types';
 import { SignalType as SpecificationSignalType } from '@uca/capability-specification/types';
 import { SignalType as ViewSignalType } from '@uca/view/types';
@@ -136,15 +137,17 @@ export class Telemetry extends Capability<Body> {
         this.tryRouteLifecycle(signal);
     }
 
+    private isInferResponse(property: string): boolean {
+        return property === INFERRED_SIGNAL || property === STREAMED_SIGNAL;
+    }
+
     private tryRouteInference(signal: Signal): boolean {
-        const {
-            property,
-        } = signal;
+        const { property } = signal;
         if (property === INFER_SIGNAL) {
             this.handleInferenceRequest(signal);
             return true;
         }
-        if (property === INFERRED_SIGNAL || property === STREAMED_SIGNAL || property === VIEW_BUILT_SIGNAL || property === LAYOUT_BUILT_SIGNAL) {
+        if (this.isInferResponse(property)) {
             this.handleInferenceResponse(signal);
             return true;
         }
@@ -180,33 +183,49 @@ export class Telemetry extends Capability<Body> {
             case SpecificationSignalType.PARSED:
             case AppSignalType.NAVIGATE:
             case AppSignalType.DECIDED:
+            case AppSignalType.BUILT:
+            case AppSignalType.ERROR:
             case MemorySignalType.RETRIEVED:
             case DecisionSignalType.DECIDE:
             case DecisionSignalType.DECIDED:
             case DecisionSignalType.ERROR:
             case LayoutSignalType.BUILD:
+            case LayoutSignalType.BUILT:
             case LayoutSignalType.AREA_DEFINED:
             case LayoutSignalType.AREA_CREATED:
+            case LayoutSignalType.ERROR:
             case ViewSignalType.BUILD:
+            case ViewSignalType.BUILT:
+            case ViewSignalType.RENDERED:
+            case ViewSignalType.ERROR:
+            case LlmSignalType.STREAMING:
+            case LlmSignalType.STREAM_END:
+            case LlmSignalType.ERROR:
                 return true;
             default:
                 return false;
         }
     }
 
-    private handleLifecycle(signal: Signal): void {
-        const {
-            source,
-            property,
-            value,
-        } = signal;
-        const event: TelemetryEvent = {
-            type: 'lifecycle',
-            timestamp: Date.now(),
-            source,
-            property,
-            details: value,
+    private extractSignalData(signal: Signal): Partial<TelemetryEvent> {
+        return {
+            source: signal.source,
+            property: signal.property,
+            signalBody: signal.value,
+            correlationId: signal.correlationId,
         };
+    }
+
+    private createLifecycleEvent(signal: Signal): TelemetryEvent {
+        return {
+            type: 'lifecycle',
+            timestamp: signal.timestamp ?? Date.now(),
+            ...this.extractSignalData(signal),
+        };
+    }
+
+    private handleLifecycle(signal: Signal): void {
+        const event = this.createLifecycleEvent(signal);
         this.notifyEvent(SignalType.LIFECYCLE, event);
     }
 
@@ -267,9 +286,10 @@ export class Telemetry extends Capability<Body> {
     private extractCorrelationId(signal: Signal): string | undefined {
         const {
             value,
+            correlationId,
         } = signal;
         const payload = (value ?? {}) as Record<string, unknown>;
-        return payload.correlationId as string | undefined;
+        return (payload.correlationId as string | undefined) ?? correlationId;
     }
 
     private extractAreaId(signal: Signal): string | undefined {
@@ -370,14 +390,12 @@ export class Telemetry extends Capability<Body> {
     ): TelemetryEvent {
         return {
             type,
-            timestamp: Date.now(),
-            source: signal.source,
-            property: signal.property,
-            correlationId,
+            timestamp: signal.timestamp ?? Date.now(),
+            ...this.extractSignalData(signal),
+            correlationId: correlationId ?? signal.correlationId,
             areaId,
             elementId,
             uca,
-            details: signal.value,
         };
     }
 
@@ -392,13 +410,11 @@ export class Telemetry extends Capability<Body> {
     ): TelemetryEvent {
         return {
             type,
-            timestamp: Date.now(),
-            source: signal.source,
-            property: signal.property,
-            correlationId,
+            timestamp: signal.timestamp ?? Date.now(),
+            ...this.extractSignalData(signal),
+            correlationId: correlationId ?? signal.correlationId,
             areaId,
             durationMs,
-            details: signal.value,
             compliance,
             uca,
         };
@@ -452,6 +468,10 @@ export class Telemetry extends Capability<Body> {
                 return '🚀 [NAVIGATE]';
             case AppSignalType.DECIDED:
                 return '🧠 [APP::DECIDED]';
+            case AppSignalType.BUILT:
+                return '🏆 [APP::BUILT]';
+            case AppSignalType.ERROR:
+                return '❌ [APP::ERROR]';
             case MemorySignalType.RETRIEVED:
                 return '💾 [MEMORY]';
             case DecisionSignalType.DECIDE:
@@ -462,11 +482,27 @@ export class Telemetry extends Capability<Body> {
                 return '❌ [DECISION::ERROR]';
             case LayoutSignalType.BUILD:
                 return '📐 [LAYOUT::BUILD]';
+            case LayoutSignalType.BUILT:
+                return '📐 [LAYOUT::BUILT]';
             case LayoutSignalType.AREA_DEFINED:
             case LayoutSignalType.AREA_CREATED:
                 return '🏛️ [LAYOUT::AREA]';
+            case LayoutSignalType.ERROR:
+                return '❌ [LAYOUT::ERROR]';
             case ViewSignalType.BUILD:
                 return '🎨 [VIEW::BUILD]';
+            case ViewSignalType.BUILT:
+                return '🎨 [VIEW::BUILT]';
+            case ViewSignalType.RENDERED:
+                return '🎨 [VIEW::RENDERED]';
+            case ViewSignalType.ERROR:
+                return '❌ [VIEW::ERROR]';
+            case LlmSignalType.STREAMING:
+                return '⚡ [INFER::STREAMING]';
+            case LlmSignalType.STREAM_END:
+                return '🏁 [INFER::STREAM_END]';
+            case LlmSignalType.ERROR:
+                return '❌ [LLM::ERROR]';
             default:
                 return '⚡ [LIFECYCLE]';
         }
@@ -478,6 +514,7 @@ export class Telemetry extends Capability<Body> {
                 return 'color: #0D9488; font-weight: bold;';
             case AppSignalType.NAVIGATE:
             case AppSignalType.DECIDED:
+            case AppSignalType.BUILT:
                 return 'color: #7C3AED; font-weight: bold;';
             case MemorySignalType.RETRIEVED:
                 return 'color: #EA580C; font-weight: bold;';
@@ -485,15 +522,27 @@ export class Telemetry extends Capability<Body> {
                 return 'color: #F59E0B; font-weight: bold;';
             case DecisionSignalType.DECIDED:
                 return 'color: #16A34A; font-weight: bold;';
-            case DecisionSignalType.ERROR:
-                return 'color: #DC2626; font-weight: bold;';
             case LayoutSignalType.BUILD:
                 return 'color: #D97706; font-weight: bold;';
+            case LayoutSignalType.BUILT:
+                return 'color: #059669; font-weight: bold;';
             case LayoutSignalType.AREA_DEFINED:
             case LayoutSignalType.AREA_CREATED:
                 return 'color: #10B981; font-weight: bold;';
             case ViewSignalType.BUILD:
                 return 'color: #8B5CF6; font-weight: bold;';
+            case ViewSignalType.BUILT:
+            case ViewSignalType.RENDERED:
+                return 'color: #6366F1; font-weight: bold;';
+            case LlmSignalType.STREAMING:
+            case LlmSignalType.STREAM_END:
+                return 'color: #0284C7; font-weight: bold;';
+            case DecisionSignalType.ERROR:
+            case LayoutSignalType.ERROR:
+            case ViewSignalType.ERROR:
+            case AppSignalType.ERROR:
+            case LlmSignalType.ERROR:
+                return 'color: #DC2626; font-weight: bold;';
             default:
                 return 'color: #6B7280; font-weight: bold;';
         }

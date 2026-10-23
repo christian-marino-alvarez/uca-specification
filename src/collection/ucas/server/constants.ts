@@ -18,15 +18,19 @@ export const normalizeInference = (payload: import('./types.js').InferenceReques
 export const SSE_HEADERS = { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache', Connection: 'keep-alive' } as const;
 export const STREAM_SOURCE_SIGNALS = [LlmSignalType.STREAMED, LlmSignalType.ERROR] as const;
 
-export const JEV_CONTEXT_INSTRUCTION = 'Evaluate this criterion within the following inference contract. Respect its purpose, goal, context and limits; outputSchema describes the combined answers.';
+export const JEV_CONTEXT_INSTRUCTION = 'Evaluate this criterion within the following inference contract. Respect its purpose, goal and context; outputSchema describes the combined answers.';
 export const WARMUP_CONTRACT = {
     outputSchema: { type: 'object', properties: { ready: { type: 'boolean' } }, required: ['ready'], additionalProperties: false },
-    contextSchema: { const: {} }, purpose: 'Prepare the inference service', goal: 'Confirm readiness', limits: {},
+    context: {},
+    purpose: 'Prepare the inference service',
+    goal: 'Confirm readiness',
 } as const;
 
 export const MIME_MAP: Record<string, string> = {
     '.html': 'text/html; charset=utf-8',
     '.js': 'application/javascript; charset=utf-8',
+    '.ts': 'text/plain; charset=utf-8',
+    '.map': 'application/json; charset=utf-8',
     '.css': 'text/css; charset=utf-8',
     '.json': 'application/json; charset=utf-8',
     '.svg': 'image/svg+xml',

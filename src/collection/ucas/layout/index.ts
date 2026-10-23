@@ -27,6 +27,9 @@ import type {
     Disposition,
     Signal,
 } from '@uca/core/types';
+import { Zod } from '@uca/capability-zod';
+import { SignalType as ZodSignalType } from '@uca/capability-zod/types';
+import { signalBodySchema } from '../schema.js';
 import { z } from 'zod';
 import {
     __ID__,
@@ -55,6 +58,7 @@ import {
     type BuiltResult,
     type LayoutBody,
     type Qualities,
+    type ContainerQualities,
 } from './schema.js';
 import {
     DataType,
@@ -82,6 +86,7 @@ export class Layout extends Uca<Body> {
             ...Layout.reactToBox(),
             ...Layout.reactToView(),
             ...Layout.reactToSkeleton(),
+            ...Layout.reactToZod(),
         ],
         inputs: [
             {
@@ -168,6 +173,17 @@ export class Layout extends Uca<Body> {
         ];
     }
 
+    private static reactToZod(): string[] {
+        return [
+            ZodSignalType.VALIDATE,
+            ZodSignalType.VALIDATED,
+            ZodSignalType.DESCRIBE,
+            ZodSignalType.DESCRIBED,
+            ZodSignalType.ERROR,
+            ...Zod.disposition.reactTo ?? [],
+        ];
+    }
+
     public constructor(id: string = __ID__) {
         super(id);
     }
@@ -233,6 +249,20 @@ export class Layout extends Uca<Body> {
                     ],
                 },
             ],
+            [
+                Zod,
+                {
+                    aim: {
+                        description: Zod.AIM,
+                        body: {
+                            id: `${id}:zod`,
+                        },
+                    },
+                    reactTo: [
+                        ...Zod.disposition.reactTo ?? [],
+                    ],
+                },
+            ],
         ];
     }
 
@@ -243,7 +273,7 @@ export class Layout extends Uca<Body> {
         } = signal;
         switch (property) {
             case SignalType.BUILD:
-                this.handleBuild(value as BuildPayload);
+                this.handleBuild(signal);
                 break;
             case LlmSignalType.INFERRED:
                 this.handleLlmInferred(signal);
@@ -281,7 +311,7 @@ export class Layout extends Uca<Body> {
     private resolveGoal(areaId?: string, parentId?: string): string {
         const target = areaId ?? ROOT_AREA_ID;
         if (target !== 'root' && target !== 'app' && target !== 'body') {
-            return `Partition container '${target}' into immediate child areas. Infer every spatial quality from purpose and context: each structural area must declare direction or division for its own children; grant each child area its own delimited breathing space via perimeter padding (spacing), boundaries (outline), perimeter margin (marginBlock), and surface; declare gap to separate multiple sibling areas. Flex sizes an area within its parent and never replaces its child-flow declaration.`;
+            return `Partition container '${target}' into immediate child areas. Infer purpose, intention, visualIntention, dimensions (width, height, flex) and spatial qualities from context: each structural area must declare direction or division for its own children; grant each child area its own delimited breathing space via perimeter padding (spacing), boundaries (outline), perimeter margin (marginBlock), and surface; declare gap to separate multiple sibling areas. Flex sizes an area within its parent and never replaces its child-flow declaration.`;
         }
         return LAYOUT_GOAL;
     }
@@ -290,10 +320,12 @@ export class Layout extends Uca<Body> {
         const {
             area = ROOT_AREA as unknown as Area,
             browser,
-        } = body ?? {};
+            limits = {},
+        } = (body ?? {}) as { area?: Area; browser?: unknown; limits?: unknown };
         return {
             area,
             browser,
+            limits,
         };
     }
 
@@ -312,11 +344,14 @@ export class Layout extends Uca<Body> {
         };
     }
 
-    private buildInferContext(body?: LayoutBody): Record<string, unknown> {
+    private buildInferContext(body?: LayoutBody, limits: Record<string, unknown> = {}): Record<string, unknown> {
         const { specification } = body ?? {};
+        const areaContext = this.extractAreaContext(body);
+        const mergedLimits = { ...(areaContext.limits as Record<string, unknown>), ...limits };
         return {
-            ...this.extractAreaContext(body),
+            ...areaContext,
             ...this.mergeContextDispositions(body),
+            limits: mergedLimits,
             specification,
             boxCustomizableProperties: Box.visualDisposition,
             boxRoleProperties: LAYOUT_BOX_ROLE_PROPERTIES,
@@ -326,46 +361,30 @@ export class Layout extends Uca<Body> {
         };
     }
 
-    private buildStreamMetadata(body?: LayoutBody): Record<string, unknown> {
-        return {
-            areaId: body?.area?.id,
-            parentId: body?.area?.parentId,
-            body,
-        };
-    }
-
     private buildInferMeta(
         goal: string,
         correlationId?: string,
-        metadata: Record<string, unknown> = {},
-        limits: Record<string, unknown> = {},
     ): Record<string, unknown> {
         return {
-            metadata,
             goal,
-            limits: {
-                limit: DEFAULT_LIMIT,
-                imagination: DEFAULT_IMAGINATION,
-                ...limits,
-            },
             correlationId,
             streamId: `${correlationId}:layout`,
         };
     }
 
     private createInferRequest(payload: BuildPayload, correlationId: string): Record<string, unknown> {
-        const { aim, limits = {} } = payload;
+        const { aim } = payload;
         const { description, body } = aim;
-        const contextData = this.buildInferContext(body);
-        const metadata = this.buildStreamMetadata(body);
+        const limits = (payload as { limits?: Record<string, unknown> }).limits ?? {};
+        const contextData = this.buildInferContext(body, limits);
         const goal = this.resolveGoal(body?.area?.id, body?.area?.parentId);
-        const meta = this.buildInferMeta(goal, correlationId, metadata, limits);
+        const meta = this.buildInferMeta(goal, correlationId);
+        const outputSchema = Zod.toJsonSchema(layoutCompositionSchema);
         return {
             id: 'layout',
             intention: description,
             purpose: this.purpose,
-            outputSchema: z.toJSONSchema(layoutCompositionSchema) as Record<string, unknown>,
-            contextSchema: { const: contextData },
+            outputSchema,
             context: contextData,
             ...meta,
         };
@@ -373,13 +392,18 @@ export class Layout extends Uca<Body> {
 
     private dispatchLlmInfer(payload: BuildPayload, correlationId: string): void {
         const inferRequest = this.createInferRequest(payload, correlationId);
-        this.pulse(LlmSignalType.INFER, inferRequest);
+        signalBodySchema.parse(inferRequest);
+        this.pulse(LlmSignalType.INFER, inferRequest, undefined, correlationId);
     }
 
-    private handleBuild(payload: BuildPayload): void {
+    private handleBuild(signal: Signal): void {
         const {
             correlationId = crypto.randomUUID(),
-        } = payload;
+            value,
+        } = signal;
+        const payload = value as BuildPayload;
+        const target = (payload?.aim?.body?.area as Area)?.id ?? 'body';
+        this.showAreaSkeleton(target);
         this.dispatchLlmInfer(payload, correlationId);
     }
 
@@ -408,37 +432,77 @@ export class Layout extends Uca<Body> {
         };
     }
 
+    private extractTeleologyValues(concept: AreaConcept): [string, string, string] {
+        const {
+            id,
+            purpose = concept.proposito ?? id,
+            intention = concept.intencion ?? id,
+        } = concept;
+        const visual = concept.visualIntention ?? concept.disposicionVisual ?? intention;
+        return [
+            purpose,
+            intention,
+            visual,
+        ];
+    }
+
+    private resolveAreaTeleology(concept: AreaConcept): Pick<Area, 'purpose' | 'intention' | 'visualIntention'> {
+        const [
+            purpose,
+            intention,
+            visualIntention,
+        ] = this.extractTeleologyValues(concept);
+        return {
+            purpose,
+            intention,
+            visualIntention,
+        };
+    }
+
+    private resolveContainerQualities(currentAreaId?: string, context?: Record<string, unknown>): ContainerQualities {
+        const parentArea = (context?.area ?? {}) as Area;
+        return {
+            id: currentAreaId ?? ROOT_AREA_ID,
+            qualities: parentArea.qualities ?? { direction: 'column' },
+        };
+    }
+
+    private assembleArea(
+        base: { id: string; parentId?: string; container: ContainerQualities },
+        concept: AreaConcept,
+    ): Area {
+        const {
+            dimensions = {},
+            ...rest
+        } = concept;
+        return {
+            ...base,
+            ...this.resolveAreaTeleology(concept),
+            dimensions,
+            ...rest,
+        };
+    }
+
     private buildAreaFromConcept(concept: AreaConcept, currentAreaId?: string, context?: Record<string, unknown>): Area {
         const {
             id,
             parentId,
-            proposito,
-            intencion,
-            ...dispositions
         } = concept;
         const identity = this.resolveAreaIdentity(id, parentId, currentAreaId);
-        const parentArea = (context?.area ?? {}) as Area;
-        const container = {
-            id: currentAreaId ?? ROOT_AREA_ID,
-            qualities: parentArea.qualities ?? { direction: 'column' },
-        };
-        return {
+        const container = this.resolveContainerQualities(currentAreaId, context);
+        return this.assembleArea({
             ...identity,
-            purpose: proposito,
-            intention: intencion,
             container,
-            ...dispositions,
-        };
+        }, concept);
     }
 
 
 
-    private pulseAreaDefined(area: Area, context: Record<string, unknown>, correlationId: string): void {
+    private pulseAreaDefined(area: Area, context: Record<string, unknown>, correlationId?: string): void {
         this.pulse(SignalType.AREA_DEFINED, {
             area,
             context,
-            correlationId,
-        });
+        }, undefined, correlationId);
     }
 
     private isContainerSelf(id: string, currentAreaId?: string): boolean {
@@ -553,11 +617,10 @@ export class Layout extends Uca<Body> {
         }
     }
 
-    private emitCompositionAreas(result: BuiltResult, areaId: string): void {
+    private emitCompositionAreas(result: BuiltResult, areaId: string, correlationId: string): void {
         const {
             composition,
             context = {},
-            correlationId = crypto.randomUUID(),
         } = result;
         const areas = this.extractAreaList(composition);
         areas.forEach((concept) => this.emitArea(concept, context, correlationId, areaId));
@@ -570,11 +633,11 @@ export class Layout extends Uca<Body> {
         return areaId;
     }
 
-    private handleLayoutInferred(result: BuiltResult): void {
+    private handleLayoutInferred(result: BuiltResult, correlationId?: string): void {
         const areaId = this.resolveCurrentAreaId(result.context);
-        this.emitCompositionAreas(result, areaId);
+        this.emitCompositionAreas(result, areaId, correlationId ?? crypto.randomUUID());
         this.removeAreaSkeleton(areaId);
-        this.pulse(SignalType.BUILT, result);
+        this.pulse(SignalType.BUILT, result, undefined, correlationId);
     }
 
     private extractInferredResult(value: unknown): BuiltResult {
@@ -582,24 +645,22 @@ export class Layout extends Uca<Body> {
         const {
             data,
             response,
-            correlationId,
-            request,
+            context,
         } = raw;
         const composition = data ?? response;
-        const context = (request?.context ?? request?.metadata ?? {}) as Record<string, unknown>;
         return {
             composition,
-            context,
-            correlationId,
+            context: (context ?? {}) as Record<string, unknown>,
         };
     }
 
     private handleLlmInferred(signal: Signal): void {
         const {
             value,
+            correlationId = (signal.value as InferResult)?.correlationId,
         } = signal;
         const result: BuiltResult = this.extractInferredResult(value);
-        this.handleLayoutInferred(result);
+        this.handleLayoutInferred(result, correlationId);
     }
 
     private handleLlmStreaming(_signal: Signal): void {}
@@ -610,16 +671,14 @@ export class Layout extends Uca<Body> {
             stream,
             request,
         } = result;
-        const meta = (request?.metadata ?? {}) as Record<string, unknown>;
+        const area = (request?.context as { area?: { id?: string } })?.area;
+        const areaId = area?.id ?? ROOT_AREA_ID;
         return {
             correlationId,
             stream,
             schema: areaConceptSchema,
             mode: StreamTransformerMode.ITEMS,
-            context: {
-                ...meta,
-                request,
-            },
+            context: { areaId },
         };
     }
 
@@ -638,13 +697,12 @@ export class Layout extends Uca<Body> {
     }
 
     private async handleStreamTransformerTransformed(signal: Signal): Promise<void> {
-        const {
-            stream,
-            context,
-            correlationId,
-        } = this.extractTransformedPayload(signal);
-        if (stream) {
+        const { stream, context, correlationId } = this.extractTransformedPayload(signal);
+        if (!stream) { return; }
+        try {
             await stream.pipeTo(this.createStreamConsumer(context as Record<string, unknown> | undefined, correlationId));
+        } catch (error) {
+            this.pulse(SignalType.ERROR, error, undefined, correlationId);
         }
     }
 
@@ -673,7 +731,7 @@ export class Layout extends Uca<Body> {
             composition: { areas },
             areaId,
             correlationId,
-        });
+        }, undefined, correlationId);
     }
 
     private handleStreamChunk(

@@ -27,6 +27,13 @@ import {
     type StreamResult as SseStreamResult,
 } from '@uca/capability-sse-client/types';
 import { DEFAULT_ENDPOINT as DEFAULT_SSE_ENDPOINT } from '@uca/capability-sse-client/constants';
+import { Zod } from '@uca/capability-zod';
+import {
+    SignalType as ZodSignalType,
+    type ValidatedResult,
+    type ErrorResult,
+} from '@uca/capability-zod/types';
+import type { z } from 'zod';
 import { inferenceSchema } from './schema.js';
 import {
     __ID__,
@@ -43,6 +50,7 @@ import {
     type TransportContext,
     type AbortPayload,
     type ChosenModelConfig,
+    type PendingInference,
     type ThinkingLevel,
     DataType,
     SignalType,
@@ -66,6 +74,7 @@ export class Llm extends Uca<Body> {
             ...Llm.reactToHttpClient(),
             ...Llm.reactToSseClient(),
             ...Llm.reactToMemory(),
+            ...Llm.reactToZod(),
         ],
         inputs: [
             {
@@ -175,11 +184,25 @@ export class Llm extends Uca<Body> {
         ];
     }
 
+    private static reactToZod(): string[] {
+        return [
+            ZodSignalType.VALIDATE,
+            ZodSignalType.VALIDATED,
+            ZodSignalType.DESCRIBE,
+            ZodSignalType.DESCRIBED,
+            ZodSignalType.ERROR,
+            ...Zod.disposition.reactTo ?? [],
+        ];
+    }
+
+    private readonly pendingInferences = new Map<string, PendingInference>();
+
     public constructor(id: string = __ID__) {
         super(id);
     }
 
     public override denervate(): void {
+        this.pendingInferences.clear();
         this.registry.forEach((capability) => {
             capability.denervate();
         });
@@ -210,6 +233,12 @@ export class Llm extends Uca<Body> {
                 break;
             case DecisionSignalType.ERROR:
                 this.handleDecisionError(signal);
+                break;
+            case ZodSignalType.VALIDATED:
+                this.handleZodValidated(signal);
+                break;
+            case ZodSignalType.ERROR:
+                this.handleZodError(signal);
                 break;
             case HttpSignalType.RESPONSE:
                 this.handleBackendResponse(signal);
@@ -257,9 +286,22 @@ export class Llm extends Uca<Body> {
 
     private createReasoningCooky(id: string): Cooky {
         return [
+            [Zod, this.createZodDisposition(id)],
             [Decision, this.createDecisionDisposition(id)],
             [Memory, this.createMemoryDisposition(id)],
         ];
+    }
+
+    private createZodDisposition(id: string): Disposition {
+        return {
+            ...Zod.disposition,
+            aim: {
+                description: Zod.AIM,
+                body: {
+                    id: `${id}:zod`,
+                },
+            },
+        };
     }
 
     private createMemoryDisposition(id: string): Disposition {
@@ -317,18 +359,7 @@ export class Llm extends Uca<Body> {
         this.pulse(SignalType.CONNECTED, 'connected');
     }
 
-    private logInferInput(payload: InferPayload): void {
-        const { purpose, goal, intention, correlationId } = payload;
-        const resolvedGoal = goal ?? intention ?? purpose;
-        console.log('%c[LLM::INPUT]', 'color: #2563EB; font-weight: bold;', { correlationId, purpose, intention: resolvedGoal, payload });
-    }
-
-    private logInferResponse(correlationId?: string, model?: string, data?: unknown): void {
-        console.log('%c[LLM::RESPONSE]', 'color: #16A34A; font-weight: bold;', { correlationId, model, data });
-    }
-
     private handleInfer(payload: InferPayload, replyTo: string): void {
-        this.logInferInput(payload);
         const { model } = payload;
         if (model) {
             this.dispatchBackendRequest(payload, replyTo);
@@ -348,79 +379,86 @@ export class Llm extends Uca<Body> {
 
     private queryModelCache(key: string, payload: InferPayload, replyTo: string, operation: SignalType): void {
         const { correlationId = crypto.randomUUID() } = payload;
-        const context = { payload, replyTo, cacheKey: key, operation };
+        this.pendingInferences.set(correlationId, { payload, replyTo, cacheKey: key, operation });
         this.pulse(MemorySignalType.GET, {
             key,
             correlationId,
-            context,
         });
     }
 
     private resolveCacheKey(payload: InferPayload): string | null {
-        const { id, streamId, metadata, correlationId, context } = payload;
+        const { id, streamId, correlationId, context } = payload;
         if (id === 'layout' || streamId?.includes(':layout')) {
             return 'model:layout';
         }
         if (id === 'view' || streamId?.includes(':view:')) {
-            return this.resolveViewCacheKey(metadata, context, correlationId);
+            return this.resolveViewCacheKey(context, correlationId);
         }
         return null;
     }
 
-    private resolveViewCacheKey(metadata: unknown, context: unknown, correlationId?: string): string {
-        const meta = metadata as { layoutId?: string } | undefined;
-        const area = (context as { area?: { parentId?: string } })?.area;
+    private resolveViewCacheKey(context: unknown, correlationId?: string): string {
+        const ctx = context as { containerId?: string; area?: { parentId?: string } } | undefined;
         const baseId = correlationId?.includes(':') ? correlationId.split(':')[0] : correlationId;
-        const layoutId = meta?.layoutId ?? area?.parentId ?? baseId ?? 'default';
+        const layoutId = ctx?.containerId ?? ctx?.area?.parentId ?? baseId ?? 'default';
         return `model:view:${layoutId}`;
     }
 
     private handleMemoryRetrieved(signal: Signal): void {
-        const { value, context, key } = (signal.value ?? {}) as { value?: ChosenModelConfig | null; context?: Record<string, unknown>; key?: string };
-        const parsed = (context ?? {}) as { payload?: InferPayload; replyTo?: string; cacheKey?: string };
-        if (!parsed.payload) {
+        const { value, key, correlationId } = (signal.value ?? {}) as { value?: ChosenModelConfig | null; key?: string; correlationId?: string };
+        const id = correlationId ?? signal.correlationId;
+        const pending = id ? this.pendingInferences.get(id) : undefined;
+        if (!pending) {
             return;
         }
+        this.pendingInferences.delete(id!);
+        const { payload, replyTo, cacheKey } = pending;
         if (value) {
-            this.handleModelCacheHit(parsed.payload, value, key ?? parsed.cacheKey ?? '', parsed.replyTo);
+            this.handleModelCacheHit(payload, value, key ?? cacheKey ?? '', replyTo);
             return;
         }
-        this.handleModelCacheMiss(parsed.payload, parsed.replyTo, parsed.cacheKey);
+        this.handleModelCacheMiss(payload, replyTo, cacheKey);
     }
 
     private handleModelCacheHit(payload: InferPayload, config: ChosenModelConfig, key: string, replyTo?: string): void {
         const { correlationId = crypto.randomUUID() } = payload;
-        const { model, provider } = config;
-        console.log('%c[LLM::MODEL_CACHE::HIT]', 'color: #8B5CF6; font-weight: bold;', { key, model, provider, correlationId });
-        this.dispatchDecisionChoice(payload, config, correlationId, replyTo);
+        const resolved = this.reconcileModelConfig(config, payload);
+        if ((resolved.transport !== config.transport || resolved.model !== config.model) && key) {
+            this.persistIfCached(key, resolved, correlationId);
+        }
+        this.dispatchDecisionChoice(payload, resolved, correlationId, replyTo);
+    }
+
+    private reconcileModelConfig(config: ChosenModelConfig, payload: InferPayload): ChosenModelConfig {
+        const { model: rawModel, transport: cachedTransport } = config;
+        const { streamId, outputSchema } = payload;
+        const model = outputSchema && rawModel.includes('2.5') ? DEFAULT_GEMINI_FLASH_LITE_MODEL : rawModel;
+        const candidate = AVAILABLE_MODELS.find(({ id, model: m }) => id === model || m === model);
+        const transport = streamId || candidate?.transport === 'stream' ? 'stream' : (cachedTransport ?? 'stream');
+        return { ...config, model, transport };
     }
 
     private handleModelCacheMiss(payload: InferPayload, replyTo?: string, cacheKey?: string): void {
-        console.log('%c[LLM::MODEL_CACHE::MISS]', 'color: #F59E0B; font-weight: bold;', { cacheKey, id: payload.id });
         this.requestModelDecision(payload, replyTo ?? '', cacheKey);
     }
 
-    private handleMemorySaved(signal: Signal): void {
-        const {
-            key,
-        } = (signal.value ?? {}) as { key?: string };
-        console.log('%c[LLM::MEMORY::SAVED]', 'color: #059669;', { key });
+    private handleMemorySaved(_signal: Signal): void {
     }
 
     private handleMemoryError(signal: Signal): void {
-        const { context } = (signal.value ?? {}) as { context?: { payload?: InferPayload; replyTo?: string } };
-        const { payload, replyTo } = context ?? {};
-        if (payload) {
-            this.requestModelDecision(payload, replyTo ?? '');
+        const { correlationId } = (signal.value ?? {}) as { correlationId?: string };
+        const id = correlationId ?? signal.correlationId;
+        const pending = id ? this.pendingInferences.get(id) : undefined;
+        if (!pending) {
+            return;
         }
+        this.pendingInferences.delete(id!);
+        const { payload, replyTo, cacheKey } = pending;
+        this.handleModelCacheMiss(payload, replyTo, cacheKey);
     }
 
-    private filterCandidates(payload: InferPayload): typeof AVAILABLE_MODELS[number][] {
-        const { outputSchema } = payload;
-        if (outputSchema) {
-            return AVAILABLE_MODELS.filter(({ provider }) => provider !== 'jev');
-        }
-        return [...AVAILABLE_MODELS];
+    private filterCandidates(_payload: InferPayload): typeof AVAILABLE_MODELS[number][] {
+        return AVAILABLE_MODELS.filter(({ provider }) => provider !== 'jev');
     }
 
     private mapCandidateOption(item: typeof AVAILABLE_MODELS[number]): Record<string, unknown> {
@@ -430,53 +468,40 @@ export class Llm extends Uca<Body> {
     }
 
     private buildModelSelectionQuestion(payload: InferPayload): Record<string, unknown> {
+        const { outputSchema } = payload;
         const options = this.filterCandidates(payload).map((item) => this.mapCandidateOption(item));
+        const prompt = outputSchema
+            ? 'Select optimal model and profile according to purpose, intention, context, and schema constraint capacity (must support complex structured schemas without exceeding serving state limits)'
+            : 'Select optimal model and configuration profile according to purpose, intention, and context';
         return {
             id: 'model_selection',
             type: 'choice',
-            prompt: 'Select optimal model and configuration profile according to purpose, intention, and context',
+            prompt,
             options,
         };
     }
 
-    private createDecisionContext(payload: InferPayload, replyTo: string): Record<string, unknown> {
-        const { purpose, goal, intention, context, contextSchema } = payload;
+    private createDecisionContext(payload: InferPayload): Record<string, unknown> {
+        const { purpose, goal, intention, context, contextSchema, outputSchema } = payload;
         const schemaConst = (contextSchema as Record<string, unknown> | undefined)?.const;
         const stateContext = (context ?? schemaConst ?? {}) as Record<string, unknown>;
         return {
             purpose,
             intention: goal ?? intention ?? purpose,
             context: stateContext,
-            originalPayload: payload,
-            replyTo,
+            requiresStructuredSchema: Boolean(outputSchema),
         };
     }
 
-    private logModelDecisionRequest(correlationId: string, payload: InferPayload): void {
-        const { purpose, goal, intention } = payload;
-        const candidates = this.filterCandidates(payload);
-        console.log('[LLM::MODEL_DECISION::REQUEST]', {
-            correlationId,
-            purpose,
-            intention: goal ?? intention ?? purpose,
-            candidates,
-        });
-    }
-
-    private logModelDecisionResponse(correlationId: string, choice: string, config: { provider: string; model: string }, confidence?: number, probabilities?: unknown): void {
-        console.log('[LLM::MODEL_DECISION::RESPONSE]', { correlationId, choice, provider: config.provider, model: config.model, confidence, probabilities });
-    }
-
     private requestModelDecision(payload: InferPayload, replyTo: string, cacheKey?: string): void {
-        const baseContext = this.createDecisionContext(payload, replyTo);
-        const decisionContext = cacheKey ? { ...baseContext, cacheKey } : baseContext;
         const { correlationId = crypto.randomUUID() } = payload;
-        this.logModelDecisionRequest(correlationId, payload);
+        const decisionCorrelationId = `${correlationId}:model-select`;
+        this.pendingInferences.set(decisionCorrelationId, { payload, replyTo, cacheKey });
         this.pulse(DecisionSignalType.DECIDE, {
-            correlationId,
+            correlationId: decisionCorrelationId,
             question: this.buildModelSelectionQuestion(payload),
-            context: decisionContext,
-        });
+            context: this.createDecisionContext(payload),
+        }, undefined, decisionCorrelationId);
     }
 
     private extractModelConfig(candidate: typeof AVAILABLE_MODELS[number]): ChosenModelConfig {
@@ -499,38 +524,49 @@ export class Llm extends Uca<Body> {
         if (candidate) {
             return this.extractModelConfig(candidate);
         }
-        return { provider: DEFAULT_PROVIDER as ProviderType, model: DEFAULT_GEMINI_FLASH_LITE_MODEL, transport: 'batch' };
+        return {
+            provider: DEFAULT_PROVIDER as ProviderType,
+            model: DEFAULT_GEMINI_FLASH_LITE_MODEL,
+            transport: 'stream',
+        };
+    }
+
+    private extractDecisionPayload(signal: Signal): {
+        correlationId: string;
+        result?: DecisionResult['result'];
+    } {
+        const payload = (signal.value ?? {}) as DecisionResult;
+        const correlationId = signal.correlationId ?? payload.correlationId ?? '';
+        const { result } = payload;
+        return { correlationId, result };
     }
 
     private handleDecisionDecided(signal: Signal): void {
-        const { correlationId, result } = (signal.value ?? {}) as DecisionResult;
-        const { choice, context } = result ?? {};
-        const parsed = (context ?? {}) as { originalPayload?: InferPayload; replyTo?: string; cacheKey?: string };
-        if (!parsed.originalPayload) {
-            return;
-        }
-        this.applyDecisionResult(choice, parsed, correlationId, result);
+        const { correlationId, result } = this.extractDecisionPayload(signal);
+        if (!result || !correlationId) { return; }
+        const pending = this.pendingInferences.get(correlationId);
+        if (!pending) { return; }
+        this.pendingInferences.delete(correlationId);
+        const { payload, replyTo, cacheKey } = pending;
+        this.applyDecisionResult(result.choice, payload, correlationId, replyTo, cacheKey);
     }
 
     private applyDecisionResult(
         choice: string,
-        context: { originalPayload?: InferPayload; replyTo?: string; cacheKey?: string },
+        payload: InferPayload,
         correlationId: string,
-        result?: DecisionResult['result'],
+        replyTo?: string,
+        cacheKey?: string,
     ): void {
-        const { confidence, probabilities } = result ?? {};
-        const { originalPayload, replyTo, cacheKey } = context;
         const modelConfig = this.resolveChosenModel(choice);
-        this.logModelDecisionResponse(correlationId, choice, modelConfig, confidence, probabilities);
         this.persistIfCached(cacheKey, modelConfig, correlationId);
-        this.dispatchDecisionChoice(originalPayload!, modelConfig, correlationId, replyTo);
+        this.dispatchDecisionChoice(payload, modelConfig, correlationId, replyTo);
     }
 
     private persistIfCached(key: string | undefined, config: ChosenModelConfig, correlationId?: string): void {
         if (!key) {
             return;
         }
-        console.log('%c[LLM::MODEL_CACHE::SAVED]', 'color: #10B981; font-weight: bold;', { key, model: config.model, provider: config.provider });
         this.pulse(MemorySignalType.SAVE, {
             key,
             value: config,
@@ -541,20 +577,20 @@ export class Llm extends Uca<Body> {
     private dispatchDecisionChoice(payload: InferPayload, config: ChosenModelConfig, correlationId: string, replyTo?: string): void {
         const operation = config.transport === 'stream' ? SignalType.STREAM : SignalType.INFER;
         if (operation === SignalType.STREAM) {
-            console.log('[LLM::STREAMING::START]', { correlationId, model: config.model, transport: 'stream' });
-            this.pulse(SignalType.STREAMING, { correlationId, model: config.model, transport: 'stream' }, replyTo);
+            this.pulse(SignalType.STREAMING, { correlationId, model: config.model, transport: 'stream' }, replyTo, correlationId);
         }
         this.dispatchBackendRequest({ ...payload, ...config, correlationId }, replyTo ?? '', operation);
     }
 
     private handleDecisionError(signal: Signal): void {
-        const { correlationId, context, error } = (signal.value ?? {}) as { correlationId?: string; context?: Record<string, unknown>; error?: unknown };
-        const { originalPayload, replyTo } = (context ?? {}) as { originalPayload?: InferPayload; replyTo?: string };
-        if (!originalPayload) {
-            return;
-        }
-        console.warn('[LLM::MODEL_DECISION::FALLBACK]', { correlationId, error, fallback: DEFAULT_GEMINI_FLASH_LITE_MODEL });
-        const fallback = { ...originalPayload, provider: DEFAULT_PROVIDER as ProviderType, model: DEFAULT_GEMINI_FLASH_LITE_MODEL, correlationId };
+        const { correlationId } = (signal.value ?? {}) as { correlationId?: string };
+        const id = correlationId ?? signal.correlationId;
+        if (!id) { return; }
+        const pending = this.pendingInferences.get(id);
+        if (!pending) { return; }
+        this.pendingInferences.delete(id);
+        const { payload, replyTo } = pending;
+        const fallback = { ...payload, provider: DEFAULT_PROVIDER as ProviderType, model: DEFAULT_GEMINI_FLASH_LITE_MODEL, correlationId: id };
         this.dispatchBackendRequest(fallback, replyTo ?? '');
     }
 
@@ -564,11 +600,36 @@ export class Llm extends Uca<Body> {
         operation: SignalType = SignalType.INFER,
     ): void {
         const body = this.backendPayload(payload);
+        const { correlationId, provider } = body;
+        const context = { operation, correlationId, provider, replyTo, request: body };
+        this.pulse(ZodSignalType.VALIDATE, { schema: inferenceSchema, value: body, context });
+    }
+
+    private handleZodValidated(signal: Signal): void {
+        const { value, context } = (signal.value ?? {}) as ValidatedResult;
+        const { operation, replyTo = '' } = (context ?? {}) as { operation?: SignalType; replyTo?: string };
+        const body = this.normalizeOutputSchema(value as InferPayload);
         if (operation === SignalType.STREAM) {
             this.dispatchStreamRequest(body, replyTo);
             return;
         }
         this.dispatchHttpRequest(body, replyTo);
+    }
+
+    private normalizeOutputSchema(body: InferPayload): InferPayload {
+        const { outputSchema } = body;
+        if (outputSchema && typeof outputSchema === 'object' && 'safeParse' in outputSchema) {
+            const jsonSchema = Zod.toJsonSchema(outputSchema as z.ZodType);
+            return { ...body, outputSchema: jsonSchema };
+        }
+        return body;
+    }
+
+    private handleZodError(signal: Signal): void {
+        const { error, context } = (signal.value ?? {}) as ErrorResult;
+        const { correlationId, provider, replyTo, request } = (context ?? {}) as { correlationId?: string; provider?: ProviderType; replyTo?: string; request?: InferPayload };
+        const target = replyTo ?? this.resultTarget(provider);
+        this.pulse(SignalType.ERROR, { error, correlationId, request }, target);
     }
 
     private dispatchStreamRequest(
@@ -605,7 +666,6 @@ export class Llm extends Uca<Body> {
     }
 
     private handleStream(payload: InferPayload, replyTo: string): void {
-        this.logInferInput(payload);
         const { model } = payload;
         if (model) {
             this.dispatchBackendRequest(payload, replyTo, SignalType.STREAM);
@@ -615,37 +675,26 @@ export class Llm extends Uca<Body> {
     }
 
     private handleSseStreamed(signal: Signal): void {
-        const {
-            correlationId,
-            stream,
-            context,
-        } = signal.value as SseStreamResult;
+        const { correlationId, stream, context } = signal.value as SseStreamResult;
         const { replyTo, ...request } = context as TransportContext;
-        const {
-            model,
-        } = request;
+        const { model, context: requestContext } = request;
         const target = replyTo ?? this.resultTarget();
-        this.pulse(SignalType.STREAMED, {
-            correlationId,
-            stream,
-            model,
-            request,
-        }, target);
+        const payload = { correlationId, stream, model, request, context: requestContext ?? request };
+        this.pulse(SignalType.STREAMED, payload, target, correlationId);
     }
 
     private handleSseEnd(signal: Signal): void {
         const { correlationId, context } = (signal.value ?? {}) as { correlationId?: string; context?: unknown };
         const { replyTo, model } = (context ?? {}) as { replyTo?: string; model?: string };
         const target = replyTo ?? this.resultTarget();
-        console.log('[LLM::STREAMING::END]', { correlationId, model });
-        this.pulse(SignalType.STREAM_END, { correlationId, model }, target);
+        this.pulse(SignalType.STREAM_END, { correlationId, model }, target, correlationId);
     }
 
     private handleSseError(signal: Signal): void {
         const { context, ...failure } = (signal.value ?? {}) as ErrorPayload;
-        const { replyTo } = (context ?? {}) as TransportContext;
+        const { replyTo, correlationId } = (context ?? {}) as TransportContext;
         const target = replyTo ?? this.resultTarget();
-        this.pulse(SignalType.ERROR, failure, target);
+        this.pulse(SignalType.ERROR, failure, target, correlationId);
     }
 
 
@@ -662,15 +711,42 @@ export class Llm extends Uca<Body> {
         const { replyTo, ...request } = context as TransportContext;
         const target = replyTo ?? this.resultTarget(request.provider);
         const result = data as InferResult;
-        this.logInferResponse(correlationId, result?.model, result?.data ?? result);
-        this.pulse(SignalType.INFERRED, { ...result, correlationId, request }, target);
+        this.pulse(SignalType.INFERRED, { ...result, correlationId, request }, target, correlationId);
     }
 
     private handleBackendError(signal: Signal): void {
         const { context, ...failure } = signal.value as ErrorPayload;
-        const { replyTo, ...request } = context as TransportContext;
+        const { replyTo, ...request } = (context ?? {}) as TransportContext;
+        if (this.retryWithFallbackModel(request, replyTo)) {
+            return;
+        }
         const target = replyTo ?? this.resultTarget(request.provider);
-        this.pulse(SignalType.ERROR, { ...failure, request }, target);
+        this.pulse(SignalType.ERROR, { ...failure, request }, target, request.correlationId);
+    }
+
+    private retryWithFallbackModel(request: InferPayload, replyTo?: string): boolean {
+        const { model } = request;
+        const extended = request as InferPayload & { fallbackAttempted?: boolean };
+        if (extended.fallbackAttempted || model === DEFAULT_GEMINI_FLASH_LITE_MODEL) {
+            return false;
+        }
+        const fallback = { ...request, model: DEFAULT_GEMINI_FLASH_LITE_MODEL, fallbackAttempted: true };
+        this.updateFallbackCache(request);
+        this.dispatchHttpRequest(fallback, replyTo ?? '');
+        return true;
+    }
+
+    private updateFallbackCache(request: InferPayload): void {
+        const cacheKey = this.resolveCacheKey(request);
+        if (!cacheKey) {
+            return;
+        }
+        const config = {
+            provider: DEFAULT_PROVIDER as ProviderType,
+            model: DEFAULT_GEMINI_FLASH_LITE_MODEL,
+            transport: 'stream' as const,
+        };
+        this.persistIfCached(cacheKey, config, request.correlationId);
     }
 
     private handleAbort(value: AbortPayload): void {

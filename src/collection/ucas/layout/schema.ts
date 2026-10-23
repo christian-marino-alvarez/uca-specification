@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { qualitiesSchema as visualQualitiesSchema } from '@uca/capability-css/schema';
+import { areaContainerDimensionsSchema } from '../schema.js';
 
 export const qualitiesSchema = visualQualitiesSchema.optional();
 
@@ -24,11 +25,10 @@ export const layoutQualitiesSchema = z.union([
 
 export const areaConceptSchema = z.object({
     id: z.string().min(1).describe('Identificador único o nombre del área (ej. header, sidebar, main, footer, workspace)'),
-    proposito: z.string().min(1).describe('Propósito funcional del área'),
-    intencion: z.string().min(1).describe('Estrategia de composición visual: cómo se cumple el propósito'),
-    disposicionEspacial: z.string().min(1).describe('Ubicación y anclaje espacial respecto al contenedor padre y áreas hermanas (ej. franja horizontal superior, columna lateral izquierda de navegación, escenario central interactivo, franja inferior de estado)'),
-    disposicionVisual: z.string().min(1).describe('Directrices de manifestación visual y flujo dimensional (ej. fila horizontal sin scroll, columna vertical con navegación, panel con desplazamiento interno)'),
-    disposicionInformacion: z.string().min(1).describe('Naturaleza y alcance semántico de la información a albergar (ej. identidad ontológica y acciones globales, árbol de navegación y módulos, telemetría y estado cognitivo)'),
+    purpose: z.string().min(1).describe('Propósito ontológico funcional del área'),
+    intention: z.string().min(1).describe('Estrategia de composición visual: cómo se cumple el propósito'),
+    visualIntention: z.string().min(1).describe('Estrategia de manifestación visual y directriz de comportamiento espacial dictada por el área contenedora a sus componentes hijos'),
+    dimensions: areaContainerDimensionsSchema.default({}).describe('Propiedades dimensionales y restricciones espaciales del área (width, height, flex, minWidth, maxWidth, etc.)'),
     parentId: z.string().min(1).describe('Identificador del contenedor directo que se particiona (ej. body para franjas principales, workspace para sidebar/main). Debe coincidir con el contenedor actual.'),
     qualities: layoutQualitiesSchema.describe('Cualidades espaciales obligatorias del área: debe declarar direction o division para organizar a sus hijos; ' +
         'debe declarar spacing ("none"|"small"|"medium"|"large"|"xlarge") para respiración interior; ' +
@@ -36,6 +36,11 @@ export const areaConceptSchema = z.object({
         'debe declarar marginBlock ("none"|"small"|"medium"|"large") para respiración exterior vertical; ' +
         'debe declarar surface ("default"|"card"|"muted"); y si contiene elementos múltiples declarar gap ("small"|"medium"). ' +
         'flex solo dimensiona el área dentro de su padre.'),
+    disposicionEspacial: z.string().min(1).optional().describe('Ubicación y anclaje espacial respecto al contenedor padre y áreas hermanas'),
+    disposicionVisual: z.string().min(1).optional().describe('Directrices de manifestación visual y flujo dimensional'),
+    disposicionInformacion: z.string().min(1).optional().describe('Naturaleza y alcance semántico de la información a albergar'),
+    proposito: z.string().min(1).optional().describe('Propósito funcional del área (alias legacy)'),
+    intencion: z.string().min(1).optional().describe('Estrategia de composición visual (alias legacy)'),
 });
 
 export const layoutCompositionSchema = z.object({
@@ -54,9 +59,11 @@ export const areaSchema = z.object({
     parentId: z.string().min(1).optional(),
     purpose: z.string().min(1).describe('Propósito ontológico obligatorio del área'),
     intention: z.string().min(1).describe('Intención de composición obligatoria del área'),
-    disposicionEspacial: z.string().min(1).describe('Disposición espacial obligatoria del área'),
-    disposicionVisual: z.string().min(1).describe('Disposición visual obligatoria del área'),
-    disposicionInformacion: z.string().min(1).describe('Disposición informacional obligatoria del área'),
+    visualIntention: z.string().min(1).optional().describe('Directriz de manifestación visual dictada al contenedor y sus hijos'),
+    dimensions: areaContainerDimensionsSchema.optional().describe('Propiedades dimensionales y restricciones espaciales del área contenedora'),
+    disposicionEspacial: z.string().min(1).optional().describe('Disposición espacial obligatoria del área'),
+    disposicionVisual: z.string().min(1).optional().describe('Disposición visual obligatoria del área'),
+    disposicionInformacion: z.string().min(1).optional().describe('Disposición informacional obligatoria del área'),
     qualities: qualitiesSchema,
     container: containerQualitiesSchema,
 });
@@ -73,6 +80,10 @@ export const layoutBodySchema = z.object({
     structural: z.unknown().optional().describe('Disposición estructural recibida de App'),
     spatial: z.unknown().optional().describe('Disposición espacial recibida de App'),
     design: z.unknown().optional().describe('Directrices de diseño recibidas de App'),
+    limits: z.record(
+        z.string(),
+        z.unknown(),
+    ).optional().describe('Límites operativos, dimensionales o de viewport definidos para el contexto'),
 });
 
 export const bodySchema = layoutBodySchema;
@@ -82,11 +93,6 @@ export const buildPayloadSchema = z.object({
         description: z.string().min(1).describe('Intención cognitiva u objetivo del estímulo de layout'),
         body: bodySchema.describe('Cuerpo de dominio con el área a estructurar y contexto'),
     }),
-    limits: z.record(
-        z.string(),
-        z.unknown(),
-    ).optional().describe('Restricciones operativas (viewport, dimensiones, cuotas)'),
-    correlationId: z.string().optional().describe('Identificador para trazabilidad nerviosa'),
 });
 
 export const builtResultSchema = z.object({
@@ -97,7 +103,6 @@ export const builtResultSchema = z.object({
         z.string(),
         z.unknown(),
     ).optional(),
-    correlationId: z.string().optional(),
 });
 
 export const areaDefinedSchema = z.object({
@@ -106,7 +111,6 @@ export const areaDefinedSchema = z.object({
         z.string(),
         z.unknown(),
     ).optional(),
-    correlationId: z.string().optional(),
 });
 
 export type AreaConcept = z.infer<typeof areaConceptSchema>;

@@ -82,3 +82,27 @@ export const COMPONENT_MAP: Readonly<Record<string, string>> = {
     separator: 'separator',
 } as const;
 
+export const PRIMITIVE_INFORMATION_DISPOSITIONS: Readonly<Record<string, string>> = {
+    box: 'Contenedor espacial y de flujo de descendientes; organiza, alinea y distribuye elementos hijos',
+    card: 'Superficie estructurada M3; proyecta title, subtitle, media (imagen) y content',
+    list: 'Colección estructurada de elementos homogéneos o secuenciales; proyecta items',
+    heading: 'Título o encabezado de sección con nivel jerárquico; proyecta content o text',
+    paragraph: 'Bloque de texto explicativo o narrativo; proyecta content o text',
+    action: 'Disparador interactivo de comandos o acciones; proyecta label, icon y action',
+    access: 'Enlace de navegación hacia un destino; proyecta label, href e icon',
+    picture: 'Recurso visual de imagen o gráfico; proyecta src, alt, width y height',
+    input: 'Campo de captura de datos de usuario; proyecta label, placeholder, value y type',
+    separator: 'Delimitador visual entre secciones; proyecta orientación sin datos textuales',
+    symbol: 'Icono o glifo semántico (Material Symbols); proyecta content (nombre del icono)',
+    status: 'Indicador visual de estado o badge; proyecta label con variante de estado',
+    progress: 'Indicador visual de avance o carga; proyecta value (porcentaje de completitud)',
+    toggle: 'Control de conmutación booleana (on/off); proyecta label y value (booleano)',
+    choice: 'Selector de opciones discretas (radio/select); proyecta options y value',
+    range: 'Selector continuo en escala numérica; proyecta minimum, maximum, step y value',
+    quantity: 'Campo de cantidad numérica con controles; proyecta minimum, maximum, step, unit y value',
+    moment: 'Visualizador de fecha, hora o momento temporal; proyecta value y format',
+    chip: 'Elemento compacto M3 de filtro, selección o metadato; proyecta label e icon',
+    slider: 'Deslizador interactivo M3 de valor numérico; proyecta minimum, maximum, step y value',
+    dialog: 'Ventana modal o diálogo de confirmación/alerta M3; proyecta title, content y actions',
+};
+

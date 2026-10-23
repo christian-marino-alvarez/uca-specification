@@ -23,7 +23,7 @@ export const telemetryEventSchema = z.object({
     component: z.string().optional(),
     uca: z.string().optional(),
     durationMs: z.number().optional(),
-    details: z.unknown().optional(),
+    signalBody: z.unknown().optional(),
     compliance: complianceReportSchema.optional(),
 }).strict();
 

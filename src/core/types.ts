@@ -15,6 +15,7 @@ export interface Signal<T = unknown> {
     property: string;
     value: T;
     timestamp?: number;
+    correlationId?: string;
 }
 
 /**

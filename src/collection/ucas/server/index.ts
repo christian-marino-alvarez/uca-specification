@@ -28,7 +28,10 @@ import { SignalType as OpenaiSignalType } from '@uca/capability-openai/types';
 import {
     createCommand,
 } from './command.js';
-import { DEFAULT_PROVIDER } from '@uca/llm/constants';
+import {
+    DEFAULT_PROVIDER,
+    DEFAULT_GEMINI_FLASH_LITE_MODEL,
+} from '@uca/llm/constants';
 import {
     SignalType as LlmSignalType,
     type InferPayload,
@@ -229,22 +232,62 @@ export class Server extends Uca<Body> {
     private async handleLlmPost(context: RequestContext): Promise<Response> {
         const { body } = context;
         const payload = normalizeInference(body as InferenceRequest);
-        console.log(`[BACKEND::LLM::INPUT] [${payload.correlationId}]`, { purpose: payload.purpose, goal: payload.goal, model: payload.model, provider: payload.provider });
         try {
             const result = await this.requestLlmInference(payload);
-            console.log(`[BACKEND::LLM::RESPONSE] [${payload.correlationId}]`, { model: result.model });
             return Response.json(result);
         } catch (error) {
-            console.error(`[BACKEND::LLM::ERROR] [${payload.correlationId}]`, error);
-            const { correlationId } = payload;
-            return Response.json({ error: String(error), correlationId }, { status: 502 });
+            return await this.respondWithFallback(payload, error);
         }
+    }
+
+    private async respondWithFallback(payload: InferPayload, error: unknown): Promise<Response> {
+        const { correlationId } = payload;
+        const fallback = await this.tryFallbackInference(payload);
+        if (fallback) {
+            return Response.json(fallback);
+        }
+        return Response.json({ error: String(error), correlationId }, { status: 502 });
+    }
+
+    private async tryFallbackInference(payload: InferPayload): Promise<InferResult | null> {
+        const { model = DEFAULT_GEMINI_FLASH_LITE_MODEL } = payload;
+        if (model === DEFAULT_GEMINI_FLASH_LITE_MODEL) {
+            return null;
+        }
+        try {
+            const fallbackPayload = { ...payload, model: DEFAULT_GEMINI_FLASH_LITE_MODEL };
+            return await this.requestLlmInference(fallbackPayload);
+        } catch {
+            return null;
+        }
+    }
+
+    private async handleLlmSse(context: RequestContext): Promise<Response> {
+        const { query, body } = context;
+        const payload = normalizeInference({ ...query, ...(body as InferenceRequest) });
+        const { correlationId = crypto.randomUUID(), provider = DEFAULT_PROVIDER } = payload;
+        try {
+            const stream = await this.openSseStream(payload, correlationId, provider);
+            return new Response(stream, { headers: SSE_HEADERS });
+        } catch {
+            return await this.fallbackSseStream(payload, correlationId, provider);
+        }
+    }
+
+    private async fallbackSseStream(payload: InferPayload, correlationId: string, provider: string): Promise<Response> {
+        const { model = DEFAULT_GEMINI_FLASH_LITE_MODEL } = payload;
+        if (model === DEFAULT_GEMINI_FLASH_LITE_MODEL) {
+            return new Response(JSON.stringify({ error: 'SSE stream failed' }), { status: 502 });
+        }
+        const fallbackPayload = { ...payload, model: DEFAULT_GEMINI_FLASH_LITE_MODEL };
+        const stream = await this.openSseStream(fallbackPayload, correlationId, provider);
+        return new Response(stream, { headers: SSE_HEADERS });
     }
 
     private requestLlmInference(payload: InferPayload): Promise<InferResult> {
         const { correlationId } = payload;
         return new Promise((resolve, reject) => {
-            const onInferred = (event: Event) => { const { detail: { source, value } } = event as CustomEvent<Signal<InferResult>>; const { correlationId: receivedId } = value; if (source !== this.id || receivedId !== correlationId) { return; } this.removeInferenceListeners(onInferred, onError); resolve(value); };
+            const onInferred = (event: Event) => { const { detail: { source, value } } = event as CustomEvent<Signal<InferResult>>; const { correlationId: receivedId } = value; if (source !== this.id || receivedId !== correlationId) { return; } this.removeInferenceListeners(onInferred, onError); resolve({ ...value, context: payload.context ?? value.context }); };
             const onError = (event: Event) => { const { detail: { source, value } } = event as CustomEvent<Signal<Failure>>; const { correlationId: receivedId, error } = value; if (source !== this.id || receivedId !== correlationId) { return; } this.removeInferenceListeners(onInferred, onError); reject(new Error(String(error))); };
             this.target?.addEventListener(LlmSignalType.INFERRED, onInferred);
             this.target?.addEventListener(LlmSignalType.ERROR, onError);
@@ -258,13 +301,6 @@ export class Server extends Uca<Body> {
         this.target?.removeEventListener(LlmSignalType.ERROR, onError);
     }
 
-    private async handleLlmSse(context: RequestContext): Promise<Response> {
-        const { query, body } = context;
-        const payload = normalizeInference({ ...query, ...(body as InferenceRequest) });
-        const { correlationId = crypto.randomUUID(), provider = DEFAULT_PROVIDER } = payload;
-        const stream = await this.openSseStream(payload, correlationId, provider);
-        return new Response(stream, { headers: SSE_HEADERS });
-    }
 
     private openSseStream(payload: InferPayload, correlationId: string, provider: string): Promise<ReadableStream<Uint8Array>> {
         return new Promise((resolve, reject) => {
@@ -378,15 +414,12 @@ export class Server extends Uca<Body> {
 
     private resolveStaticPath(requestPath: string, staticDir?: string, webDir?: string): string | null {
         const normalized = requestPath === '/' || requestPath === '' ? '/index.html' : requestPath;
-        if (webDir) {
-            const webPath = path.join(webDir, normalized);
-            if (fs.existsSync(webPath) && fs.statSync(webPath).isFile()) { return webPath; }
-        }
-        if (staticDir) {
-            const distPath = path.join(staticDir, normalized);
-            if (fs.existsSync(distPath) && fs.statSync(distPath).isFile()) { return distPath; }
-        }
-        return null;
+        const candidates = [
+            normalized.startsWith('/src/') ? path.join(process.cwd(), normalized) : null,
+            webDir ? path.join(webDir, normalized) : null,
+            staticDir ? path.join(staticDir, normalized) : null,
+        ].filter(Boolean) as string[];
+        return candidates.find((file) => fs.existsSync(file) && fs.statSync(file).isFile()) ?? null;
     }
 
     private resolveMimeType(filePath: string): string {

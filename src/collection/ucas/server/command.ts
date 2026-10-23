@@ -37,15 +37,14 @@ export function createCommand(payload: InferPayload, stream = false): Command {
         correlationId,
         streamId,
         contextSchema,
+        context,
         purpose,
         goal,
-        limits,
     } = payload;
     const prompt = JSON.stringify({
-        contextSchema: contextSchema ?? (payload.context ? { const: payload.context } : undefined),
+        context: context ?? (contextSchema as { const?: unknown })?.const,
         purpose,
         goal,
-        limits,
     });
     const value = {
         prompt,
@@ -79,9 +78,9 @@ function buildQuestionCriteria(questions: Record<string, unknown>, contract: str
 }
 
 export function createEvaluation(payload: InferPayload): Record<string, unknown> {
-    const { contextSchema, goal, model = DEFAULT_JEV_MODEL, limit, correlationId } = payload;
-    const { const: facts } = (contextSchema ?? {}) as Record<string, unknown>;
-    const { state = facts, questions, question } = (facts ?? {}) as EvaluationContext & { question?: Question & { id?: string } };
+    const { contextSchema, context, goal, model = DEFAULT_JEV_MODEL, limit, correlationId } = payload;
+    const facts = (context ?? (contextSchema as { const?: unknown })?.const ?? {}) as Record<string, unknown>;
+    const { state = facts, questions, question } = facts as EvaluationContext & { question?: Question & { id?: string } };
     const resolved = questions ?? (question ? { [question.id ?? 'question']: question } : { assessment: goal });
     const criteria = buildQuestionCriteria(resolved, serializeRequest(payload));
     return { state, questions: criteria, model, limit, correlationId };

@@ -12,12 +12,18 @@ export const SKELETON_CSS = `
 .uca-skeleton {
     width: 100%;
     min-height: 48px;
-    border-radius: 8px;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.03) 75%);
+    flex: 1 1 auto;
+    border-radius: var(--md-sys-shape-corner-medium, 12px);
+    background: linear-gradient(
+        90deg,
+        var(--md-sys-color-surface-container, rgba(140, 149, 159, 0.12)) 25%,
+        var(--md-sys-color-surface-container-high, rgba(140, 149, 159, 0.24)) 50%,
+        var(--md-sys-color-surface-container, rgba(140, 149, 159, 0.12)) 75%
+    );
     background-size: 200% 100%;
-    animation: uca-skeleton-shimmer 1.8s infinite ease-in-out;
+    animation: uca-skeleton-shimmer 1.5s infinite ease-in-out;
     pointer-events: none;
     box-sizing: border-box;
-    border: 1px solid rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--md-sys-color-outline-variant, rgba(140, 149, 159, 0.18));
 }
 `;

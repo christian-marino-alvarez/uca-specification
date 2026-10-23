@@ -13,7 +13,6 @@ export interface ContractParams {
     readonly purpose: string;
     readonly goal: string;
     readonly outputSchema: Record<string, unknown>;
-    readonly limits: Record<string, unknown>;
 }
 
 export enum SignalType {
