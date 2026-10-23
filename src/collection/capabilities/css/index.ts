@@ -217,8 +217,10 @@ export class Css extends Capability<Body> {
         const tokenCatalog = DESIGN_TOKENS as unknown as Record<string, Record<string, DesignToken<string | number>>>;
         const groupTokens = tokenCatalog[group] ?? {};
         const { $value } = groupTokens[name] ?? {};
-        const value = $value !== undefined ? Css.tokenReference(group, name, String($value)) : String(name);
-        return [[property, value]];
+        if ($value === undefined) {
+            return [];
+        }
+        return [[property, Css.tokenReference(group, name, String($value))]];
     }
 
     private static resolveTokenQualities(qualities: Qualities): Record<string, string> {

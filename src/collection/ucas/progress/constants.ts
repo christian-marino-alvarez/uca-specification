@@ -20,7 +20,22 @@ export const DEFAULT_PROGRESS_QUALITIES: Qualities = {
     width: 'full',
     height: 'small',
     surface: 'muted',
-    radius: 'full',
+    shape: 'full',
+};
+
+export const PROGRESS_M3_VARIANTS: Record<string, Qualities> = {
+    linear: { width: 'full', height: 'small', surface: 'muted', shape: 'full' },
+    circular: { width: 'medium', height: 'medium', surface: 'transparent', shape: 'full' },
+};
+
+export const resolveProgressQualities = (qualities?: Qualities, variant?: string): Qualities => {
+    const selectedVariant = variant ?? qualities?.variant;
+    const variantQualities = selectedVariant ? PROGRESS_M3_VARIANTS[selectedVariant] ?? {} : {};
+    return {
+        ...DEFAULT_PROGRESS_QUALITIES,
+        ...variantQualities,
+        ...qualities,
+    };
 };
 
 export const PROGRESS_VISUAL_DISPOSITION = {
@@ -30,9 +45,11 @@ export const PROGRESS_VISUAL_DISPOSITION = {
         'width',
         'height',
         'surface',
-        'radius',
-        'border',
+        'shape',
+        'outline',
+        'variant',
     ],
-    description: 'Indicador visual de progreso o avance cuantitativo',
+    variants: PROGRESS_M3_VARIANTS,
+    description: 'Indicador visual de progreso de Material Design 3 (linear o circular)',
 } as const;
 

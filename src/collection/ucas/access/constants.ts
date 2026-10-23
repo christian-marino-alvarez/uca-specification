@@ -39,8 +39,8 @@ export const ACCESS_VISUAL_DISPOSITION = {
         'spacingInline',
         'spacingBlock',
         'surface',
-        'border',
-        'radius',
+        'outline',
+        'shape',
     ],
     description: 'Enlace interactivo o disparador de navegación accesible',
 } as const;

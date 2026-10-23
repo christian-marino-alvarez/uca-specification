@@ -3,12 +3,6 @@ import {
     SignalType as StorageSignalType,
     type Entry,
 } from '@uca/capability-indexed-db/types';
-import { Schema } from '@uca/capability-schema';
-import {
-    SignalType as SchemaSignalType,
-    type ErrorResult,
-    type ValidatedResult,
-} from '@uca/capability-schema/types';
 import { Uca } from '@uca/core/uca';
 import type {
     Cooky,
@@ -26,15 +20,12 @@ import {
 } from './constants.js';
 import {
     cacheResultSchema,
-    cacheSchema,
     recallSchema,
     rememberSchema,
-    storedEntrySchema,
 } from './schema.js';
 import {
     type Body,
     type CacheContext,
-    type CacheValidation,
     type GetPayload,
     type Remember,
     type RemovePayload,
@@ -44,7 +35,6 @@ import {
     DataType,
     SignalType,
     StorageStage,
-    ValidationStage,
 } from './types.js';
 
 export class Memory extends Uca<Body> {
@@ -64,7 +54,6 @@ export class Memory extends Uca<Body> {
             SignalType.GET,
             SignalType.REMOVE,
             SignalType.CLEAR,
-            ...Memory.reactToSchema(),
             ...Memory.reactToStorage(),
         ],
         inputs: [
@@ -85,17 +74,6 @@ export class Memory extends Uca<Body> {
             { signal: SignalType.ERROR, type: DataType.UNKNOWN },
         ],
     };
-
-    private static reactToSchema(): string[] {
-        const {
-            reactTo = [],
-        } = Schema.disposition;
-        return [
-            ...reactTo,
-            SchemaSignalType.VALIDATED,
-            SchemaSignalType.ERROR,
-        ];
-    }
 
     private static reactToStorage(): string[] {
         const {
@@ -140,7 +118,6 @@ export class Memory extends Uca<Body> {
         const { namespace = DEFAULT_NAMESPACE } = aim.body ?? {};
         return [
             [IndexedDatabase, this.createStorageDisposition(`${id}:indexed-db`, namespace)],
-            [Schema, this.createSchemaDisposition(`${id}:schema`)],
         ];
     }
 
@@ -164,11 +141,6 @@ export class Memory extends Uca<Body> {
                 break;
             case SignalType.CLEAR:
                 this.handleClear();
-                break;
-            case SchemaSignalType.VALIDATED:
-                return this.handleValidated(value as ValidatedResult);
-            case SchemaSignalType.ERROR:
-                this.handleValidationError(value as ErrorResult);
                 break;
             case StorageSignalType.SAVED:
                 this.handleStorageSaved(value);
@@ -208,47 +180,16 @@ export class Memory extends Uca<Body> {
         };
     }
 
-    private createSchemaDisposition(id: string): Disposition {
-        return {
-            ...Schema.disposition,
-            aim: {
-                description: Schema.AIM,
-                body: {
-                    id,
-                },
-            },
-        };
-    }
-
     private handleRecall(signal: Signal): void {
-        this.validateRequest(signal, CacheOperation.RECALL);
+        const { value, source: recipient } = signal;
+        const cache: CacheContext = { operation: CacheOperation.RECALL, recipient, request: value as Remember };
+        this.resolveIdentity(cache);
     }
 
     private handleRemember(signal: Signal): void {
-        this.validateRequest(signal, CacheOperation.REMEMBER);
-    }
-
-    private validateRequest(signal: Signal, operation: CacheOperation): void {
         const { value, source: recipient } = signal;
-        const cache = { operation, recipient, request: value as Remember };
-        this.pulse(SchemaSignalType.VALIDATE, {
-            schema: operation === CacheOperation.RECALL ? recallSchema : rememberSchema,
-            value,
-            context: {
-                stage: ValidationStage.REQUEST,
-                cache,
-            },
-        });
-    }
-
-    private handleValidated(result: ValidatedResult): void | Promise<void> {
-        const { value, context } = result;
-        const { stage, cache } = context as CacheValidation;
-        switch (stage) {
-            case ValidationStage.REQUEST: return this.resolveIdentity(cache);
-            case ValidationStage.ENTRY: this.handleEntry(value as StoredEntry | null, cache); break;
-            case ValidationStage.ENTRIES: this.pruneEntries(value as StoredEntry[], cache); break;
-        }
+        const cache: CacheContext = { operation: CacheOperation.REMEMBER, recipient, request: value as Remember };
+        this.resolveIdentity(cache);
     }
 
     private async resolveIdentity(cache: CacheContext): Promise<void> {
@@ -282,14 +223,7 @@ export class Memory extends Uca<Body> {
             this.pulse(SignalType.RETRIEVED, { ...result, value: stored });
             return;
         }
-        this.pulse(SchemaSignalType.VALIDATE, {
-            schema: storedEntrySchema.nullable(),
-            value: stored,
-            context: {
-                stage: ValidationStage.ENTRY,
-                cache,
-            },
-        });
+        this.handleEntry(stored as StoredEntry | null, cache as CacheContext);
     }
 
     private handleEntry(entry: StoredEntry | null, cache: CacheContext): void {
@@ -322,14 +256,10 @@ export class Memory extends Uca<Body> {
 
     private handleStorageListed(value: unknown): void {
         const { cache, entries } = value as { cache: CacheContext; entries: Entry[] };
-        this.pulse(SchemaSignalType.VALIDATE, {
-            schema: cacheSchema,
-            value: entries.filter(({ key }) => key.startsWith(ENTRY_PREFIX)).map(({ value: entry }) => entry),
-            context: {
-                stage: ValidationStage.ENTRIES,
-                cache,
-            },
-        });
+        const validEntries = entries
+            .filter(({ key }) => key.startsWith(ENTRY_PREFIX))
+            .map(({ value: entry }) => entry as StoredEntry);
+        this.pruneEntries(validEntries, cache);
     }
 
     private pruneEntries(entries: StoredEntry[], cache: CacheContext): void {
@@ -361,12 +291,6 @@ export class Memory extends Uca<Body> {
         const { correlationId, context } = request;
         const property = operation === CacheOperation.RECALL ? SignalType.RECALLED : SignalType.REMEMBERED;
         this.pulse(property, { correlationId, context, value }, recipient);
-    }
-
-    private handleValidationError(result: ErrorResult): void {
-        const { error, context } = result;
-        const { cache } = context as CacheValidation;
-        this.emitCacheError(error, cache);
     }
 
     private handleStorageError(value: unknown): void {

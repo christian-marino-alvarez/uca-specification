@@ -8,19 +8,19 @@ export enum DataType {
     APPLY_PAYLOAD = 'ApplyPayload',
     THEME_MODE = 'ThemeMode',
     APPLIED_RESULT = 'AppliedResult',
+    MATERIAL_QUALITIES = 'MaterialQualities',
+    BODY = 'Body',
 }
 
-export type ThemeMode = 'dark' | 'light';
-
-export interface ApplyPayload {
-    readonly theme?: ThemeMode;
-    readonly seedColor?: string;
-    readonly targetSelector?: string;
-}
-
-export interface AppliedResult {
-    readonly theme: ThemeMode;
-    readonly tokens: Record<string, string>;
-}
-
-export type Body = ApplyPayload;
+export type {
+    AppliedResult,
+    ApplyPayload,
+    Body,
+    ColorRole,
+    ComponentVariant,
+    Elevation,
+    MaterialQualities,
+    Shape,
+    SpacingScale,
+    ThemeMode,
+} from './schema.js';

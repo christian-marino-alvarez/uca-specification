@@ -1,10 +1,7 @@
 import { Logger } from '@uca/logger';
 import { SignalType as LoggerSignalType, Scope } from '@uca/logger/types';
 import { normalizeInference } from './constants.js';
-import type { InferenceRequest, ValidationContext } from './types.js';
-import { Schema } from '@uca/capability-schema';
-import { SignalType as SchemaSignalType, type ValidatedResult, type ErrorResult } from '@uca/capability-schema/types';
-import { inferenceSchema } from '@uca/llm/schema';
+import type { InferenceRequest } from './types.js';
 import type { Failure } from '@uca/llm/types';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -79,7 +76,6 @@ export class Server extends Uca<Body> {
             JevSignalType.INFERRED, JevSignalType.ERROR,
             GeminiSignalType.GENERATED, GeminiSignalType.STREAMED, GeminiSignalType.ERROR,
             OpenaiSignalType.GENERATED, OpenaiSignalType.STREAMED, OpenaiSignalType.ERROR,
-            SchemaSignalType.VALIDATE, SchemaSignalType.VALIDATED, SchemaSignalType.ERROR,
             ...HttpServer.disposition.reactTo ?? [],
             ...Jev.disposition.reactTo ?? [], ...Gemini.disposition.reactTo ?? [], ...Openai.disposition.reactTo ?? [],
         ],
@@ -141,8 +137,7 @@ export class Server extends Uca<Body> {
             case OpenaiSignalType.GENERATED: this.handleOpenaiGenerated(signal); break;
             case OpenaiSignalType.STREAMED: this.handleOpenaiStreamed(signal); break;
             case OpenaiSignalType.ERROR: this.handleOpenaiError(signal); break;
-            case SchemaSignalType.VALIDATED: this.handleValidated(value as ValidatedResult); break;
-            case SchemaSignalType.ERROR: this.handleValidationError(value as ErrorResult); break;
+
             default:
                 this.handleCapabilitySignal(property, value);
                 break;
@@ -163,7 +158,6 @@ export class Server extends Uca<Body> {
             [Jev, { ...Jev.disposition, aim: { description: Jev.AIM, body: { id: `${this.id}:jev` } } }],
             [Gemini, { ...Gemini.disposition, aim: { description: Gemini.AIM, body: { id: `${this.id}:gemini` } } }],
             [Openai, { ...Openai.disposition, aim: { description: Openai.AIM, body: { id: `${this.id}:openai` } } }],
-            [Schema, { ...Schema.disposition, aim: { description: Schema.AIM, body: { id: `${this.id}:schema` } } }],
             [SseServer, { ...SseServer.disposition, aim: { description: SseServer.AIM, body: { id: `${this.id}:sse-server` } } }],
         ];
     }
@@ -254,7 +248,8 @@ export class Server extends Uca<Body> {
             const onError = (event: Event) => { const { detail: { source, value } } = event as CustomEvent<Signal<Failure>>; const { correlationId: receivedId, error } = value; if (source !== this.id || receivedId !== correlationId) { return; } this.removeInferenceListeners(onInferred, onError); reject(new Error(String(error))); };
             this.target?.addEventListener(LlmSignalType.INFERRED, onInferred);
             this.target?.addEventListener(LlmSignalType.ERROR, onError);
-            this.pulse(SchemaSignalType.VALIDATE, { schema: inferenceSchema, value: payload, context: { stream: false, correlationId } });
+            const { property, value } = createCommand(payload, false);
+            this.pulse(property, value);
         });
     }
 
@@ -304,54 +299,40 @@ export class Server extends Uca<Body> {
         this.target?.removeEventListener(SseServerSignalType.ERROR, failed);
     }
 
-    private requestStream(payload: InferPayload, correlationId: string): void {
-        this.requestValidatedStream(payload, correlationId);
-    }
-
-    private requestValidatedStream(payload: InferPayload, correlationId: string): void {
-        this.pulse(SchemaSignalType.VALIDATE, {
-            schema: inferenceSchema,
-            value: payload,
-            context: {
-                stream: true,
-                correlationId,
-            },
-        });
+    private requestStream(payload: InferPayload, _correlationId: string): void {
+        const { property, value } = createCommand(payload, true);
+        this.pulse(property, value);
     }
 
     private handleInferRequest(payload: InferPayload): void {
-        const { correlationId } = payload;
-        this.pulse(SchemaSignalType.VALIDATE, {
-            schema: inferenceSchema,
-            value: payload,
-            context: {
-                stream: false,
-                correlationId,
-            },
-        });
+        const { property, value } = createCommand(payload, false);
+        this.pulse(property, value);
     }
 
     private handleStreamRequest(payload: InferPayload): void {
-        const { correlationId } = payload;
-        this.requestValidatedStream(payload, correlationId ?? crypto.randomUUID());
+        const { property, value } = createCommand(payload, true);
+        this.pulse(property, value);
     }
 
     private handleJevInferred(signal: Signal): void {
-        const { value } = signal;
-        const { answers, state, model, correlationId } = value as JevResult;
-        this.pulse(LlmSignalType.INFERRED, { response: JSON.stringify(answers), data: answers, context: state, model, correlationId });
+        const {
+            value,
+        } = signal;
+        const {
+            answers,
+            state,
+            model,
+            correlationId,
+        } = value as JevResult;
+        this.pulse(LlmSignalType.INFERRED, {
+            response: JSON.stringify(answers),
+            data: answers,
+            context: state,
+            model,
+            correlationId,
+        });
     }
-    private handleValidated(result: ValidatedResult): void {
-        const { value: payload, context } = result;
-        const { stream } = context as ValidationContext;
-        const { property, value } = createCommand(payload as InferPayload, stream);
-        this.pulse(property, value);
-    }
-    private handleValidationError(result: ErrorResult): void {
-        const { error, context } = result;
-        const { correlationId } = context as ValidationContext;
-        this.pulse(LlmSignalType.ERROR, { error, correlationId });
-    }
+
     private handleGeminiGenerated(signal: Signal): void {
         const { value } = signal;
         const { text: response, data, model, usage, correlationId } = value as GenerateResult;

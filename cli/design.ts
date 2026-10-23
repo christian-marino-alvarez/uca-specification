@@ -156,70 +156,88 @@ export const DESIGN: StylesheetDesign = {
             },
             default: {
                 $type: 'color',
-                $value: '#070A12',
+                $value: 'var(--md-sys-color-surface, #070A12)',
                 $description: 'Application background',
+            },
+            surface: {
+                $type: 'color',
+                $value: 'var(--md-sys-color-surface, #070A12)',
+                $description: 'M3 base surface',
+            },
+            surfaceContainer: {
+                $type: 'color',
+                $value: 'var(--md-sys-color-surface-container, #111624)',
+                $description: 'M3 surface container',
+            },
+            surfaceContainerLow: {
+                $type: 'color',
+                $value: 'var(--md-sys-color-surface-container-low, #0d111c)',
+                $description: 'M3 low surface container',
+            },
+            surfaceContainerHigh: {
+                $type: 'color',
+                $value: 'var(--md-sys-color-surface-container-high, #1a2030)',
+                $description: 'M3 high surface container',
+            },
+            surfaceContainerLowest: {
+                $type: 'color',
+                $value: 'var(--md-sys-color-surface-container-lowest, #05070c)',
+                $description: 'M3 lowest surface container',
+            },
+            surfaceContainerHighest: {
+                $type: 'color',
+                $value: 'var(--md-sys-color-surface-container-highest, #232b3e)',
+                $description: 'M3 highest surface container',
+            },
+            surfaceVariant: {
+                $type: 'color',
+                $value: 'var(--md-sys-color-surface-variant, #2a344a)',
+                $description: 'M3 surface variant',
+            },
+            primary: {
+                $type: 'color',
+                $value: 'var(--md-sys-color-primary, #8ab4f8)',
+                $description: 'M3 primary container color',
+            },
+            secondary: {
+                $type: 'color',
+                $value: 'var(--md-sys-color-secondary, #3c4043)',
+                $description: 'M3 secondary container color',
+            },
+            tertiary: {
+                $type: 'color',
+                $value: 'var(--md-sys-color-tertiary, #80cbc4)',
+                $description: 'M3 tertiary container color',
             },
             card: {
                 $type: 'color',
-                $value: '#0d111c',
+                $value: 'var(--md-sys-color-surface-container-high, #0d111c)',
                 $description: 'Layered card surface',
             },
             muted: {
                 $type: 'color',
-                $value: '#111624',
+                $value: 'var(--md-sys-color-surface-container, #111624)',
                 $description: 'Subtle secondary surface',
             },
             dark: {
                 $type: 'color',
-                $value: '#05070c',
+                $value: 'var(--md-sys-color-surface-container-lowest, #05070c)',
                 $description: 'Deep contrast surface',
             },
             brand: {
                 $type: 'color',
-                $value: '#e2e8f0',
+                $value: 'var(--md-sys-color-primary, #e2e8f0)',
                 $description: 'Primary brand surface',
             },
             accent: {
                 $type: 'color',
-                $value: '#cbd5e1',
+                $value: 'var(--md-sys-color-secondary, #cbd5e1)',
                 $description: 'Secondary accent surface',
             },
             danger: {
                 $type: 'color',
-                $value: '#94a3b8',
+                $value: 'var(--md-sys-color-error, #94a3b8)',
                 $description: 'Destructive warning surface',
-            },
-        },
-        tone: {
-            brand: {
-                $type: 'color',
-                $value: '#e2e8f0',
-                $description: 'Primary accent color',
-            },
-            surface: {
-                $type: 'color',
-                $value: '#070A12',
-                $description: 'Default content surface',
-            },
-            muted: {
-                $type: 'color',
-                $value: '#111624',
-                $description: 'Muted surface tone',
-            },
-            dark: {
-                $type: 'color',
-                $value: '#05070c',
-                $description: 'Deep background tone',
-            },
-            accent: {
-                $type: 'color',
-                $value: '#cbd5e1',
-                $description: 'Secondary accent color',
-            },
-            danger: {
-                $type: 'color',
-                $value: '#94a3b8',
-                $description: 'Destructive warning color',
             },
         },
         textColor: {
@@ -365,79 +383,146 @@ export const DESIGN: StylesheetDesign = {
                 $value: 'none',
                 $description: 'Flat surface',
             },
+            level0: {
+                $type: 'shadow',
+                $value: 'none',
+                $description: 'M3 flat surface 0dp',
+            },
+            level1: {
+                $type: 'shadow',
+                $value: 'var(--md-sys-elevation-level1, 0 1px 3px 1px rgba(0, 0, 0, 0.15), 0 1px 2px 0 rgba(0, 0, 0, 0.30))',
+                $description: 'M3 resting card elevation 1dp',
+            },
+            level2: {
+                $type: 'shadow',
+                $value: 'var(--md-sys-elevation-level2, 0 2px 6px 2px rgba(0, 0, 0, 0.15), 0 1px 2px 0 rgba(0, 0, 0, 0.30))',
+                $description: 'M3 navigation bar elevation 3dp',
+            },
+            level3: {
+                $type: 'shadow',
+                $value: 'var(--md-sys-elevation-level3, 0 4px 8px 3px rgba(0, 0, 0, 0.15), 0 1px 3px 0 rgba(0, 0, 0, 0.30))',
+                $description: 'M3 dialog elevation 6dp',
+            },
+            level4: {
+                $type: 'shadow',
+                $value: 'var(--md-sys-elevation-level4, 0 6px 10px 4px rgba(0, 0, 0, 0.15), 0 2px 3px 0 rgba(0, 0, 0, 0.30))',
+                $description: 'M3 floating sheet elevation 8dp',
+            },
+            level5: {
+                $type: 'shadow',
+                $value: 'var(--md-sys-elevation-level5, 0 8px 12px 6px rgba(0, 0, 0, 0.15), 0 4px 4px 0 rgba(0, 0, 0, 0.30))',
+                $description: 'M3 top app bar elevation 12dp',
+            },
             low: {
                 $type: 'shadow',
-                $value: '0 8px 24px rgba(0, 0, 0, 0.16)',
+                $value: 'var(--md-sys-elevation-level1, 0 8px 24px rgba(0, 0, 0, 0.16))',
                 $description: 'Subtle elevation',
             },
             card: {
                 $type: 'shadow',
-                $value: '0 24px 80px rgba(0, 0, 0, 0.28)',
+                $value: 'var(--md-sys-elevation-level1, 0 24px 80px rgba(0, 0, 0, 0.28))',
                 $description: 'Card elevation',
             },
             medium: {
                 $type: 'shadow',
-                $value: '0 16px 48px rgba(0, 0, 0, 0.32)',
+                $value: 'var(--md-sys-elevation-level2, 0 16px 48px rgba(0, 0, 0, 0.32))',
                 $description: 'Floating elevation',
             },
             modal: {
                 $type: 'shadow',
-                $value: '0 32px 96px rgba(0, 0, 0, 0.4)',
+                $value: 'var(--md-sys-elevation-level3, 0 32px 96px rgba(0, 0, 0, 0.4))',
                 $description: 'Overlay elevation',
             },
             high: {
                 $type: 'shadow',
-                $value: '0 40px 120px rgba(0, 0, 0, 0.48)',
+                $value: 'var(--md-sys-elevation-level4, 0 40px 120px rgba(0, 0, 0, 0.48))',
                 $description: 'Maximum elevation',
             },
         },
-        radius: {
+        shape: {
             none: {
                 $type: 'dimension',
                 $value: '0',
                 $description: 'Sharp corners',
             },
+            extraSmall: {
+                $type: 'dimension',
+                $value: 'var(--md-sys-shape-corner-extra-small, 4px)',
+                $description: 'M3 extra small shape 4px',
+            },
             small: {
                 $type: 'dimension',
-                $value: '0.5rem',
+                $value: 'var(--md-sys-shape-corner-small, 0.5rem)',
                 $description: 'Small rounded corners',
             },
             medium: {
                 $type: 'dimension',
-                $value: '1rem',
+                $value: 'var(--md-sys-shape-corner-medium, 1rem)',
                 $description: 'Standard rounded corners',
             },
             large: {
                 $type: 'dimension',
-                $value: '1.5rem',
+                $value: 'var(--md-sys-shape-corner-large, 1.5rem)',
                 $description: 'Large card corners',
+            },
+            extraLarge: {
+                $type: 'dimension',
+                $value: 'var(--md-sys-shape-corner-extra-large, 28px)',
+                $description: 'M3 extra large sheet shape 28px',
             },
             full: {
                 $type: 'dimension',
-                $value: '9999px',
+                $value: 'var(--md-sys-shape-corner-full, 9999px)',
                 $description: 'Pill corners',
             },
         },
-        border: {
+        variant: {
+            elevated: {
+                $type: 'string',
+                $value: 'elevated',
+                $description: 'M3 elevated surface container variant',
+            },
+            filled: {
+                $type: 'string',
+                $value: 'filled',
+                $description: 'M3 filled high-emphasis variant',
+            },
+            tonal: {
+                $type: 'string',
+                $value: 'tonal',
+                $description: 'M3 filled tonal medium-emphasis variant',
+            },
+            outlined: {
+                $type: 'string',
+                $value: 'outlined',
+                $description: 'M3 outlined bounded variant',
+            },
+            text: {
+                $type: 'string',
+                $value: 'text',
+                $description: 'M3 text-only low-emphasis variant',
+            },
+        },
+        outline: {
             none: {
                 $type: 'border',
                 $value: 'none',
-                $description: 'No border',
+                $description: 'No outline',
             },
             subtle: {
                 $type: 'border',
-                $value: '1px solid rgba(226, 232, 240, 0.12)',
-                $description: 'Subtle surface boundary',
+                $value: '1px solid var(--md-sys-color-outline-variant, rgba(226, 232, 240, 0.12))',
+                $description: 'M3 subtle outline variant',
             },
             strong: {
                 $type: 'border',
-                $value: '1px solid rgba(226, 232, 240, 0.28)',
-                $description: 'Visible surface boundary',
+                $value: '1px solid var(--md-sys-color-outline, rgba(226, 232, 240, 0.28))',
+                $description: 'M3 prominent outline',
             },
-            outline: {
+            dashed: {
                 $type: 'border',
-                $value: '1px dashed rgba(226, 232, 240, 0.24)',
-                $description: 'Structural placeholder boundary',
+                $value: '1px dashed var(--md-sys-color-outline-variant, rgba(226, 232, 240, 0.24))',
+                $description: 'M3 dashed outline for placeholders',
             },
         },
         direction: {

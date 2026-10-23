@@ -1,4 +1,3 @@
-import { Schema } from '@uca/capability-schema';
 import { Presentation } from '@uca/capability-presentation';
 import { Css } from '@uca/capability-css';
 import type { Aim, Declaration, Disposition } from '@uca/core/types';
@@ -20,15 +19,6 @@ function identifiedDisposition(disposition: Disposition, body: object): Disposit
         ...disposition,
         aim: identifiedAim(aim, body),
     };
-}
-
-export function schemaDeclaration(id: string): Declaration {
-    return [
-        Schema,
-        identifiedDisposition(Schema.disposition, {
-            id: `${id}:schema`,
-        }),
-    ];
 }
 
 export function presentationDeclaration(id: string, kind: Kind): Declaration {

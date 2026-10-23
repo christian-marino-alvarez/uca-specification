@@ -16,12 +16,27 @@ export const INVALID_BOUNDS = {
 
 export const DEFAULT_TOGGLE_QUALITIES: Qualities = {
     surface: 'card',
-    border: 'subtle',
-    radius: 'full',
+    outline: 'subtle',
+    shape: 'full',
     spacingInline: 'small',
     spacingBlock: 'none',
     textColor: 'light',
     textSize: 'small',
+};
+
+export const TOGGLE_M3_VARIANTS: Record<string, Qualities> = {
+    switch: { surface: 'card', outline: 'subtle', shape: 'full', spacingInline: 'small', spacingBlock: 'none' },
+    checkbox: { surface: 'transparent', outline: 'strong', shape: 'extraSmall', spacingInline: 'none', spacingBlock: 'none' },
+};
+
+export const resolveToggleQualities = (qualities?: Qualities, variant?: string): Qualities => {
+    const selectedVariant = variant ?? qualities?.variant;
+    const variantQualities = selectedVariant ? TOGGLE_M3_VARIANTS[selectedVariant] ?? {} : {};
+    return {
+        ...DEFAULT_TOGGLE_QUALITIES,
+        ...variantQualities,
+        ...qualities,
+    };
 };
 
 export const TOGGLE_VISUAL_DISPOSITION = {
@@ -29,13 +44,15 @@ export const TOGGLE_VISUAL_DISPOSITION = {
     defaultQualities: DEFAULT_TOGGLE_QUALITIES,
     supportedQualities: [
         'surface',
-        'border',
-        'radius',
+        'outline',
+        'shape',
         'spacingInline',
         'spacingBlock',
         'textColor',
         'textSize',
+        'variant',
     ],
-    description: 'Conmutador binario o interruptor de estado activo/inactivo',
+    variants: TOGGLE_M3_VARIANTS,
+    description: 'Conmutador binario de Material Design 3 (switch o checkbox)',
 } as const;
 

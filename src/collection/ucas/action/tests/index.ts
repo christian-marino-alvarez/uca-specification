@@ -57,7 +57,7 @@ function testAction_RenderAndTriggerClick(): void {
         label: 'Save Changes',
         action: 'save-form',
         type: 'submit',
-        qualities: { surface: 'brand', radius: 'medium', spacing: 'small' },
+        qualities: { surface: 'brand', shape: 'medium', spacing: 'small' },
     });
 
     assert.ok(createdReceived);

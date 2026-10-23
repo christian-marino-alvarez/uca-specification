@@ -7,7 +7,10 @@ export { Render } from './render/index.js';
 export { View } from './view/index.js';
 export { VisualComposition } from './visual-composition/index.js';
 
-
+export { Action } from './action/index.js';
+export { Input } from './input/index.js';
+export { Box } from './box/index.js';
+export { Picture } from './picture/index.js';
 export { Heading } from './heading/index.js';
 export { Paragraph } from './paragraph/index.js';
 export { List } from './list/index.js';
@@ -21,3 +24,8 @@ export { Symbol } from './symbol/index.js';
 export { Status } from './status/index.js';
 export { Progress } from './progress/index.js';
 export { Separator } from './separator/index.js';
+
+export { Card } from './card/index.js';
+export { Chip } from './chip/index.js';
+export { Slider } from './slider/index.js';
+export { Dialog } from './dialog/index.js';

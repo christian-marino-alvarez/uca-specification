@@ -42,7 +42,6 @@
     }
   },
   "dependencies": {
-    "@uca/capability-schema": "^0.1.0",
     "@uca/core": "^0.1.0",
     "zod": "^4.6.5",
     "@uca/capability-llm": "^0.1.0"

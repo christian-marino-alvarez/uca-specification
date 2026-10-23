@@ -41,7 +41,7 @@ function testCss_IdentityAndDefaults(): void {
     assert.strictEqual(Css.disposition.inputs?.length, 6);
     assert.strictEqual(Css.disposition.outputs?.length, 7);
     assert.strictEqual(DESIGN_TOKENS.spacing.$type, 'dimension');
-    assert.strictEqual(DESIGN_TOKENS.tone.$type, 'color');
+    assert.strictEqual(DESIGN_TOKENS.surface.$type, 'color');
     assert.strictEqual(DESIGN_TOKENS.elevation.$type, 'shadow');
     assert.deepStrictEqual(Css.disposition.aim.body?.tokens, DESIGN_TOKENS);
 }
@@ -82,7 +82,7 @@ function testCss_MountsTokensOnLifecycleEvent(): void {
     const tokensElement = document.getElementById(TOKENS_STYLE_ID);
     assert.ok(tokensElement !== null);
     assert.ok(tokensElement?.textContent?.includes('--uca-spacing-medium: 1rem;'));
-    assert.ok(tokensElement?.textContent?.includes('--uca-tone-brand: #2563eb;'));
+    assert.ok(tokensElement?.textContent?.includes('--uca-surface-surface:'));
 
     tokensElement?.remove();
     css.denervate();
@@ -97,35 +97,36 @@ function testCss_TranslatesQualitiesDeterministically(): void {
         typeface: 'sans',
         textSize: 'medium',
         elevation: 'card',
-        radius: 'medium',
+        shape: 'medium',
         direction: 'column',
         alignment: 'center',
+        distribution: 'center',
     });
 
-    assert.strictEqual(declarations['width'], DESIGN_TOKENS.dimensions.third.$value);
-    assert.strictEqual(declarations['height'], DESIGN_TOKENS.dimensions.auto.$value);
-    assert.strictEqual(declarations['padding'], DESIGN_TOKENS.spacing.medium.$value);
-    assert.strictEqual(declarations['background-color'], DESIGN_TOKENS.surface.brand.$value);
-    assert.strictEqual(declarations['font-family'], DESIGN_TOKENS.typeface.sans.$value);
-    assert.strictEqual(declarations['font-size'], DESIGN_TOKENS.textSize.medium.$value);
-    assert.strictEqual(declarations['box-shadow'], DESIGN_TOKENS.elevation.card.$value);
-    assert.strictEqual(declarations['border-radius'], DESIGN_TOKENS.radius.medium.$value);
-    assert.strictEqual(declarations['flex-direction'], DESIGN_TOKENS.direction.column.$value);
-    assert.strictEqual(declarations['align-items'], DESIGN_TOKENS.alignment.center.$value);
-    assert.strictEqual(declarations['justify-content'], 'center');
+    assert.strictEqual(declarations['width'], `var(--uca-dimensions-third, ${DESIGN_TOKENS.dimensions.third.$value})`);
+    assert.strictEqual(declarations['height'], `var(--uca-dimensions-auto, ${DESIGN_TOKENS.dimensions.auto.$value})`);
+    assert.strictEqual(declarations['padding'], `var(--uca-spacing-medium, ${DESIGN_TOKENS.spacing.medium.$value})`);
+    assert.strictEqual(declarations['background-color'], `var(--uca-surface-brand, ${DESIGN_TOKENS.surface.brand.$value})`);
+    assert.strictEqual(declarations['font-family'], `var(--uca-typeface-sans, ${DESIGN_TOKENS.typeface.sans.$value})`);
+    assert.strictEqual(declarations['font-size'], `var(--uca-textSize-medium, ${DESIGN_TOKENS.textSize.medium.$value})`);
+    assert.strictEqual(declarations['box-shadow'], `var(--uca-elevation-card, ${DESIGN_TOKENS.elevation.card.$value})`);
+    assert.strictEqual(declarations['border-radius'], `var(--uca-shape-medium, ${DESIGN_TOKENS.shape.medium.$value})`);
+    assert.strictEqual(declarations['flex-direction'], `var(--uca-direction-column, ${DESIGN_TOKENS.direction.column.$value})`);
+    assert.strictEqual(declarations['align-items'], `var(--uca-alignment-center, ${DESIGN_TOKENS.alignment.center.$value})`);
+    assert.strictEqual(declarations['justify-content'], `var(--uca-distribution-center, ${DESIGN_TOKENS.distribution.center.$value})`);
 }
 
 function testCss_TranslatesGapIndependentlyFromSpacing(): void {
     const independent = Css.translateQualities({ spacing: 'large', gap: 'small' });
-    assert.strictEqual(independent['padding'], DESIGN_TOKENS.spacing.large.$value);
-    assert.strictEqual(independent['gap'], DESIGN_TOKENS.spacing.small.$value);
+    assert.strictEqual(independent['padding'], `var(--uca-spacing-large, ${DESIGN_TOKENS.spacing.large.$value})`);
+    assert.strictEqual(independent['gap'], `var(--uca-spacing-small, ${DESIGN_TOKENS.spacing.small.$value})`);
     assert.strictEqual(Css.translateQualities({ spacing: 'medium' })['gap'], undefined);
     assert.strictEqual(Css.translateQualities({})['gap'], undefined);
 }
 
-function testCss_TranslatesBorderToken(): void {
-    assert.strictEqual(Css.translateQualities({ border: 'outline' })['border'], DESIGN_TOKENS.border.outline.$value);
-    assert.strictEqual(Css.translateQualities({ border: 'none' })['border'], 'none');
+function testCss_TranslatesOutlineToken(): void {
+    assert.strictEqual(Css.translateQualities({ outline: 'dashed' })['border'], `var(--uca-outline-dashed, ${DESIGN_TOKENS.outline.dashed.$value})`);
+    assert.strictEqual(Css.translateQualities({ outline: 'none' })['border'], `var(--uca-outline-none, ${DESIGN_TOKENS.outline.none.$value})`);
     assert.strictEqual(Css.translateQualities({})['border'], undefined);
 }
 
@@ -140,17 +141,17 @@ function testCss_AppliesStyleForNeighborUca(): void {
     const css = activateCss(new Css('css-apply-test'), bus);
     emitSignal(bus, SignalType.APPLY, {
         elementId: 'card-1',
-        qualities: { width: 'third', spacing: 'medium', tone: 'surface' },
+        qualities: { width: 'third', spacing: 'medium', surface: 'surface' },
     });
 
     assert.ok(appliedResult !== undefined);
     assert.strictEqual(appliedResult?.elementId, 'card-1');
-    assert.strictEqual(appliedResult?.declarations['padding'], '1rem');
+    assert.strictEqual(appliedResult?.declarations['padding'], `var(--uca-spacing-medium, ${DESIGN_TOKENS.spacing.medium.$value})`);
 
     const styleElement = document.getElementById(`${STYLE_PREFIX}card-1`);
     assert.ok(styleElement !== null);
     assert.ok(styleElement?.textContent?.includes('#card-1 {'));
-    assert.ok(styleElement?.textContent?.includes('padding: 1rem;'));
+    assert.ok(styleElement?.textContent?.includes('padding: var(--uca-spacing-medium, 1rem);'));
 
     css.denervate();
     styleElement?.remove();
@@ -167,13 +168,13 @@ function testCss_ResolvesStyleOnDemand(): void {
     const css = activateCss(new Css('css-resolve-test'), bus);
     emitSignal(bus, SignalType.RESOLVE, {
         elementId: 'btn-1',
-        qualities: { tone: 'brand', radius: 'full' },
+        qualities: { surface: 'brand', shape: 'full' },
     });
 
     assert.ok(resolvedResult !== undefined);
     assert.strictEqual(resolvedResult?.elementId, 'btn-1');
-    assert.strictEqual(resolvedResult?.declarations['background-color'], '#2563eb');
-    assert.strictEqual(resolvedResult?.declarations['border-radius'], '9999px');
+    assert.strictEqual(resolvedResult?.declarations['background-color'], `var(--uca-surface-brand, ${DESIGN_TOKENS.surface.brand.$value})`);
+    assert.strictEqual(resolvedResult?.declarations['border-radius'], `var(--uca-shape-full, ${DESIGN_TOKENS.shape.full.$value})`);
     assert.ok(resolvedResult?.cssText.includes('#btn-1 {'));
 
     css.denervate();
@@ -190,7 +191,7 @@ function testCss_UpdatesThemeTokensWithDtcgFormat(): void {
     const css = activateCss(new Css('css-theme-test'), bus);
     emitSignal(bus, SignalType.THEME, {
         tokens: {
-            tone: {
+            surface: {
                 $type: 'color',
                 brand: { $value: '#ff0000', $description: 'Theme brand red' },
                 surface: { $value: '#000000', $description: 'Theme surface black' },
@@ -202,8 +203,8 @@ function testCss_UpdatesThemeTokensWithDtcgFormat(): void {
     assert.strictEqual(themedResult?.updated, true);
 
     const tokensElement = document.getElementById(TOKENS_STYLE_ID);
-    assert.ok(tokensElement?.textContent?.includes('--uca-tone-brand: #ff0000;'));
-    assert.ok(tokensElement?.textContent?.includes('--uca-tone-surface: #000000;'));
+    assert.ok(tokensElement?.textContent?.includes('--uca-surface-brand: #ff0000;'));
+    assert.ok(tokensElement?.textContent?.includes('--uca-surface-surface: #000000;'));
 
     css.denervate();
 }
@@ -237,7 +238,7 @@ function testCss_MultipleAutonomousNeighborUcas(): void {
 
     emitSignal(bus, SignalType.APPLY, { elementId: 'header-el', qualities: { width: 'full', spacing: 'small' } });
     emitSignal(bus, SignalType.APPLY, { elementId: 'sidebar-el', qualities: { width: 'quarter', spacing: 'medium' } });
-    emitSignal(bus, SignalType.APPLY, { elementId: 'footer-el', qualities: { width: 'full', tone: 'dark' } });
+    emitSignal(bus, SignalType.APPLY, { elementId: 'footer-el', qualities: { width: 'full', surface: 'dark' } });
 
     assert.ok(document.getElementById(`${STYLE_PREFIX}header-el`) !== null);
     assert.ok(document.getElementById(`${STYLE_PREFIX}sidebar-el`) !== null);
@@ -257,9 +258,9 @@ function testCss_PreservesExplicitGeometryWithoutGlobalLayout(): void {
     assert.ok(baseCss.includes('input, button, select, textarea, a'));
     assert.doesNotMatch(baseCss, /(?:^|[;{])\s*#app/);
     assert.deepStrictEqual(Css.translateQualities({}), { 'box-sizing': 'border-box' });
-    assert.deepStrictEqual(Css.translateQualities({ width: 'half' }), { 'box-sizing': 'border-box', width: '50%' });
-    assert.deepStrictEqual(Css.translateQualities({ width: 'wide' }), { 'box-sizing': 'border-box', width: '80%' });
-    assert.deepStrictEqual(Css.translateQualities({ width: 'narrow' }), { 'box-sizing': 'border-box', width: '64px' });
+    assert.deepStrictEqual(Css.translateQualities({ width: 'half' }), { 'box-sizing': 'border-box', width: `var(--uca-dimensions-half, ${DESIGN_TOKENS.dimensions.half.$value})` });
+    assert.deepStrictEqual(Css.translateQualities({ width: 'wide' }), { 'box-sizing': 'border-box', width: `var(--uca-dimensions-wide, ${DESIGN_TOKENS.dimensions.wide.$value})` });
+    assert.deepStrictEqual(Css.translateQualities({ width: 'narrow' }), { 'box-sizing': 'border-box', width: `var(--uca-dimensions-narrow, ${DESIGN_TOKENS.dimensions.narrow.$value})` });
 }
 
 function runTests(): void {
@@ -269,7 +270,7 @@ function runTests(): void {
     testCss_DoesNotMountTokensUponInnervation();
     testCss_MountsTokensOnLifecycleEvent();
     testCss_TranslatesQualitiesDeterministically();
-    testCss_TranslatesBorderToken();
+    testCss_TranslatesOutlineToken();
     testCss_TranslatesGapIndependentlyFromSpacing();
     testCss_PreservesExplicitGeometryWithoutGlobalLayout();
     testCss_AppliesStyleForNeighborUca();
@@ -288,10 +289,10 @@ import { qualitiesSchema } from '../schema.js';
 import { ControlType } from '../types.js';
 
 test('Token contracts reject unknown names and preserve relative dimensions', () => {
-    assert.strictEqual(qualitiesSchema.safeParse({ border: 'default' }).success, false);
+    assert.strictEqual(qualitiesSchema.safeParse({ outline: 'default' }).success, false);
     assert.strictEqual(qualitiesSchema.safeParse({ surface: 'unavailable' }).success, false);
-    assert.strictEqual(qualitiesSchema.safeParse({ border: 'subtle', width: '80%', textSize: 'medium' }).success, true);
-    assert.strictEqual(Css.translateQualities({ border: 'default' }).border, undefined);
+    assert.strictEqual(qualitiesSchema.safeParse({ outline: 'subtle', width: '80%', textSize: 'medium' }).success, true);
+    assert.strictEqual(Css.translateQualities({ outline: 'default' }).border, undefined);
     assert.strictEqual(Css.translateQualities({ width: '80%' }).width, '80%');
 });
 
@@ -319,46 +320,73 @@ test('Action without qualities keeps native presentation and accessible states',
 
 test('Control styling preserves explicit tokens without complementing omitted qualities', () => {
     const bus = new EventTarget(), css = activateCss(new Css('explicit-control'), bus);
-    emitSignal(bus, SignalType.APPLY, { elementId: 'explicit', control: ControlType.ACTION, qualities: { width: 'half', spacing: 'small', surface: 'dark', radius: 'none', typeface: 'serif', border: 'strong' } });
+    emitSignal(bus, SignalType.APPLY, { elementId: 'explicit', control: ControlType.ACTION, qualities: { width: 'half', spacing: 'small', surface: 'dark', shape: 'none', typeface: 'serif', outline: 'strong' } });
     const stylesheet = document.getElementById(`${STYLE_PREFIX}explicit`)?.textContent ?? '';
-    assert.ok(stylesheet.includes('width: 50%;')); assert.ok(stylesheet.includes('padding: 0.5rem;'));
-    assert.ok(stylesheet.includes('background-color: #111827;')); assert.ok(stylesheet.includes('border-radius: 0;'));
-    assert.ok(stylesheet.includes(`font-family: ${DESIGN_TOKENS.typeface.serif.$value};`)); assert.ok(stylesheet.includes('border: 1px solid #94a3b8;'));
+    assert.ok(stylesheet.includes(`width: var(--uca-dimensions-half, ${DESIGN_TOKENS.dimensions.half.$value});`));
+    assert.ok(stylesheet.includes(`padding: var(--uca-spacing-small, ${DESIGN_TOKENS.spacing.small.$value});`));
+    assert.ok(stylesheet.includes(`background-color: var(--uca-surface-dark, ${DESIGN_TOKENS.surface.dark.$value});`));
+    assert.ok(stylesheet.includes(`border-radius: var(--uca-shape-none, ${DESIGN_TOKENS.shape.none.$value});`));
+    assert.ok(stylesheet.includes(`font-family: var(--uca-typeface-serif, ${DESIGN_TOKENS.typeface.serif.$value});`));
+    assert.ok(stylesheet.includes(`border: var(--uca-outline-strong, ${DESIGN_TOKENS.outline.strong.$value});`));
     assert.doesNotMatch(stylesheet, /max-width|gap:|box-shadow|font-size|font-weight|justify-content/);
     css.denervate();
 });
 
-test('Foreground and surface are independent while tone remains a background alias', () => {
-    const explicit = Css.translateQualities({ surface: 'dark', textColor: 'light', tone: 'brand' });
-    assert.strictEqual(explicit['background-color'], '#111827'); assert.strictEqual(explicit['color'], '#ffffff');
-    assert.deepStrictEqual(Css.translateQualities({ textColor: 'brand' }), { 'box-sizing': 'border-box', color: '#2563eb' });
-    assert.deepStrictEqual(Css.translateQualities({ tone: 'brand' }), { 'box-sizing': 'border-box', 'background-color': '#2563eb' });
-    assert.strictEqual(Css.translateQualities({ surface: 'transparent', tone: 'brand' })['background-color'], 'transparent');
+test('Foreground and surface are independent without legacy aliases', () => {
+    const explicit = Css.translateQualities({ surface: 'dark', textColor: 'light' });
+    assert.strictEqual(explicit['background-color'], `var(--uca-surface-dark, ${DESIGN_TOKENS.surface.dark.$value})`);
+    assert.strictEqual(explicit['color'], `var(--uca-textColor-light, ${DESIGN_TOKENS.textColor.light.$value})`);
+    assert.deepStrictEqual(Css.translateQualities({ textColor: 'brand' }), { 'box-sizing': 'border-box', color: `var(--uca-textColor-brand, ${DESIGN_TOKENS.textColor.brand.$value})` });
+    assert.deepStrictEqual(Css.translateQualities({ surface: 'brand' }), { 'box-sizing': 'border-box', 'background-color': `var(--uca-surface-brand, ${DESIGN_TOKENS.surface.brand.$value})` });
+    assert.strictEqual(Css.translateQualities({ surface: 'transparent' })['background-color'], 'var(--uca-surface-transparent, transparent)');
 });
 
 test('Typography controls text without selecting a container layout', () => {
     const translated = Css.translateQualities({ fontWeight: 'semibold', lineHeight: 'relaxed', textAlign: 'center' });
-    assert.deepStrictEqual(translated, { 'box-sizing': 'border-box', 'font-weight': '600', 'line-height': '1.75', 'text-align': 'center' });
+    assert.deepStrictEqual(translated, {
+        'box-sizing': 'border-box',
+        'font-weight': `var(--uca-fontWeight-semibold, ${DESIGN_TOKENS.fontWeight.semibold.$value})`,
+        'line-height': `var(--uca-lineHeight-relaxed, ${DESIGN_TOKENS.lineHeight.relaxed.$value})`,
+        'text-align': `var(--uca-textAlign-center, ${DESIGN_TOKENS.textAlign.center.$value})`,
+    });
 });
 
 test('Explicit main-axis distribution overrides alignment without changing its cross axis', () => {
     const translated = Css.translateQualities({ direction: 'column', alignment: 'center', distribution: 'start', wrap: 'wrap' });
-    assert.strictEqual(translated['flex-direction'], 'column'); assert.strictEqual(translated['align-items'], 'center');
-    assert.strictEqual(translated['justify-content'], 'flex-start'); assert.strictEqual(translated['flex-wrap'], 'wrap');
+    assert.strictEqual(translated['flex-direction'], `var(--uca-direction-column, ${DESIGN_TOKENS.direction.column.$value})`);
+    assert.strictEqual(translated['align-items'], `var(--uca-alignment-center, ${DESIGN_TOKENS.alignment.center.$value})`);
+    assert.strictEqual(translated['justify-content'], `var(--uca-distribution-start, ${DESIGN_TOKENS.distribution.start.$value})`);
+    assert.strictEqual(translated['flex-wrap'], `var(--uca-wrap-wrap, ${DESIGN_TOKENS.wrap.wrap.$value})`);
     assert.strictEqual(translated['display'], 'flex');
-    assert.deepStrictEqual(Css.translateQualities({ distribution: 'evenly' }), { 'box-sizing': 'border-box', display: 'flex', 'justify-content': 'space-evenly' });
-    assert.strictEqual(Css.translateQualities({ gap: 'large' })['display'], undefined);
+    assert.deepStrictEqual(Css.translateQualities({ distribution: 'evenly' }), {
+        'box-sizing': 'border-box',
+        display: 'flex',
+        'justify-content': `var(--uca-distribution-evenly, ${DESIGN_TOKENS.distribution.evenly.$value})`,
+    });
+    assert.strictEqual(Css.translateQualities({ gap: 'large' })['display'], 'flex');
 });
 
 test('Axis spacing and automatic outer margins do not imply gaps or alignment', () => {
     const translated = Css.translateQualities({ spacing: 'small', spacingInline: 'large', spacingBlock: 'none', marginInline: 'auto' });
-    assert.deepStrictEqual(translated, { 'box-sizing': 'border-box', padding: '0.5rem', 'padding-inline': '2rem', 'padding-block': '0', 'margin-inline': 'auto' });
-    assert.strictEqual(Css.translateQualities({ marginInline: 'medium' })['margin-inline'], '1rem');
+    assert.deepStrictEqual(translated, {
+        'box-sizing': 'border-box',
+        padding: `var(--uca-spacing-small, ${DESIGN_TOKENS.spacing.small.$value})`,
+        'padding-inline': `var(--uca-spacing-large, ${DESIGN_TOKENS.spacing.large.$value})`,
+        'padding-block': `var(--uca-spacing-none, ${DESIGN_TOKENS.spacing.none.$value})`,
+        'margin-inline': 'auto',
+    });
+    assert.strictEqual(Css.translateQualities({ marginInline: 'medium' })['margin-inline'], `var(--uca-spacing-medium, ${DESIGN_TOKENS.spacing.medium.$value})`);
 });
 
 test('Size constraints preserve literal values and resolve viewport dimensions by axis', () => {
     const translated = Css.translateQualities({ width: 'full', maxWidth: '48rem', minWidth: '0', minHeight: 'screen' });
-    assert.deepStrictEqual(translated, { 'box-sizing': 'border-box', width: '100%', 'max-width': '48rem', 'min-width': '0', 'min-height': '100vh' });
+    assert.deepStrictEqual(translated, {
+        'box-sizing': 'border-box',
+        width: `var(--uca-dimensions-full, ${DESIGN_TOKENS.dimensions.full.$value})`,
+        'max-width': '48rem',
+        'min-width': '0',
+        'min-height': '100vh',
+    });
     assert.strictEqual(Css.translateQualities({ maxWidth: 'screen' })['max-width'], '100vw');
     assert.strictEqual(Css.translateQualities({})['max-width'], undefined);
 });
@@ -367,8 +395,10 @@ test('Explicit control typography and foreground override neutral inheritance wi
     const bus = new EventTarget(), css = activateCss(new Css('control-inheritance'), bus);
     emitSignal(bus, SignalType.APPLY, { elementId: 'inherited', control: ControlType.INPUT, qualities: { textColor: 'dark', fontWeight: 'bold', lineHeight: 'tight' } });
     const stylesheet = document.getElementById(`${STYLE_PREFIX}inherited`)?.textContent ?? '';
-    assert.ok(stylesheet.includes('color: #111827;')); assert.ok(stylesheet.includes('font-weight: 700;'));
-    assert.ok(stylesheet.includes('line-height: 1.2;')); assert.doesNotMatch(stylesheet, /background|radius|padding|font-family/);
+    assert.ok(stylesheet.includes(`color: var(--uca-textColor-dark, ${DESIGN_TOKENS.textColor.dark.$value});`));
+    assert.ok(stylesheet.includes(`font-weight: var(--uca-fontWeight-bold, ${DESIGN_TOKENS.fontWeight.bold.$value});`));
+    assert.ok(stylesheet.includes(`line-height: var(--uca-lineHeight-tight, ${DESIGN_TOKENS.lineHeight.tight.$value});`));
+    assert.doesNotMatch(stylesheet, /background|radius|padding|font-family/);
     css.denervate();
 });
 

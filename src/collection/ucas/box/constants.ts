@@ -1,4 +1,21 @@
+import type { Qualities } from './schema.js';
+
 export const __ID__ = 'box';
+
+export const BOX_M3_VARIANTS: Record<string, Qualities> = {
+    elevated: { surface: 'card', elevation: 'card', shape: 'medium', outline: 'none' },
+    filled: { surface: 'card', elevation: 'none', shape: 'medium', outline: 'none' },
+    outlined: { surface: 'transparent', elevation: 'none', shape: 'medium', outline: 'subtle' },
+};
+
+export const resolveBoxQualities = (qualities?: Qualities, variant?: string): Qualities => {
+    const selectedVariant = variant ?? qualities?.variant;
+    const variantQualities = selectedVariant ? BOX_M3_VARIANTS[selectedVariant] ?? {} : {};
+    return {
+        ...variantQualities,
+        ...qualities,
+    };
+};
 
 export const BOX_CUSTOMIZABLE_PROPERTIES = {
     flow: {
@@ -108,36 +125,38 @@ export const BOX_CUSTOMIZABLE_PROPERTIES = {
         ],
     },
     boundaries: {
-        border: [
+        outline: [
             'none',
             'subtle',
             'strong',
         ],
-        borderBottom: [
+        outlineBottom: [
             'none',
             'subtle',
             'strong',
         ],
-        borderTop: [
+        outlineTop: [
             'none',
             'subtle',
             'strong',
         ],
-        borderRight: [
+        outlineRight: [
             'none',
             'subtle',
             'strong',
         ],
-        borderLeft: [
+        outlineLeft: [
             'none',
             'subtle',
             'strong',
         ],
-        radius: [
+        shape: [
             'none',
+            'extraSmall',
             'small',
             'medium',
             'large',
+            'extraLarge',
             'full',
         ],
     },
@@ -181,12 +200,12 @@ export const BOX_VISUAL_DISPOSITION = {
         'flex',
         'overflow',
         'surface',
-        'border',
-        'borderBottom',
-        'borderTop',
-        'borderRight',
-        'borderLeft',
-        'radius',
+        'outline',
+        'outlineBottom',
+        'outlineTop',
+        'outlineRight',
+        'outlineLeft',
+        'shape',
         'elevation',
         'width',
         'height',

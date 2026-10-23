@@ -41,8 +41,8 @@ export const buildInputAttributes = (
 
 export const DEFAULT_INPUT_QUALITIES: Qualities = {
     surface: 'card',
-    border: 'subtle',
-    radius: 'medium',
+    outline: 'subtle',
+    shape: 'medium',
     spacingInline: 'small',
     spacingBlock: 'small',
     textColor: 'light',
@@ -50,18 +50,36 @@ export const DEFAULT_INPUT_QUALITIES: Qualities = {
     width: 'full',
 };
 
+export const INPUT_M3_VARIANTS: Record<string, Qualities> = {
+    filled: { surface: 'card', outline: 'none', outlineBottom: 'strong', shape: 'small', spacingBlock: 'small', spacingInline: 'medium' },
+    outlined: { surface: 'transparent', outline: 'subtle', shape: 'small', spacingBlock: 'small', spacingInline: 'medium' },
+};
+
+export const resolveInputQualities = (qualities?: Qualities, variant?: string): Qualities => {
+    const selectedVariant = variant ?? qualities?.variant;
+    const variantQualities = selectedVariant ? INPUT_M3_VARIANTS[selectedVariant] ?? {} : {};
+    return {
+        ...DEFAULT_INPUT_QUALITIES,
+        ...variantQualities,
+        ...qualities,
+    };
+};
+
 export const INPUT_VISUAL_DISPOSITION = {
     role: 'control',
     defaultQualities: DEFAULT_INPUT_QUALITIES,
     supportedQualities: [
         'surface',
-        'border',
-        'radius',
+        'outline',
+        'outlineBottom',
+        'shape',
         'spacingInline',
         'spacingBlock',
         'width',
         'textColor',
         'textSize',
+        'variant',
     ],
-    description: 'Campo interactivo de entrada de datos o búsqueda',
+    variants: INPUT_M3_VARIANTS,
+    description: 'Campo interactivo de entrada de datos o búsqueda de Material Design 3',
 } as const;

@@ -27,8 +27,8 @@ export const LIST_VISUAL_DISPOSITION = {
         'width',
         'height',
         'surface',
-        'border',
-        'radius',
+        'outline',
+        'shape',
     ],
     description: 'Estructura secuencial ordenada o no ordenada que agrupa y articula elementos relacionados',
 } as const;

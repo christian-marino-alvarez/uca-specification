@@ -288,15 +288,26 @@ export class View extends Uca<Body> {
         };
     }
 
+    private resolveLayoutId(area: Record<string, unknown>, correlationId: string): string {
+        const {
+            parentId,
+        } = area as { parentId?: string };
+        if (parentId && parentId !== 'none' && parentId !== 'root') {
+            return parentId;
+        }
+        return correlationId.includes(':') ? correlationId.split(':')[0] : correlationId;
+    }
+
     private createInferRequest(payload: BuildPayload, correlationId: string): Record<string, unknown> {
         const { aim, limits = {} } = payload;
         const { description: intention, body } = aim;
         const area = (body?.area ?? {}) as Record<string, unknown>;
         const areaId = (area.id as string) ?? 'main';
+        const layoutId = this.resolveLayoutId(area, correlationId);
         const context = this.buildEnrichedContext(body);
         const goal = this.getGoal(areaId, area);
-        const meta = this.createInferMeta(goal, correlationId, `${correlationId}:view:${areaId}`, { areaId, body }, limits);
-        return { purpose: this.purpose, goal, intention, context, outputSchema: z.toJSONSchema(viewCompositionSchema), contextSchema: { const: context }, ...meta };
+        const meta = this.createInferMeta(goal, correlationId, `${correlationId}:view:${areaId}`, { areaId, layoutId, body }, limits);
+        return { id: 'view', purpose: this.purpose, goal, intention, context, outputSchema: z.toJSONSchema(viewCompositionSchema), contextSchema: { const: context }, ...meta };
     }
 
     private dispatchLlmInfer(payload: BuildPayload, correlationId: string): void {

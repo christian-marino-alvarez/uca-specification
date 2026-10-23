@@ -28,8 +28,8 @@ export const COLOR_TOKENS = {
     surface: '#13171f',
     surfaceHover: '#1c212c',
     surfaceActive: '#222936',
-    border: '#1e2430',
-    borderMuted: '#161a22',
+    outline: '#1e2430',
+    outlineMuted: '#161a22',
   },
   text: {
     primary: '#e2e8f0',
@@ -52,17 +52,17 @@ export const COLOR_TOKENS = {
     resting: {
       background: '#13171f',
       text: '#e2e8f0',
-      border: '#1e2430',
+      outline: '#1e2430',
     },
     hoverPositive: {
       background: '#1d4ed8',
       text: '#ffffff',
-      border: '#2563eb',
+      outline: '#2563eb',
     },
     hoverDestructive: {
       background: '#831843',
       text: '#ffffff',
-      border: '#9f1239',
+      outline: '#9f1239',
     },
   },
 } as const;

@@ -8,6 +8,7 @@ export const bodySchema = z.object({
     parentTo: z.string().optional(),
     content: z.string().optional(),
     containerElement: z.string().optional(),
+    variant: z.enum(['elevated', 'filled', 'outlined']).optional().describe('Material Design 3 containment variant'),
     qualities: qualitiesSchema,
     events: z.array(z.string()).optional(),
 });

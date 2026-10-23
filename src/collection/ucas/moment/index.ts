@@ -1,13 +1,11 @@
 import { Uca } from '@uca/core/uca';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
-import { Schema } from '@uca/capability-schema';
-import { SignalType as SchemaSignalType, type ValidatedResult, type ErrorResult } from '@uca/capability-schema/types';
 import { Presentation } from '@uca/capability-presentation';
 import { Kind } from '@uca/capability-presentation/types';
 import { SignalType as ComponentSignalType } from '@uca/capability-web-component/types';
 import { Css } from '@uca/capability-css';
 import { SignalType as CssSignalType } from '@uca/capability-css/types';
-import { stylePayload, cssDeclaration, presentationDeclaration, schemaDeclaration } from '../declaration.js';
+import { stylePayload, cssDeclaration, presentationDeclaration } from '../declaration.js';
 import { Operation, type Interaction, type Lifecycle } from '../types.js';
 import { bodySchema, renderPayloadSchema } from './schema.js';
 import { __ID__, OPERATIONS, INVALID_BOUNDS } from './constants.js';
@@ -24,7 +22,6 @@ export class Moment extends Uca<Body> {
             SignalType.RENDER,
             SignalType.UPDATE,
             SignalType.REMOVE,
-            ...Moment.reactToSchema(),
             ...Moment.reactToPresentation(),
             ...Moment.reactToCss(),
         ],
@@ -73,17 +70,6 @@ export class Moment extends Uca<Body> {
         ],
     };
 
-    private static reactToSchema(): string[] {
-        const {
-            reactTo = [],
-        } = Schema.disposition;
-        return [
-            ...reactTo,
-            SchemaSignalType.VALIDATED,
-            SchemaSignalType.ERROR,
-        ];
-    }
-
     private static reactToPresentation(): string[] {
         const {
             reactTo = [],
@@ -126,12 +112,6 @@ export class Moment extends Uca<Body> {
             case SignalType.REMOVE:
                 this.handleRemove(value);
                 break;
-            case SchemaSignalType.VALIDATED:
-                this.handleValidated(value as ValidatedResult);
-                break;
-            case SchemaSignalType.ERROR:
-                this.handleValidationError(value as ErrorResult);
-                break;
             case ComponentSignalType.RENDERED:
                 this.handleCreated(value as Lifecycle<Body>);
                 break;
@@ -158,34 +138,26 @@ export class Moment extends Uca<Body> {
             id,
         } = this;
         return [
-            schemaDeclaration(id),
             presentationDeclaration(id, Kind.MOMENT),
             cssDeclaration(id),
         ];
     }
 
     private handleRender(value: unknown): void {
-        this.pulse(SchemaSignalType.VALIDATE, {
-            schema: renderPayloadSchema,
-            value: this.domainBody(value),
-            context: Operation.RENDER,
-        });
+        const body = this.domainBody(value);
+        const coherent = this.isCoherent(body);
+        this.pulse(coherent ? OPERATIONS[Operation.RENDER] : SignalType.ERROR, coherent ? body : INVALID_BOUNDS);
     }
 
     private handleUpdate(value: unknown): void {
-        this.pulse(SchemaSignalType.VALIDATE, {
-            schema: bodySchema,
-            value: this.domainBody(value),
-            context: Operation.UPDATE,
-        });
+        const body = this.domainBody(value);
+        const coherent = this.isCoherent(body);
+        this.pulse(coherent ? OPERATIONS[Operation.UPDATE] : SignalType.ERROR, coherent ? body : INVALID_BOUNDS);
     }
 
     private handleRemove(value: unknown): void {
-        this.pulse(SchemaSignalType.VALIDATE, {
-            schema: bodySchema,
-            value: this.domainBody(value),
-            context: Operation.REMOVE,
-        });
+        const body = this.domainBody(value);
+        this.pulse(OPERATIONS[Operation.REMOVE], body);
     }
 
     private domainBody(value: unknown): Body {
@@ -200,18 +172,6 @@ export class Moment extends Uca<Body> {
             elementId,
         });
     }
-
-    private handleValidated(result: ValidatedResult): void {
-        const {
-            value,
-            context,
-        } = result;
-        const body = value as Body;
-        const coherent = this.isCoherent(body);
-        this.pulse(coherent ? OPERATIONS[context as Operation] : SignalType.ERROR, coherent ? body : INVALID_BOUNDS);
-    }
-
-
 
     private handleCreated(payload: Lifecycle<Body>): void {
         const {
@@ -243,11 +203,9 @@ export class Moment extends Uca<Body> {
     }
 
     private handleInteraction(payload: unknown): void {
-        this.pulse(SchemaSignalType.VALIDATE, {
-            schema: bodySchema,
-            value: this.interactionBody(payload as Interaction<Body>),
-            context: Operation.CHANGE,
-        });
+        const body = this.interactionBody(payload as Interaction<Body>);
+        const coherent = this.isCoherent(body);
+        this.pulse(coherent ? OPERATIONS[Operation.CHANGE] : SignalType.ERROR, coherent ? body : INVALID_BOUNDS);
     }
 
     private interactionBody(payload: Interaction<Body>): Body {
@@ -260,10 +218,6 @@ export class Moment extends Uca<Body> {
         });
     }
 
-    private handleValidationError(result: ErrorResult): void {
-        this.pulse(SignalType.ERROR, result);
-    }
-
     private handlePresentationError(value: unknown): void {
         this.pulse(SignalType.ERROR, value);
     }
@@ -271,6 +225,7 @@ export class Moment extends Uca<Body> {
     private handleCssError(value: unknown): void {
         this.pulse(SignalType.ERROR, value);
     }
+
     private isCoherent(body: Body): boolean {
         const {
             minimum,
@@ -281,5 +236,4 @@ export class Moment extends Uca<Body> {
             && (value === undefined || minimum === undefined || value >= minimum)
             && (value === undefined || maximum === undefined || value <= maximum);
     }
-
 }

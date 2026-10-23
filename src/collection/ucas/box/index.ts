@@ -7,6 +7,7 @@ import { SignalType as CssSignalType } from '@uca/capability-css/types';
 import {
     BOX_VISUAL_DISPOSITION,
     __ID__,
+    resolveBoxQualities,
 } from './constants.js';
 import { type Body, type CreatedResult, type EventContext, DataType, SignalType } from './types.js';
 
@@ -89,18 +90,20 @@ export class Box extends Uca<Body> {
     }
 
     private handleRender(value?: unknown): void {
-        const { elementId = this.id, parentTo, containerElement, content, qualities, events, context } = (value ?? {}) as Body & { context?: unknown };
+        const { elementId = this.id, parentTo, containerElement, content, qualities, events, context, variant } = (value ?? {}) as Body & { context?: unknown };
         const targetContainer = containerElement ?? (parentTo?.startsWith('#') ? parentTo : parentTo ? `#${parentTo}` : undefined);
-        if (qualities) {
-            this.pulse(CssSignalType.APPLY, { elementId, qualities });
+        const resolvedQualities = resolveBoxQualities(qualities, variant);
+        if (resolvedQualities && Object.keys(resolvedQualities).length > 0) {
+            this.pulse(CssSignalType.APPLY, { elementId, qualities: resolvedQualities });
         }
         this.pulse(WebComponentSignalType.RENDER, { elementId, containerElement: targetContainer, content, events, context });
     }
 
     private handleUpdate(value?: unknown): void {
-        const { elementId = this.id, content, qualities, events, context } = (value ?? {}) as Body & { context?: unknown };
-        if (qualities) {
-            this.pulse(CssSignalType.APPLY, { elementId, qualities });
+        const { elementId = this.id, content, qualities, events, context, variant } = (value ?? {}) as Body & { context?: unknown };
+        const resolvedQualities = resolveBoxQualities(qualities, variant);
+        if (resolvedQualities && Object.keys(resolvedQualities).length > 0) {
+            this.pulse(CssSignalType.APPLY, { elementId, qualities: resolvedQualities });
         }
         this.pulse(WebComponentSignalType.UPDATE, { elementId, content, events, context });
     }

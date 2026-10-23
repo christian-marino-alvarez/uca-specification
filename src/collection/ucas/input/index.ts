@@ -13,6 +13,7 @@ import {
     __ID__,
     buildInputAttributes,
     resolveContainerSelector,
+    resolveInputQualities,
 } from './constants.js';
 import { type Body, type EventContext, DataType, SignalType } from './types.js';
 
@@ -96,19 +97,19 @@ export class Input extends Uca<Body> {
 
     private handleRender(value?: unknown): void {
         const payload = (value ?? {}) as Body & { context?: unknown };
-        const { elementId = this.id, parentTo, containerElement, qualities, events = [...DEFAULT_EVENTS], context } = payload;
+        const { elementId = this.id, parentTo, containerElement, qualities, events = [...DEFAULT_EVENTS], context, variant } = payload;
         const targetContainer = resolveContainerSelector(containerElement, parentTo);
         const attributes = buildInputAttributes(payload, DEFAULT_TYPE);
-        const resolvedQualities = { ...DEFAULT_INPUT_QUALITIES, ...qualities };
+        const resolvedQualities = resolveInputQualities(qualities, variant);
         this.pulse(CssSignalType.APPLY, { elementId, qualities: resolvedQualities, control: ControlType.INPUT });
         this.pulse(WebComponentSignalType.RENDER, { elementId, tag: DEFAULT_TAG, containerElement: targetContainer, attributes, events, context });
     }
 
     private handleUpdate(value?: unknown): void {
         const payload = (value ?? {}) as Body & { context?: unknown };
-        const { elementId = this.id, qualities, events, context } = payload;
+        const { elementId = this.id, qualities, events, context, variant } = payload;
         const attributes = buildInputAttributes(payload);
-        const resolvedQualities = { ...DEFAULT_INPUT_QUALITIES, ...qualities };
+        const resolvedQualities = resolveInputQualities(qualities, variant);
         this.pulse(CssSignalType.APPLY, { elementId, qualities: resolvedQualities, control: ControlType.INPUT });
         this.pulse(WebComponentSignalType.UPDATE, { elementId, attributes, events, context });
     }

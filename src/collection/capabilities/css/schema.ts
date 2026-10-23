@@ -12,13 +12,22 @@ const tokenSchema = (group: Record<string, unknown>, description: string) => {
     });
     return z.enum(entries.map(([name]) => name)).describe(`${description}. Tokens: ${meanings.join('; ')}.`);
 };
-export const dimensionSchema = tokenSchema(DESIGN_TOKENS.dimensions, 'Abstract size token');
-const maximumDimensionSchema = tokenSchema(
-    Object.fromEntries(
-        Object.entries(DESIGN_TOKENS.dimensions).filter(([name]) => name !== 'auto'),
+export const dimensionPattern = /^\d+(?:\.\d+)?(?:%|px|rem|em|vh|vw|dvh|dvw)$/;
+
+export const dimensionSchema = z.union([
+    tokenSchema(DESIGN_TOKENS.dimensions, 'Abstract size token'),
+    z.string().regex(dimensionPattern).describe('Relative or explicit CSS dimension unit'),
+]);
+
+const maximumDimensionSchema = z.union([
+    tokenSchema(
+        Object.fromEntries(
+            Object.entries(DESIGN_TOKENS.dimensions).filter(([name]) => name !== 'auto'),
+        ),
+        'Abstract maximum size token',
     ),
-    'Abstract maximum size token',
-);
+    z.string().regex(dimensionPattern).describe('Relative or explicit CSS dimension unit'),
+]);
 
 export const designTokenSchema = z.object({
     $value: z.unknown(),
@@ -39,8 +48,8 @@ export const qualitiesSchema = z.object({
     marginBlock: tokenSchema(DESIGN_TOKENS.spacing, 'Outer margin on both block (vertical) sides; creates vertical space between elements').optional(),
     order: z.number().int().describe('Explicit visual sequence among flex or grid siblings; omit when semantic DOM order is already the visual order').optional(),
     gap: tokenSchema(DESIGN_TOKENS.spacing, 'Space between children in a flex layout; does not add padding or enable flex by itself').optional(),
-    surface: tokenSchema(DESIGN_TOKENS.surface, 'Background color; independent of textColor and takes precedence over legacy tone. Choose textColor dark for light brand or accent surfaces, and light or muted for dark, default, card, or muted surfaces').optional(),
-    tone: tokenSchema(DESIGN_TOKENS.tone, 'Legacy background color alias used only when surface is absent; never text color').optional(),
+    surface: tokenSchema(DESIGN_TOKENS.surface, 'Background color role (Material Design 3 / system tokens). Pair with appropriate contrast textColor').optional(),
+    variant: tokenSchema(DESIGN_TOKENS.variant, 'Material Design 3 canonical component variant (elevated, filled, tonal, outlined, text)').optional(),
     textColor: tokenSchema(DESIGN_TOKENS.textColor, 'Foreground text color independent of the background; inherited by descendants unless overridden. dark is for light brand or accent surfaces; light and muted are for dark surfaces. Never select a foreground with the same token value as its surface').optional(),
     typeface: tokenSchema(DESIGN_TOKENS.typeface, 'Font family; inherited by descendants unless overridden').optional(),
     textSize: tokenSchema(DESIGN_TOKENS.textSize, 'Font size; inherited by descendants unless overridden').optional(),
@@ -48,12 +57,12 @@ export const qualitiesSchema = z.object({
     lineHeight: tokenSchema(DESIGN_TOKENS.lineHeight, 'Unitless line-height multiplier; inherited by descendants unless overridden').optional(),
     textAlign: tokenSchema(DESIGN_TOKENS.textAlign, 'Alignment of text inside its line box; does not position child elements').optional(),
     elevation: tokenSchema(DESIGN_TOKENS.elevation, 'Box shadow').optional(),
-    radius: tokenSchema(DESIGN_TOKENS.radius, 'Corner radius').optional(),
-    border: tokenSchema(DESIGN_TOKENS.border, 'Border around this element').optional(),
-    borderBottom: tokenSchema(DESIGN_TOKENS.border, 'Bottom border of this element (e.g. for header separator)').optional(),
-    borderTop: tokenSchema(DESIGN_TOKENS.border, 'Top border of this element (e.g. for footer separator)').optional(),
-    borderRight: tokenSchema(DESIGN_TOKENS.border, 'Right border of this element (e.g. for sidebar separator)').optional(),
-    borderLeft: tokenSchema(DESIGN_TOKENS.border, 'Left border of this element').optional(),
+    shape: tokenSchema(DESIGN_TOKENS.shape, 'Material Design 3 corner curvature scale (none, extraSmall, small, medium, large, extraLarge, full)').optional(),
+    outline: tokenSchema(DESIGN_TOKENS.outline, 'Material Design 3 perimeter boundary outline (none, subtle, strong, dashed)').optional(),
+    outlineBottom: tokenSchema(DESIGN_TOKENS.outline, 'Bottom outline of this element (e.g. for header separator)').optional(),
+    outlineTop: tokenSchema(DESIGN_TOKENS.outline, 'Top outline of this element (e.g. for footer separator)').optional(),
+    outlineRight: tokenSchema(DESIGN_TOKENS.outline, 'Right outline of this element (e.g. for sidebar separator)').optional(),
+    outlineLeft: tokenSchema(DESIGN_TOKENS.outline, 'Left outline of this element').optional(),
     direction: tokenSchema(DESIGN_TOKENS.direction, 'Enable flex layout and select its main axis (row, column). Mutually exclusive with division').optional(),
     alignment: tokenSchema(DESIGN_TOKENS.alignment, 'Cross-axis item alignment (start, center, end, stretch, baseline)').optional(),
     distribution: tokenSchema(DESIGN_TOKENS.distribution, 'Main-axis item distribution (start, center, end, between, around, evenly)').optional(),

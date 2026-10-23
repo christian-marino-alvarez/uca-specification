@@ -5,7 +5,7 @@ export const DEFAULT_LIMIT = 4096;
 export const DEFAULT_IMAGINATION = 0.2;
 
 export const LAYOUT_GOAL =
-    'Partition the current container Box strictly into its immediate direct child Box areas only (single-level partition). All child areas must have parentId pointing to the current container. Infer the functional purpose, intention, and supported Box qualities for each area from the supplied visual language and context. Every area is a structural Box and must declare its spatial delimitation: 1) direction or division for child composition; 2) perimeter padding (spacing: "none"|"small"|"medium"|"large"|"xlarge"); 3) physical delimiting boundary (border: "subtle"|"strong"|"outline"|"none"); 4) perimeter vertical margin (marginBlock: "none"|"small"|"medium"|"large"); 5) distinct surface (default, muted, card); and 6) gap between multiple sibling areas. Flex only sizes that area within its parent, never to select its child layout.';
+    'Partition the current container Box strictly into its immediate direct child Box areas only (single-level partition). All child areas must have parentId pointing to the current container. Infer the functional purpose, intention, and supported Box qualities for each area from the supplied visual language and context. Every area is a structural Box and must declare its spatial delimitation: 1) direction or division for child composition; 2) perimeter padding (spacing: "none"|"small"|"medium"|"large"|"xlarge"); 3) physical delimiting boundary (outline: "subtle"|"strong"|"dashed"|"none"); 4) perimeter vertical margin (marginBlock: "none"|"small"|"medium"|"large"); 5) distinct surface (default, muted, card); and 6) gap between multiple sibling areas. Flex only sizes that area within its parent, never to select its child layout.';
 
 export const LAYOUT_PURPOSE =
     'Construct autonomous spatial layout area partition structures and hierarchies';
@@ -156,28 +156,28 @@ export const LAYOUT_VISUAL_DISPOSITION = {
                 'transparent',
             ],
         },
-        borders: {
-            border: [
+        outlines: {
+            outline: [
                 'none',
                 'subtle',
                 'strong',
             ],
-            borderBottom: [
+            outlineBottom: [
                 'none',
                 'subtle',
                 'strong',
             ],
-            borderTop: [
+            outlineTop: [
                 'none',
                 'subtle',
                 'strong',
             ],
-            borderRight: [
+            outlineRight: [
                 'none',
                 'subtle',
                 'strong',
             ],
-            borderLeft: [
+            outlineLeft: [
                 'none',
                 'subtle',
                 'strong',

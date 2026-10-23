@@ -17,10 +17,10 @@ export const INVALID_BOUNDS = {
 export const SEPARATOR_VISUAL_DISPOSITION = {
     role: 'divider',
     defaultQualities: {
-        border: 'subtle',
+        outline: 'subtle',
     },
     supportedQualities: [
-        'border',
+        'outline',
         'direction',
         'width',
         'height',

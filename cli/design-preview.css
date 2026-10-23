@@ -14,7 +14,7 @@ a {
 .preview {
     min-height: 100dvh;
     background:
-        radial-gradient(circle at 73% 22%, color-mix(in srgb, var(--uca-tone-accent) 14%, transparent), transparent 28rem),
+        radial-gradient(circle at 73% 22%, color-mix(in srgb, var(--uca-surface-accent) 14%, transparent), transparent 28rem),
         linear-gradient(rgba(240, 165, 106, 0.035) 1px, transparent 1px),
         linear-gradient(90deg, rgba(240, 165, 106, 0.035) 1px, transparent 1px),
         var(--uca-surface-default);
@@ -28,7 +28,7 @@ a {
     padding: 1.5rem 0;
     align-items: center;
     justify-content: space-between;
-    border-bottom: var(--uca-border-subtle);
+    border-bottom: var(--uca-outline-subtle);
 }
 
 .brand,
@@ -64,7 +64,7 @@ a {
     justify-content: space-between;
     color: var(--uca-surface-default);
     background: var(--uca-textColor-brand);
-    border-radius: var(--uca-radius-small);
+    border-radius: var(--uca-shape-small);
     font-size: var(--uca-textSize-small);
     font-weight: var(--uca-fontWeight-semibold);
     transition: transform var(--uca-duration-fast) var(--uca-easing-standard);
@@ -187,7 +187,7 @@ h1 em {
     align-items: center;
     justify-content: center;
     flex-direction: column;
-    background: linear-gradient(145deg, color-mix(in srgb, var(--uca-surface-card) 90%, var(--uca-tone-accent)), var(--uca-surface-muted));
+    background: linear-gradient(145deg, color-mix(in srgb, var(--uca-surface-card) 90%, var(--uca-surface-accent)), var(--uca-surface-muted));
     border: 1px solid rgba(240, 165, 106, 0.48);
     border-radius: 50%;
     transform: translate(-50%, -50%);
@@ -224,10 +224,11 @@ h1 em {
     padding: 0.8rem 1rem;
     align-items: center;
     background: color-mix(in srgb, var(--uca-surface-card) 88%, transparent);
-    border: var(--uca-border-subtle);
-    border-radius: var(--uca-radius-full);
+    border: var(--uca-outline-subtle);
+    border-radius: var(--uca-shape-full);
     font-family: var(--uca-typeface-mono);
     font-size: 0.72rem;
+    -webkit-backdrop-filter: blur(1rem);
     backdrop-filter: blur(1rem);
 }
 
@@ -255,7 +256,7 @@ h1 em {
     width: min(90rem, calc(100% - 3rem));
     margin: 0 auto;
     grid-template-columns: repeat(4, 1fr);
-    border-block: var(--uca-border-subtle);
+    border-block: var(--uca-outline-subtle);
 }
 
 .metrics article {
@@ -263,7 +264,7 @@ h1 em {
     gap: 1rem;
     padding: 2rem;
     align-items: center;
-    border-right: var(--uca-border-subtle);
+    border-right: var(--uca-outline-subtle);
 }
 
 .metrics article:last-child {
@@ -321,13 +322,13 @@ h1 em {
     min-height: 22rem;
     padding: 1.5rem;
     background: var(--uca-surface-card);
-    border: var(--uca-border-subtle);
-    border-radius: var(--uca-radius-medium);
+    border: var(--uca-outline-subtle);
+    border-radius: var(--uca-shape-medium);
     box-shadow: var(--uca-elevation-low);
 }
 
 .card-featured {
-    background: linear-gradient(145deg, color-mix(in srgb, var(--uca-surface-card) 88%, var(--uca-tone-brand)), var(--uca-surface-card));
+    background: linear-gradient(145deg, color-mix(in srgb, var(--uca-surface-card) 88%, var(--uca-surface-brand)), var(--uca-surface-card));
     border-color: rgba(240, 165, 106, 0.35);
 }
 
@@ -431,6 +432,6 @@ h1 em {
 
     .metrics article {
         border-right: 0;
-        border-bottom: var(--uca-border-subtle);
+        border-bottom: var(--uca-outline-subtle);
     }
 }

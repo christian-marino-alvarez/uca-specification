@@ -1,18 +1,15 @@
 import { Uca } from '@uca/core/uca';
 import type { Cooky, Disposition, Signal } from '@uca/core/types';
-import { Schema } from '@uca/capability-schema';
-import { SignalType as SchemaSignalType, type ValidatedResult, type ErrorResult } from '@uca/capability-schema/types';
 import { Presentation } from '@uca/capability-presentation';
 import { Kind } from '@uca/capability-presentation/types';
 import { SignalType as ComponentSignalType } from '@uca/capability-web-component/types';
 import { Css } from '@uca/capability-css';
 import { SignalType as CssSignalType } from '@uca/capability-css/types';
-import { stylePayload, cssDeclaration, presentationDeclaration, schemaDeclaration } from '../declaration.js';
+import { stylePayload, cssDeclaration, presentationDeclaration } from '../declaration.js';
 import { Operation, type Interaction, type Lifecycle } from '../types.js';
 import { bodySchema, renderPayloadSchema } from './schema.js';
 import {
     HEADING_VISUAL_DISPOSITION,
-    INVALID_BOUNDS,
     OPERATIONS,
     __ID__,
 } from './constants.js';
@@ -31,7 +28,6 @@ export class Heading extends Uca<Body> {
             SignalType.RENDER,
             SignalType.UPDATE,
             SignalType.REMOVE,
-            ...Heading.reactToSchema(),
             ...Heading.reactToPresentation(),
             ...Heading.reactToCss(),
         ],
@@ -80,17 +76,6 @@ export class Heading extends Uca<Body> {
         ],
     };
 
-    private static reactToSchema(): string[] {
-        const {
-            reactTo = [],
-        } = Schema.disposition;
-        return [
-            ...reactTo,
-            SchemaSignalType.VALIDATED,
-            SchemaSignalType.ERROR,
-        ];
-    }
-
     private static reactToPresentation(): string[] {
         const {
             reactTo = [],
@@ -133,12 +118,6 @@ export class Heading extends Uca<Body> {
             case SignalType.REMOVE:
                 this.handleRemove(value);
                 break;
-            case SchemaSignalType.VALIDATED:
-                this.handleValidated(value as ValidatedResult);
-                break;
-            case SchemaSignalType.ERROR:
-                this.handleValidationError(value as ErrorResult);
-                break;
             case ComponentSignalType.RENDERED:
                 this.handleCreated(value as Lifecycle<Body>);
                 break;
@@ -165,34 +144,24 @@ export class Heading extends Uca<Body> {
             id,
         } = this;
         return [
-            schemaDeclaration(id),
             presentationDeclaration(id, Kind.HEADING),
             cssDeclaration(id),
         ];
     }
 
     private handleRender(value: unknown): void {
-        this.pulse(SchemaSignalType.VALIDATE, {
-            schema: renderPayloadSchema,
-            value: this.domainBody(value),
-            context: Operation.RENDER,
-        });
+        const body = this.domainBody(value);
+        this.pulse(OPERATIONS[Operation.RENDER], body);
     }
 
     private handleUpdate(value: unknown): void {
-        this.pulse(SchemaSignalType.VALIDATE, {
-            schema: bodySchema,
-            value: this.domainBody(value),
-            context: Operation.UPDATE,
-        });
+        const body = this.domainBody(value);
+        this.pulse(OPERATIONS[Operation.UPDATE], body);
     }
 
     private handleRemove(value: unknown): void {
-        this.pulse(SchemaSignalType.VALIDATE, {
-            schema: bodySchema,
-            value: this.domainBody(value),
-            context: Operation.REMOVE,
-        });
+        const body = this.domainBody(value);
+        this.pulse(OPERATIONS[Operation.REMOVE], body);
     }
 
     private domainBody(value: unknown): Body {
@@ -207,17 +176,6 @@ export class Heading extends Uca<Body> {
             elementId,
         });
     }
-
-    private handleValidated(result: ValidatedResult): void {
-        const {
-            value,
-            context,
-        } = result;
-        const body = value as Body;
-        this.pulse(OPERATIONS[context as Operation], body);
-    }
-
-
 
     private handleCreated(payload: Lifecycle<Body>): void {
         const {
@@ -252,17 +210,7 @@ export class Heading extends Uca<Body> {
         const {
             context: body,
         } = payload as Interaction<Body>;
-        this.pulse(SchemaSignalType.VALIDATE, {
-            schema: bodySchema,
-            value: body,
-            context: Operation.CHANGE,
-        });
-    }
-
-
-
-    private handleValidationError(result: ErrorResult): void {
-        this.pulse(SignalType.ERROR, result);
+        this.pulse(OPERATIONS[Operation.CHANGE], body);
     }
 
     private handlePresentationError(value: unknown): void {

@@ -6,14 +6,14 @@ export const qualitiesSchema = visualQualitiesSchema.optional();
 export const layoutQualitiesDirectionSchema = visualQualitiesSchema.required({
     direction: true,
     spacing: true,
-    border: true,
+    outline: true,
     marginBlock: true,
 });
 
 export const layoutQualitiesDivisionSchema = visualQualitiesSchema.required({
     division: true,
     spacing: true,
-    border: true,
+    outline: true,
     marginBlock: true,
 });
 
@@ -32,7 +32,7 @@ export const areaConceptSchema = z.object({
     parentId: z.string().min(1).describe('Identificador del contenedor directo que se particiona (ej. body para franjas principales, workspace para sidebar/main). Debe coincidir con el contenedor actual.'),
     qualities: layoutQualitiesSchema.describe('Cualidades espaciales obligatorias del área: debe declarar direction o division para organizar a sus hijos; ' +
         'debe declarar spacing ("none"|"small"|"medium"|"large"|"xlarge") para respiración interior; ' +
-        'debe declarar border ("subtle"|"strong"|"outline"|"none") para delimitar su frontera perimetral; ' +
+        'debe declarar outline ("subtle"|"strong"|"dashed"|"none") para delimitar su frontera perimetral; ' +
         'debe declarar marginBlock ("none"|"small"|"medium"|"large") para respiración exterior vertical; ' +
         'debe declarar surface ("default"|"card"|"muted"); y si contiene elementos múltiples declarar gap ("small"|"medium"). ' +
         'flex solo dimensiona el área dentro de su padre.'),

@@ -179,7 +179,7 @@ Una **UCA** (Unidad Cognitiva Autónoma) es la unidad primaria de comportamiento
     * Toda UCA debe declarar sus contratos de datos y cuerpo de disposición (`Body`) mediante esquemas formales de **Zod** en un archivo dedicado `schema.ts`.
     * Los tipos TypeScript se infieren directamente de Zod (`export type Body = z.infer<typeof bodySchema>`), erradicando interfaces `interface Body` redactadas manualmente sin validación.
     * El fichero `types.ts` actúa como fachada re-exportando los tipos derivados de `schema.ts` junto a los enumerados de señales (`SignalType`) y tipos de datos (`DataType`).
-    * La validación de los datos en tiempo de ejecución se delega en la capability primitiva `@uca/capability-schema`.
+    * Los esquemas Zod formalizan la estructura y tipos del contrato tanto en tiempo de compilación como en tiempo de ejecución.
     * **Los archivos de esquemas (`schema.ts`) no pueden contener lógica de negocio.** Solo declaran y componen contratos, restricciones estructurales y tipos inferidos, conforme a la sección 3.20 de `AGENTS.md`.
     * Los cálculos, comparaciones entre campos, validaciones contra una petición concreta y construcción dinámica de contratos según el contexto deben implementarse en métodos de la UCA responsable; no en funciones ni callbacks de `.refine()`, `.superRefine()` o `.transform()` dentro de `schema.ts`.
 20. **Evaluación Consciente en `onDispositionUpdated` (Prohibición de Regeneración Ciega)**:

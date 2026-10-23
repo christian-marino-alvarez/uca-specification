@@ -12,9 +12,14 @@ import {
     TYPOGRAPHY_TOKENS,
 } from './constants.js';
 import {
+    appliedResultSchema,
+    applyPayloadSchema,
+    themeModeSchema,
     type ApplyPayload,
     type Body,
     type ThemeMode,
+} from './schema.js';
+import {
     DataType,
     SignalType,
 } from './types.js';
@@ -23,17 +28,35 @@ export class Material extends Capability<Body> {
     public static readonly AIM: string = AIM;
 
     public static override disposition: Disposition<Body> = {
-        aim: { description: Material.AIM, body: {} },
+        aim: {
+            description: Material.AIM,
+            body: {},
+        },
         reactTo: [
             SignalType.APPLY,
             SignalType.THEME,
         ],
         inputs: [
-            { signal: SignalType.APPLY, type: DataType.APPLY_PAYLOAD, description: 'Apply M3 tokens and color roles' },
-            { signal: SignalType.THEME, type: DataType.THEME_MODE, description: 'Switch active theme mode' },
+            {
+                signal: SignalType.APPLY,
+                type: DataType.APPLY_PAYLOAD,
+                schema: applyPayloadSchema,
+                description: 'Apply M3 tokens and color roles',
+            },
+            {
+                signal: SignalType.THEME,
+                type: DataType.THEME_MODE,
+                schema: themeModeSchema,
+                description: 'Switch active theme mode',
+            },
         ],
         outputs: [
-            { signal: SignalType.APPLIED, type: DataType.APPLIED_RESULT, description: 'M3 tokens applied confirmation' },
+            {
+                signal: SignalType.APPLIED,
+                type: DataType.APPLIED_RESULT,
+                schema: appliedResultSchema,
+                description: 'M3 tokens applied confirmation',
+            },
         ],
     };
 
@@ -52,7 +75,10 @@ export class Material extends Capability<Body> {
     }
 
     protected override react(signal: Signal): void {
-        const { property, value } = signal;
+        const {
+            property,
+            value,
+        } = signal;
         switch (property) {
             case SignalType.APPLY:
                 this.handleApply(value);
@@ -73,28 +99,39 @@ export class Material extends Capability<Body> {
     private handleTheme(value: unknown): void {
         const mode = typeof value === 'string' ? value : undefined;
         const theme = mode === 'light' ? 'light' : 'dark';
-        this.synchronizeTokens({ theme });
+        this.synchronizeTokens({
+            theme,
+        });
     }
 
     private resolveThemeConfig(payload?: ApplyPayload): { theme: ThemeMode; seedColor?: string; target: string } {
-        const { aim } = this.disposition;
-        const { theme: bTheme, seedColor: bSeed, targetSelector: bTarget } = (aim.body ?? {}) as ApplyPayload;
+        const {
+            aim,
+        } = this.disposition;
+        const {
+            theme: bTheme,
+            seedColor: bSeed,
+            targetSelector: bTarget,
+        } = (aim.body ?? {}) as ApplyPayload;
         const theme = payload?.theme ?? bTheme ?? DEFAULT_THEME;
         const seedColor = payload?.seedColor ?? bSeed;
         const target = payload?.targetSelector ?? bTarget ?? ':root';
-        return { theme, seedColor, target };
+        return {
+            theme,
+            seedColor,
+            target,
+        };
     }
 
     private computeTokens(theme: ThemeMode, seedColor?: string): Record<string, string> {
         const colorTokens = theme === 'light' ? LIGHT_TOKENS : DARK_TOKENS;
-        const tokens: Record<string, string> = {
+        return {
             ...colorTokens,
             ...SHAPE_TOKENS,
             ...ELEVATION_TOKENS,
             ...TYPOGRAPHY_TOKENS,
             ...(seedColor && { '--md-sys-color-primary': seedColor }),
         };
-        return tokens;
     }
 
     private buildCssText(target: string, tokens: Record<string, string>): string {
@@ -104,25 +141,38 @@ export class Material extends Capability<Body> {
     }
 
     private synchronizeTokens(payload?: ApplyPayload): void {
-        const { theme, seedColor, target } = this.resolveThemeConfig(payload);
+        const {
+            theme,
+            seedColor,
+            target,
+        } = this.resolveThemeConfig(payload);
         const tokens = this.computeTokens(theme, seedColor);
         const cssText = this.buildCssText(target, tokens);
         this.injectStyleSheet(cssText);
-        this.pulse(SignalType.APPLIED, { theme, tokens });
+        this.pulse(SignalType.APPLIED, {
+            theme,
+            tokens,
+        });
     }
 
     private injectStyleSheet(cssText: string): void {
-        if (typeof document === 'undefined') { return; }
+        if (typeof document === 'undefined') {
+            return;
+        }
         const head = document.head;
         const existing = document.getElementById(STYLE_ELEMENT_ID);
         const element = existing ?? document.createElement('style');
         element.id = STYLE_ELEMENT_ID;
         element.textContent = cssText;
-        if (!existing && head) { head.appendChild(element); }
+        if (!existing && head) {
+            head.appendChild(element);
+        }
     }
 
     private removeStyleElement(): void {
-        if (typeof document === 'undefined') { return; }
+        if (typeof document === 'undefined') {
+            return;
+        }
         const element = document.getElementById(STYLE_ELEMENT_ID);
         element?.remove();
     }

@@ -16,7 +16,7 @@ export const DEFAULT_PICTURE_QUALITIES: Qualities = {
     width: DEFAULT_DIMENSION,
     height: 'auto',
     flex: 'none',
-    radius: 'small',
+    shape: 'small',
 };
 
 export const resolvePictureQualities = (qualities?: Qualities): Qualities => {
@@ -33,7 +33,7 @@ export const PICTURE_VISUAL_DISPOSITION = {
         'width',
         'height',
         'maxWidth',
-        'radius',
+        'shape',
         'flex',
     ],
     description: 'Elemento visual gráfico o logotipo vectorial',

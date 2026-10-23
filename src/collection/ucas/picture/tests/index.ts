@@ -54,7 +54,7 @@ function testPicture_RenderAndMount(): void {
         containerElement: '#container',
         src: 'https://example.com/photo.png',
         alt: 'Sample photo',
-        qualities: { width: 'full', radius: 'medium' },
+        qualities: { width: 'full', shape: 'medium' },
     });
 
     assert.ok(createdReceived);

@@ -42,6 +42,14 @@ import { Quantity } from '@uca/quantity';
 import { SignalType as QuantitySignalType } from '@uca/quantity/types';
 import { Moment } from '@uca/moment';
 import { SignalType as MomentSignalType } from '@uca/moment/types';
+import { Card } from '../card/index.js';
+import { SignalType as CardSignalType } from '../card/types.js';
+import { Chip } from '../chip/index.js';
+import { SignalType as ChipSignalType } from '../chip/types.js';
+import { Slider } from '../slider/index.js';
+import { SignalType as SliderSignalType } from '../slider/types.js';
+import { Dialog } from '../dialog/index.js';
+import { SignalType as DialogSignalType } from '../dialog/types.js';
 import {
     type Body,
     type ComponentDef,
@@ -125,6 +133,22 @@ const PRIMITIVE_UCAS = [
         name: 'moment',
         uca: Moment,
     },
+    {
+        name: 'card',
+        uca: Card,
+    },
+    {
+        name: 'chip',
+        uca: Chip,
+    },
+    {
+        name: 'slider',
+        uca: Slider,
+    },
+    {
+        name: 'dialog',
+        uca: Dialog,
+    },
 ] as const;
 
 
@@ -180,6 +204,10 @@ export class Render extends Uca<Body> {
             RangeSignalType.CREATED,
             QuantitySignalType.CREATED,
             MomentSignalType.CREATED,
+            CardSignalType.CREATED,
+            ChipSignalType.CREATED,
+            SliderSignalType.CREATED,
+            DialogSignalType.CREATED,
         ];
     }
 
@@ -252,24 +280,26 @@ export class Render extends Uca<Body> {
 
     private buildPrimitiveAim(
         id: string,
+        name: string,
         uca: (typeof PRIMITIVE_UCAS)[number]['uca'],
     ): Disposition['aim'] {
         return {
             description: uca.purpose,
             body: {
-                id: `${id}:${uca.name.toLowerCase()}`,
+                id: `${id}:${name}`,
             },
         };
     }
 
     private buildPrimitiveEntry(
         id: string,
-        uca: (typeof PRIMITIVE_UCAS)[number]['uca'],
+        entry: (typeof PRIMITIVE_UCAS)[number],
     ): Cooky[number] {
+        const { name, uca } = entry;
         return [
             uca,
             {
-                aim: this.buildPrimitiveAim(id, uca),
+                aim: this.buildPrimitiveAim(id, name, uca),
                 reactTo: [
                     ...uca.disposition.reactTo ?? [],
                 ],
@@ -279,8 +309,8 @@ export class Render extends Uca<Body> {
 
     private catalogPrimitives(): Cooky {
         const { id } = this;
-        return PRIMITIVE_UCAS.map(({ uca }) => (
-            this.buildPrimitiveEntry(id, uca)
+        return PRIMITIVE_UCAS.map((entry) => (
+            this.buildPrimitiveEntry(id, entry)
         ));
     }
 
@@ -355,6 +385,18 @@ export class Render extends Uca<Body> {
             case MomentSignalType.CREATED:
                 this.handleMomentCreated(value);
                 break;
+            case CardSignalType.CREATED:
+                this.handleCardCreated(value);
+                break;
+            case ChipSignalType.CREATED:
+                this.handleChipCreated(value);
+                break;
+            case SliderSignalType.CREATED:
+                this.handleSliderCreated(value);
+                break;
+            case DialogSignalType.CREATED:
+                this.handleDialogCreated(value);
+                break;
             case WebComponentSignalType.ERROR:
                 this.handleComponentError(value);
                 break;
@@ -362,6 +404,22 @@ export class Render extends Uca<Body> {
                 break;
         }
 
+    }
+
+    private handleCardCreated(value: unknown): void {
+        this.handleComponentRendered(value);
+    }
+
+    private handleChipCreated(value: unknown): void {
+        this.handleComponentRendered(value);
+    }
+
+    private handleSliderCreated(value: unknown): void {
+        this.handleComponentRendered(value);
+    }
+
+    private handleDialogCreated(value: unknown): void {
+        this.handleComponentRendered(value);
     }
 
     private handleBoxCreated(value: unknown): void {
@@ -532,6 +590,14 @@ export class Render extends Uca<Body> {
                 return QuantitySignalType.RENDER;
             case 'moment':
                 return MomentSignalType.RENDER;
+            case 'card':
+                return CardSignalType.RENDER;
+            case 'chip':
+                return ChipSignalType.RENDER;
+            case 'slider':
+                return SliderSignalType.RENDER;
+            case 'dialog':
+                return DialogSignalType.RENDER;
             default:
                 return BoxSignalType.RENDER;
         }
@@ -574,10 +640,13 @@ export class Render extends Uca<Body> {
     }
 
     private renderComponentItem(item: ComponentDef, areaId: string): void {
+        const { component = 'box' } = item;
+        const normalized = (component ?? 'box').toLowerCase();
         this.clearAreaSkeleton(areaId);
-        const signal = this.resolveComponentSignal(item.component);
+        const signal = this.resolveComponentSignal(normalized);
         const payload = this.buildComponentPayload(item, areaId);
-        this.pulse(signal, payload);
+        const targetId = `${this.id}:${normalized}`;
+        this.pulse(signal, payload, targetId);
     }
 
     private isDescendantOfArea(parentId: string, areaId: string): boolean {

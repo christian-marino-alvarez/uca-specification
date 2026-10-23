@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { Uca } from '@uca/core/uca';
 import { Llm } from '@uca/capability-llm';
-import { Schema } from '@uca/capability-schema';
 import type {
     Cooky,
     Disposition,
@@ -13,11 +12,6 @@ import {
     type Failure as InferenceFailure,
 } from '@uca/capability-llm/types';
 import { inferenceSchema } from '@uca/capability-llm/schema';
-import {
-    SignalType as SchemaSignalType,
-    type ErrorResult as SchemaError,
-    type ValidatedResult,
-} from '@uca/capability-schema/types';
 import {
     __ID__,
     DEFAULT_CONFIGURATION,
@@ -66,7 +60,6 @@ export class Decision extends Uca<Body> {
         },
         reactTo: [
             SignalType.DECIDE,
-            ...Decision.reactToSchema(),
             ...Decision.reactToLlm(),
         ],
         inputs: [
@@ -89,17 +82,6 @@ export class Decision extends Uca<Body> {
             },
         ],
     };
-
-    private static reactToSchema(): string[] {
-        const {
-            reactTo = [],
-        } = Schema.disposition;
-        return [
-            ...reactTo,
-            SchemaSignalType.VALIDATED,
-            SchemaSignalType.ERROR,
-        ];
-    }
 
     private static reactToLlm(): string[] {
         const {
@@ -132,18 +114,6 @@ export class Decision extends Uca<Body> {
         } = this;
         return [
             [
-                Schema,
-                {
-                    ...Schema.disposition,
-                    aim: {
-                        description: Schema.AIM,
-                        body: {
-                            id: `${id}:schema`,
-                        },
-                    },
-                },
-            ],
-            [
                 Llm,
                 {
                     ...Llm.disposition,
@@ -166,12 +136,6 @@ export class Decision extends Uca<Body> {
             case SignalType.DECIDE:
                 this.handleDecide(signal);
                 break;
-            case SchemaSignalType.VALIDATED:
-                this.handleSchemaValidated(signal);
-                break;
-            case SchemaSignalType.ERROR:
-                this.handleSchemaError(signal);
-                break;
             case LlmSignalType.INFERRED:
                 this.handleLlmInferred(signal);
                 break;
@@ -193,29 +157,7 @@ export class Decision extends Uca<Body> {
             source,
         } = signal;
         this.logDecisionRequest(value);
-        this.pulse(SchemaSignalType.VALIDATE, {
-            schema: requestSchema,
-            value,
-            context: {
-                identity: value,
-                replyTo: source,
-            },
-        });
-    }
-
-    private handleSchemaValidated(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        const {
-            value: validated,
-            context,
-        } = value as ValidatedResult;
-        const request = validated as Request;
-        const {
-            replyTo,
-        } = context as ValidationContext;
-        this.processValidatedRequest(request, replyTo);
+        this.processValidatedRequest(value as Request, source);
     }
 
     private processValidatedRequest(request: Request, replyTo: string): void {
@@ -226,21 +168,6 @@ export class Decision extends Uca<Body> {
         catch (error) {
             this.emitFailure(error, request, replyTo);
         }
-    }
-
-    private handleSchemaError(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        const {
-            error,
-            context,
-        } = value as SchemaError;
-        const {
-            identity,
-            replyTo,
-        } = context as ValidationContext;
-        this.emitFailure(error, identity, replyTo);
     }
 
     private handleLlmInferred(signal: Signal): void {

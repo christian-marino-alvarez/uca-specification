@@ -59,7 +59,7 @@ function testInput_RenderAndTypeText(): void {
         value: 'initial',
         action: 'type-username',
         required: true,
-        qualities: { width: 'full', radius: 'small', spacing: 'small' },
+        qualities: { width: 'full', shape: 'small', spacing: 'small' },
     });
 
     assert.ok(createdReceived);

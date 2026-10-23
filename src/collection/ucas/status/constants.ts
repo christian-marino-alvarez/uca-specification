@@ -16,8 +16,8 @@ export const INVALID_BOUNDS = {
 
 export const DEFAULT_STATUS_QUALITIES: Qualities = {
     surface: 'card',
-    border: 'subtle',
-    radius: 'full',
+    outline: 'subtle',
+    shape: 'full',
     spacingInline: 'small',
     spacingBlock: 'none',
     textColor: 'light',
@@ -30,8 +30,8 @@ export const STATUS_VISUAL_DISPOSITION = {
     defaultQualities: DEFAULT_STATUS_QUALITIES,
     supportedQualities: [
         'surface',
-        'border',
-        'radius',
+        'outline',
+        'shape',
         'spacingInline',
         'spacingBlock',
         'textColor',

@@ -10,18 +10,17 @@ import {
     type ResponsePayload,
     type ErrorPayload,
 } from '@uca/capability-http-client/types';
-import { Schema } from '@uca/capability-schema';
-import {
-    SignalType as SchemaSignalType,
-    type ValidatedResult,
-    type ErrorResult,
-} from '@uca/capability-schema/types';
 import { Decision } from '@uca/decision';
 import {
     SignalType as DecisionSignalType,
     DataType as DecisionDataType,
     type Result as DecisionResult,
 } from '@uca/decision/types';
+import { Memory } from '@uca/memory';
+import {
+    SignalType as MemorySignalType,
+    DataType as MemoryDataType,
+} from '@uca/memory/types';
 import { SseClient } from '@uca/capability-sse-client';
 import {
     SignalType as SseSignalType,
@@ -41,7 +40,6 @@ import {
     type InferPayload,
     type InferResult,
     type ProviderType,
-    type ValidationContext,
     type TransportContext,
     type AbortPayload,
     type ChosenModelConfig,
@@ -67,7 +65,7 @@ export class Llm extends Uca<Body> {
             ...Llm.reactToDecision(),
             ...Llm.reactToHttpClient(),
             ...Llm.reactToSseClient(),
-            ...Llm.reactToSchema(),
+            ...Llm.reactToMemory(),
         ],
         inputs: [
             {
@@ -129,8 +127,27 @@ export class Llm extends Uca<Body> {
                 type: DecisionDataType.REQUEST,
                 description: 'Probabilistic candidate model selection question for Decision UCA',
             },
+            {
+                signal: MemorySignalType.GET,
+                type: MemoryDataType.GET_PAYLOAD,
+                description: 'Query cached model selection in memory',
+            },
+            {
+                signal: MemorySignalType.SAVE,
+                type: MemoryDataType.SAVE_PAYLOAD,
+                description: 'Persist chosen model in memory cache',
+            },
         ],
     };
+
+    private static reactToMemory(): string[] {
+        return [
+            MemorySignalType.RETRIEVED,
+            MemorySignalType.SAVED,
+            MemorySignalType.ERROR,
+            ...Memory.disposition.reactTo ?? [],
+        ];
+    }
 
     private static reactToSseClient(): string[] {
         return [
@@ -149,14 +166,6 @@ export class Llm extends Uca<Body> {
         ];
     }
 
-    private static reactToSchema(): string[] {
-        return [
-            SchemaSignalType.VALIDATE,
-            SchemaSignalType.VALIDATED,
-            SchemaSignalType.ERROR,
-            ...Schema.disposition.reactTo ?? [],
-        ];
-    }
 
     private static reactToDecision(): string[] {
         return [
@@ -202,12 +211,6 @@ export class Llm extends Uca<Body> {
             case DecisionSignalType.ERROR:
                 this.handleDecisionError(signal);
                 break;
-            case SchemaSignalType.VALIDATED:
-                this.handleValidated(value as ValidatedResult);
-                break;
-            case SchemaSignalType.ERROR:
-                this.handleValidationError(value as ErrorResult);
-                break;
             case HttpSignalType.RESPONSE:
                 this.handleBackendResponse(signal);
                 break;
@@ -223,6 +226,15 @@ export class Llm extends Uca<Body> {
             case SseSignalType.ERROR:
                 this.handleSseError(signal);
                 break;
+            case MemorySignalType.RETRIEVED:
+                this.handleMemoryRetrieved(signal);
+                break;
+            case MemorySignalType.SAVED:
+                this.handleMemorySaved(signal);
+                break;
+            case MemorySignalType.ERROR:
+                this.handleMemoryError(signal);
+                break;
         }
     }
 
@@ -231,11 +243,36 @@ export class Llm extends Uca<Body> {
             id,
         } = this;
         return [
+            ...this.createClientCooky(id),
+            ...this.createReasoningCooky(id),
+        ];
+    }
+
+    private createClientCooky(id: string): Cooky {
+        return [
             [HttpClient, this.createHttpClientDisposition(id)],
             [SseClient, this.createSseClientDisposition(id)],
-            [Schema, this.createSchemaDisposition(id)],
-            [Decision, this.createDecisionDisposition(id)],
         ];
+    }
+
+    private createReasoningCooky(id: string): Cooky {
+        return [
+            [Decision, this.createDecisionDisposition(id)],
+            [Memory, this.createMemoryDisposition(id)],
+        ];
+    }
+
+    private createMemoryDisposition(id: string): Disposition {
+        return {
+            ...Memory.disposition,
+            aim: {
+                description: Memory.purpose,
+                body: {
+                    id: `${id}:memory`,
+                    namespace: 'llm-models',
+                },
+            },
+        };
     }
 
     private createSseClientDisposition(id: string): Disposition {
@@ -263,17 +300,6 @@ export class Llm extends Uca<Body> {
         };
     }
 
-    private createSchemaDisposition(id: string): Disposition {
-        return {
-            ...Schema.disposition,
-            aim: {
-                description: Schema.AIM,
-                body: {
-                    id: `${id}:schema`,
-                },
-            },
-        };
-    }
 
     private createDecisionDisposition(id: string): Disposition {
         return {
@@ -303,14 +329,90 @@ export class Llm extends Uca<Body> {
 
     private handleInfer(payload: InferPayload, replyTo: string): void {
         this.logInferInput(payload);
-        const {
-            model,
-        } = payload;
+        const { model } = payload;
         if (model) {
-            this.requestValidation(payload, replyTo);
+            this.dispatchBackendRequest(payload, replyTo);
             return;
         }
-        this.requestModelDecision(payload, replyTo);
+        this.resolveModelWithCache(payload, replyTo, SignalType.INFER);
+    }
+
+    private resolveModelWithCache(payload: InferPayload, replyTo: string, operation: SignalType): void {
+        const cacheKey = this.resolveCacheKey(payload);
+        if (!cacheKey) {
+            this.requestModelDecision(payload, replyTo);
+            return;
+        }
+        this.queryModelCache(cacheKey, payload, replyTo, operation);
+    }
+
+    private queryModelCache(key: string, payload: InferPayload, replyTo: string, operation: SignalType): void {
+        const { correlationId = crypto.randomUUID() } = payload;
+        const context = { payload, replyTo, cacheKey: key, operation };
+        this.pulse(MemorySignalType.GET, {
+            key,
+            correlationId,
+            context,
+        });
+    }
+
+    private resolveCacheKey(payload: InferPayload): string | null {
+        const { id, streamId, metadata, correlationId, context } = payload;
+        if (id === 'layout' || streamId?.includes(':layout')) {
+            return 'model:layout';
+        }
+        if (id === 'view' || streamId?.includes(':view:')) {
+            return this.resolveViewCacheKey(metadata, context, correlationId);
+        }
+        return null;
+    }
+
+    private resolveViewCacheKey(metadata: unknown, context: unknown, correlationId?: string): string {
+        const meta = metadata as { layoutId?: string } | undefined;
+        const area = (context as { area?: { parentId?: string } })?.area;
+        const baseId = correlationId?.includes(':') ? correlationId.split(':')[0] : correlationId;
+        const layoutId = meta?.layoutId ?? area?.parentId ?? baseId ?? 'default';
+        return `model:view:${layoutId}`;
+    }
+
+    private handleMemoryRetrieved(signal: Signal): void {
+        const { value, context, key } = (signal.value ?? {}) as { value?: ChosenModelConfig | null; context?: Record<string, unknown>; key?: string };
+        const parsed = (context ?? {}) as { payload?: InferPayload; replyTo?: string; cacheKey?: string };
+        if (!parsed.payload) {
+            return;
+        }
+        if (value) {
+            this.handleModelCacheHit(parsed.payload, value, key ?? parsed.cacheKey ?? '', parsed.replyTo);
+            return;
+        }
+        this.handleModelCacheMiss(parsed.payload, parsed.replyTo, parsed.cacheKey);
+    }
+
+    private handleModelCacheHit(payload: InferPayload, config: ChosenModelConfig, key: string, replyTo?: string): void {
+        const { correlationId = crypto.randomUUID() } = payload;
+        const { model, provider } = config;
+        console.log('%c[LLM::MODEL_CACHE::HIT]', 'color: #8B5CF6; font-weight: bold;', { key, model, provider, correlationId });
+        this.dispatchDecisionChoice(payload, config, correlationId, replyTo);
+    }
+
+    private handleModelCacheMiss(payload: InferPayload, replyTo?: string, cacheKey?: string): void {
+        console.log('%c[LLM::MODEL_CACHE::MISS]', 'color: #F59E0B; font-weight: bold;', { cacheKey, id: payload.id });
+        this.requestModelDecision(payload, replyTo ?? '', cacheKey);
+    }
+
+    private handleMemorySaved(signal: Signal): void {
+        const {
+            key,
+        } = (signal.value ?? {}) as { key?: string };
+        console.log('%c[LLM::MEMORY::SAVED]', 'color: #059669;', { key });
+    }
+
+    private handleMemoryError(signal: Signal): void {
+        const { context } = (signal.value ?? {}) as { context?: { payload?: InferPayload; replyTo?: string } };
+        const { payload, replyTo } = context ?? {};
+        if (payload) {
+            this.requestModelDecision(payload, replyTo ?? '');
+        }
     }
 
     private filterCandidates(payload: InferPayload): typeof AVAILABLE_MODELS[number][] {
@@ -365,8 +467,9 @@ export class Llm extends Uca<Body> {
         console.log('[LLM::MODEL_DECISION::RESPONSE]', { correlationId, choice, provider: config.provider, model: config.model, confidence, probabilities });
     }
 
-    private requestModelDecision(payload: InferPayload, replyTo: string): void {
-        const decisionContext = this.createDecisionContext(payload, replyTo);
+    private requestModelDecision(payload: InferPayload, replyTo: string, cacheKey?: string): void {
+        const baseContext = this.createDecisionContext(payload, replyTo);
+        const decisionContext = cacheKey ? { ...baseContext, cacheKey } : baseContext;
         const { correlationId = crypto.randomUUID() } = payload;
         this.logModelDecisionRequest(correlationId, payload);
         this.pulse(DecisionSignalType.DECIDE, {
@@ -401,14 +504,38 @@ export class Llm extends Uca<Body> {
 
     private handleDecisionDecided(signal: Signal): void {
         const { correlationId, result } = (signal.value ?? {}) as DecisionResult;
-        const { choice, context, confidence, probabilities } = result ?? {};
-        const { originalPayload, replyTo } = (context ?? {}) as { originalPayload?: InferPayload; replyTo?: string };
-        if (!originalPayload) {
+        const { choice, context } = result ?? {};
+        const parsed = (context ?? {}) as { originalPayload?: InferPayload; replyTo?: string; cacheKey?: string };
+        if (!parsed.originalPayload) {
             return;
         }
+        this.applyDecisionResult(choice, parsed, correlationId, result);
+    }
+
+    private applyDecisionResult(
+        choice: string,
+        context: { originalPayload?: InferPayload; replyTo?: string; cacheKey?: string },
+        correlationId: string,
+        result?: DecisionResult['result'],
+    ): void {
+        const { confidence, probabilities } = result ?? {};
+        const { originalPayload, replyTo, cacheKey } = context;
         const modelConfig = this.resolveChosenModel(choice);
         this.logModelDecisionResponse(correlationId, choice, modelConfig, confidence, probabilities);
-        this.dispatchDecisionChoice(originalPayload, modelConfig, correlationId, replyTo);
+        this.persistIfCached(cacheKey, modelConfig, correlationId);
+        this.dispatchDecisionChoice(originalPayload!, modelConfig, correlationId, replyTo);
+    }
+
+    private persistIfCached(key: string | undefined, config: ChosenModelConfig, correlationId?: string): void {
+        if (!key) {
+            return;
+        }
+        console.log('%c[LLM::MODEL_CACHE::SAVED]', 'color: #10B981; font-weight: bold;', { key, model: config.model, provider: config.provider });
+        this.pulse(MemorySignalType.SAVE, {
+            key,
+            value: config,
+            correlationId,
+        });
     }
 
     private dispatchDecisionChoice(payload: InferPayload, config: ChosenModelConfig, correlationId: string, replyTo?: string): void {
@@ -417,7 +544,7 @@ export class Llm extends Uca<Body> {
             console.log('[LLM::STREAMING::START]', { correlationId, model: config.model, transport: 'stream' });
             this.pulse(SignalType.STREAMING, { correlationId, model: config.model, transport: 'stream' }, replyTo);
         }
-        this.requestValidation({ ...payload, ...config, correlationId }, replyTo ?? '', operation);
+        this.dispatchBackendRequest({ ...payload, ...config, correlationId }, replyTo ?? '', operation);
     }
 
     private handleDecisionError(signal: Signal): void {
@@ -428,36 +555,63 @@ export class Llm extends Uca<Body> {
         }
         console.warn('[LLM::MODEL_DECISION::FALLBACK]', { correlationId, error, fallback: DEFAULT_GEMINI_FLASH_LITE_MODEL });
         const fallback = { ...originalPayload, provider: DEFAULT_PROVIDER as ProviderType, model: DEFAULT_GEMINI_FLASH_LITE_MODEL, correlationId };
-        this.requestValidation(fallback, replyTo ?? '');
+        this.dispatchBackendRequest(fallback, replyTo ?? '');
     }
 
-    private requestValidation(payload: InferPayload, replyTo: string, operation: SignalType = SignalType.INFER): void {
-        const value = this.backendPayload(payload);
-        const { correlationId, provider } = value;
-        const context = { operation, correlationId, provider, replyTo, request: value };
-        this.pulse(SchemaSignalType.VALIDATE, { schema: inferenceSchema, value, context });
-    }
-
-    private handleValidated(result: ValidatedResult): void {
-        const { value, context } = result;
-        const { operation, replyTo } = context as ValidationContext;
-        const { endpoint = DEFAULT_ENDPOINT } = this.disposition.aim.body ?? {};
-        const body = value as InferPayload;
+    private dispatchBackendRequest(
+        payload: InferPayload,
+        replyTo: string,
+        operation: SignalType = SignalType.INFER,
+    ): void {
+        const body = this.backendPayload(payload);
         if (operation === SignalType.STREAM) {
-            this.pulse(SseSignalType.STREAM, { ...body, endpoint: DEFAULT_SSE_ENDPOINT, correlationId: body.correlationId, context: { ...body, replyTo } });
+            this.dispatchStreamRequest(body, replyTo);
             return;
         }
-        this.pulse(HttpSignalType.REQUEST, { endpoint, payload: body, correlationId: body.correlationId, context: { ...body, replyTo } });
+        this.dispatchHttpRequest(body, replyTo);
+    }
+
+    private dispatchStreamRequest(
+        body: InferPayload,
+        replyTo: string,
+    ): void {
+        const {
+            correlationId,
+        } = body;
+        this.pulse(SseSignalType.STREAM, {
+            ...body,
+            endpoint: DEFAULT_SSE_ENDPOINT,
+            correlationId,
+            context: { ...body, replyTo },
+        });
+    }
+
+    private dispatchHttpRequest(
+        body: InferPayload,
+        replyTo: string,
+    ): void {
+        const {
+            correlationId,
+        } = body;
+        const {
+            endpoint = DEFAULT_ENDPOINT,
+        } = this.disposition.aim.body ?? {};
+        this.pulse(HttpSignalType.REQUEST, {
+            endpoint,
+            payload: body,
+            correlationId,
+            context: { ...body, replyTo },
+        });
     }
 
     private handleStream(payload: InferPayload, replyTo: string): void {
         this.logInferInput(payload);
         const { model } = payload;
         if (model) {
-            this.requestValidation(payload, replyTo, SignalType.STREAM);
+            this.dispatchBackendRequest(payload, replyTo, SignalType.STREAM);
             return;
         }
-        this.requestModelDecision(payload, replyTo);
+        this.resolveModelWithCache(payload, replyTo, SignalType.STREAM);
     }
 
     private handleSseStreamed(signal: Signal): void {
@@ -494,12 +648,6 @@ export class Llm extends Uca<Body> {
         this.pulse(SignalType.ERROR, failure, target);
     }
 
-    private handleValidationError(result: ErrorResult): void {
-        const { error, context } = result;
-        const { correlationId, provider, replyTo, request } = context as ValidationContext;
-        const target = replyTo ?? this.resultTarget(provider);
-        this.pulse(SignalType.ERROR, { error, correlationId, request }, target);
-    }
 
     private backendPayload(payload: InferPayload): InferPayload {
         const { aim } = this.disposition;

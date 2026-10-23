@@ -95,6 +95,7 @@ export class Telemetry extends Capability<Body> {
     };
 
     private readonly timers: Map<string, number> = new Map();
+    private readonly correlationUcas: Map<string, string> = new Map();
 
     public constructor(id: string = __ID__) {
         super(id);
@@ -108,6 +109,7 @@ export class Telemetry extends Capability<Body> {
 
     public override denervate(): void {
         this.timers.clear();
+        this.correlationUcas.clear();
         super.denervate();
     }
 
@@ -184,6 +186,7 @@ export class Telemetry extends Capability<Body> {
             case DecisionSignalType.ERROR:
             case LayoutSignalType.BUILD:
             case LayoutSignalType.AREA_DEFINED:
+            case LayoutSignalType.AREA_CREATED:
             case ViewSignalType.BUILD:
                 return true;
             default:
@@ -270,20 +273,43 @@ export class Telemetry extends Capability<Body> {
     }
 
     private extractAreaId(signal: Signal): string | undefined {
-        const {
-            value,
-        } = signal;
+        const { value } = signal;
         const payload = (value ?? {}) as Record<string, unknown>;
-        return (payload.areaId as string | undefined) ?? (payload.targetContainer as string | undefined);
+        const { areaId, targetContainer, streamId } = payload;
+        if (areaId) { return String(areaId); }
+        if (targetContainer) { return String(targetContainer); }
+        const parts = String(streamId ?? '').split(':');
+        return parts.length > 2 ? parts[parts.length - 1] : undefined;
+    }
+
+    private matchUcaFromCombined(combined: string, property: string): string {
+        if (combined.includes('decision')) { return 'Decision'; }
+        if (combined.includes('layout') || property.startsWith('layout.')) { return 'Layout'; }
+        return (combined.includes('view') || property.startsWith('view.')) ? 'View' : 'Llm';
+    }
+
+    private resolveInferenceUca(signal: Signal): string {
+        const { source = '', targetId = '', property = '', value } = signal;
+        if (source.includes('decision') || targetId.includes('decision')) { return 'Decision'; }
+        if (source.includes('layout') || targetId.includes('layout')) { return 'Layout'; }
+        if (source.includes('view') || targetId.includes('view')) { return 'View'; }
+        const payload = (value ?? {}) as Record<string, unknown>;
+        const request = (payload.request ?? {}) as Record<string, unknown>;
+        const { id = '', streamId = '', correlationId = '' } = payload;
+        const { id: reqId = '', streamId: reqStream = '' } = request;
+        const combined = `${id} ${reqId} ${streamId} ${reqStream} ${correlationId}`.toLowerCase();
+        return this.matchUcaFromCombined(combined, property);
     }
 
     private handleInferenceRequest(signal: Signal): void {
         const correlationId = this.extractCorrelationId(signal);
+        const uca = this.resolveInferenceUca(signal);
         if (correlationId) {
             this.timers.set(correlationId, Date.now());
+            this.correlationUcas.set(correlationId, uca);
         }
         const areaId = this.extractAreaId(signal);
-        const event = this.createTelemetryEvent('inference_request', signal, correlationId, areaId);
+        const event = this.createTelemetryEvent('inference_request', signal, correlationId, areaId, undefined, undefined, uca);
         this.notifyEvent(SignalType.INFERENCE_REQUEST, event);
     }
 
@@ -295,12 +321,21 @@ export class Telemetry extends Capability<Body> {
         return Date.now() - start;
     }
 
+    private resolveResponseUca(signal: Signal, correlationId?: string): string {
+        const cached = correlationId ? this.correlationUcas.get(correlationId) : undefined;
+        if (correlationId) {
+            this.correlationUcas.delete(correlationId);
+        }
+        return cached ?? this.resolveInferenceUca(signal);
+    }
+
     private handleInferenceResponse(signal: Signal): void {
         const correlationId = this.extractCorrelationId(signal);
         const durationMs = this.calculateDuration(correlationId);
         const areaId = this.extractAreaId(signal);
+        const uca = this.resolveResponseUca(signal, correlationId);
         const compliance = this.evaluateResponseCompliance(signal.value);
-        const event = this.createTelemetryEvent('inference_response', signal, correlationId, areaId, durationMs, compliance);
+        const event = this.createTelemetryEvent('inference_response', signal, correlationId, areaId, durationMs, compliance, uca);
         this.notifyEvent(SignalType.INFERENCE_RESPONSE, event);
         if (!compliance.compliant) {
             this.emitAnomalyEvent(event);
@@ -353,6 +388,7 @@ export class Telemetry extends Capability<Body> {
         areaId?: string,
         durationMs?: number,
         compliance?: ComplianceReport,
+        uca?: string,
     ): TelemetryEvent {
         return {
             type,
@@ -364,6 +400,7 @@ export class Telemetry extends Capability<Body> {
             durationMs,
             details: signal.value,
             compliance,
+            uca,
         };
     }
 
@@ -398,37 +435,40 @@ export class Telemetry extends Capability<Body> {
 
     private logLifecycleToConsole(event: TelemetryEvent): void {
         const {
+            source,
             property = '',
         } = event;
         const badge = this.resolveLifecycleBadge(property);
+        const sourceLabel = source ? ` [${source}]` : '';
         const style = this.resolveLifecycleStyle(property);
-        console.log(`%c${badge} ${property}`, style, event);
+        console.log(`%c${badge}${sourceLabel} ${property}`, style, event);
     }
 
     private resolveLifecycleBadge(property?: string): string {
         switch (property) {
             case SpecificationSignalType.PARSED:
-                return '📖 [TELEMETRY::SPECIFICATION]';
+                return '📖 [SPECIFICATION]';
             case AppSignalType.NAVIGATE:
-                return '🚀 [TELEMETRY::NAVIGATE]';
+                return '🚀 [NAVIGATE]';
             case AppSignalType.DECIDED:
-                return '🧠 [TELEMETRY::APP::DECIDED]';
+                return '🧠 [APP::DECIDED]';
             case MemorySignalType.RETRIEVED:
-                return '💾 [TELEMETRY::MEMORY]';
+                return '💾 [MEMORY]';
             case DecisionSignalType.DECIDE:
-                return '📨 [TELEMETRY::DECISION::REQUEST]';
+                return '📨 [DECISION::REQUEST]';
             case DecisionSignalType.DECIDED:
-                return '🎯 [TELEMETRY::DECISION::RESPONSE]';
+                return '🎯 [DECISION::RESPONSE]';
             case DecisionSignalType.ERROR:
-                return '❌ [TELEMETRY::DECISION::ERROR]';
+                return '❌ [DECISION::ERROR]';
             case LayoutSignalType.BUILD:
-                return '📐 [TELEMETRY::LAYOUT::BUILD]';
+                return '📐 [LAYOUT::BUILD]';
             case LayoutSignalType.AREA_DEFINED:
-                return '🏛️ [TELEMETRY::LAYOUT::AREA]';
+            case LayoutSignalType.AREA_CREATED:
+                return '🏛️ [LAYOUT::AREA]';
             case ViewSignalType.BUILD:
-                return '🎨 [TELEMETRY::VIEW::BUILD]';
+                return '🎨 [VIEW::BUILD]';
             default:
-                return '⚡ [TELEMETRY::LIFECYCLE]';
+                return '⚡ [LIFECYCLE]';
         }
     }
 
@@ -450,6 +490,7 @@ export class Telemetry extends Capability<Body> {
             case LayoutSignalType.BUILD:
                 return 'color: #D97706; font-weight: bold;';
             case LayoutSignalType.AREA_DEFINED:
+            case LayoutSignalType.AREA_CREATED:
                 return 'color: #10B981; font-weight: bold;';
             case ViewSignalType.BUILD:
                 return 'color: #8B5CF6; font-weight: bold;';
@@ -459,12 +500,13 @@ export class Telemetry extends Capability<Body> {
     }
 
     private formatStandardLabel(event: TelemetryEvent, badge: string): string {
-        const { uca, elementId, areaId, durationMs } = event;
-        const ucaLabel = uca ? ` [UCA::${uca}]` : '';
+        const { source, uca, elementId, areaId, durationMs } = event;
+        const sourceLabel = source ? ` [${source}]` : '';
+        const ucaLabel = uca ? ` (${uca})` : '';
         const elementLabel = elementId ? ` #${elementId}` : '';
         const areaLabel = areaId ? ` (${areaId})` : '';
         const timing = durationMs !== undefined ? ` [${durationMs}ms]` : '';
-        return `${badge}${ucaLabel}${elementLabel}${areaLabel}${timing}`;
+        return `${badge}${sourceLabel}${ucaLabel}${elementLabel}${areaLabel}${timing}`;
     }
 
     private logStandardEventToConsole(event: TelemetryEvent): void {
@@ -478,17 +520,17 @@ export class Telemetry extends Capability<Body> {
     private resolveLogBadge(type: TelemetryEvent['type']): string {
         switch (type) {
             case 'inference_request':
-                return '📡 [TELEMETRY::INFER::REQUEST]';
+                return '📡 [INFER::REQUEST]';
             case 'inference_response':
-                return '🧠 [TELEMETRY::INFER::RESPONSE]';
+                return '🧠 [INFER::RESPONSE]';
             case 'render_request':
-                return '🎨 [TELEMETRY::RENDER::REQUEST]';
+                return '🎨 [RENDER::REQUEST]';
             case 'render_completed':
-                return '✅ [TELEMETRY::RENDER::COMPLETED]';
+                return '✅ [RENDER::COMPLETED]';
             case 'compliance_anomaly':
-                return '⚠️ [TELEMETRY::COMPLIANCE::ANOMALY]';
+                return '⚠️ [COMPLIANCE::ANOMALY]';
             default:
-                return '⚡ [TELEMETRY::LIFECYCLE]';
+                return '⚡ [LIFECYCLE]';
         }
     }
 

@@ -41,7 +41,6 @@
     "@uca/capability-gemini": "^0.1.0",
     "@uca/capability-openai": "^0.1.0",
     "@uca/logger": "^0.1.0",
-    "@uca/capability-schema": "^0.1.0",
     "@uca/visual-composition": "^0.1.0"
   },
   "scripts": {

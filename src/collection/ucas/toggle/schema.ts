@@ -8,6 +8,7 @@ export const bodySchema = identitySchema.extend({
     label: z.string().optional(),
     value: z.boolean().optional(),
     disabled: z.boolean().optional(),
+    variant: z.enum(['switch', 'checkbox']).optional().describe('Material Design 3 selection control variant (switch, checkbox)'),
 });
 
 export const renderPayloadSchema = bodySchema.required({

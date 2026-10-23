@@ -281,7 +281,7 @@ export class Layout extends Uca<Body> {
     private resolveGoal(areaId?: string, parentId?: string): string {
         const target = areaId ?? ROOT_AREA_ID;
         if (target !== 'root' && target !== 'app' && target !== 'body') {
-            return `Partition container '${target}' into immediate child areas. Infer every spatial quality from purpose and context: each structural area must declare direction or division for its own children; grant each child area its own delimited breathing space via perimeter padding (spacing), boundaries (border), perimeter margin (marginBlock), and surface; declare gap to separate multiple sibling areas. Flex sizes an area within its parent and never replaces its child-flow declaration.`;
+            return `Partition container '${target}' into immediate child areas. Infer every spatial quality from purpose and context: each structural area must declare direction or division for its own children; grant each child area its own delimited breathing space via perimeter padding (spacing), boundaries (outline), perimeter margin (marginBlock), and surface; declare gap to separate multiple sibling areas. Flex sizes an area within its parent and never replaces its child-flow declaration.`;
         }
         return LAYOUT_GOAL;
     }

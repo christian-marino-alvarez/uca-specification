@@ -110,7 +110,7 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         const { reactTo = [] } = this.disposition;
         const { reactTo: signals = [], aim } = declared;
         const { id } = (aim.body ?? {}) as { id?: string };
-        const isActive = signals.some((signal) => reactTo.includes(signal));
+        const isActive = signals.some((signal) => reactTo.includes(signal) || signal === '*');
         if (!isActive) { return void this.getCapability(id ?? '')?.denervate(); }
         const capability = this.getCapability(id ?? '') ?? this.registerCapability(Factory, id);
         this.connectCapability(capability, declared);

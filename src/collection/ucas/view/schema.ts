@@ -28,15 +28,18 @@ export const componentItemSchema = z.object({
         z.unknown(),
     ).nullable().optional(),
     qualities: qualitiesSchema
-        .describe('Cualidades visuales ontológicas delimitadas por UCA: ' +
+        .describe('Cualidades visuales ontológicas delimitadas por UCA (Material Design 3): ' +
             'Para box con hijos: debe declarar direction o division para expresar el flujo de sus descendientes, nunca ambos. Si tiene dos o más hijos directos, debe declarar gap ("small"|"medium") para separarlos entre sí. Usa order solo si el orden visual debe diferir del orden semántico del árbol. flex dimensiona el box dentro de su padre y no activa ni sustituye el flujo. Para box hoja: no declares direction, division ni gap sin descendientes. ' +
-            'Para box (tarjetas y contenedores): respiración interna perimetral obligatoria mediante padding (spacing: "medium"|"large") si tiene surface ("card"|"muted") o border ("subtle") para que su contenido no toque los bordes; layout (direction: "row"|"column", division: "halves"|"thirds"|"sidebar-main"|"auto", gap: "small"|"medium"), dimensiones (width, height, flex: "fill"|"none", span), apariencia (surface: "card"|"muted", border: "subtle", radius: "medium", elevation: "low"|"medium", overflow: "hidden"|"auto"). ' +
-            'Para heading (titulares): tipografía (textSize: "xlarge"|"large"|"medium", fontWeight: "bold"|"semibold", textColor: "light"|"brand", lineHeight: "tight"), separación (marginBlock: "small"|"none"), flex: "none". Prohibido ponerle surface o border de tarjeta. ' +
+            'Para card (tarjetas M3 obligatorias para paneles, métricas y módulos): variante ("elevated"|"filled"|"outlined"), respiración interna (spacing: "medium"|"large"), forma (shape: "medium"|"large"), elevación (elevation: "level1"|"level2"|"level0"), superficie (surface: "card"|"surfaceContainer"|"surfaceContainerHigh"). Usa card en lugar de box para cualquier tarjeta o ficha. ' +
+            'Para chip (píldoras y etiquetas interactivas M3): variante ("assist"|"filter"|"input"|"suggestion"), forma (shape: "small"|"full"), respiración (spacingInline: "small", spacingBlock: "extraSmall"), flex: "none". ' +
+            'Para slider (selectores continuos/discretos M3): dimensiones (width: "full", height: "small"), flex: "none". ' +
+            'Para dialog (superficies modales M3): elevación (elevation: "level3"), forma (shape: "extraLarge"), superficie (surface: "surfaceContainerHigh"). ' +
+            'Para heading (titulares): tipografía (textSize: "xlarge"|"large"|"medium", fontWeight: "bold"|"semibold", textColor: "light"|"brand", lineHeight: "tight"), separación (marginBlock: "small"|"none"), flex: "none". Prohibido ponerle surface u outline de tarjeta. ' +
             'Para paragraph (textos): tipografía (textSize: "small"|"medium", textColor: "muted"|"light", lineHeight: "normal"), separación (marginBlock: "small"|"none"). ' +
-            'Para action (botones): apariencia (surface: "brand"|"card"|"transparent", border: "subtle"|"none", radius: "medium"|"full"), respiración interna (spacingInline: "medium"|"large", spacingBlock: "small"), tipografía (textSize: "small", fontWeight: "medium", textColor: "dark"|"light"), flex: "none". ' +
+            'Para action (botones): variante M3 obligatoria (variant: "filled"|"tonal"|"outlined"|"elevated"|"text"), apariencia (surface: "primary"|"secondary"|"surfaceContainer"|"transparent", outline: "subtle"|"none", shape: "full"|"medium", elevation: "level0"|"level1"|"level2"), respiración interna (spacingInline: "medium"|"large", spacingBlock: "small"), tipografía (textSize: "small", fontWeight: "medium", textColor: "dark"|"light"), flex: "none". ' +
             'Para access (enlaces navegables): requiere text y destination obligatorios; respiración interna (spacingInline: "small", spacingBlock: "none"), tipografía (textColor: "accent", textSize: "small", fontWeight: "medium"). ' +
-            'Para input (campos): dimensiones (width: "full", height: "medium"), respiración interna (spacingInline: "small", spacingBlock: "small"), apariencia (surface: "card", border: "subtle", radius: "medium", textColor: "light", textSize: "small"). ' +
-            'Para picture (logos e iconos): dimensiones (width: "small"|"medium", height: "auto", maxWidth: "full"), forma (radius: "small"|"full"), flex: "none". Prohibido añadirle padding.'),
+            'Para input (campos): dimensiones (width: "full", height: "medium"), respiración interna (spacingInline: "small", spacingBlock: "small"), apariencia (surface: "card"|"surfaceContainerLow", outline: "subtle"|"none", shape: "extraSmall"|"small", textColor: "light", textSize: "small"). ' +
+            'Para picture (logos e iconos): dimensiones (width: "small"|"medium", height: "auto", maxWidth: "full"), forma (shape: "small"|"full"), flex: "none". Prohibido añadirle padding.'),
 });
 
 export const viewCompositionSchema = z.object({

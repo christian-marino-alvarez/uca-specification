@@ -23,6 +23,8 @@ import {
     SignalType as SpecificationSignalType,
 } from '@uca/capability-specification/types';
 import { Telemetry } from '@uca/capability-telemetry';
+import { Material } from '@uca/capability-material';
+import { SignalType as MaterialSignalType } from '@uca/capability-material/types';
 import { Uca } from '@uca/core/uca';
 import {
     DispositionSignal,
@@ -81,6 +83,7 @@ export class App extends Uca<Body> {
             ...App.reactToMemory(),
             ...App.reactToSpecification(),
             ...App.reactToTelemetry(),
+            ...App.reactToMaterial(),
         ],
         inputs: [
             {
@@ -219,8 +222,16 @@ export class App extends Uca<Body> {
         const {
             reactTo = [],
         } = Telemetry.disposition;
+        return reactTo.filter((signal) => signal !== '*');
+    }
+
+    private static reactToMaterial(): string[] {
+        const {
+            reactTo = [],
+        } = Material.disposition;
         return [
             ...reactTo,
+            MaterialSignalType.APPLIED,
         ];
     }
 
@@ -239,6 +250,7 @@ export class App extends Uca<Body> {
             this.buildMemoryCooky(),
             this.buildSpecificationCooky(),
             this.buildTelemetryCooky(),
+            this.buildMaterialCooky(),
         ];
     }
 
@@ -303,6 +315,9 @@ export class App extends Uca<Body> {
                 break;
             case SpecificationSignalType.PROVIDED:
                 this.handleSpecificationProvided(signal);
+                break;
+            case MaterialSignalType.APPLIED:
+                this.handleMaterialApplied(signal);
                 break;
             case DispositionSignal.PROVIDE:
                 this.handleDispositionProvide(signal);
@@ -451,6 +466,24 @@ export class App extends Uca<Body> {
         const aim = this.createAim(Telemetry.AIM, id);
         return {
             ...Telemetry.disposition,
+            aim,
+        };
+    }
+
+    private buildMaterialCooky(): [CapabilityConstructor, Disposition] {
+        const {
+            id,
+        } = this;
+        return [
+            Material as unknown as CapabilityConstructor,
+            this.createMaterialDisposition(`${id}:material`),
+        ];
+    }
+
+    private createMaterialDisposition(id: string): Disposition {
+        const aim = this.createAim(Material.AIM, id);
+        return {
+            ...Material.disposition,
             aim,
         };
     }
@@ -939,5 +972,12 @@ export class App extends Uca<Body> {
         this.updateDispositionBody({
             specification: value as Record<string, unknown>,
         });
+    }
+
+    private handleMaterialApplied(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        this.pulse(MaterialSignalType.APPLIED, value);
     }
 }
