@@ -1,6 +1,7 @@
 export type {
     Area,
     AreaConcept,
+    AreaConceptDimensions,
     AreaDefined,
     Body,
     BuildPayload,
@@ -9,19 +10,18 @@ export type {
     LayoutComposition,
     Qualities,
     ContainerQualities,
+    ContextArea,
+    ContextBrowser,
+    ContextVisual,
+    LayoutContext,
+    SpatialPiece,
+    AreaVisual,
 } from './schema.js';
 
 export interface ContractParams {
     readonly purpose: string;
     readonly goal: string;
     readonly outputSchema: Record<string, unknown>;
-}
-
-export interface SpatialPiece {
-    readonly name: string;
-    readonly category: string;
-    readonly description: string;
-    readonly values?: readonly string[];
 }
 
 export enum SignalType {

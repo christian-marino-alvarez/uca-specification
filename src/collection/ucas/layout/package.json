@@ -42,6 +42,7 @@
     }
   },
   "dependencies": {
+    "@uca/capability-material": "^0.1.0",
     "@uca/capability-stream-transformer": "^0.1.0",
     "@uca/capability-zod": "^0.1.0",
     "@uca/core": "^0.1.0",

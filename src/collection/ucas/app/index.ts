@@ -746,6 +746,7 @@ export class App extends Uca<Body> {
         } = ontology;
         return {
             id: 'body',
+            dimensions: this.assembleRootDimensions(),
             ...rest,
         };
     }
@@ -962,15 +963,11 @@ export class App extends Uca<Body> {
 
     private pickAreaDispositions(area: Area): Record<string, unknown> {
         const {
-            disposicionEspacial,
-            disposicionVisual,
-            disposicionInformacion,
+            visual,
             dimensions,
         } = area;
         return {
-            disposicionEspacial,
-            disposicionVisual,
-            disposicionInformacion,
+            visual,
             dimensions,
         };
     }
@@ -987,16 +984,14 @@ export class App extends Uca<Body> {
         const {
             parentId = 'body',
             dimensions = {},
-            visualIntention = area.intention,
-            disposicionEspacial,
-            disposicionInformacion,
+            visual,
         } = area;
+        const visualIntention = visual?.intention ?? area.intention;
         return {
             containerId: parentId,
             areaContainerDimensions: dimensions,
             visualIntention,
-            disposicionEspacial,
-            disposicionInformacion,
+            visual,
         };
     }
 
@@ -1111,10 +1106,6 @@ export class App extends Uca<Body> {
         });
     }
 
-    private handleMaterialApplied(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.pulse(MaterialSignalType.APPLIED, value);
+    private handleMaterialApplied(_signal: Signal): void {
     }
 }

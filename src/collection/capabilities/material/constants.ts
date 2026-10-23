@@ -81,3 +81,49 @@ export const TYPOGRAPHY_TOKENS: Readonly<Record<string, string>> = {
     '--md-sys-typescale-font': '"Open Sans", "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     '--font-google': '"Open Sans", "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
 };
+
+export const GRID_GRAMMAR = {
+    specification: 'Material Design 3 Generative Grid & Spatial Modulation System',
+    designPhilosophy:
+        'Construct the most efficient, fluid and ergonomic spatial partition tailored strictly to the functional intention, density needs, and available viewport.',
+    densityArchetypes: {
+        workbench:
+            'Cockpit / Multi-pane studio: asymmetric partitioning with command rails and elastic canvas for high-density tools',
+        exploratory:
+            'Supporting pane / Master-detail: clear hierarchy between navigation, primary task canvas, and contextual inspection',
+        focused:
+            'Hero / Immersive canvas: single dominant area with minimal perimeter toolbars',
+        adaptiveGrid:
+            'Fluid matrix: auto-responsive wrapping for modular cards or metrics tiles using span modulation',
+    },
+    spatialPrinciples: {
+        gravitationalBalance:
+            'The primary operational area must absorb available space (1fr or flex: fill), while secondary controls remain compact',
+        cellSpanModulation:
+            'Use span (single, double, triple, full) to reflect semantic weight and hierarchy of each child area within the grid',
+        viewportContainment:
+            'Preserve 100dvh viewport budget without outer scrolling; delegate inner scrolling (overflow: auto) strictly to terminal work areas',
+        rhythmAndGutter:
+            'Apply consistent M3 gutters via gap (small for data-dense, medium for standard, large for airy breathing space)',
+    },
+    windowSizeGuidance: {
+        compact: {
+            breakpoint: '< 600px',
+            columns: 4,
+            pattern: 'Single-column vertical stack (Top App Bar + Main Scroll + Optional Bottom Bar)',
+            recommendedDivision: 'single',
+        },
+        medium: {
+            breakpoint: '600px - 839px',
+            columns: 8,
+            pattern: 'Supporting Pane: Navigation Rail (80px) or Compact Drawer (260px) + Main Canvas (1fr)',
+            recommendedDivision: 'sidebar-main',
+        },
+        expanded: {
+            breakpoint: '>= 840px',
+            columns: 12,
+            pattern: 'Two or Three Panes: Drawer (260px) + Main Canvas (1fr) + Optional Inspector (260px)',
+            recommendedDivision: 'sidebar-main | sidebar-main-aside | halves | thirds | auto',
+        },
+    },
+} as const;

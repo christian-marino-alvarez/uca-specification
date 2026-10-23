@@ -210,8 +210,10 @@ export class Telemetry extends Capability<Body> {
     private extractSignalData(signal: Signal): Partial<TelemetryEvent> {
         return {
             source: signal.source,
+            sourceKind: signal.sourceKind,
+            targetId: signal.targetId,
             property: signal.property,
-            signalBody: signal.value,
+            payload: signal.value,
             correlationId: signal.correlationId,
         };
     }

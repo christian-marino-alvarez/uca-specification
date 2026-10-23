@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { signalBodySchema } from '../schema.js';
 import { Uca } from '@uca/core/uca';
 import { Llm } from '@uca/capability-llm';
 import type {
@@ -188,9 +189,10 @@ export class Decision extends Uca<Body> {
     private handleLlmInferred(signal: Signal): void {
         const {
             value,
+            correlationId,
         } = signal;
         const inferred = value as InferResult;
-        const operation = this.extractDecisionOperation(inferred.context);
+        const operation = this.extractDecisionOperation(inferred.context, correlationId ?? inferred.correlationId);
         this.processLlmInferred(inferred, operation);
     }
 
@@ -251,13 +253,12 @@ export class Decision extends Uca<Body> {
 
     private sendInference(request: Request, outputSchema: Record<string, unknown>, replyTo: string): void {
         const {
-            question,
-            context,
             correlationId,
         } = request;
         const config = this.resolveInferenceConfig();
         const payload = this.buildInferencePayload(request, outputSchema, replyTo, config);
-        this.pulse(LlmSignalType.INFER, payload);
+        signalBodySchema.parse(payload);
+        this.pulse(LlmSignalType.INFER, payload, undefined, correlationId);
     }
 
     private resolveInferenceConfig(): Configuration {
@@ -279,12 +280,11 @@ export class Decision extends Uca<Body> {
     }
 
     private sanitizeEvaluationState(context?: Record<string, unknown>): Record<string, unknown> {
-        if (!context) {
-            return {};
-        }
+        if (!context) { return {}; }
         const {
             originalPayload: _originalPayload,
             replyTo: _replyTo,
+            question: _question,
             ...state
         } = context;
         return state;
@@ -301,7 +301,24 @@ export class Decision extends Uca<Body> {
         const limits = { ...this.disposition.limits, ...INFERENCE_LIMITS };
         const state = this.sanitizeEvaluationState(context);
         const questionData = { id, type: QuestionType.CHOICE, instructions: prompt, criteria: criteriaMap, options };
-        return { state, question: questionData, limits, replyTo, correlationId, attempt, requestContext: context };
+        return { correlationId, state, question: questionData, limits, replyTo, attempt };
+    }
+
+    private assembleInferencePayload(
+        req: Request,
+        ctx: Record<string, unknown>,
+        schema: Record<string, unknown>,
+        cfg: Configuration,
+    ): Record<string, unknown> {
+        const { question } = req;
+        return {
+            ...cfg,
+            id: this.id,
+            purpose: Decision.purpose,
+            intention: question.prompt,
+            outputSchema: schema,
+            context: ctx,
+        };
     }
 
     private buildInferencePayload(
@@ -311,10 +328,9 @@ export class Decision extends Uca<Body> {
         config: Configuration,
         attempt = 0,
     ): Record<string, unknown> {
-        const { question, correlationId } = request;
-        const criteriaMap = this.buildCriteriaMap(question.options);
+        const criteriaMap = this.buildCriteriaMap(request.question.options);
         const context = this.buildDecisionContext(request, criteriaMap, replyTo, attempt);
-        return { ...config, purpose: Decision.purpose, goal: question.prompt, correlationId, outputSchema, context };
+        return this.assembleInferencePayload(request, context, outputSchema, config);
     }
 
     private reconstructRequest(ctx: {
@@ -336,10 +352,11 @@ export class Decision extends Uca<Body> {
         };
     }
 
-    private extractDecisionOperation(context: unknown): Metadata {
-        const ctx = (context ?? {}) as { replyTo?: string; attempt?: number };
+    private extractDecisionOperation(context: unknown, correlationId?: string): Metadata {
+        const ctx = (context ?? {}) as { replyTo?: string; attempt?: number; correlationId?: string };
         const { replyTo = '', attempt = 0 } = ctx;
-        const request = this.reconstructRequest(ctx as Parameters<typeof this.reconstructRequest>[0]);
+        const cid = correlationId ?? ctx.correlationId ?? '';
+        const request = this.reconstructRequest({ ...ctx, correlationId: cid });
         return { replyTo, attempt, request };
     }
 
@@ -399,7 +416,7 @@ export class Decision extends Uca<Body> {
             context,
             correlationId,
         } = inferred;
-        const operation = this.extractDecisionOperation(context);
+        const operation = this.extractDecisionOperation(context, correlationId);
         if (!operation.replyTo && !correlationId) {
             this.emitFailure(MISSING_METADATA, { correlationId }, undefined, 1);
             return;
@@ -458,7 +475,8 @@ export class Decision extends Uca<Body> {
     ): void {
         const { data, response } = inferred as InferResult;
         const payload = this.assembleRecoveryPayload(operation, data ?? response, error);
-        this.pulse(LlmSignalType.INFER, payload);
+        const { correlationId } = operation.request;
+        this.pulse(LlmSignalType.INFER, payload, undefined, correlationId);
     }
 
     private emitFailure(error: unknown, identity: unknown, replyTo?: string, attempts = 0): void {

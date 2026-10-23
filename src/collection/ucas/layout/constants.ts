@@ -5,7 +5,7 @@ export const DEFAULT_LIMIT = 4096;
 export const DEFAULT_IMAGINATION = 0.2;
 
 export const LAYOUT_GOAL =
-    'Partition the current container Box strictly into its immediate direct child Box areas only (single-level partition). All child areas must have parentId pointing to the current container. Infer the functional purpose, intention, visualIntention, dimensions (width, height, flex) and supported Box qualities for each area from the supplied visual language and context. Every area is a structural Box and must declare its spatial delimitation: 1) direction or division for child composition; 2) perimeter padding (spacing: "none"|"small"|"medium"|"large"|"xlarge"); 3) physical delimiting boundary (outline: "subtle"|"strong"|"dashed"|"none"); 4) perimeter vertical margin (marginBlock: "none"|"small"|"medium"|"large"); 5) distinct surface (default, muted, card); and 6) gap between multiple sibling areas. Flex only sizes that area within its parent, never to select its child layout.';
+    'Partition the current container Box strictly into its immediate direct child Box areas only (single-level partition). All child areas must have parentId pointing to the current container. Infer purpose, intention, dimensions (width, height, flex) and the visual object ({ intention, disposicion }) from the supplied visual context and guidelines. Every area is a structural Box and must declare its spatial delimitation within visual.disposicion: 1) direction or division for child composition; 2) perimeter padding (spacing: "none"|"small"|"medium"|"large"|"xlarge"); 3) physical delimiting boundary (outline: "subtle"|"strong"|"dashed"|"none"); 4) perimeter vertical margin (marginBlock: "none"|"small"|"medium"|"large"); 5) distinct surface (default, muted, card); and 6) gap between multiple sibling areas. Flex only sizes that area within its parent, never to select its child layout. Keep purpose, intention and visual.intention strictly concise (maximum 6-8 words each) to optimize streaming latency.';
 
 export const LAYOUT_PURPOSE =
     'Construct autonomous spatial layout area partition structures and hierarchies';
@@ -20,15 +20,20 @@ export const ROOT_AREA = {
     id: ROOT_AREA_ID,
     purpose: 'Contenedor raíz y lienzo global de la aplicación',
     intention: 'Albergar y estructurar las áreas directas del sistema',
-    visualIntention: 'Contenedor vertical a pantalla completa con ordenación flexible',
     dimensions: {
         width: 'full',
         height: 'full',
         flex: 'fill',
     },
-    disposicionEspacial: 'Lienzo principal de escala completa que contiene todas las regiones de la aplicación',
-    disposicionVisual: 'Contenedor vertical a pantalla completa con ordenación flexible',
-    disposicionInformacion: 'Ámbito global de experiencia, módulos, telemetría y estado de la aplicación',
+    visual: {
+        intention: 'Contenedor vertical a pantalla completa con ordenación flexible',
+        disposicion: {
+            direction: 'column',
+            spacing: 'none',
+            outline: 'none',
+            marginBlock: 'none',
+        },
+    },
     qualities: {
         direction: 'column',
     },
@@ -197,157 +202,62 @@ export const SPATIAL_PIECES = [
     {
         name: 'Box',
         category: 'container',
-        description: 'Bloque estructural atómico para crear e instanciar áreas físicas en DOM',
+        description: 'Bloque estructural atómico para crear e instanciar áreas en DOM',
     },
     {
         name: 'Direction',
         category: 'flow',
-        description: 'Eje principal del layout: column para franjas apiladas verticalmente, row para columnas adyacentes horizontalmente',
-        values: [
-            'column',
-            'row',
-        ],
+        description: 'Eje principal: column para franjas verticales, row para horizontales',
     },
     {
         name: 'Division',
         category: 'flow',
-        description: 'Partición o división de columnas en cuadrícula: single, halves, thirds, quarters, sidebar-main, auto',
-        values: [
-            'single',
-            'halves',
-            'thirds',
-            'quarters',
-            'sidebar-main',
-            'auto',
-        ],
+        description: 'Partición en cuadrícula: single, halves, thirds, quarters, sidebar-main, auto',
     },
     {
         name: 'Span',
         category: 'sizing',
-        description: 'Cobertura de celdas del área hija en la cuadrícula: single, double, triple, full',
-        values: [
-            'single',
-            'double',
-            'triple',
-            'full',
-        ],
+        description: 'Cobertura de celdas en la cuadrícula: single, double, triple, full',
     },
     {
         name: 'Distribution',
         category: 'alignment',
-        description: 'Distribución espacial a lo largo del eje principal',
-        values: [
-            'start',
-            'center',
-            'end',
-            'between',
-            'around',
-            'evenly',
-        ],
+        description: 'Distribución espacial a lo largo del eje principal (start, center, end, between, around, evenly)',
     },
     {
         name: 'Alignment',
         category: 'alignment',
-        description: 'Alineación transversal de las áreas en el eje secundario',
-        values: [
-            'start',
-            'center',
-            'end',
-            'stretch',
-            'baseline',
-        ],
+        description: 'Alineación transversal en eje secundario (start, center, end, stretch, baseline)',
     },
     {
         name: 'Spacing',
         category: 'spacing',
-        description: 'Padding interior perimetral para evitar que el contenido toque los bordes del área',
-        values: [
-            'none',
-            'small',
-            'medium',
-            'large',
-            'xlarge',
-        ],
-    },
-    {
-        name: 'SpacingInline',
-        category: 'spacing',
-        description: 'Padding horizontal perimetral (ideal para header y footer: large)',
-        values: [
-            'none',
-            'small',
-            'medium',
-            'large',
-        ],
+        description: 'Padding perimetral del área (none, small, medium, large, xlarge)',
     },
     {
         name: 'Gap',
         category: 'spacing',
-        description: 'Espacio de separación entre áreas hijas directas dentro del contenedor',
-        values: [
-            'none',
-            'small',
-            'medium',
-            'large',
-        ],
-    },
-    {
-        name: 'Elasticity',
-        category: 'sizing',
-        description: 'Comportamiento elástico: fill (1 1 0%) para áreas principales, none (0 0 auto) para barras fijas',
-        values: [
-            'none',
-            'fill',
-            'grow',
-            'shrink',
-            'auto',
-        ],
+        description: 'Espacio de separación entre áreas hijas (none, small, medium, large)',
     },
     {
         name: 'Dimensions',
         category: 'sizing',
-        description: 'Dimensiones dimensionales explícitas de ancho y alto según tokens de layout',
-        values: [
-            'full',
-            'sidebar',
-            'header',
-            'footer',
-            'auto',
-            'compact',
-            'regular',
-        ],
+        description: 'Dimensiones dimensionales explícitas (width, height, flex)',
     },
     {
         name: 'Surface',
         category: 'appearance',
-        description: 'Superficie de fondo del área: default (#070A12), muted (#111624 para sidebar), card (#0d111c)',
-        values: [
-            'default',
-            'muted',
-            'card',
-            'transparent',
-        ],
+        description: 'Fondo del área (default, muted, card, transparent)',
     },
     {
         name: 'Borders',
         category: 'boundaries',
-        description: 'Delimitación perimetral entre áreas: borderBottom (header), borderRight (sidebar), borderTop (footer)',
-        values: [
-            'none',
-            'subtle',
-            'strong',
-        ],
+        description: 'Delimitación perimetral (outline o borderBottom, borderRight, borderTop)',
     },
     {
         name: 'Overflow',
         category: 'containment',
-        description: 'Aislamiento de scroll interno para áreas de trabajo y contenido',
-        values: [
-            'auto',
-            'hidden',
-            'visible',
-            'scroll',
-        ],
+        description: 'Aislamiento de scroll para áreas de trabajo (auto, hidden, visible, scroll)',
     },
 ] as const;
 

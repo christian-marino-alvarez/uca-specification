@@ -6,6 +6,7 @@ import {
     DARK_TOKENS,
     DEFAULT_THEME,
     ELEVATION_TOKENS,
+    GRID_GRAMMAR,
     LIGHT_TOKENS,
     SHAPE_TOKENS,
     STYLE_ELEMENT_ID,
@@ -26,6 +27,7 @@ import {
 
 export class Material extends Capability<Body> {
     public static readonly AIM: string = AIM;
+    public static readonly gridGrammar = GRID_GRAMMAR;
 
     public static override disposition: Disposition<Body> = {
         aim: {
