@@ -92,16 +92,16 @@ export class Openai extends Capability<Body> {
             const result = await this.executeGeneration(client, payload);
             this.pulse(SignalType.GENERATED, result);
         } catch (error) {
-            this.pulse(SignalType.ERROR, { error: String(error), correlationId: payload.correlationId });
+            this.pulse(SignalType.ERROR, { error: String(error), sessionId: payload.sessionId });
         }
     }
 
     private async executeGeneration(client: OpenAI, payload: GeneratePayload): Promise<GenerateResult> {
-        const { prompt, schema, systemInstruction, temperature = DEFAULT_TEMPERATURE, maxOutputTokens = DEFAULT_MAX_OUTPUT_TOKENS, model = DEFAULT_MODEL, correlationId } = payload;
+        const { prompt, schema, systemInstruction, temperature = DEFAULT_TEMPERATURE, maxOutputTokens = DEFAULT_MAX_OUTPUT_TOKENS, model = DEFAULT_MODEL, sessionId } = payload;
         const messages = this.buildMessages(prompt, systemInstruction);
         const responseFormat = schema ? { type: 'json_object' as const } : undefined;
         const response = await client.chat.completions.create({ model, messages, temperature, max_tokens: maxOutputTokens, response_format: responseFormat });
-        return this.formatResult(response, prompt, model, correlationId);
+        return this.formatResult(response, prompt, model, sessionId);
     }
 
     private buildMessages(prompt: string, systemInstruction?: string): Array<{ role: 'system' | 'user'; content: string }> {
@@ -109,7 +109,7 @@ export class Openai extends Capability<Body> {
         return [...systemMessage, { role: 'user' as const, content: prompt }];
     }
 
-    private formatResult(response: OpenAI.Chat.Completions.ChatCompletion, prompt: string, model: string, correlationId?: string): GenerateResult {
+    private formatResult(response: OpenAI.Chat.Completions.ChatCompletion, prompt: string, model: string, sessionId?: string): GenerateResult {
         const { choices, usage } = response;
         const text = choices[0]?.message?.content ?? '';
         let data: unknown;
@@ -118,23 +118,23 @@ export class Openai extends Capability<Body> {
         } catch {
             data = undefined;
         }
-        return { prompt, text, data, model, usage, correlationId };
+        return { prompt, text, data, model, usage, sessionId };
     }
 
     private async handleStream(value: unknown): Promise<void> {
         const payload = this.extractPayload<GeneratePayload>(value)!;
-        const { correlationId = crypto.randomUUID(), streamId } = payload;
+        const { sessionId = crypto.randomUUID(), streamId } = payload;
         const controller = new AbortController(); const { signal } = controller;
-        this.controllers.get(correlationId)?.abort(); this.controllers.set(correlationId, controller);
+        this.controllers.get(sessionId)?.abort(); this.controllers.set(sessionId, controller);
         try {
-            const stream = await this.openStream(payload, correlationId, controller);
-            this.pulse(SignalType.STREAMED, { correlationId, streamId, stream });
+            const stream = await this.openStream(payload, sessionId, controller);
+            this.pulse(SignalType.STREAMED, { sessionId, streamId, stream });
         } catch (error) {
-            this.controllers.get(correlationId) === controller && this.controllers.delete(correlationId); !signal.aborted && this.pulse(SignalType.ERROR, { error: String(error), correlationId });
+            this.controllers.get(sessionId) === controller && this.controllers.delete(sessionId); !signal.aborted && this.pulse(SignalType.ERROR, { error: String(error), sessionId });
         }
     }
 
-    private async openStream(payload: GeneratePayload, correlationId: string, controller: AbortController): Promise<ReadableStream<string>> {
+    private async openStream(payload: GeneratePayload, sessionId: string, controller: AbortController): Promise<ReadableStream<string>> {
         const { prompt } = payload;
         const { signal } = controller;
         const { model = DEFAULT_MODEL, schema, systemInstruction, temperature = DEFAULT_TEMPERATURE, maxOutputTokens = DEFAULT_MAX_OUTPUT_TOKENS } = payload;
@@ -143,13 +143,13 @@ export class Openai extends Capability<Body> {
         const response_format = schema ? { type: 'json_object' as const } : undefined;
         const iterator = await completions.create({ model, messages, stream: true, response_format, temperature, max_tokens: maxOutputTokens }, { signal });
         signal.throwIfAborted();
-        return createStream(iterator[Symbol.asyncIterator](), controller, () => { this.controllers.get(correlationId) === controller && this.controllers.delete(correlationId); });
+        return createStream(iterator[Symbol.asyncIterator](), controller, () => { this.controllers.get(sessionId) === controller && this.controllers.delete(sessionId); });
     }
 
     private handleAbort(value: unknown): void {
-        const { correlationId } = value as { correlationId?: string };
-        if (correlationId) {
-            this.controllers.get(correlationId)?.abort(); this.controllers.delete(correlationId);
+        const { sessionId } = value as { sessionId?: string };
+        if (sessionId) {
+            this.controllers.get(sessionId)?.abort(); this.controllers.delete(sessionId);
         }
         else {
             this.controllers.forEach((controller) => controller.abort()); this.controllers.clear();

@@ -12,7 +12,7 @@ Logger ignora `logger.log` para evitar recursión, incluso cuando varias instanc
 
 Un registro confirma la emisión de un pulso; no confirma por sí solo la recepción, el procesamiento o un envío HTTP. Esas etapas se observan mediante sus señales funcionales de respuesta, finalización o error. Los buses del cliente y del servidor se observan por separado.
 
-Logger destaca `areaId`, `parentTo`, `compositionId`, `depth` y `correlationId` cuando están presentes en el payload funcional, su `state`, su `area` o su valor anidado. No inventa datos ausentes ni mantiene un registro paralelo. Las decisiones conservan los metadatos del área en `state`; las señales de áreas pueden incluir su composición y profundidad. `depth` es la profundidad del área (raíz 0, hijos 1, nietos 2).
+Logger destaca `areaId`, `parentTo`, `compositionId`, `depth` y `sessionId` cuando están presentes en el payload funcional, su `state`, su `area` o su valor anidado. No inventa datos ausentes ni mantiene un registro paralelo. Las decisiones conservan los metadatos del área en `state`; las señales de áreas pueden incluir su composición y profundidad. `depth` es la profundidad del área (raíz 0, hijos 1, nietos 2).
 
 El formato de consola del navegador es `[emisor] -> señal`; el backend conserva `[backend] [emisor] -> señal` para distinguir la consola del proceso servidor. La entrada estructurada mantiene `scope` en ambos entornos. Un Logger sin configuración usa `front`. `prefix` sigue siendo opcional para personalización, sin prefijo por defecto.
 

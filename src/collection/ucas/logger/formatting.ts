@@ -35,14 +35,14 @@ export function extractContext(value: unknown): Context {
         parentTo,
         compositionId,
         depth,
-        correlationId,
+        sessionId,
     } = merged;
     return {
         areaId: decisionAreaId ?? mergedAreaId,
         parentTo,
         compositionId,
         depth,
-        correlationId,
+        sessionId,
         selectedId,
         selectedIds,
         path,

@@ -40,7 +40,7 @@ test('area confirmation waits for Box.CREATED and is emitted once', () => {
         mode: 'deterministic',
         containerElement: '#app',
         areas: [{ id: 'child', parentId: 'app' }],
-        context: { correlationId: 'operation', context: { task: 'Preserve context' } },
+        context: { sessionId: 'operation', context: { task: 'Preserve context' } },
     });
     assert.ok(mount);
     assert.equal(confirmations.length, 0);
@@ -52,7 +52,7 @@ test('area confirmation waits for Box.CREATED and is emitted once', () => {
     emit(bus, BoxSignalType.CREATED, connected);
     assert.deepEqual(confirmations, [{
         area: { id: 'child', parentId: 'app' },
-        correlationId: 'operation',
+        sessionId: 'operation',
         context: { task: 'Preserve context' },
     }]);
     render.denervate();

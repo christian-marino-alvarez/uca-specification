@@ -42,12 +42,12 @@ export interface ValidationContext {
     readonly request?: InferPayload;
     readonly replyTo?: string;
     readonly operation: SignalType.INFER | SignalType.STREAM;
-    readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly provider?: import('./schema.js').ProviderType;
 }
 
 export interface InferResult {
-    readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly response?: string;
     readonly data?: unknown;
     readonly context?: unknown;
@@ -57,17 +57,17 @@ export interface InferResult {
 
 export interface StreamResult {
     readonly request?: InferPayload;
-    readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly streamId?: string;
     readonly stream: ReadableStream<string>;
     readonly context?: unknown;
     readonly model?: string;
 }
 
-export interface AbortPayload { readonly correlationId?: string; }
+export interface AbortPayload { readonly sessionId?: string; }
 
 export interface ChunkResult {
-    readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly streamId?: string;
     readonly text: string;
     readonly prompt?: string;
@@ -75,7 +75,7 @@ export interface ChunkResult {
 }
 
 export interface StreamEndResult {
-    readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly streamId?: string;
     readonly prompt?: string;
     readonly model?: string;
@@ -88,7 +88,7 @@ export type { Body } from './schema.js';
 
 export interface Failure {
     readonly error?: unknown;
-    readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly context?: unknown;
 }
 

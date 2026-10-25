@@ -101,12 +101,12 @@ async function testOpenai_GenerateHandlesError(): Promise<void> {
         errorCaptured = (event as CustomEvent<Signal>).detail.value;
     });
 
-    emitSignal(bus, SignalType.GENERATE, { prompt: 'bad', correlationId: 'failed-area' });
+    emitSignal(bus, SignalType.GENERATE, { prompt: 'bad', sessionId: 'failed-area' });
     await new Promise((resolve) => setTimeout(resolve, 30));
 
-    const { error, correlationId } = errorCaptured as { error: string; correlationId: string };
+    const { error, sessionId } = errorCaptured as { error: string; sessionId: string };
     assert.strictEqual(error, 'Error: OpenAI API rate limit exceeded');
-    assert.strictEqual(correlationId, 'failed-area');
+    assert.strictEqual(sessionId, 'failed-area');
 
     openai.denervate();
 }
@@ -135,7 +135,7 @@ const streamingProvider = new Openai('streaming').innervate(streamingBus);
 emitSignal(streamingBus, streamingProvider.updateEvent, { ...Openai.disposition, aim: { description: Openai.AIM, body: { client: streamingClient } } });
 streamingBus.addEventListener(SignalType.CHUNK, () => { chunkEvents += 1; });
 const connectedStream = once(streamingBus, SignalType.STREAMED, { signal: AbortSignal.timeout(2000) });
-emitSignal(streamingBus, SignalType.STREAM, { prompt: 'Generate', correlationId: 'pull-test' });
+emitSignal(streamingBus, SignalType.STREAM, { prompt: 'Generate', sessionId: 'pull-test' });
 const [connectedEvent] = await connectedStream;
 const { detail: { value: { stream } } } = connectedEvent as CustomEvent<Signal<import('../types.js').StreamResult>>;
 assert.equal(pulled, 0, 'Publishing a stream must not drain the provider');
@@ -163,7 +163,7 @@ const failureClient = { chat: { completions: { create: async () => damagedIterat
 const failureProvider = new Openai('failure-stream').innervate(failureBus);
 emitSignal(failureBus, failureProvider.updateEvent, { ...Openai.disposition, aim: { description: Openai.AIM, body: { client: failureClient } } });
 const failureStream = once(failureBus, SignalType.STREAMED, { signal: AbortSignal.timeout(2000) });
-emitSignal(failureBus, SignalType.STREAM, { prompt: 'Generate', correlationId: 'failure-test' });
+emitSignal(failureBus, SignalType.STREAM, { prompt: 'Generate', sessionId: 'failure-test' });
 const [failureStreamEvent] = await failureStream;
 const { detail: { value: { stream: damagedStream } } } = failureStreamEvent as CustomEvent<Signal<import('../types.js').StreamResult>>;
 const damagedReader = damagedStream.getReader();

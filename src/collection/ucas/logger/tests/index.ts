@@ -59,10 +59,10 @@ test('Logger exposes structural context without altering the observed payload', 
     context.mock.method(console, 'log', () => {});
     const { emitter, logger, entries } = fixture();
     const area = { areaId: 'root--input', parentTo: 'root', compositionId: 'composition-1', depth: 1 };
-    const payload = { state: area, correlationId: 'request-1' };
+    const payload = { state: area, sessionId: 'request-1' };
     emitter.emit(DispositionSignalType.PROVIDE, payload);
-    const { areaId, parentTo, compositionId, depth, correlationId, value } = entries[0];
-    assert.deepEqual({ areaId, parentTo, compositionId, depth, correlationId }, { ...area, correlationId: 'request-1' });
+    const { areaId, parentTo, compositionId, depth, sessionId, value } = entries[0];
+    assert.deepEqual({ areaId, parentTo, compositionId, depth, sessionId }, { ...area, sessionId: 'request-1' });
     assert.equal(value, payload); logger.denervate(); emitter.denervate();
 });
 

@@ -45,7 +45,7 @@ export interface ConnectionStatus {
 
 export interface GeneratePayload {
     readonly id?: string;
-    readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly streamId?: string;
     readonly prompt: string;
     readonly systemInstruction?: string;
@@ -59,7 +59,7 @@ export interface GeneratePayload {
 }
 
 export interface GenerateResult {
-    readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly prompt: string;
     readonly text?: string;
     readonly data?: unknown;
@@ -68,7 +68,7 @@ export interface GenerateResult {
 }
 
 export interface ChunkResult {
-    readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly streamId?: string;
     readonly text: string;
     readonly prompt?: string;
@@ -76,7 +76,7 @@ export interface ChunkResult {
 }
 
 export interface StreamEndResult {
-    readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly streamId?: string;
     readonly prompt?: string;
     readonly model?: string;
@@ -95,15 +95,15 @@ export interface Body {
     readonly responseMimeType?: string;
 }
 
-export interface StreamResult { readonly correlationId?: string; readonly streamId?: string; readonly stream: ReadableStream<string>; }
+export interface StreamResult { readonly sessionId?: string; readonly streamId?: string; readonly stream: ReadableStream<string>; }
 
 export interface ActiveStream {
     readonly controller: AbortController;
-    readonly correlationId: string;
+    readonly sessionId: string;
 }
 
 export interface AbortPayload {
-    readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly streamId?: string;
 }
 
@@ -120,5 +120,5 @@ export interface Failure {
     readonly model: string;
     readonly configuration: string;
     readonly schemaSize: number;
-    readonly correlationId?: string;
+    readonly sessionId?: string;
 }

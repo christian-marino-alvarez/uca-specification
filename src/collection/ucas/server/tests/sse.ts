@@ -32,13 +32,13 @@ const failure = new ReadableStream<string>({ pull(controller) { controller.error
 const failedResponse = createSseStream(Promise.resolve({ stream: failure }), 'failure', new AbortController(), () => {}, () => { completed += 1; });
 const failedFrames = await new Response(failedResponse).text();
 assert.match(failedFrames, /provider disconnected/);
-assert.match(failedFrames, /"correlationId":"failure"/);
+assert.match(failedFrames, /"sessionId":"failure"/);
 assert.doesNotMatch(failedFrames, /"done":true/);
 assert.equal(completed, 0);
 
 const bus = new EventTarget(), waitingAbort = new AbortController();
 let requested = false, aborted = false;
-const source = requestStreamSource({ target: bus, source: 'backend', correlationId: 'waiting', abort: waitingAbort.signal, request() { requested = true; }, cancel() { aborted = true; } });
+const source = requestStreamSource({ target: bus, source: 'backend', sessionId: 'waiting', abort: waitingAbort.signal, request() { requested = true; }, cancel() { aborted = true; } });
 assert.equal(requested, true);
 waitingAbort.abort(new Error('cancel before provider is ready'));
 assert.equal(aborted, true);
@@ -57,8 +57,8 @@ assert.deepEqual(await outstandingRead, { done: true, value: undefined });
 
 const successful = new ReadableStream<string>({ start(controller) { controller.enqueue('valid'); controller.close(); } });
 const ready = requestStreamSource({
-    target: bus, source: 'backend', correlationId: 'ready', abort: new AbortController().signal, cancel() {},
-    request() { bus.dispatchEvent(new CustomEvent(SignalType.STREAMED, { detail: { source: 'backend', property: SignalType.STREAMED, value: { correlationId: 'ready', stream: successful } } })); },
+    target: bus, source: 'backend', sessionId: 'ready', abort: new AbortController().signal, cancel() {},
+    request() { bus.dispatchEvent(new CustomEvent(SignalType.STREAMED, { detail: { source: 'backend', property: SignalType.STREAMED, value: { sessionId: 'ready', stream: successful } } })); },
 });
 const response = createSseStream(ready, 'ready', new AbortController(), () => {}, () => { completed += 1; });
 assert.match(await new Response(response).text(), /"done":true/);

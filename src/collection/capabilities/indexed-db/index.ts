@@ -113,10 +113,14 @@ export class IndexedDatabase extends Capability<Body> {
     }
 
     private async handleGet(signal: Signal): Promise<void> {
-        const { value, source } = signal;
+        const {
+            value,
+            source,
+            sessionId,
+        } = signal;
         const { key, targetId, ...context } = value as KeyPayload;
         const stored = await this.execute('readonly', (store) => store.get(key));
-        this.pulse(SignalType.RETRIEVED, { ...context, key, value: stored ?? null }, targetId ?? source);
+        this.pulse(SignalType.RETRIEVED, { ...context, key, value: stored ?? null }, targetId ?? source, sessionId);
     }
 
     private async handleRemove(signal: Signal): Promise<void> {

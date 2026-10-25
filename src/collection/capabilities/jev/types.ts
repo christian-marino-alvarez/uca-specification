@@ -35,14 +35,14 @@ export interface InferPayload {
     readonly model?: string;
     readonly limit?: number;
     readonly maxTokens?: number;
-    readonly correlationId?: string;
+    readonly sessionId?: string;
 }
 
 export interface InferResult {
     readonly state: unknown;
     readonly answers: Record<string, unknown>;
     readonly model?: string;
-    readonly correlationId?: string;
+    readonly sessionId?: string;
 }
 
 export interface Body {

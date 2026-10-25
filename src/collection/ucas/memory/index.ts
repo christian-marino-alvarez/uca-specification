@@ -134,7 +134,7 @@ export class Memory extends Uca<Body> {
                 this.handleSave(value);
                 break;
             case SignalType.GET:
-                this.handleGet(value);
+                this.handleGet(signal);
                 break;
             case SignalType.REMOVE:
                 this.handleRemove(value);
@@ -146,7 +146,7 @@ export class Memory extends Uca<Body> {
                 this.handleStorageSaved(value);
                 break;
             case StorageSignalType.RETRIEVED:
-                this.handleStorageRetrieved(value);
+                this.handleStorageRetrieved(signal);
                 break;
             case StorageSignalType.REMOVED:
                 this.handleStorageRemoved(value);
@@ -207,20 +207,31 @@ export class Memory extends Uca<Body> {
 
     private accessEntry(cache: CacheContext): void {
         const { operation, request, key, identity } = cache;
-        const { correlationId, value } = request;
+        const { sessionId, value } = request;
         const context = { ...cache, stage: StorageStage.ENTRY };
         if (operation === CacheOperation.RECALL) {
-            this.pulse(StorageSignalType.GET, { key, correlationId, cache: context });
+            this.pulse(StorageSignalType.GET, { key, sessionId, cache: context });
             return;
         }
         const entry = { key, identity, value, accessedAt: Date.now() };
-        this.pulse(StorageSignalType.SET, { key, value: entry, correlationId, cache: context });
+        this.pulse(StorageSignalType.SET, { key, value: entry, sessionId, cache: context });
     }
 
-    private handleStorageRetrieved(value: unknown): void {
-        const { cache, value: stored, ...result } = value as Record<string, unknown>;
+    private createRetrievedPayload(result: Record<string, unknown>, stored: unknown, sessionId?: string): Record<string, unknown> {
+        return {
+            sessionId,
+            timestamp: (result.timestamp as number) ?? Date.now(),
+            value: stored,
+        };
+    }
+
+    private handleStorageRetrieved(signal: Signal): void {
+        const { value, sessionId } = signal;
+        const { cache, value: stored, ...result } = (value ?? {}) as Record<string, unknown>;
+        const activeSessionId = (result.sessionId ?? sessionId) as string | undefined;
         if (!cache) {
-            this.pulse(SignalType.RETRIEVED, { ...result, value: stored });
+            const payload = this.createRetrievedPayload(result, stored, activeSessionId);
+            this.pulse(SignalType.RETRIEVED, payload, undefined, activeSessionId);
             return;
         }
         this.handleEntry(stored as StoredEntry | null, cache as CacheContext);
@@ -228,15 +239,15 @@ export class Memory extends Uca<Body> {
 
     private handleEntry(entry: StoredEntry | null, cache: CacheContext): void {
         const { identity, key, request } = cache;
-        const { correlationId } = request;
+        const { sessionId } = request;
         const { aim } = this.disposition;
         const { maxAge = DEFAULT_MAX_AGE } = aim.body ?? {};
         if (!entry || entry.identity !== identity || Date.now() - entry.accessedAt >= maxAge) {
-            this.pulse(StorageSignalType.REMOVE, { key, correlationId, cache: { ...cache, stage: StorageStage.MISS } });
+            this.pulse(StorageSignalType.REMOVE, { key, sessionId, cache: { ...cache, stage: StorageStage.MISS } });
             return;
         }
         const touched = { ...entry, accessedAt: Date.now() };
-        this.pulse(StorageSignalType.SET, { key, value: touched, correlationId, cache: { ...cache, result: entry.value, stage: StorageStage.TOUCH } });
+        this.pulse(StorageSignalType.SET, { key, value: touched, sessionId, cache: { ...cache, result: entry.value, stage: StorageStage.TOUCH } });
     }
 
     private handleStorageSaved(value: unknown): void {
@@ -288,9 +299,9 @@ export class Memory extends Uca<Body> {
 
     private emitCacheResult(cache: CacheContext): void {
         const { operation, recipient, result: value = null, request } = cache;
-        const { correlationId, context } = request;
+        const { sessionId, context } = request;
         const property = operation === CacheOperation.RECALL ? SignalType.RECALLED : SignalType.REMEMBERED;
-        this.pulse(property, { correlationId, context, value }, recipient);
+        this.pulse(property, { sessionId, context, value }, recipient);
     }
 
     private handleStorageError(value: unknown): void {
@@ -304,31 +315,29 @@ export class Memory extends Uca<Body> {
 
     private emitCacheError(error: unknown, cache: CacheContext): void {
         const { recipient, request } = cache;
-        const { correlationId, context } = request;
-        this.pulse(SignalType.ERROR, { error, correlationId, context }, recipient);
+        const { sessionId, context } = request;
+        this.pulse(SignalType.ERROR, { error, sessionId, context }, recipient);
     }
 
     private handleSave(value: unknown): void {
-        const { key, value: stored, correlationId } = value as SavePayload;
-        this.pulse(StorageSignalType.SET, { key, value: stored, correlationId });
+        const { key, value: stored, sessionId } = value as SavePayload;
+        this.pulse(StorageSignalType.SET, { key, value: stored, sessionId });
     }
 
-    private handleGet(value: unknown): void {
-        const {
-            key,
-            correlationId,
-            ...rest
-        } = (value ?? {}) as GetPayload & Record<string, unknown>;
+    private handleGet(signal: Signal): void {
+        const { value, sessionId } = signal;
+        const { key, ...rest } = (value ?? {}) as GetPayload & Record<string, unknown>;
+        const activeSessionId = (sessionId ?? rest.sessionId) as string | undefined;
         this.pulse(StorageSignalType.GET, {
             key,
-            correlationId,
             ...rest,
-        });
+            sessionId: activeSessionId,
+        }, undefined, activeSessionId);
     }
 
     private handleRemove(value: unknown): void {
-        const { key, correlationId } = value as RemovePayload;
-        this.pulse(StorageSignalType.REMOVE, { key, correlationId });
+        const { key, sessionId } = value as RemovePayload;
+        this.pulse(StorageSignalType.REMOVE, { key, sessionId });
     }
 
     private handleClear(): void {

@@ -64,7 +64,7 @@ export type InferenceRequest = import('@uca/llm/types').InferPayload;
 
 export interface EvaluationContext { readonly state?: unknown; readonly questions?: Record<string, unknown>; }
 export interface Question extends Record<string, unknown> { readonly instructions?: unknown; }
-export interface ValidationContext { readonly stream: boolean; readonly correlationId?: string; }
+export interface ValidationContext { readonly stream: boolean; readonly sessionId?: string; }
 
 export interface StreamSource {
     readonly stream?: ReadableStream<string>;
@@ -75,7 +75,7 @@ export interface Command { readonly property: string; readonly value: unknown; }
 
 export interface StreamBinding {
     readonly source: Promise<StreamSource>;
-    readonly correlationId: string;
+    readonly sessionId: string;
     readonly abort: AbortController;
     readonly cleanup: () => void;
     readonly completed: () => void;
@@ -88,7 +88,7 @@ export interface StreamFrame { readonly text?: string; readonly done?: boolean; 
 export interface StreamSourceRequest {
     readonly target?: EventTarget;
     readonly source: string;
-    readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly abort: AbortSignal;
     readonly request: () => void;
     readonly cancel: () => void;

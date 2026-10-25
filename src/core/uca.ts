@@ -1,6 +1,7 @@
 import {
     DispositionSignal,
     EntityKind,
+    type Aim,
     type CapabilityConstructor,
     type Cooky,
     type Disposition,
@@ -45,6 +46,24 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         return EntityKind.UCA;
     }
 
+    protected override receptors(): string[] {
+        return [
+            ...super.receptors(),
+            DispositionSignal.INNERVATED,
+        ];
+    }
+
+    protected override async executeReaction(signal: Signal): Promise<void> {
+        const {
+            property,
+            source,
+        } = signal;
+        if (property === DispositionSignal.INNERVATED && source === this.id) {
+            this.syncCatalog();
+        }
+        await super.executeReaction(signal);
+    }
+
     protected override onDispositionUpdated(event: Event): void {
         this.syncCatalog();
         super.onDispositionUpdated(event);
@@ -65,6 +84,17 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         return declarations;
     }
 
+    protected createDisposition<TBody = unknown>(
+        disposition: Disposition<TBody>,
+        description: string,
+        identity: string,
+        extraBody?: Record<string, unknown>,
+    ): Disposition<TBody> {
+        const { id } = this;
+        const aim = this.createAim<TBody>(description, `${id}:${identity}`, extraBody);
+        return { ...disposition, aim };
+    }
+
     protected override resolveTargetId(property: string): string | undefined {
         const candidates = this.matchingCapabilities(property, 'inputs');
         if (candidates.length > 1) { throw new Error(`Ambiguous destination for ${property} in ${this.id}; specify targetId`); }
@@ -74,9 +104,11 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
 
     protected override acceptsSource(signal: Signal): boolean {
         const { source, property } = signal;
-        const { target } = this;
+        if (source === this.id) {
+            return true;
+        }
         const candidates = this.matchingCapabilities(property, 'outputs', false);
-        return candidates.length === 0 || candidates.some(({ id, target: connectedTarget }) => id === source && connectedTarget === target);
+        return candidates.length === 0 || candidates.some(({ id, target }) => id === source && target === this.target);
     }
 
     protected getCapability(id: string): ICapability | undefined {
@@ -134,5 +166,15 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
         const { aim } = declared;
         const disposition = { ...declared, aim: { ...aim, body: { context, ...(aim.body as object) } } };
         this.pulse(capability.updateEvent, disposition);
+    }
+
+    private createAim<T = unknown>(description: string, instanceId: string, extraBody?: Record<string, unknown>): Aim<T> {
+        return {
+            description,
+            body: {
+                ...extraBody,
+                id: instanceId,
+            } as T,
+        };
     }
 }

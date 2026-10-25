@@ -9,7 +9,6 @@ export enum SignalType {
     GO = 'navigate.go',
     RESTORE = 'navigate.restore',
     CHANGED = 'navigate.changed',
-    RESTORED = 'navigate.restored',
     ERROR = 'navigate.error',
 }
 

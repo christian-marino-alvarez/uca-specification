@@ -80,7 +80,7 @@ export interface MountContext {
     readonly area?: import('./schema.js').LayoutArea;
     readonly areaId: string;
     readonly parentId: string;
-    readonly correlationId: string;
+    readonly sessionId: string;
     readonly context: Record<string, unknown>;
 }
 
@@ -93,7 +93,7 @@ export interface CreatedElement {
 }
 
 export interface LayoutContext {
-    readonly correlationId: string;
+    readonly sessionId: string;
     readonly context: Record<string, unknown>;
 }
 

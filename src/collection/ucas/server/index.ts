@@ -213,7 +213,7 @@ export class Server extends Uca<Body> {
         const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
         const hasKey = typeof process !== 'undefined' && Boolean(process.env?.GEMINI_API_KEY ?? process.env?.GOOGLE_GENAI_API_KEY);
         if (isTest || !hasKey) { return; }
-        const { property, value } = createCommand({ ...WARMUP_CONTRACT, limit: 1, correlationId: 'system-warmup' });
+        const { property, value } = createCommand({ ...WARMUP_CONTRACT, limit: 1, sessionId: 'system-warmup' });
         this.pulse(property, value);
     }
 
@@ -241,12 +241,12 @@ export class Server extends Uca<Body> {
     }
 
     private async respondWithFallback(payload: InferPayload, error: unknown): Promise<Response> {
-        const { correlationId } = payload;
+        const { sessionId } = payload;
         const fallback = await this.tryFallbackInference(payload);
         if (fallback) {
             return Response.json(fallback);
         }
-        return Response.json({ error: String(error), correlationId }, { status: 502 });
+        return Response.json({ error: String(error), sessionId }, { status: 502 });
     }
 
     private async tryFallbackInference(payload: InferPayload): Promise<InferResult | null> {
@@ -265,30 +265,30 @@ export class Server extends Uca<Body> {
     private async handleLlmSse(context: RequestContext): Promise<Response> {
         const { query, body } = context;
         const payload = normalizeInference({ ...query, ...(body as InferenceRequest) });
-        const { correlationId = crypto.randomUUID(), provider = DEFAULT_PROVIDER } = payload;
+        const { sessionId = crypto.randomUUID(), provider = DEFAULT_PROVIDER } = payload;
         try {
-            const stream = await this.openSseStream(payload, correlationId, provider);
+            const stream = await this.openSseStream(payload, sessionId, provider);
             return new Response(stream, { headers: SSE_HEADERS });
         } catch {
-            return await this.fallbackSseStream(payload, correlationId, provider);
+            return await this.fallbackSseStream(payload, sessionId, provider);
         }
     }
 
-    private async fallbackSseStream(payload: InferPayload, correlationId: string, provider: string): Promise<Response> {
+    private async fallbackSseStream(payload: InferPayload, sessionId: string, provider: string): Promise<Response> {
         const { model = DEFAULT_GEMINI_FLASH_LITE_MODEL } = payload;
         if (model === DEFAULT_GEMINI_FLASH_LITE_MODEL) {
             return new Response(JSON.stringify({ error: 'SSE stream failed' }), { status: 502 });
         }
         const fallbackPayload = { ...payload, model: DEFAULT_GEMINI_FLASH_LITE_MODEL };
-        const stream = await this.openSseStream(fallbackPayload, correlationId, provider);
+        const stream = await this.openSseStream(fallbackPayload, sessionId, provider);
         return new Response(stream, { headers: SSE_HEADERS });
     }
 
     private requestLlmInference(payload: InferPayload): Promise<InferResult> {
-        const { correlationId } = payload;
+        const { sessionId } = payload;
         return new Promise((resolve, reject) => {
-            const onInferred = (event: Event) => { const { detail: { source, value } } = event as CustomEvent<Signal<InferResult>>; const { correlationId: receivedId } = value; if (source !== this.id || receivedId !== correlationId) { return; } this.removeInferenceListeners(onInferred, onError); resolve({ ...value, context: payload.context ?? value.context }); };
-            const onError = (event: Event) => { const { detail: { source, value } } = event as CustomEvent<Signal<Failure>>; const { correlationId: receivedId, error } = value; if (source !== this.id || receivedId !== correlationId) { return; } this.removeInferenceListeners(onInferred, onError); reject(new Error(String(error))); };
+            const onInferred = (event: Event) => { const { detail: { source, value } } = event as CustomEvent<Signal<InferResult>>; const { sessionId: receivedId } = value; if (source !== this.id || receivedId !== sessionId) { return; } this.removeInferenceListeners(onInferred, onError); resolve({ ...value, context: payload.context ?? value.context }); };
+            const onError = (event: Event) => { const { detail: { source, value } } = event as CustomEvent<Signal<Failure>>; const { sessionId: receivedId, error } = value; if (source !== this.id || receivedId !== sessionId) { return; } this.removeInferenceListeners(onInferred, onError); reject(new Error(String(error))); };
             this.target?.addEventListener(LlmSignalType.INFERRED, onInferred);
             this.target?.addEventListener(LlmSignalType.ERROR, onError);
             const { property, value } = createCommand(payload, false);
@@ -302,30 +302,30 @@ export class Server extends Uca<Body> {
     }
 
 
-    private openSseStream(payload: InferPayload, correlationId: string, provider: string): Promise<ReadableStream<Uint8Array>> {
+    private openSseStream(payload: InferPayload, sessionId: string, provider: string): Promise<ReadableStream<Uint8Array>> {
         return new Promise((resolve, reject) => {
-            const opened = (event: Event) => this.handleSseOpened(event, correlationId, resolve, reject, opened, failed);
-            const failed = (event: Event) => this.handleSseFailure(event, correlationId, reject, opened, failed);
+            const opened = (event: Event) => this.handleSseOpened(event, sessionId, resolve, reject, opened, failed);
+            const failed = (event: Event) => this.handleSseFailure(event, sessionId, reject, opened, failed);
             this.target?.addEventListener(SseServerSignalType.OPENED, opened);
             this.target?.addEventListener(SseServerSignalType.ERROR, failed);
-            const request = (_abort: AbortSignal) => this.requestStream(payload, correlationId);
-            const cancel = () => this.pulse(provider === 'openai' ? OpenaiSignalType.ABORT : GeminiSignalType.ABORT, { correlationId });
-            this.pulse(SseServerSignalType.OPEN, { correlationId, request, cancel });
+            const request = (_abort: AbortSignal) => this.requestStream(payload, sessionId);
+            const cancel = () => this.pulse(provider === 'openai' ? OpenaiSignalType.ABORT : GeminiSignalType.ABORT, { sessionId });
+            this.pulse(SseServerSignalType.OPEN, { sessionId, request, cancel });
         });
     }
 
-    private handleSseOpened(event: Event, correlationId: string, resolve: (stream: ReadableStream<Uint8Array>) => void, reject: (error: unknown) => void, opened: (event: Event) => void, failed: (event: Event) => void): void {
+    private handleSseOpened(event: Event, sessionId: string, resolve: (stream: ReadableStream<Uint8Array>) => void, reject: (error: unknown) => void, opened: (event: Event) => void, failed: (event: Event) => void): void {
         const { detail: { source, value } } = event as CustomEvent<Signal<OpenedPayload>>;
-        const { correlationId: receivedId, stream } = value;
-        if (source !== `${this.id}:sse-server` || receivedId !== correlationId) { return; }
+        const { sessionId: receivedId, stream } = value;
+        if (source !== `${this.id}:sse-server` || receivedId !== sessionId) { return; }
         this.removeSseListeners(opened, failed);
         stream ? resolve(stream) : reject(new Error('SSE stream was not opened'));
     }
 
-    private handleSseFailure(event: Event, correlationId: string, reject: (error: unknown) => void, opened: (event: Event) => void, failed: (event: Event) => void): void {
-        const { detail: { source, value } } = event as CustomEvent<Signal<{ correlationId?: string; error: unknown }>>;
-        const { correlationId: receivedId, error } = value;
-        if (source !== `${this.id}:sse-server` || receivedId !== correlationId) { return; }
+    private handleSseFailure(event: Event, sessionId: string, reject: (error: unknown) => void, opened: (event: Event) => void, failed: (event: Event) => void): void {
+        const { detail: { source, value } } = event as CustomEvent<Signal<{ sessionId?: string; error: unknown }>>;
+        const { sessionId: receivedId, error } = value;
+        if (source !== `${this.id}:sse-server` || receivedId !== sessionId) { return; }
         this.removeSseListeners(opened, failed);
         reject(error);
     }
@@ -335,7 +335,7 @@ export class Server extends Uca<Body> {
         this.target?.removeEventListener(SseServerSignalType.ERROR, failed);
     }
 
-    private requestStream(payload: InferPayload, _correlationId: string): void {
+    private requestStream(payload: InferPayload, _sessionId: string): void {
         const { property, value } = createCommand(payload, true);
         this.pulse(property, value);
     }
@@ -358,26 +358,26 @@ export class Server extends Uca<Body> {
             answers,
             state,
             model,
-            correlationId,
+            sessionId,
         } = value as JevResult;
         this.pulse(LlmSignalType.INFERRED, {
             response: JSON.stringify(answers),
             data: answers,
             context: state,
             model,
-            correlationId,
+            sessionId,
         });
     }
 
     private handleGeminiGenerated(signal: Signal): void {
         const { value } = signal;
-        const { text: response, data, model, usage, correlationId } = value as GenerateResult;
-        this.pulse(LlmSignalType.INFERRED, { response, data, model, usage, correlationId });
+        const { text: response, data, model, usage, sessionId } = value as GenerateResult;
+        this.pulse(LlmSignalType.INFERRED, { response, data, model, usage, sessionId });
     }
     private handleOpenaiGenerated(signal: Signal): void {
         const { value } = signal;
-        const { text: response, data, model, usage, correlationId } = value as GenerateResult;
-        this.pulse(LlmSignalType.INFERRED, { response, data, model, usage, correlationId });
+        const { text: response, data, model, usage, sessionId } = value as GenerateResult;
+        this.pulse(LlmSignalType.INFERRED, { response, data, model, usage, sessionId });
     }
     private handleJevError(signal: Signal): void {
         const { value } = signal;

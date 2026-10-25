@@ -19,7 +19,7 @@ export const INFERENCE_LIMITS = {
 
 export const RECOVERY_INSTRUCTION = 'Reevaluate the choice question using the reported validation error. Choose exactly one supplied option with valid probability distribution.';
 export const DUPLICATE_OPTIONS = 'Option identifiers must be unique';
-export const MISMATCHED_CORRELATION = 'Inference correlation does not match the original selection request';
+export const MISMATCHED_SESSION = 'Inference session does not match the original selection request';
 export const UNKNOWN_SELECTION = 'The selected identifier does not belong to the supplied options';
 export const INVALID_PROBABILITIES = 'Choice probabilities must sum to one';
 export const MISSING_METADATA = 'Inference response is missing valid local request metadata';

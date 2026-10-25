@@ -378,35 +378,35 @@ export class Llm extends Uca<Body> {
     }
 
     private queryModelCache(key: string, payload: InferPayload, replyTo: string, operation: SignalType): void {
-        const { correlationId = crypto.randomUUID() } = payload;
-        this.pendingInferences.set(correlationId, { payload, replyTo, cacheKey: key, operation });
+        const { sessionId = crypto.randomUUID() } = payload;
+        this.pendingInferences.set(sessionId, { payload, replyTo, cacheKey: key, operation });
         this.pulse(MemorySignalType.GET, {
             key,
-            correlationId,
+            sessionId,
         });
     }
 
     private resolveCacheKey(payload: InferPayload): string | null {
-        const { id, streamId, correlationId, context } = payload;
+        const { id, streamId, sessionId, context } = payload;
         if (id === 'layout' || streamId?.includes(':layout')) {
             return 'model:layout';
         }
         if (id === 'view' || streamId?.includes(':view:')) {
-            return this.resolveViewCacheKey(context, correlationId);
+            return this.resolveViewCacheKey(context, sessionId);
         }
         return null;
     }
 
-    private resolveViewCacheKey(context: unknown, correlationId?: string): string {
+    private resolveViewCacheKey(context: unknown, sessionId?: string): string {
         const ctx = context as { containerId?: string; area?: { parentId?: string } } | undefined;
-        const baseId = correlationId?.includes(':') ? correlationId.split(':')[0] : correlationId;
+        const baseId = sessionId?.includes(':') ? sessionId.split(':')[0] : sessionId;
         const layoutId = ctx?.containerId ?? ctx?.area?.parentId ?? baseId ?? 'default';
         return `model:view:${layoutId}`;
     }
 
     private handleMemoryRetrieved(signal: Signal): void {
-        const { value, key, correlationId } = (signal.value ?? {}) as { value?: ChosenModelConfig | null; key?: string; correlationId?: string };
-        const id = correlationId ?? signal.correlationId;
+        const { value, key, sessionId } = (signal.value ?? {}) as { value?: ChosenModelConfig | null; key?: string; sessionId?: string };
+        const id = sessionId ?? signal.sessionId;
         const pending = id ? this.pendingInferences.get(id) : undefined;
         if (!pending) {
             return;
@@ -421,12 +421,12 @@ export class Llm extends Uca<Body> {
     }
 
     private handleModelCacheHit(payload: InferPayload, config: ChosenModelConfig, key: string, replyTo?: string): void {
-        const { correlationId = crypto.randomUUID() } = payload;
+        const { sessionId = crypto.randomUUID() } = payload;
         const resolved = this.reconcileModelConfig(config, payload);
         if ((resolved.transport !== config.transport || resolved.model !== config.model) && key) {
-            this.persistIfCached(key, resolved, correlationId);
+            this.persistIfCached(key, resolved, sessionId);
         }
-        this.dispatchDecisionChoice(payload, resolved, correlationId, replyTo);
+        this.dispatchDecisionChoice(payload, resolved, sessionId, replyTo);
     }
 
     private reconcileModelConfig(config: ChosenModelConfig, payload: InferPayload): ChosenModelConfig {
@@ -446,8 +446,8 @@ export class Llm extends Uca<Body> {
     }
 
     private handleMemoryError(signal: Signal): void {
-        const { correlationId } = (signal.value ?? {}) as { correlationId?: string };
-        const id = correlationId ?? signal.correlationId;
+        const { sessionId } = (signal.value ?? {}) as { sessionId?: string };
+        const id = sessionId ?? signal.sessionId;
         const pending = id ? this.pendingInferences.get(id) : undefined;
         if (!pending) {
             return;
@@ -494,14 +494,14 @@ export class Llm extends Uca<Body> {
     }
 
     private requestModelDecision(payload: InferPayload, replyTo: string, cacheKey?: string): void {
-        const { correlationId = crypto.randomUUID() } = payload;
-        const decisionCorrelationId = `${correlationId}:model-select`;
-        this.pendingInferences.set(decisionCorrelationId, { payload, replyTo, cacheKey });
+        const { sessionId = crypto.randomUUID() } = payload;
+        const decisionSessionId = `${sessionId}:model-select`;
+        this.pendingInferences.set(decisionSessionId, { payload, replyTo, cacheKey });
         this.pulse(DecisionSignalType.DECIDE, {
-            correlationId: decisionCorrelationId,
+            sessionId: decisionSessionId,
             question: this.buildModelSelectionQuestion(payload),
             context: this.createDecisionContext(payload),
-        }, undefined, decisionCorrelationId);
+        }, undefined, decisionSessionId);
     }
 
     private extractModelConfig(candidate: typeof AVAILABLE_MODELS[number]): ChosenModelConfig {
@@ -532,65 +532,65 @@ export class Llm extends Uca<Body> {
     }
 
     private extractDecisionPayload(signal: Signal): {
-        correlationId: string;
+        sessionId: string;
         result?: DecisionResult['result'];
     } {
-        const payload = (signal.value ?? {}) as DecisionResult;
-        const correlationId = signal.correlationId ?? payload.correlationId ?? '';
+        const payload = (signal.value ?? {}) as DecisionResult & { sessionId?: string };
+        const sessionId = signal.sessionId ?? payload.sessionId ?? '';
         const { result } = payload;
-        return { correlationId, result };
+        return { sessionId, result };
     }
 
     private handleDecisionDecided(signal: Signal): void {
-        const { correlationId, result } = this.extractDecisionPayload(signal);
-        if (!result || !correlationId) { return; }
-        const pending = this.pendingInferences.get(correlationId);
+        const { sessionId, result } = this.extractDecisionPayload(signal);
+        if (!result || !sessionId) { return; }
+        const pending = this.pendingInferences.get(sessionId);
         if (!pending) { return; }
-        this.pendingInferences.delete(correlationId);
+        this.pendingInferences.delete(sessionId);
         const { payload, replyTo, cacheKey } = pending;
-        this.applyDecisionResult(result.choice, payload, correlationId, replyTo, cacheKey);
+        this.applyDecisionResult(result.choice, payload, sessionId, replyTo, cacheKey);
     }
 
     private applyDecisionResult(
         choice: string,
         payload: InferPayload,
-        correlationId: string,
+        sessionId: string,
         replyTo?: string,
         cacheKey?: string,
     ): void {
         const modelConfig = this.resolveChosenModel(choice);
-        this.persistIfCached(cacheKey, modelConfig, correlationId);
-        this.dispatchDecisionChoice(payload, modelConfig, correlationId, replyTo);
+        this.persistIfCached(cacheKey, modelConfig, sessionId);
+        this.dispatchDecisionChoice(payload, modelConfig, sessionId, replyTo);
     }
 
-    private persistIfCached(key: string | undefined, config: ChosenModelConfig, correlationId?: string): void {
+    private persistIfCached(key: string | undefined, config: ChosenModelConfig, sessionId?: string): void {
         if (!key) {
             return;
         }
         this.pulse(MemorySignalType.SAVE, {
             key,
             value: config,
-            correlationId,
+            sessionId,
         });
     }
 
-    private dispatchDecisionChoice(payload: InferPayload, config: ChosenModelConfig, correlationId: string, replyTo?: string): void {
+    private dispatchDecisionChoice(payload: InferPayload, config: ChosenModelConfig, sessionId: string, replyTo?: string): void {
         const operation = config.transport === 'stream' ? SignalType.STREAM : SignalType.INFER;
         if (operation === SignalType.STREAM) {
-            this.pulse(SignalType.STREAMING, { correlationId, model: config.model, transport: 'stream' }, replyTo, correlationId);
+            this.pulse(SignalType.STREAMING, { sessionId, model: config.model, transport: 'stream' }, replyTo, sessionId);
         }
-        this.dispatchBackendRequest({ ...payload, ...config, correlationId }, replyTo ?? '', operation);
+        this.dispatchBackendRequest({ ...payload, ...config, sessionId }, replyTo ?? '', operation);
     }
 
     private handleDecisionError(signal: Signal): void {
-        const { correlationId } = (signal.value ?? {}) as { correlationId?: string };
-        const id = correlationId ?? signal.correlationId;
+        const { sessionId } = (signal.value ?? {}) as { sessionId?: string };
+        const id = sessionId ?? signal.sessionId;
         if (!id) { return; }
         const pending = this.pendingInferences.get(id);
         if (!pending) { return; }
         this.pendingInferences.delete(id);
         const { payload, replyTo } = pending;
-        const fallback = { ...payload, provider: DEFAULT_PROVIDER as ProviderType, model: DEFAULT_GEMINI_FLASH_LITE_MODEL, correlationId: id };
+        const fallback = { ...payload, provider: DEFAULT_PROVIDER as ProviderType, model: DEFAULT_GEMINI_FLASH_LITE_MODEL, sessionId: id };
         this.dispatchBackendRequest(fallback, replyTo ?? '');
     }
 
@@ -600,8 +600,8 @@ export class Llm extends Uca<Body> {
         operation: SignalType = SignalType.INFER,
     ): void {
         const body = this.backendPayload(payload);
-        const { correlationId, provider } = body;
-        const context = { operation, correlationId, provider, replyTo, request: body };
+        const { sessionId, provider } = body;
+        const context = { operation, sessionId, provider, replyTo, request: body };
         this.pulse(ZodSignalType.VALIDATE, { schema: inferenceSchema, value: body, context });
     }
 
@@ -627,9 +627,9 @@ export class Llm extends Uca<Body> {
 
     private handleZodError(signal: Signal): void {
         const { error, context } = (signal.value ?? {}) as ErrorResult;
-        const { correlationId, provider, replyTo, request } = (context ?? {}) as { correlationId?: string; provider?: ProviderType; replyTo?: string; request?: InferPayload };
+        const { sessionId, provider, replyTo, request } = (context ?? {}) as { sessionId?: string; provider?: ProviderType; replyTo?: string; request?: InferPayload };
         const target = replyTo ?? this.resultTarget(provider);
-        this.pulse(SignalType.ERROR, { error, correlationId, request }, target);
+        this.pulse(SignalType.ERROR, { error, sessionId, request }, target);
     }
 
     private dispatchStreamRequest(
@@ -637,13 +637,13 @@ export class Llm extends Uca<Body> {
         replyTo: string,
     ): void {
         const {
-            correlationId,
+            sessionId,
         } = body;
         this.pulse(SseSignalType.STREAM, {
             ...body,
             endpoint: DEFAULT_SSE_ENDPOINT,
-            correlationId,
-            context: { ...body, replyTo },
+            sessionId,
+            context: { ...body, replyTo, sessionId },
         });
     }
 
@@ -652,7 +652,7 @@ export class Llm extends Uca<Body> {
         replyTo: string,
     ): void {
         const {
-            correlationId,
+            sessionId,
         } = body;
         const {
             endpoint = DEFAULT_ENDPOINT,
@@ -660,8 +660,8 @@ export class Llm extends Uca<Body> {
         this.pulse(HttpSignalType.REQUEST, {
             endpoint,
             payload: body,
-            correlationId,
-            context: { ...body, replyTo },
+            sessionId,
+            context: { ...body, replyTo, sessionId },
         });
     }
 
@@ -675,53 +675,55 @@ export class Llm extends Uca<Body> {
     }
 
     private handleSseStreamed(signal: Signal): void {
-        const { correlationId, stream, context } = signal.value as SseStreamResult;
-        const { replyTo, ...request } = context as TransportContext;
+        const { sessionId: streamSessionId, stream, context } = (signal.value ?? {}) as SseStreamResult;
+        const sessionId = signal.sessionId ?? streamSessionId;
+        const { replyTo, ...request } = (context ?? {}) as TransportContext;
         const { model, context: requestContext } = request;
         const target = replyTo ?? this.resultTarget();
-        const payload = { correlationId, stream, model, request, context: requestContext ?? request };
-        this.pulse(SignalType.STREAMED, payload, target, correlationId);
+        const payload = { sessionId, stream, model, request, context: requestContext ?? request };
+        this.pulse(SignalType.STREAMED, payload, target, sessionId);
     }
 
     private handleSseEnd(signal: Signal): void {
-        const { correlationId, context } = (signal.value ?? {}) as { correlationId?: string; context?: unknown };
+        const { sessionId, context } = (signal.value ?? {}) as { sessionId?: string; context?: unknown };
         const { replyTo, model } = (context ?? {}) as { replyTo?: string; model?: string };
         const target = replyTo ?? this.resultTarget();
-        this.pulse(SignalType.STREAM_END, { correlationId, model }, target, correlationId);
+        this.pulse(SignalType.STREAM_END, { sessionId, model }, target, sessionId);
     }
 
     private handleSseError(signal: Signal): void {
         const { context, ...failure } = (signal.value ?? {}) as ErrorPayload;
-        const { replyTo, correlationId } = (context ?? {}) as TransportContext;
+        const { replyTo, sessionId } = (context ?? {}) as TransportContext & { sessionId?: string };
         const target = replyTo ?? this.resultTarget();
-        this.pulse(SignalType.ERROR, failure, target, correlationId);
+        this.pulse(SignalType.ERROR, failure, target, sessionId);
     }
 
 
     private backendPayload(payload: InferPayload): InferPayload {
         const { aim } = this.disposition;
         const { provider = DEFAULT_PROVIDER, model, imagination, limit, thinkingBudget, thinkingLevel } = aim.body ?? {};
-        const { id: _target, correlationId = crypto.randomUUID(), goal, intention, ...request } = payload;
+        const { id: _target, sessionId = crypto.randomUUID(), goal, intention, ...request } = payload;
         const resolvedGoal = goal ?? intention ?? '';
-        return { provider, model, imagination, limit, thinkingBudget, thinkingLevel, ...request, goal: resolvedGoal, correlationId };
+        return { provider, model, imagination, limit, thinkingBudget, thinkingLevel, ...request, goal: resolvedGoal, sessionId };
     }
 
     private handleBackendResponse(signal: Signal): void {
-        const { data, context, correlationId } = signal.value as ResponsePayload;
-        const { replyTo, ...request } = context as TransportContext;
+        const { data, context } = signal.value as ResponsePayload;
+        const { replyTo, ...request } = context as TransportContext & { sessionId?: string };
         const target = replyTo ?? this.resultTarget(request.provider);
         const result = data as InferResult;
-        this.pulse(SignalType.INFERRED, { ...result, correlationId, request }, target, correlationId);
+        const sessionId = result.sessionId ?? request.sessionId ?? signal.sessionId;
+        this.pulse(SignalType.INFERRED, { ...result, sessionId, request }, target, sessionId);
     }
 
     private handleBackendError(signal: Signal): void {
         const { context, ...failure } = signal.value as ErrorPayload;
-        const { replyTo, ...request } = (context ?? {}) as TransportContext;
+        const { replyTo, ...request } = (context ?? {}) as TransportContext & { sessionId?: string };
         if (this.retryWithFallbackModel(request, replyTo)) {
             return;
         }
         const target = replyTo ?? this.resultTarget(request.provider);
-        this.pulse(SignalType.ERROR, { ...failure, request }, target, request.correlationId);
+        this.pulse(SignalType.ERROR, { ...failure, request }, target, request.sessionId);
     }
 
     private retryWithFallbackModel(request: InferPayload, replyTo?: string): boolean {
@@ -746,7 +748,7 @@ export class Llm extends Uca<Body> {
             model: DEFAULT_GEMINI_FLASH_LITE_MODEL,
             transport: 'stream' as const,
         };
-        this.persistIfCached(cacheKey, config, request.correlationId);
+        this.persistIfCached(cacheKey, config, request.sessionId);
     }
 
     private handleAbort(value: AbortPayload): void {

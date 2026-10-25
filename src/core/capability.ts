@@ -56,22 +56,31 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
         this.target.addEventListener(this.updateEvent, this);
         this.target.addEventListener(this.getEvent, this);
         this.target.addEventListener(DispositionSignal.GET, this);
+        this.connectReceptors();
+        this.pulse(DispositionSignal.INNERVATED, this.disposition.aim.body ?? { id: this.id });
         return this;
     }
 
     public denervate(): void {
+        if (!this.target) { return; }
+        this.pulse(DispositionSignal.DENERVATED, { id: this.id });
         this.disconnectReceptors();
-        this.target?.removeEventListener(this.updateEvent, this);
-        this.target?.removeEventListener(this.getEvent, this);
-        this.target?.removeEventListener(DispositionSignal.GET, this);
+        this.target.removeEventListener(this.updateEvent, this);
+        this.target.removeEventListener(this.getEvent, this);
+        this.target.removeEventListener(DispositionSignal.GET, this);
         this.target = undefined;
         this._disposition = this.initialDisposition();
     }
 
     private initialDisposition(): Disposition<TBody> {
-        const { aim, inputs, outputs, limits } = (this.constructor as typeof Capability).disposition;
-        return { aim, inputs, outputs, limits } as Disposition<TBody>;
+        const {
+            disposition,
+        } = this.constructor as typeof Capability;
+        return {
+            ...disposition,
+        } as Disposition<TBody>;
     }
+
 
     protected abstract react(signal: Signal): void | Promise<void>;
 
@@ -133,7 +142,12 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
     }
 
     /** Emits domain data; Uca resolves a unique active catalog recipient unless targetId is supplied. */
-    protected pulse(property: string, value: unknown, targetId?: string, correlationId?: string): Signal | undefined {
+    protected pulse(
+        property: string,
+        value: unknown,
+        targetId?: string,
+        sessionId?: string,
+    ): Signal | undefined {
         const {
             target,
             id,
@@ -141,6 +155,7 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
         } = this;
         if (!target) { return undefined; }
         const destination = targetId ?? this.resolveTargetId(property);
+        const resolvedSessionId = sessionId ?? (value as { sessionId?: string })?.sessionId;
         const signal: Signal = {
             source: id,
             sourceKind: entityKind,
@@ -150,14 +165,14 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
             property,
             value,
             timestamp: Date.now(),
-            ...(correlationId && {
-                correlationId,
+            ...(resolvedSessionId && {
+                sessionId: resolvedSessionId,
             }),
         };
-        target.dispatchEvent(new CustomEvent(property, { detail: signal, bubbles: true }));
         if (property !== '*') {
             target.dispatchEvent(new CustomEvent('*', { detail: signal, bubbles: true }));
         }
+        target.dispatchEvent(new CustomEvent(property, { detail: signal, bubbles: true }));
         return signal;
     }
 

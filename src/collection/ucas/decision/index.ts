@@ -19,7 +19,7 @@ import {
     INFERENCE_LIMITS,
     INVALID_PROBABILITIES,
     MAXIMUM_RETRIES,
-    MISMATCHED_CORRELATION,
+    MISMATCHED_SESSION,
     MISSING_METADATA,
     PROBABILITY_TOLERANCE,
     RECOVERY_INSTRUCTION,
@@ -154,13 +154,13 @@ export class Decision extends Uca<Body> {
         return (direct ?? fromContext) as Question;
     }
 
-    private normalizeDecisionRequest(value: unknown, correlationId?: string): Request {
+    private normalizeDecisionRequest(value: unknown, sessionId?: string): Request {
         const val = (value ?? {}) as Record<string, unknown>;
         const context = (val.context ?? val) as Record<string, unknown>;
         const question = this.extractDecisionQuestion(val, context);
-        const resolvedId = correlationId ?? (val.correlationId as string) ?? crypto.randomUUID();
+        const resolvedId = sessionId ?? (val.sessionId as string) ?? crypto.randomUUID();
         return {
-            correlationId: resolvedId,
+            sessionId: resolvedId,
             question,
             context,
         };
@@ -170,9 +170,9 @@ export class Decision extends Uca<Body> {
         const {
             value,
             source,
-            correlationId,
+            sessionId,
         } = signal;
-        const request = this.normalizeDecisionRequest(value, correlationId);
+        const request = this.normalizeDecisionRequest(value, sessionId);
         this.processValidatedRequest(request, source);
     }
 
@@ -189,10 +189,10 @@ export class Decision extends Uca<Body> {
     private handleLlmInferred(signal: Signal): void {
         const {
             value,
-            correlationId,
+            sessionId,
         } = signal;
         const inferred = value as InferResult;
-        const operation = this.extractDecisionOperation(inferred.context, correlationId ?? inferred.correlationId);
+        const operation = this.extractDecisionOperation(inferred.context, sessionId ?? inferred.sessionId);
         this.processLlmInferred(inferred, operation);
     }
 
@@ -209,11 +209,11 @@ export class Decision extends Uca<Body> {
 
     private emitDecided(decision: DecisionPayload, operation: Metadata): void {
         const { replyTo, request } = operation;
-        const { correlationId, context } = request;
+        const { sessionId, context } = request;
         this.pulse(SignalType.DECIDED, {
             result: decision,
             context,
-        }, replyTo, correlationId);
+        }, replyTo, sessionId);
     }
 
     private handleLlmError(signal: Signal): void {
@@ -253,12 +253,12 @@ export class Decision extends Uca<Body> {
 
     private sendInference(request: Request, outputSchema: Record<string, unknown>, replyTo: string): void {
         const {
-            correlationId,
+            sessionId,
         } = request;
         const config = this.resolveInferenceConfig();
         const payload = this.buildInferencePayload(request, outputSchema, replyTo, config);
         signalBodySchema.parse(payload);
-        this.pulse(LlmSignalType.INFER, payload, undefined, correlationId);
+        this.pulse(LlmSignalType.INFER, payload, undefined, sessionId);
     }
 
     private resolveInferenceConfig(): Configuration {
@@ -296,12 +296,12 @@ export class Decision extends Uca<Body> {
         replyTo: string,
         attempt = 0,
     ): Record<string, unknown> {
-        const { question, context, correlationId } = request;
+        const { question, context, sessionId } = request;
         const { id, prompt, options } = question;
         const limits = { ...this.disposition.limits, ...INFERENCE_LIMITS };
         const state = this.sanitizeEvaluationState(context);
         const questionData = { id, type: QuestionType.CHOICE, instructions: prompt, criteria: criteriaMap, options };
-        return { correlationId, state, question: questionData, limits, replyTo, attempt };
+        return { sessionId, state, question: questionData, limits, replyTo, attempt };
     }
 
     private assembleInferencePayload(
@@ -334,14 +334,14 @@ export class Decision extends Uca<Body> {
     }
 
     private reconstructRequest(ctx: {
-        correlationId?: string;
+        sessionId?: string;
         requestContext?: Record<string, unknown>;
         state?: Record<string, unknown>;
         question?: { id: string; options: OptionItem[]; instructions?: string; prompt?: string };
     }): Request {
-        const { correlationId = '', requestContext, state = {}, question } = ctx;
+        const { sessionId = '', requestContext, state = {}, question } = ctx;
         return {
-            correlationId,
+            sessionId,
             question: {
                 id: question?.id ?? 'question',
                 type: QuestionType.CHOICE,
@@ -352,11 +352,11 @@ export class Decision extends Uca<Body> {
         };
     }
 
-    private extractDecisionOperation(context: unknown, correlationId?: string): Metadata {
-        const ctx = (context ?? {}) as { replyTo?: string; attempt?: number; correlationId?: string };
+    private extractDecisionOperation(context: unknown, sessionId?: string): Metadata {
+        const ctx = (context ?? {}) as { replyTo?: string; attempt?: number; sessionId?: string };
         const { replyTo = '', attempt = 0 } = ctx;
-        const cid = correlationId ?? ctx.correlationId ?? '';
-        const request = this.reconstructRequest({ ...ctx, correlationId: cid });
+        const sid = sessionId ?? ctx.sessionId ?? '';
+        const request = this.reconstructRequest({ ...ctx, sessionId: sid });
         return { replyTo, attempt, request };
     }
 
@@ -367,10 +367,10 @@ export class Decision extends Uca<Body> {
     }
 
     private validateInference(inferred: InferResult, operation: Metadata): DecisionPayload {
-        const { correlationId } = inferred;
-        const { request: { correlationId: expectedId, question: { id: questionId, options } } } = operation;
-        if (correlationId !== expectedId) {
-            throw new Error(MISMATCHED_CORRELATION);
+        const { sessionId } = inferred;
+        const { request: { sessionId: expectedId, question: { id: questionId, options } } } = operation;
+        if (sessionId !== expectedId) {
+            throw new Error(MISMATCHED_SESSION);
         }
         const answer = this.extractAnswerPayload(inferred, questionId);
         const choiceResult = choiceResultSchema.parse(answer);
@@ -414,11 +414,11 @@ export class Decision extends Uca<Body> {
     private recoverInference(inferred: InferResult | InferenceFailure, error: unknown, retry = true): void {
         const {
             context,
-            correlationId,
+            sessionId,
         } = inferred;
-        const operation = this.extractDecisionOperation(context, correlationId);
-        if (!operation.replyTo && !correlationId) {
-            this.emitFailure(MISSING_METADATA, { correlationId }, undefined, 1);
+        const operation = this.extractDecisionOperation(context, sessionId);
+        if (!operation.replyTo && !sessionId) {
+            this.emitFailure(MISSING_METADATA, { sessionId }, undefined, 1);
             return;
         }
         this.executeRecoveryAttempt(inferred, operation, error, retry);
@@ -475,8 +475,8 @@ export class Decision extends Uca<Body> {
     ): void {
         const { data, response } = inferred as InferResult;
         const payload = this.assembleRecoveryPayload(operation, data ?? response, error);
-        const { correlationId } = operation.request;
-        this.pulse(LlmSignalType.INFER, payload, undefined, correlationId);
+        const { sessionId } = operation.request;
+        this.pulse(LlmSignalType.INFER, payload, undefined, sessionId);
     }
 
     private emitFailure(error: unknown, identity: unknown, replyTo?: string, attempts = 0): void {
@@ -484,10 +484,10 @@ export class Decision extends Uca<Body> {
             data,
         } = identitySchema.safeParse(identity);
         const {
-            correlationId = null,
+            sessionId = null,
         } = data ?? {};
         this.pulse(SignalType.ERROR, {
-            correlationId,
+            sessionId,
             error: error instanceof Error ? error.message : String(error),
             attempts,
         }, replyTo);

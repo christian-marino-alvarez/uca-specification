@@ -123,28 +123,28 @@ export class VisualComposition extends Uca<Body> {
     private handleCompose(payload: CompositionPayload): void {
         const {
             request,
-            correlationId,
+            sessionId,
         } = payload;
         this.updateComposition({
             request,
-            correlationId,
+            sessionId,
             phase: 'structure',
         });
     }
 
     private handleInferred(result: InferResult): void {
         const {
-            correlationId,
+            sessionId,
             data,
             response,
         } = result;
         const { aim } = this.disposition;
         const { body } = aim;
         const { phase } = body ?? {};
-        if (correlationId === `${this.correlationId()}:structure` && phase === 'structure') {
+        if (sessionId === `${this.sessionId()}:structure` && phase === 'structure') {
             this.handleStructured(data ?? response);
         }
-        if (correlationId === `${this.correlationId()}:plan` && phase === 'plan') {
+        if (sessionId === `${this.sessionId()}:plan` && phase === 'plan') {
             this.handlePlanned(data ?? response);
         }
     }
@@ -168,8 +168,8 @@ export class VisualComposition extends Uca<Body> {
     }
 
     private handleFailure(failure: Failure): void {
-        const { correlationId } = failure;
-        if (correlationId?.startsWith(this.correlationId())) {
+        const { sessionId } = failure;
+        if (sessionId?.startsWith(this.sessionId())) {
             this.pulse(SignalType.ERROR, failure);
         }
     }
@@ -196,7 +196,7 @@ export class VisualComposition extends Uca<Body> {
         const request = this.request();
         return {
             ...request,
-            correlationId: `${this.correlationId()}:structure`,
+            sessionId: `${this.sessionId()}:structure`,
             outputSchema: this.removeQualities(request.outputSchema) as Record<string, unknown>,
             goal: `${request.goal ?? request.intention ?? ''} Produce only the semantic hierarchy; omit visual qualities.`,
         };
@@ -212,11 +212,11 @@ export class VisualComposition extends Uca<Body> {
     }
 
     private createPlanRequest(): InferPayload {
-        const correlationId = `${this.correlationId()}:plan`;
+        const sessionId = `${this.sessionId()}:plan`;
         const context = this.createPlanContext();
         return {
             provider: 'jev',
-            correlationId,
+            sessionId,
             purpose: PLAN_PURPOSE,
             goal: PLAN_GOAL,
             context,
@@ -262,9 +262,9 @@ export class VisualComposition extends Uca<Body> {
         return request as InferPayload;
     }
 
-    private correlationId(): string {
-        const { correlationId = '' } = this.currentBody();
-        return correlationId;
+    private sessionId(): string {
+        const { sessionId = '' } = this.currentBody();
+        return sessionId;
     }
 
     private removeQualities(schema: unknown): unknown {

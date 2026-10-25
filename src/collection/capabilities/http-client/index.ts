@@ -24,15 +24,15 @@ export class HttpClient extends Capability<Body> {
         }
     }
     protected async handleRequest(payload: RequestPayload): Promise<void> {
-        const { correlationId = crypto.randomUUID(), context } = payload;
+        const { sessionId = crypto.randomUUID(), context } = payload;
         const controller = new AbortController(); const { signal } = controller;
-        this.controllers.get(correlationId)?.abort(); this.controllers.set(correlationId, controller);
+        this.controllers.get(sessionId)?.abort(); this.controllers.set(sessionId, controller);
         try {
             const data = await this.requestJson(payload, signal); signal.throwIfAborted();
-            this.pulse(SignalType.RESPONSE, { data, correlationId, context });
+            this.pulse(SignalType.RESPONSE, { data, sessionId, context });
         } catch (error) {
-            !signal.aborted && this.pulse(SignalType.ERROR, { error: String(error), correlationId, context });
-        } finally { this.controllers.get(correlationId) === controller && this.controllers.delete(correlationId); }
+            !signal.aborted && this.pulse(SignalType.ERROR, { error: String(error), sessionId, context });
+        } finally { this.controllers.get(sessionId) === controller && this.controllers.delete(sessionId); }
     }
     private async requestJson(payload: RequestPayload, signal: AbortSignal): Promise<unknown> {
         const { endpoint, payload: body } = payload;
@@ -44,9 +44,9 @@ export class HttpClient extends Capability<Body> {
         return response.json();
     }
     protected handleAbort(payload: AbortPayload): void {
-        const { correlationId } = payload;
-        if (correlationId) {
-            this.controllers.get(correlationId)?.abort(); this.controllers.delete(correlationId);
+        const { sessionId } = payload;
+        if (sessionId) {
+            this.controllers.get(sessionId)?.abort(); this.controllers.delete(sessionId);
         }
         else {
             this.controllers.forEach((controller) => controller.abort()); this.controllers.clear();

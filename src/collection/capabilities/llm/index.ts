@@ -110,20 +110,20 @@ export class Llm extends HttpClient {
             const payload = inferenceSchema.parse(request);
             await this.dispatchInferenceRequest(payload, replyTo);
         } catch (error) {
-            this.emitInferError(String(error), request.correlationId, replyTo);
+            this.emitInferError(String(error), request.sessionId, replyTo);
         }
     }
 
     private async dispatchInferenceRequest(payload: InferPayload, replyTo?: string): Promise<void> {
-        const { correlationId } = payload;
+        const { sessionId } = payload;
         const { aim } = this.disposition;
         const { endpoint = DEFAULT_ENDPOINT } = aim.body ?? {};
         const url = this.resolveEndpoint(endpoint);
-        await this.handleRequest({ endpoint: url, payload, correlationId, context: { ...payload, replyTo } });
+        await this.handleRequest({ endpoint: url, payload, sessionId, context: { ...payload, replyTo, sessionId } });
     }
 
-    private emitInferError(error: string, correlationId?: string, replyTo?: string): void {
-        this.pulse(SignalType.ERROR, { error, correlationId }, replyTo, correlationId);
+    private emitInferError(error: string, sessionId?: string, replyTo?: string): void {
+        this.pulse(SignalType.ERROR, { error, sessionId }, replyTo, sessionId);
     }
 
     private handleAbortInference(signal: Signal): void {
@@ -141,18 +141,18 @@ export class Llm extends HttpClient {
 
     private handleResponse(signal: Signal): void {
         const { value } = signal;
-        const { context: transportCtx, data, correlationId } = value as ResponsePayload;
-        const { replyTo, context: requestContext } = (transportCtx ?? {}) as TransportContext;
-        const { correlationId: receivedId = correlationId, context: responseContext, ...result } = (data ?? {}) as InferResult;
+        const { context: transportCtx, data } = value as ResponsePayload;
+        const { replyTo, context: requestContext, sessionId: transportSessionId } = (transportCtx ?? {}) as TransportContext & { sessionId?: string };
+        const { sessionId: receivedId = transportSessionId, context: responseContext, ...result } = (data ?? {}) as InferResult;
         const finalContext = this.resolveResponseContext(requestContext, responseContext);
-        this.pulse(SignalType.INFERRED, { ...result, context: finalContext, correlationId: receivedId }, replyTo, receivedId);
+        this.pulse(SignalType.INFERRED, { ...result, context: finalContext, sessionId: receivedId }, replyTo, receivedId);
     }
 
     private handleError(signal: Signal): void {
         const { value } = signal;
         const { context, ...failure } = (value ?? {}) as ErrorPayload;
-        const { replyTo, correlationId, context: requestContext } = (context ?? {}) as TransportContext;
-        this.pulse(SignalType.ERROR, { ...failure, context: requestContext, correlationId }, replyTo, correlationId);
+        const { replyTo, sessionId, context: requestContext } = (context ?? {}) as TransportContext & { sessionId?: string };
+        this.pulse(SignalType.ERROR, { ...failure, context: requestContext, sessionId }, replyTo, sessionId);
     }
 
     private resolveEndpoint(endpoint: string): string {

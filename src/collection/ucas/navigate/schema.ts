@@ -12,7 +12,7 @@ export const navigateRequestSchema = z.object({
         z.unknown(),
     ).optional(),
     replace: z.boolean().optional(),
-    correlationId: z.string().optional(),
+    sessionId: z.string().optional(),
 }).strict();
 
 export const navigationStateSchema = z.object({

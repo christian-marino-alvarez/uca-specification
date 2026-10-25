@@ -1,4 +1,16 @@
+import { DispositionSignal } from '@uca/core/types';
+import { SignalType as SessionSignalType } from '@uca/capability-session/types';
+
 export const __ID__ = 'app';
+
+export const TELEMETRY_OBSERVED_SIGNALS = [
+    DispositionSignal.INNERVATED,
+    SessionSignalType.GET,
+    SessionSignalType.RETRIEVED,
+    SessionSignalType.CREATE,
+    SessionSignalType.CREATED,
+] as const;
+
 
 export const DEFAULT_PAGE = 'presentation';
 

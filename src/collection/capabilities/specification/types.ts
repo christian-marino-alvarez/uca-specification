@@ -1,26 +1,28 @@
 export type {
+    Audience,
     Body,
-    CorePrinciple,
-    FormalEntity,
-    FormalRelation,
-    ParsePayload,
+    DomainEntity,
+    ExperienceScenario,
+    FunctionalDesign,
+    GraphicDesign,
+    InformationDisposition,
+    QueryRequest,
+    SpecificationData,
     SpecificationModel,
-    SpecificationSection,
+    UserExperience,
 } from './schema.js';
 
 export enum SignalType {
-    LOAD = 'specification.load',
-    PARSE = 'specification.parse',
-    PARSED = 'specification.parsed',
-    GET = 'specification.get',
+    QUERY = 'specification.query',
     PROVIDED = 'specification.provided',
     ERROR = 'specification.error',
 }
 
 export enum DataType {
     BODY = 'Body',
-    PARSE_PAYLOAD = 'ParsePayload',
+    QUERY_REQUEST = 'QueryRequest',
     SPECIFICATION_MODEL = 'SpecificationModel',
+    SPECIFICATION_DATA = 'SpecificationData',
     ERROR = 'Error',
     VOID = 'void',
 }

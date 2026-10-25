@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createCommand } from '../inference.js';
+import { createCommand } from '../command.js';
 import { normalizeInference } from '../constants.js';
 import { SignalType as GeminiSignalType } from '@uca/capability-gemini/types';
 import { SignalType as JevSignalType } from '@uca/capability-jev/types';
@@ -9,10 +9,10 @@ import { DEFAULT_GEMINI_MODEL, DEFAULT_OPENAI_MODEL, SYSTEM_INSTRUCTION } from '
 import { createContextSchema } from '@uca/llm/schema';
 
 const contract = { outputSchema: { type: 'object' }, contextSchema: createContextSchema({ areaId: 'root' }), purpose: 'Present the requested area', goal: 'Build', limits: { width: 640, direction: 'column' } };
-const request = { ...contract, imagination: 0, limit: 12, correlationId: 'root' };
+const request = { ...contract, imagination: 0, limit: 12, sessionId: 'root' };
 const gemini = createCommand(request);
 assert.equal(gemini.property, GeminiSignalType.GENERATE);
-assert.deepEqual(gemini.value, { prompt: JSON.stringify(contract), schema: contract.outputSchema, systemInstruction: SYSTEM_INSTRUCTION, temperature: 0, maxOutputTokens: 12, thinkingBudget: undefined, thinkingLevel: undefined, correlationId: 'root', streamId: undefined, model: DEFAULT_GEMINI_MODEL });
+assert.deepEqual(gemini.value, { prompt: JSON.stringify(contract), schema: contract.outputSchema, systemInstruction: SYSTEM_INSTRUCTION, temperature: 0, maxOutputTokens: 12, thinkingBudget: undefined, thinkingLevel: undefined, sessionId: 'root', streamId: undefined, model: DEFAULT_GEMINI_MODEL });
 const openai = createCommand({ ...request, provider: 'openai' }, true);
 assert.equal(openai.property, OpenaiSignalType.STREAM);
 const { model, prompt, schema } = openai.value as { model: string; prompt: string; schema: unknown };
@@ -31,8 +31,8 @@ const fallback = createCommand({ ...request, provider: 'jev' });
 assert.match((fallback.value as { questions: { assessment: { instructions: string } } }).questions.assessment.instructions, /^Build/);
 const unsupported = createCommand({ ...request, provider: 'jev' }, true);
 assert.equal(unsupported.property, LlmSignalType.ERROR);
-assert.deepEqual(unsupported.value, { error: 'Jev does not support streaming', correlationId: 'root' });
+assert.deepEqual(unsupported.value, { error: 'Jev does not support streaming', sessionId: 'root' });
 const generated = normalizeInference(contract);
-assert.ok(generated.correlationId);
-assert.equal(normalizeInference({ ...contract, correlationId: 'layout' }).correlationId, 'layout');
+assert.ok(generated.sessionId);
+assert.equal(normalizeInference({ ...contract, sessionId: 'layout' }).sessionId, 'layout');
 console.log('✔ Backend maps the common inference contract to every provider without losing context, criteria or limits');

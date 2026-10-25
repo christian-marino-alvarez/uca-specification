@@ -37,7 +37,7 @@ export const configurationSchema = z.object({
 
 export const inferenceSchema = contractSchema.extend({
     ...configurationSchema.shape,
-    correlationId: z.string().optional(),
+    sessionId: z.string().optional(),
     streamId: z.string().optional(),
 });
 

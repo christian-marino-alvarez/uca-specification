@@ -5,20 +5,18 @@ import type {
 } from '@uca/core/types';
 import {
     AIM,
-    DEFAULT_SPECIFICATION_SOURCE,
-    DEFAULT_WEB_SOURCE,
+    DEFAULT_SPECIFICATION_MODEL,
     __ID__,
 } from './constants.js';
-import { parseSpecification } from './parser.js';
 import {
-    parsePayloadSchema,
+    queryRequestSchema,
     specificationModelSchema,
 } from './schema.js';
 import {
     DataType,
     SignalType,
     type Body,
-    type ParsePayload,
+    type QueryRequest,
     type SpecificationModel,
 } from './types.js';
 
@@ -30,50 +28,31 @@ export class Specification extends Capability<Body> {
         aim: {
             description: AIM,
             body: {
-                source: DEFAULT_SPECIFICATION_SOURCE,
+                model: DEFAULT_SPECIFICATION_MODEL,
             },
         },
         reactTo: [
-            SignalType.LOAD,
-            SignalType.PARSE,
-            SignalType.GET,
+            SignalType.QUERY,
         ],
         inputs: [
             {
-                signal: SignalType.LOAD,
-                type: DataType.PARSE_PAYLOAD,
-                schema: parsePayloadSchema,
-                description: 'Load and parse specification from source path or URL',
-            },
-            {
-                signal: SignalType.PARSE,
-                type: DataType.PARSE_PAYLOAD,
-                schema: parsePayloadSchema,
-                description: 'Parse raw markdown content into specification model',
-            },
-            {
-                signal: SignalType.GET,
-                type: DataType.VOID,
-                description: 'Get current active specification model',
+                signal: SignalType.QUERY,
+                type: DataType.QUERY_REQUEST,
+                schema: queryRequestSchema,
+                description: 'Query specification model with optional keys filter',
             },
         ],
         outputs: [
             {
-                signal: SignalType.PARSED,
-                type: DataType.SPECIFICATION_MODEL,
-                schema: specificationModelSchema,
-                description: 'Specification parsed and structured into data model',
-            },
-            {
                 signal: SignalType.PROVIDED,
                 type: DataType.SPECIFICATION_MODEL,
                 schema: specificationModelSchema,
-                description: 'Active specification model provided',
+                description: 'Active specification model or filtered subset provided',
             },
             {
                 signal: SignalType.ERROR,
                 type: DataType.ERROR,
-                description: 'Error emitted during specification read or parsing',
+                description: 'Error emitted during specification query',
             },
         ],
     };
@@ -82,97 +61,79 @@ export class Specification extends Capability<Body> {
         super(id);
     }
 
-    protected override async react(signal: Signal): Promise<void> {
+    protected override react(signal: Signal): void {
         const {
             property,
         } = signal;
         switch (property) {
-            case SignalType.LOAD:
-                await this.handleLoad(signal);
-                break;
-            case SignalType.PARSE:
-                this.handleParse(signal);
-                break;
-            case SignalType.GET:
-                this.handleGet();
+            case SignalType.QUERY:
+                this.handleQuery(signal);
                 break;
             default:
                 break;
         }
     }
 
-    private resolveSource(value?: unknown): string {
-        const {
-            source,
-        } = (value ?? {}) as ParsePayload;
+    private resolveActiveModel(): SpecificationModel {
         const {
             aim,
         } = this.disposition;
         const {
-            source: configuredSource = DEFAULT_SPECIFICATION_SOURCE,
+            model = DEFAULT_SPECIFICATION_MODEL,
         } = aim.body ?? {};
-        return source ?? configuredSource;
+        return model;
     }
 
-    private async handleLoad(signal: Signal): Promise<void> {
+    private handleQuery(signal: Signal): void {
         const {
-            value,
+            sessionId,
         } = signal;
-        const source = this.resolveSource(value);
-        try {
-            const content = await this.fetchMarkdown(source);
-            const model = parseSpecification(content, source);
-            this.pulse(SignalType.PARSED, model);
-        } catch (error) {
-            this.handleLoadError(error, source);
+        const keys = this.extractQueryKeys(signal.value);
+        const model = this.resolveActiveModel();
+        const payload = this.filterSpecification(model, keys);
+        this.pulse(SignalType.PROVIDED, payload, undefined, sessionId);
+    }
+
+    private extractQueryKeys(value?: unknown): string[] | undefined {
+        const {
+            keys,
+        } = (value ?? {}) as QueryRequest ?? {};
+        return keys;
+    }
+
+    private filterSpecification(
+        model: SpecificationModel,
+        keys?: string[],
+    ): unknown {
+        if (!keys || keys.length === 0) {
+            return model;
         }
+        return this.applyKeysFilter(model, keys);
     }
 
-    private handleLoadError(error: unknown, source: string): void {
-        const fallbackModel = parseSpecification('', source);
-        this.pulse(SignalType.PARSED, fallbackModel);
-        this.pulse(SignalType.ERROR, {
-            error: String(error),
-            source,
-        });
-    }
-
-    private async fetchMarkdown(source: string): Promise<string> {
-        const isBrowser = typeof window !== 'undefined';
-        if (isBrowser) {
-            const url = source.startsWith('http') || source.startsWith('/') ? source : DEFAULT_WEB_SOURCE;
-            const response = await fetch(url);
-            return response.text();
-        }
-        return this.readFilesystemMarkdown(source);
-    }
-
-    private async readFilesystemMarkdown(source: string): Promise<string> {
-        const fsModule = await import('node:fs');
-        const pathModule = await import('node:path');
-        const targetPath = pathModule.resolve(process.cwd(), source);
-        return fsModule.readFileSync(targetPath, 'utf-8');
-    }
-
-    private handleParse(signal: Signal): void {
+    private applyKeysFilter(
+        model: SpecificationModel,
+        keys: string[],
+    ): Record<string, unknown> {
+        const keySet = new Set(keys);
         const {
-            value,
-        } = signal;
-        const {
-            content = '',
-            source = DEFAULT_SPECIFICATION_SOURCE,
-        } = (value ?? {}) as ParsePayload;
-        const model = parseSpecification(content, source);
-        this.pulse(SignalType.PARSED, model);
+            data,
+            ...topLevel
+        } = model;
+        return {
+            ...this.filterRecord(topLevel as Record<string, unknown>, keySet),
+            ...this.filterRecord(data as unknown as Record<string, unknown>, keySet),
+        };
     }
 
-    private handleGet(): void {
-        const {
-            aim,
-        } = this.disposition;
-        const {
-            model = parseSpecification('', DEFAULT_SPECIFICATION_SOURCE),
-        } = aim.body ?? {};
-        this.pulse(SignalType.PROVIDED, model);
+    private filterRecord(
+        record: Record<string, unknown>,
+        keySet: Set<string>,
+    ): Record<string, unknown> {
+        return Object.fromEntries(
+            Object.entries(record).filter(([key]) => {
+                return keySet.has(key);
+            }),
+        );
     }
 }

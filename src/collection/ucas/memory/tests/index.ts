@@ -3,9 +3,21 @@ import { Uca } from '@uca/core/uca';
 import type { Signal } from '@uca/core/types';
 import { LocalStorage } from '@uca/capability-local-storage';
 import { Memory } from '../index.js';
-import { __ID__, createFallbackStorage } from '../constants.js';
+import { __ID__ } from '../constants.js';
 import { bodySchema } from '../schema.js';
 import { type RetrievedResult, type SavedResult, SignalType } from '../types.js';
+
+const createFallbackStorage = (): Storage => {
+    const store = new Map<string, string>();
+    return {
+        get length(): number { return store.size; },
+        clear: (): void => { store.clear(); },
+        getItem: (key: string): string | null => store.get(key) ?? null,
+        key: (index: number): string | null => Array.from(store.keys())[index] ?? null,
+        removeItem: (key: string): void => { store.delete(key); },
+        setItem: (key: string, value: string): void => { store.set(key, String(value)); },
+    };
+};
 
 class TestableMemory extends Memory {
     public exposeCatalog(): ReturnType<Memory['catalog']> {
@@ -67,16 +79,16 @@ function testMemory_SaveAndRetrieveObjects(): void {
         layout: { canvasRoot: { width: 'full', height: 'screen' } },
     };
 
-    emitSignal(bus, SignalType.SAVE, { id: 'composer:memory', key: 'app:desktop', value: layoutPayload, correlationId: 'corr-1' });
+    emitSignal(bus, SignalType.SAVE, { id: 'composer:memory', key: 'app:desktop', value: layoutPayload, sessionId: 'corr-1' });
     assert.ok(saved);
     assert.strictEqual(saved.key, 'app:desktop');
-    assert.strictEqual(saved.correlationId, 'corr-1');
+    assert.strictEqual(saved.sessionId, 'corr-1');
     assert.deepStrictEqual(saved.value, layoutPayload);
 
-    emitSignal(bus, SignalType.GET, { id: 'composer:memory', key: 'app:desktop', correlationId: 'corr-2' });
+    emitSignal(bus, SignalType.GET, { id: 'composer:memory', key: 'app:desktop', sessionId: 'corr-2' });
     assert.ok(retrieved);
     assert.strictEqual(retrieved.key, 'app:desktop');
-    assert.strictEqual(retrieved.correlationId, 'corr-2');
+    assert.strictEqual(retrieved.sessionId, 'corr-2');
     assert.deepStrictEqual(retrieved.value, layoutPayload);
 
     memory.denervate();

@@ -63,17 +63,17 @@ export class Jev extends Capability<Body> {
     private async handleInfer(value: unknown): Promise<void> {
         const payload = this.extractPayload<InferPayload>(value);
         if (!payload) { return; }
-        const { correlationId } = payload;
+        const { sessionId } = payload;
         try {
             const result = await this.executeInference(payload);
             this.pulse(SignalType.INFERRED, result);
         } catch (error) {
-            this.pulse(SignalType.ERROR, { error, correlationId });
+            this.pulse(SignalType.ERROR, { error, sessionId });
         }
     }
 
     private async executeInference(payload: InferPayload): Promise<InferResult> {
-        const { state, model = DEFAULT_MODEL, correlationId } = payload;
+        const { state, model = DEFAULT_MODEL, sessionId } = payload;
         const { aim } = this.disposition;
         const { connection } = aim.body ?? {};
         const { apiKey = process.env.JEV_API_KEY ?? process.env.TYPESAFE_API_KEY, baseURL } = connection ?? {};
@@ -82,7 +82,7 @@ export class Jev extends Capability<Body> {
         const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` }, body: JSON.stringify(this.buildRequest(payload)) });
         if (!response.ok) { throw new Error(`Jev HTTP ${response.status}: ${await response.text()}`); }
         const { answers } = await response.json() as { answers: Record<string, unknown> };
-        return { state, answers, model, correlationId };
+        return { state, answers, model, sessionId };
     }
     private buildRequest(payload: InferPayload): RequestBody {
         const { state, questions = DEFAULT_QUESTIONS, model = DEFAULT_MODEL, limit, maxTokens } = payload;

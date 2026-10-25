@@ -1,64 +1,27 @@
-import { Browser } from '@uca/capability-browser';
-import { SignalType as BrowserSignalType } from '@uca/capability-browser/types';
-import { Layout } from '@uca/layout';
-import {
-    SignalType as LayoutSignalType,
-    type Area,
-    type AreaDefined,
-} from '@uca/layout/types';
-import { View } from '@uca/view';
-import {
-    SignalType as ViewSignalType,
-} from '@uca/view/types';
-import { Design } from '@uca/capability-design';
-import { SignalType as DesignSignalType } from '@uca/capability-design/types';
-import { Decision } from '@uca/decision';
-import { SignalType as DecisionSignalType } from '@uca/decision/types';
-import { Memory } from '@uca/memory';
-import { SignalType as MemorySignalType } from '@uca/memory/types';
-import { Navigate } from '@uca/navigate';
-import { SignalType as NavigateSignalType } from '@uca/navigate/types';
-import { Specification } from '@uca/capability-specification';
-import {
-    SignalType as SpecificationSignalType,
-} from '@uca/capability-specification/types';
 import { Telemetry } from '@uca/capability-telemetry';
-import { Material } from '@uca/capability-material';
-import { SignalType as MaterialSignalType } from '@uca/capability-material/types';
+import { Session as SessionCapability } from '@uca/capability-session';
+import {
+    SignalType as SessionSignalType,
+    type SessionPayload,
+} from '@uca/capability-session/types';
 import { Uca } from '@uca/core/uca';
-import { Zod } from '@uca/capability-zod';
-import { signalBodySchema } from '../schema.js';
 import {
     DispositionSignal,
-    type Aim,
     type CapabilityConstructor,
     type Cooky,
     type Disposition,
-    type DispositionProvidePayload,
     type Signal,
-    type TransportPayload,
 } from '@uca/core/types';
 import {
-    APP_DECISION_OPTIONS,
-    AREA_DECISION_OPTIONS,
     DEFAULT_AIM_BODY,
     DEFAULT_AIM_DESCRIPTION,
-    DEFAULT_DESIGN_GUIDELINES,
     DEFAULT_PURPOSE,
-    ROOT_AREA_ID,
+    TELEMETRY_OBSERVED_SIGNALS,
     __ID__,
 } from './constants.js';
 import {
-    browserContextSchema,
-    decisionResultSchema,
-    navigationSchema,
-} from './schema.js';
-import {
     DataType,
-    SignalType,
     type Body,
-    type DecisionResult,
-    type Navigation,
 } from './types.js';
 
 export class App extends Uca<Body> {
@@ -72,169 +35,45 @@ export class App extends Uca<Body> {
             },
         },
         reactTo: [
-            SignalType.NAVIGATE,
-            SignalType.SESSION_RESUME,
-            SignalType.SESSION_FRESH,
-            DispositionSignal.PROVIDE,
-            ...App.reactToBrowser(),
-            ...App.reactToNavigate(),
-            ...App.reactToDesign(),
-            ...App.reactToDecision(),
-            ...App.reactToLayout(),
-            ...App.reactToView(),
-            ...App.reactToMemory(),
-            ...App.reactToSpecification(),
-            ...App.reactToTelemetry(),
-            ...App.reactToMaterial(),
+            DispositionSignal.INNERVATED,
+            ...App.reactToSession(),
         ],
         inputs: [
             {
-                signal: SignalType.NAVIGATE,
-                type: DataType.NAVIGATION,
-                schema: navigationSchema,
-                description: 'Navigate to target page with parameters',
-            },
-            {
-                signal: SignalType.SESSION_RESUME,
+                signal: DispositionSignal.INNERVATED,
                 type: DataType.VOID,
-                description: 'Resume previous session recovered from memory',
-            },
-            {
-                signal: SignalType.SESSION_FRESH,
-                type: DataType.VOID,
-                description: 'Start fresh session discarding previous memory',
+                description: 'Core lifecycle signal emitted upon innervation',
             },
         ],
         outputs: [
             {
-                signal: SignalType.BROWSER_CHANGED,
-                type: DataType.BROWSER_CONTEXT,
-                schema: browserContextSchema,
-                description: 'Browser context telemetry captured or updated',
+                signal: DispositionSignal.INNERVATED,
+                type: DataType.BODY,
+                description: 'Core lifecycle signal emitted upon innervation',
             },
             {
-                signal: SignalType.DECIDED,
-                type: DataType.DECISION_RESULT,
-                schema: decisionResultSchema,
-                description: 'Cognitive page composition decision result',
-            },
-            {
-                signal: SignalType.BUILT,
-                type: DataType.BUILT_RESULT,
-                description: 'Cognitive page structure built by builder UCA',
-            },
-            {
-                signal: SignalType.ERROR,
+                signal: DataType.ERROR,
                 type: DataType.ERROR,
-                description: 'Error emitted during app cognitive orchestration',
+                description: 'Error emitted during app execution',
             },
         ],
     };
 
-    private static reactToBrowser(): string[] {
-        const {
-            reactTo = [],
-        } = Browser.disposition;
+    private static reactToSession(): string[] {
         return [
-            ...reactTo,
-            BrowserSignalType.DETECTED,
-            BrowserSignalType.CHANGED,
+            ...SessionCapability.disposition?.reactTo || [],
+            SessionSignalType.RETRIEVED,
+            SessionSignalType.CREATED,
+            SessionSignalType.DELETED,
         ];
     }
 
-    private static reactToNavigate(): string[] {
-        const {
-            reactTo = [],
-        } = Navigate.disposition;
-        return [
-            ...reactTo,
-            NavigateSignalType.CHANGED,
-            NavigateSignalType.RESTORED,
-        ];
-    }
-
-    private static reactToDesign(): string[] {
-        const {
-            reactTo = [],
-        } = Design.disposition;
-        return [
-            ...reactTo,
-            DesignSignalType.THEME_CHANGED,
-        ];
-    }
-
-    private static reactToDecision(): string[] {
-        const {
-            reactTo = [],
-        } = Decision.disposition;
-        return [
-            ...reactTo,
-            DecisionSignalType.DECIDED,
-            DecisionSignalType.ERROR,
-        ];
-    }
-
-    private static reactToLayout(): string[] {
-        const {
-            reactTo = [],
-        } = Layout.disposition;
-        return [
-            ...reactTo,
-            LayoutSignalType.BUILT,
-            LayoutSignalType.AREA_CREATED,
-            LayoutSignalType.ERROR,
-        ];
-    }
-
-    private static reactToView(): string[] {
-        const {
-            reactTo = [],
-        } = View.disposition;
-        return [
-            ...reactTo,
-            ViewSignalType.BUILT,
-            ViewSignalType.RENDERED,
-            ViewSignalType.ERROR,
-        ];
-    }
-
-    private static reactToMemory(): string[] {
-        const {
-            reactTo = [],
-        } = Memory.disposition;
-        return [
-            ...reactTo,
-            MemorySignalType.RETRIEVED,
-            MemorySignalType.SAVED,
-        ];
-    }
-
-    private static reactToSpecification(): string[] {
-        const {
-            reactTo = [],
-        } = Specification.disposition;
-        return [
-            ...reactTo,
-            SpecificationSignalType.PARSED,
-            SpecificationSignalType.PROVIDED,
-        ];
-    }
-
-    private static reactToTelemetry(): string[] {
-        const {
-            reactTo = [],
-        } = Telemetry.disposition;
-        return reactTo.filter((signal) => signal !== '*');
-    }
-
-    private static reactToMaterial(): string[] {
-        const {
-            reactTo = [],
-        } = Material.disposition;
-        return [
-            ...reactTo,
-            MaterialSignalType.APPLIED,
-        ];
+    private static createTelemetryExtraBody(): Record<string, unknown> {
+        return {
+            filter: [
+                ...TELEMETRY_OBSERVED_SIGNALS,
+            ],
+        };
     }
 
     public constructor(id: string = __ID__) {
@@ -243,16 +82,33 @@ export class App extends Uca<Body> {
 
     protected override catalog(): Cooky {
         return [
-            this.buildBrowserCooky(),
-            this.buildNavigateCooky(),
-            this.buildDesignCooky(),
-            this.buildDecisionCooky(),
-            this.buildLayoutCooky(),
-            this.buildViewCooky(),
-            this.buildMemoryCooky(),
-            this.buildSpecificationCooky(),
-            this.buildTelemetryCooky(),
-            this.buildMaterialCooky(),
+            this.catalogSession(),
+            this.catalogTelemetry(),
+        ];
+    }
+
+    private catalogSession(): Cooky[number] {
+        return [
+            SessionCapability as unknown as CapabilityConstructor,
+            this.createDisposition(
+                SessionCapability.disposition,
+                SessionCapability.AIM,
+                'session',
+            ),
+        ];
+    }
+
+    private catalogTelemetry(): Cooky[number] {
+        const extraBody = App.createTelemetryExtraBody();
+        const disposition = this.createDisposition(
+            Telemetry.disposition,
+            Telemetry.AIM,
+            'telemetry',
+            extraBody,
+        );
+        return [
+            Telemetry as unknown as CapabilityConstructor,
+            disposition,
         ];
     }
 
@@ -261,851 +117,75 @@ export class App extends Uca<Body> {
             property,
         } = signal;
         switch (property) {
-            case SignalType.NAVIGATE:
-                this.handleNavigate(signal);
+            case DispositionSignal.INNERVATED:
+                this.handleInnervated(signal);
                 break;
-            case SignalType.SESSION_RESUME:
-                this.handleSessionResume();
+            case SessionSignalType.RETRIEVED:
+                this.handleSessionRetrieved(signal);
                 break;
-            case SignalType.SESSION_FRESH:
-                this.handleSessionFresh();
-                break;
-            case NavigateSignalType.CHANGED:
-                this.handleNavigationChanged(signal);
-                break;
-            case NavigateSignalType.RESTORED:
-                this.handleNavigationRestored(signal);
-                break;
-            case BrowserSignalType.DETECTED:
-                this.handleBrowserDetected(signal);
-                break;
-            case BrowserSignalType.CHANGED:
-                this.handleBrowserChanged(signal);
-                break;
-            case MemorySignalType.RETRIEVED:
-                this.handleMemoryRetrieved(signal);
-                break;
-            case DecisionSignalType.DECIDED:
-                this.handleDecisionDecided(signal);
-                break;
-            case DecisionSignalType.ERROR:
-                this.handleDecisionError(signal);
-                break;
-            case LayoutSignalType.AREA_CREATED:
-                this.handleLayoutAreaCreated(signal);
-                break;
-            case LayoutSignalType.BUILT:
-                this.handleLayoutBuilt(signal);
-                break;
-            case LayoutSignalType.ERROR:
-                this.handleLayoutError(signal);
-                break;
-            case ViewSignalType.BUILT:
-                this.handleViewBuilt(signal);
-                break;
-            case ViewSignalType.RENDERED:
-                this.handleViewRendered(signal);
-                break;
-            case ViewSignalType.ERROR:
-                this.handleViewError(signal);
-                break;
-            case DesignSignalType.THEME_CHANGED:
-                this.handleThemeChanged(signal);
-                break;
-            case SpecificationSignalType.PARSED:
-                this.handleSpecificationParsed(signal);
-                break;
-            case SpecificationSignalType.PROVIDED:
-                this.handleSpecificationProvided(signal);
-                break;
-            case MaterialSignalType.APPLIED:
-                this.handleMaterialApplied(signal);
-                break;
-            case DispositionSignal.PROVIDE:
-                this.handleDispositionProvide(signal);
+            case SessionSignalType.CREATED:
+                this.handleSessionCreated(signal);
                 break;
             default:
                 break;
         }
     }
 
-    private buildBrowserCooky(): [CapabilityConstructor, Disposition] {
+    private handleInnervated(signal: Signal): void {
+        if (signal.source !== this.id) {
+            return;
+        }
+        this.pulse(SessionSignalType.GET, {});
+    }
+
+    private handleSessionRetrieved(signal: Signal): void {
         const {
-            id,
-        } = this;
-        return [
-            Browser,
-            this.createBrowserDisposition(`${id}:browser`),
-        ];
+            value,
+        } = signal;
+        const payload = (value ?? {}) as SessionPayload;
+        this.routeSessionPayload(payload);
     }
 
-    private buildNavigateCooky(): [CapabilityConstructor, Disposition] {
+    private routeSessionPayload(payload: SessionPayload): void {
+        if (!payload.value) {
+            this.pulse(SessionSignalType.CREATE, {});
+            return;
+        }
+        this.handleSessionReceived(payload);
+    }
+
+    private handleSessionCreated(signal: Signal): void {
         const {
-            id,
-        } = this;
-        return [
-            Navigate,
-            this.createNavigateDisposition(`${id}:navigate`),
-        ];
+            value,
+        } = signal;
+        const payload = (value ?? {}) as SessionPayload;
+        this.handleSessionReceived(payload);
     }
 
-    private buildDesignCooky(): [CapabilityConstructor, Disposition] {
+    private handleSessionReceived(payload: SessionPayload): void {
         const {
-            id,
-        } = this;
-        return [
-            Design,
-            this.createDesignDisposition(`${id}:design`),
-        ];
+            sessionId,
+            value,
+        } = payload;
+        const activeId = sessionId || value?.id;
+        this.updateDispositionBody({
+            sessionId: activeId,
+        });
     }
 
-    private buildDecisionCooky(): [CapabilityConstructor, Disposition] {
-        const {
-            id,
-        } = this;
-        return [
-            Decision,
-            this.createDecisionDisposition(`${id}:decision`),
-        ];
-    }
-
-    private createLayoutBody(): Record<string, unknown> {
-        const { aim } = Layout.disposition;
-        const { structural, spatial, design } = this.disposition.aim.body ?? {};
-        const containerElement = (structural as { containerElement?: string })?.containerElement ?? 'body';
-        return {
-            ...(aim.body ?? {}),
-            structural,
-            spatial,
-            design,
-            containerElement,
-        };
-    }
-
-    private createLayoutDisposition(): Disposition {
-        const { aim } = Layout.disposition;
-        const body = this.createLayoutBody();
-        return {
-            ...Layout.disposition,
-            aim: { ...aim, body },
-        };
-    }
-
-    private buildLayoutCooky(): [CapabilityConstructor, Disposition] {
-        const {
-            id,
-        } = this;
-        const disposition = this.createLayoutDisposition();
-        return this.buildUcaCooky(Layout, Layout.purpose, `${id}:layout`, disposition);
-    }
-
-    private createViewBody(): Record<string, unknown> {
-        const { aim } = View.disposition;
-        const { structural, spatial, design } = this.disposition.aim.body ?? {};
-        const containerElement = (structural as { containerElement?: string })?.containerElement ?? 'body';
-        return {
-            ...(aim.body ?? {}),
-            structural,
-            spatial,
-            design,
-            containerElement,
-        };
-    }
-
-    private createViewDisposition(): Disposition {
-        const { aim } = View.disposition;
-        const body = this.createViewBody();
-        return {
-            ...View.disposition,
-            aim: { ...aim, body },
-        };
-    }
-
-    private buildViewCooky(): [CapabilityConstructor, Disposition] {
-        const {
-            id,
-        } = this;
-        const disposition = this.createViewDisposition();
-        return this.buildUcaCooky(View, View.purpose, `${id}:view`, disposition);
-    }
-
-    private buildMemoryCooky(): [CapabilityConstructor, Disposition] {
-        const {
-            id,
-        } = this;
-        return this.buildUcaCooky(Memory, Memory.purpose, `${id}:memory`, Memory.disposition);
-    }
-
-    private buildSpecificationCooky(): [CapabilityConstructor, Disposition] {
-        const {
-            id,
-        } = this;
-        return [
-            Specification as unknown as CapabilityConstructor,
-            this.createSpecificationDisposition(`${id}:specification`),
-        ];
-    }
-
-    private buildTelemetryCooky(): [CapabilityConstructor, Disposition] {
-        const {
-            id,
-        } = this;
-        return [
-            Telemetry as unknown as CapabilityConstructor,
-            this.createTelemetryDisposition(`${id}:telemetry`),
-        ];
-    }
-
-    private createSpecificationDisposition(id: string): Disposition {
-        const aim = this.createAim(Specification.AIM, id);
-        return {
-            ...Specification.disposition,
-            aim,
-        };
-    }
-
-    private createTelemetryDisposition(id: string): Disposition {
-        const aim = this.createAim(Telemetry.AIM, id);
-        return {
-            ...Telemetry.disposition,
-            aim,
-        };
-    }
-
-    private buildMaterialCooky(): [CapabilityConstructor, Disposition] {
-        const {
-            id,
-        } = this;
-        return [
-            Material as unknown as CapabilityConstructor,
-            this.createMaterialDisposition(`${id}:material`),
-        ];
-    }
-
-    private createMaterialDisposition(id: string): Disposition {
-        const aim = this.createAim(Material.AIM, id);
-        return {
-            ...Material.disposition,
-            aim,
-        };
-    }
-
-    private buildUcaCooky(
-        Factory: CapabilityConstructor,
-        purpose: string,
-        instanceId: string,
-        defaults: Disposition,
-    ): [CapabilityConstructor, Disposition] {
-        const {
-            aim: defaultAim,
-        } = defaults;
-        const aim = {
-            ...defaultAim,
-            description: purpose,
-            body: {
-                ...(defaultAim.body as Record<string, unknown>),
-                id: instanceId,
-            },
-        };
-        return [
-            Factory,
-            {
-                ...defaults,
-                aim,
-            },
-        ];
-    }
-
-    private createBrowserDisposition(id: string): Disposition {
-        const aim = this.createAim(Browser.AIM, id);
-        return {
-            ...Browser.disposition,
-            aim,
-        };
-    }
-
-    private createNavigateDisposition(id: string): Disposition {
-        const aim = this.createAim(Navigate.purpose, id);
-        return {
-            ...Navigate.disposition,
-            aim,
-        };
-    }
-
-    private createDesignDisposition(id: string): Disposition {
-        const aim = this.createAim(Design.AIM, id);
-        return {
-            ...Design.disposition,
-            aim,
-        };
-    }
-
-    private createDecisionDisposition(id: string): Disposition {
+    private updateDispositionBody(partial: Partial<Body>): void {
         const {
             aim,
-        } = Decision.disposition;
-        return {
-            ...Decision.disposition,
+        } = this.disposition;
+        this.pulse(this.updateEvent, {
+            ...this.disposition,
             aim: {
                 ...aim,
                 body: {
-                    ...aim?.body,
-                    id,
+                    ...aim.body,
+                    ...partial,
                 },
             },
-        };
-    }
-
-    private createAim(description: string, id: string): Aim {
-        return {
-            description,
-            body: {
-                id,
-            },
-        };
-    }
-
-    private handleNavigate(signal: Signal): void {
-        const payload = this.extractPayload<Navigation>(signal.value);
-        if (!payload) {
-            return;
-        }
-        this.consultSession(payload);
-    }
-
-    private handleSessionResume(): void {
-        const {
-            previousSession,
-        } = this.disposition.aim.body ?? {};
-        const path = previousSession?.lastRoute ?? 'presentation';
-        this.updateDispositionBody({
-            activePage: path,
-            sessionState: 'ACTIVE',
         });
-        this.consultSession({ navigateTo: path });
-    }
-
-    private handleSessionFresh(): void {
-        this.updateDispositionBody({
-            activePage: 'presentation',
-            sessionState: 'FRESH',
-            previousSession: undefined,
-        });
-        this.consultSession({ navigateTo: 'presentation' });
-    }
-
-    private handleNavigationChanged(signal: Signal): void {
-        const state = this.extractPayload<{ path: string }>(signal.value);
-        if (!state) {
-            return;
-        }
-        this.updateDispositionBody({
-            activePage: state.path,
-        });
-    }
-
-    private handleNavigationRestored(signal: Signal): void {
-        const state = this.extractPayload<{ path: string; timestamp?: number }>(signal.value);
-        if (!state) {
-            return;
-        }
-        this.updateSessionPromptState(state);
-    }
-
-    private updateSessionPromptState(state: { path: string; timestamp?: number }): void {
-        this.updateDispositionBody({
-            activePage: state.path,
-            sessionState: 'PROMPT_RESUME',
-            previousSession: {
-                sessionId: `sess-${state.timestamp ?? Date.now()}`,
-                lastRoute: state.path,
-                timestamp: state.timestamp ?? Date.now(),
-            },
-        });
-    }
-
-    private handleBrowserDetected(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.updateBrowserContext(value as Record<string, unknown>);
-    }
-
-    private handleBrowserChanged(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.updateBrowserContext(value as Record<string, unknown>);
-    }
-
-    private updateBrowserContext(browserContext: Record<string, unknown>): void {
-        this.updateDispositionBody({
-            browserContext,
-        });
-        this.pulse(SignalType.BROWSER_CHANGED, browserContext);
-    }
-
-    private consultSession(input: unknown): void {
-        this.ensureBrowserContext();
-        this.ensureSpecification();
-        const correlationId = `session-${Date.now()}`;
-        this.pulse(MemorySignalType.GET, {
-            key: 'session',
-            correlationId,
-            input,
-        });
-    }
-
-    private ensureBrowserContext(): void {
-        const {
-            browserContext,
-        } = this.disposition.aim.body ?? {};
-        if (!browserContext) {
-            this.pulse(BrowserSignalType.DETECT, {});
-        }
-    }
-
-    private ensureSpecification(): void {
-        const {
-            specification,
-        } = this.disposition.aim.body ?? {};
-        if (!specification) {
-            this.pulse(SpecificationSignalType.LOAD, {});
-        }
-    }
-
-    private handleMemoryRetrieved(signal: Signal): void {
-        const {
-            value: session,
-            correlationId,
-            input,
-        } = (signal.value ?? {}) as Record<string, unknown>;
-        this.sendDecisionRequest(input, session, correlationId as string);
-    }
-
-    private sendDecisionRequest(input: unknown, session: unknown, correlationId?: string): void {
-        const question = this.resolveCognitiveQuestion(input);
-        const context = this.buildDecisionContext(input, session, question);
-        const signalBody = this.createDecisionSignalBody(question, context);
-        signalBodySchema.parse(signalBody);
-        const cid = correlationId ?? `decide-${Date.now()}`;
-        this.pulse(DecisionSignalType.DECIDE, signalBody, undefined, cid);
-    }
-
-    private extractOntologyContext(): Record<string, unknown> {
-        const { purpose } = this;
-        const { description: intention, body } = this.disposition.aim;
-        const { structural, spatial, design } = body ?? {};
-        const visualIntention = `${intention}\n${DEFAULT_DESIGN_GUIDELINES}`;
-        return {
-            purpose,
-            intention,
-            visualIntention,
-            structural,
-            spatial,
-            design,
-            guidelines: DEFAULT_DESIGN_GUIDELINES,
-        };
-    }
-
-    private resolveBrowserContext(): Record<string, unknown> {
-        const {
-            aim,
-        } = this.disposition;
-        const {
-            browserContext = {},
-        } = aim.body ?? {};
-        const {
-            viewport,
-        } = browserContext as { viewport?: { width?: number; height?: number } };
-        const width = viewport?.width ?? 1024;
-        const height = viewport?.height ?? 768;
-        const device = width < 768 ? 'mobile' : 'desktop';
-        return {
-            device,
-            viewport: {
-                width,
-                height,
-            },
-        };
-    }
-
-    private assembleRootDimensions(): Record<string, unknown> {
-        return {
-            width: '100%',
-            height: '100%',
-            flex: '1',
-        };
-    }
-
-    private assembleRootArea(ontology: Record<string, unknown>): Record<string, unknown> {
-        const {
-            visualIntention: _v,
-            guidelines: _g,
-            ...rest
-        } = ontology;
-        return {
-            id: 'body',
-            dimensions: this.assembleRootDimensions(),
-            ...rest,
-        };
-    }
-
-    private assembleDecisionEnvironment(session: unknown, question?: Record<string, unknown>): Record<string, unknown> {
-        const browser = this.resolveBrowserContext();
-        return {
-            browser,
-            limits: this.buildLimitsPayload(browser as { viewport?: unknown }),
-            guidelines: DEFAULT_DESIGN_GUIDELINES,
-            session: session ?? null,
-            ...(question && { question }),
-        };
-    }
-
-    private buildDecisionContext(_input: unknown, session: unknown, question?: Record<string, unknown>): Record<string, unknown> {
-        const ontology = this.extractOntologyContext();
-        return {
-            containerId: 'root',
-            areaContainerDimensions: this.assembleRootDimensions(),
-            visualIntention: ontology.visualIntention as string,
-            ...this.assembleDecisionEnvironment(session, question),
-            area: this.assembleRootArea(ontology),
-        };
-    }
-
-    private resolveCognitiveQuestion(_input: unknown): Record<string, unknown> {
-        return {
-            id: 'area_type',
-            type: 'choice',
-            prompt: 'Determina si la aplicación principal debe articularse mediante un LAYOUT estructural o como una VIEW unitaria.',
-            options: APP_DECISION_OPTIONS,
-        };
-    }
-
-    private handleDispositionProvide(signal: Signal): void {
-        const payload = this.extractPayload<DispositionProvidePayload>(signal.value);
-        if (!payload) {
-            return;
-        }
-        this.pulse(DispositionSignal.UPDATED, payload);
-    }
-
-    private mergeAimBody(aim: Aim<Body>, patch: Partial<Body>): Aim<Body> {
-        const body = {
-            ...aim.body,
-            ...patch,
-        };
-        return {
-            ...aim,
-            body,
-        };
-    }
-
-    private updateDispositionBody(patch: Partial<Body>): void {
-        const {
-            aim,
-        } = this.disposition;
-        const updatedAim = this.mergeAimBody(aim, patch);
-        this.pulse(this.updateEvent, {
-            ...this.disposition,
-            aim: updatedAim,
-        });
-    }
-
-    private handleDecisionDecided(signal: Signal): void {
-        const {
-            value,
-            correlationId,
-        } = signal;
-        this.pulse(SignalType.DECIDED, value, undefined, correlationId);
-        this.requestBuild(value, correlationId);
-    }
-
-    private extractDecisionChoice(decisionValue: unknown): 'LAYOUT' | 'VIEW' {
-        const {
-            result,
-            choice,
-        } = (decisionValue ?? {}) as { result?: { choice?: 'LAYOUT' | 'VIEW' }; choice?: 'LAYOUT' | 'VIEW' };
-        const {
-            choice: resultChoice,
-        } = result ?? {};
-        return resultChoice ?? choice ?? 'VIEW';
-    }
-
-    private resolveBuildContext(decisionValue: unknown): Record<string, unknown> {
-        const {
-            context,
-        } = (decisionValue ?? {}) as { context?: Record<string, unknown> };
-        return context ?? this.buildDecisionContext(null, null);
-    }
-
-    private resolveBuildIntention(choice: 'LAYOUT' | 'VIEW', area?: Area): string {
-        const isLayout = choice === 'LAYOUT';
-        const action = isLayout ? 'Estructurar distribución espacial' : 'Articular componentes visuales';
-        const targetId = area?.id ?? ROOT_AREA_ID;
-        const targetIntention = area?.intention ?? area?.purpose ?? 'Interacción y contenido funcional';
-        return `${action} para el área '${targetId}': "${targetIntention}"`;
-    }
-
-    private buildAimPayload(choice: 'LAYOUT' | 'VIEW', area?: Area, context?: Record<string, unknown>): Aim<Record<string, unknown>> {
-        const description = this.resolveBuildIntention(choice, area);
-        return {
-            description,
-            body: context ?? {},
-        };
-    }
-
-    private buildLimitsPayload(browser?: { viewport?: unknown }): Record<string, unknown> {
-        return {
-            viewport: browser?.viewport,
-        };
-    }
-
-    private assembleBuildPayload(aim: Aim<Record<string, unknown>>): TransportPayload {
-        return {
-            aim,
-        };
-    }
-
-    private sanitizeBuildContext(context: Record<string, unknown>): Record<string, unknown> {
-        const {
-            question: _question,
-            options: _options,
-            session: _session,
-            state: _state,
-            ...rest
-        } = context;
-        return rest;
-    }
-
-    private createBuildPayload(choice: 'LAYOUT' | 'VIEW', context: Record<string, unknown>): TransportPayload {
-        const { area, browser } = context as { area?: Area; browser?: { viewport?: unknown } };
-        const limits = (context.limits ?? this.buildLimitsPayload(browser)) as Record<string, unknown>;
-        const cleanContext = this.sanitizeBuildContext(context);
-        return this.assembleBuildPayload(this.buildAimPayload(choice, area, {
-            ...cleanContext,
-            limits,
-        }));
-    }
-
-    private dispatchBuild(choice: 'LAYOUT' | 'VIEW', context: Record<string, unknown>, correlationId?: string): void {
-        const payload = this.createBuildPayload(choice, context);
-        const signal = choice === 'LAYOUT' ? LayoutSignalType.BUILD : ViewSignalType.BUILD;
-        this.pulse(signal, payload, undefined, correlationId);
-    }
-
-    private requestBuild(decisionValue: unknown, correlationId?: string): void {
-        const context = this.resolveBuildContext(decisionValue);
-        const cid = correlationId ?? (decisionValue as { correlationId?: string })?.correlationId;
-        const choice = this.extractDecisionChoice(decisionValue);
-        this.dispatchBuild(choice, context, cid);
-    }
-
-    private handleLayoutBuilt(signal: Signal): void {
-        const {
-            value,
-            correlationId,
-        } = signal;
-        this.pulse(SignalType.BUILT, value, undefined, correlationId);
-    }
-
-    private handleViewBuilt(signal: Signal): void {
-        const {
-            value,
-            correlationId,
-        } = signal;
-        this.pulse(SignalType.BUILT, value, undefined, correlationId);
-    }
-
-    private handleViewRendered(signal: Signal): void {
-        const {
-            value,
-            correlationId,
-        } = signal;
-        this.pulse(SignalType.BUILT, value, undefined, correlationId);
-    }
-
-    private handleLayoutAreaCreated(signal: Signal): void {
-        const {
-            value,
-            correlationId,
-        } = signal;
-        const defined = value as AreaDefined;
-        if (defined?.area?.id === 'root' || defined?.area?.id === 'app' || defined?.area?.id === 'body') {
-            return;
-        }
-        this.sendAreaDecision(defined, correlationId);
-    }
-
-    private pickAreaIdentity(area: Area): Record<string, unknown> {
-        const {
-            id,
-            purpose,
-            intention,
-        } = area;
-        return {
-            id,
-            purpose,
-            intention,
-        };
-    }
-
-    private pickAreaStructure(area: Area): Record<string, unknown> {
-        const {
-            qualities,
-            container,
-        } = area;
-        return {
-            qualities,
-            container,
-        };
-    }
-
-    private pickAreaDispositions(area: Area): Record<string, unknown> {
-        const {
-            visual,
-            dimensions,
-        } = area;
-        return {
-            visual,
-            dimensions,
-        };
-    }
-
-    private extractRemainingArea(area: Area): Record<string, unknown> {
-        return {
-            ...this.pickAreaIdentity(area),
-            ...this.pickAreaStructure(area),
-            ...this.pickAreaDispositions(area),
-        };
-    }
-
-    private extractAreaDirectives(area: Area): Record<string, unknown> {
-        const {
-            parentId = 'body',
-            dimensions = {},
-            visual,
-        } = area;
-        const visualIntention = visual?.intention ?? area.intention;
-        return {
-            containerId: parentId,
-            areaContainerDimensions: dimensions,
-            visualIntention,
-            visual,
-        };
-    }
-
-    private buildAreaDirectives(area: Area, browser: Record<string, unknown>): Record<string, unknown> {
-        return {
-            ...this.extractAreaDirectives(area),
-            browser,
-            limits: this.buildLimitsPayload(browser as { viewport?: unknown }),
-            guidelines: DEFAULT_DESIGN_GUIDELINES,
-        };
-    }
-
-    private buildAreaDecisionContext(
-        area: Area,
-        question: Record<string, unknown>,
-        browser: Record<string, unknown>,
-    ): Record<string, unknown> {
-        return {
-            ...this.buildAreaDirectives(area, browser),
-            question,
-            area: this.extractRemainingArea(area),
-        };
-    }
-
-    private createDecisionSignalBody(
-        question: Record<string, unknown>,
-        context: Record<string, unknown>,
-    ): Record<string, unknown> {
-        return {
-            id: this.id,
-            purpose: App.purpose,
-            intention: question.prompt as string,
-            outputSchema: Zod.toJsonSchema(decisionResultSchema),
-            context,
-        };
-    }
-
-    private dispatchAreaPrompt(area: Area, context: Record<string, unknown>, correlationId?: string): void {
-        const nextId = `${correlationId ?? 'decision'}:${area.id}`;
-        const { browser = this.resolveBrowserContext() } = context as { browser?: Record<string, unknown> };
-        const question = this.resolveAreaQuestion(area, area.parentId);
-        const decisionContext = this.buildAreaDecisionContext(area, question, browser as Record<string, unknown>);
-        const signalBody = this.createDecisionSignalBody(question, decisionContext);
-        signalBodySchema.parse(signalBody);
-        this.pulse(DecisionSignalType.DECIDE, signalBody, undefined, nextId);
-    }
-
-    private sendAreaDecision(defined: AreaDefined, correlationId?: string): void {
-        const {
-            area,
-            context = {},
-        } = defined;
-        this.dispatchAreaPrompt(area, context, correlationId);
-    }
-
-    private resolveAreaQuestion(area: Area, parentId?: string): Record<string, unknown> {
-        const {
-            id,
-        } = area;
-        const target = parentId ? `el área '${id}' (contenida en '${parentId}')` : `el área '${id}'`;
-        return {
-            id: `area_type_${id}`,
-            type: 'choice',
-            prompt: `Determina si ${target} debe ser LAYOUT o VIEW evaluando intention y purpose en el contexto provisto.`,
-            options: AREA_DECISION_OPTIONS,
-        };
-    }
-
-    private handleLayoutError(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.pulse(SignalType.ERROR, value);
-    }
-
-    private handleViewError(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.pulse(SignalType.ERROR, value);
-    }
-
-    private handleDecisionError(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.pulse(SignalType.ERROR, value);
-    }
-
-    private handleThemeChanged(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.pulse(DesignSignalType.THEME_CHANGED, value);
-    }
-
-    private handleSpecificationParsed(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.updateDispositionBody({
-            specification: value as Record<string, unknown>,
-        });
-    }
-
-    private handleSpecificationProvided(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.updateDispositionBody({
-            specification: value as Record<string, unknown>,
-        });
-    }
-
-    private handleMaterialApplied(_signal: Signal): void {
     }
 }

@@ -129,7 +129,7 @@ import { createContextSchema } from '@uca/llm/schema';
 import { SYSTEM_INSTRUCTION } from '@uca/llm/constants';
 const contract = { outputSchema: { type: 'object' }, contextSchema: createContextSchema({ areaId: 'root' }), purpose: 'Present the requested area', goal: 'Build', limits: { width: 640 } };
 function evaluation(areaId: string) {
-    return { ...contract, provider: 'jev', goal: 'Evaluate', contextSchema: createContextSchema({ state: { areaId }, questions: { ready: 'Is it ready?' } }), correlationId: areaId };
+    return { ...contract, provider: 'jev', goal: 'Evaluate', contextSchema: createContextSchema({ state: { areaId }, questions: { ready: 'Is it ready?' } }), sessionId: areaId };
 }
 
 import { SignalType as GeminiSignalType } from '@uca/capability-gemini/types';
@@ -152,19 +152,19 @@ function providerEvent(property: string, value: unknown): void {
 backendBus.addEventListener(GeminiSignalType.STREAM, (event: Event) => {
     event.stopImmediatePropagation();
     const { detail: { value } } = event as CustomEvent<Signal>;
-    const { prompt, correlationId, systemInstruction, temperature, maxOutputTokens, schema } = value as Record<string, unknown>;
+    const { prompt, sessionId, systemInstruction, temperature, maxOutputTokens, schema } = value as Record<string, unknown>;
     assert.equal(systemInstruction, SYSTEM_INSTRUCTION); assert.equal(temperature, 0); assert.equal(maxOutputTokens, 12); assert.deepEqual(schema, { type: 'object' });
     assert.deepEqual(JSON.parse(String(prompt)), contract);
     const stream = new ReadableStream<string>({
         start(controller) {
             controller.enqueue('layout');
-            if (correlationId !== 'cancel-stream') {
+            if (sessionId !== 'cancel-stream') {
                 controller.close();
             }
         },
         cancel() { confirmCancellation?.(); },
     });
-    providerEvent(GeminiSignalType.STREAMED, { stream, correlationId });
+    providerEvent(GeminiSignalType.STREAMED, { stream, sessionId });
 });
 async function inferArea(areaId: string): Promise<unknown> {
     const response = await originalFetch(`${endpoint}/api/llm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(evaluation(areaId)) });
@@ -194,17 +194,17 @@ try {
     const { detail: { value: result, targetId } } = completed as CustomEvent<Signal<Record<string, unknown>>>;
     assert.deepEqual(result.data, { areaId: 'root' }); assert.deepEqual(result.context, { areaId: 'root' }); assert.equal(targetId, 'test-client');
     const concurrent = await Promise.all([inferArea('first'), inferArea('second')]);
-    assert.deepEqual(concurrent.map((value) => (value as { correlationId: string }).correlationId), ['first', 'second']);
+    assert.deepEqual(concurrent.map((value) => (value as { sessionId: string }).sessionId), ['first', 'second']);
     assert.deepEqual(concurrent.map((value) => (value as { data: unknown }).data), [{ areaId: 'first' }, { areaId: 'second' }]);
-    const failed = await inferArea('failed') as { error: string; correlationId: string };
-    assert.match(failed.error, /Jev HTTP 503/); assert.equal(failed.correlationId, 'failed');
+    const failed = await inferArea('failed') as { error: string; sessionId: string };
+    assert.match(failed.error, /Jev HTTP 503/); assert.equal(failed.sessionId, 'failed');
     assert.equal(upstreamCalls, 4);
     const streamed = once(clientBus, LlmSignalType.STREAMED, { signal: AbortSignal.timeout(4000) });
     const ended = once(clientBus, LlmSignalType.STREAM_END, { signal: AbortSignal.timeout(4000) });
-    emitSignal(clientBus, LlmSignalType.STREAM, { ...contract, id: client.id, provider: 'gemini', imagination: 0, limit: 12, correlationId: 'layout' });
+    emitSignal(clientBus, LlmSignalType.STREAM, { ...contract, id: client.id, provider: 'gemini', imagination: 0, limit: 12, sessionId: 'layout' });
     const [received] = await streamed;
-    const { detail: { value: { stream, correlationId } } } = received as CustomEvent<Signal<import('@uca/llm/types').StreamResult>>;
-    assert.equal(correlationId, 'layout');
+    const { detail: { value: { stream, sessionId } } } = received as CustomEvent<Signal<import('@uca/llm/types').StreamResult>>;
+    assert.equal(sessionId, 'layout');
     assert.equal(await new Response(stream.pipeThrough(new TextEncoderStream())).text(), 'layout');
     assert.equal((received as CustomEvent<Signal>).detail.targetId, 'client');
     await ended;
@@ -212,18 +212,18 @@ try {
     assert.equal(observed.filter(({ source, property }) => source === 'backend' && property === LlmSignalType.ERROR).length, 1);
     assert.equal(observed.filter(({ source, property }) => source === 'backend' && property === LlmSignalType.STREAM_END).length, 1);
     const cancellable = once(clientBus, LlmSignalType.STREAMED, { signal: AbortSignal.timeout(4000) });
-    emitSignal(clientBus, LlmSignalType.STREAM, { ...contract, id: client.id, provider: 'gemini', imagination: 0, limit: 12, correlationId: 'cancel-stream' });
+    emitSignal(clientBus, LlmSignalType.STREAM, { ...contract, id: client.id, provider: 'gemini', imagination: 0, limit: 12, sessionId: 'cancel-stream' });
     const [cancellableEvent] = await cancellable;
     const { detail: { value: { stream: cancellableStream } } } = cancellableEvent as CustomEvent<Signal<import('@uca/llm/types').StreamResult>>;
     const cancellableReader = cancellableStream.getReader();
     assert.deepEqual(await cancellableReader.read(), { done: false, value: 'layout' });
     await cancellableReader.cancel();
     await Promise.race([upstreamCancellation, new Promise((_, reject) => { setTimeout(() => reject(new Error('HTTP disconnect did not cancel the provider stream')), 2000).unref(); })]);
-    const rejected = await originalFetch(`${endpoint}/api/llm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ request: 'Legacy input', correlationId: 'invalid' }) });
-    const invalid = await rejected.json() as { error: string; correlationId: string };
-    assert.equal(rejected.ok, false); assert.equal(invalid.correlationId, 'invalid'); assert.match(invalid.error, /outputSchema/);
+    const rejected = await originalFetch(`${endpoint}/api/llm`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ request: 'Legacy input', sessionId: 'invalid' }) });
+    const invalid = await rejected.json() as { error: string; sessionId: string };
+    assert.equal(rejected.ok, false); assert.equal(invalid.sessionId, 'invalid'); assert.match(invalid.error, /outputSchema/);
     assert.equal(upstreamCalls, 4, 'Invalid HTTP contracts cannot reach a provider');
-    const invalidStream = await originalFetch(`${endpoint}/api/llm/sse`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...contract, goal: '', correlationId: 'invalid-stream' }) });
+    const invalidStream = await originalFetch(`${endpoint}/api/llm/sse`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...contract, goal: '', sessionId: 'invalid-stream' }) });
     const invalidFrames = await invalidStream.text();
     assert.match(invalidFrames, /error/); assert.match(invalidFrames, /invalid-stream/);
 

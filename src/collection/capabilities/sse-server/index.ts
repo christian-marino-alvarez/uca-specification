@@ -98,10 +98,10 @@ export class SseServer extends Capability<Body> {
 
     private handleOpen(payload: OpenPayload): void {
         const binding = this.createBinding(payload);
-        const { correlationId, request } = binding;
-        this.bindings.set(correlationId, binding);
+        const { sessionId, request } = binding;
+        this.bindings.set(sessionId, binding);
         this.pulse(SignalType.OPENED, {
-            correlationId,
+            sessionId,
             stream: this.createStream(binding),
         });
         request(binding.controller.signal);
@@ -109,14 +109,14 @@ export class SseServer extends Capability<Body> {
 
     private createBinding(payload: OpenPayload): Binding {
         const {
-            correlationId,
+            sessionId,
             request,
             cancel,
         } = payload;
         let resolveSource: (source: Source) => void = () => undefined;
         const source = new Promise<Source>((resolve) => { resolveSource = resolve; });
         return {
-            correlationId,
+            sessionId,
             request,
             cancel,
             source,
@@ -161,11 +161,11 @@ export class SseServer extends Capability<Body> {
     }
 
     private writeFrame(binding: Binding, controller: ReadableStreamDefaultController<Uint8Array>, frame: { text?: string; done?: boolean; error?: unknown }): void {
-        const { correlationId } = binding;
+        const { sessionId } = binding;
         const { done, error } = frame;
         const payload = {
             ...frame,
-            correlationId,
+            sessionId,
             ...(error !== undefined ? { error: String(error) } : {}),
         };
         controller.enqueue(new TextEncoder().encode(`${SSE_PREFIX}${JSON.stringify(payload)}${SSE_SUFFIX}`));
@@ -181,7 +181,7 @@ export class SseServer extends Capability<Body> {
         controller.close();
         this.releaseBinding(binding);
         this.pulse(SignalType.COMPLETED, {
-            correlationId: binding.correlationId,
+            sessionId: binding.sessionId,
         });
     }
 
@@ -189,28 +189,28 @@ export class SseServer extends Capability<Body> {
         controller.close();
         this.releaseBinding(binding);
         this.pulse(SignalType.ERROR, {
-            correlationId: binding.correlationId,
+            sessionId: binding.sessionId,
             error,
         });
     }
 
     private handleSource(value: StreamResult): void {
         const {
-            correlationId,
+            sessionId,
             stream,
         } = value;
-        if (correlationId) {
-            this.bindings.get(correlationId)?.resolveSource({ stream });
+        if (sessionId) {
+            this.bindings.get(sessionId)?.resolveSource({ stream });
         }
     }
 
     private handleFailure(value: Failure): void {
         const {
-            correlationId,
+            sessionId,
             error,
         } = value;
-        if (correlationId) {
-            this.bindings.get(correlationId)?.resolveSource({ error });
+        if (sessionId) {
+            this.bindings.get(sessionId)?.resolveSource({ error });
         }
     }
 
@@ -219,7 +219,7 @@ export class SseServer extends Capability<Body> {
             cancel,
             controller,
             reader,
-            correlationId,
+            sessionId,
         } = binding;
         controller.abort(reason);
         cancel();
@@ -227,15 +227,15 @@ export class SseServer extends Capability<Body> {
         this.releaseBinding(binding);
         await reader?.cancel(reason);
         this.pulse(SignalType.CANCELLED, {
-            correlationId,
+            sessionId,
             reason,
         });
     }
 
     private releaseBinding(binding: Binding): void {
         const {
-            correlationId,
+            sessionId,
         } = binding;
-        this.bindings.delete(correlationId);
+        this.bindings.delete(sessionId);
     }
 }

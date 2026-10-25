@@ -41,7 +41,7 @@ export interface CompleteResult extends Identity {
 }
 
 export interface Body { readonly schema?: z.ZodType; readonly silent?: boolean; }
-export interface Identity { readonly correlationId?: string; readonly streamId?: string; readonly context?: unknown; }
+export interface Identity { readonly sessionId?: string; readonly correlationId?: string; readonly streamId?: string; readonly context?: unknown; }
 export interface TransformPayload extends Identity {
     readonly stream: ReadableStream<string>;
     readonly schema?: z.ZodType;

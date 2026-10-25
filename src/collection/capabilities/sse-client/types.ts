@@ -29,6 +29,7 @@ export interface Body {
 export interface StreamPayload {
     readonly endpoint?: string;
     readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly streamId?: string;
     readonly request?: unknown;
     readonly model?: string;
@@ -41,6 +42,7 @@ export interface StreamPayload {
 
 export interface StreamResult {
     readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly streamId?: string;
     readonly stream: ReadableStream<string>;
     readonly context?: unknown;
@@ -48,11 +50,13 @@ export interface StreamResult {
 
 export interface ChunkPayload {
     readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly chunk: string;
 }
 
 export interface ErrorPayload {
     readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly streamId?: string;
     readonly error: string;
     readonly context?: unknown;

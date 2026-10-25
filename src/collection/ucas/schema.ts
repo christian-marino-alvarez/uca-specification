@@ -68,5 +68,5 @@ export const signalSchema = z.object({
     property: z.string().min(1).describe('Propiedad, evento o estímulo nervioso transmitido'),
     value: z.unknown().describe('Cuerpo o payload transportado dentro de la señal (Body)'),
     timestamp: z.number().optional().describe('Marca temporal de emisión en milisegundos'),
-    correlationId: z.string().optional().describe('Identificador único de correlación y trazabilidad nerviosa de la señal a nivel de transporte'),
+    sessionId: z.string().optional().describe('Identificador único de sesión y trazabilidad nerviosa de la señal a nivel de transporte'),
 }).describe('Esquema formal del sobre de transporte Signal para la comunicación nerviosa');

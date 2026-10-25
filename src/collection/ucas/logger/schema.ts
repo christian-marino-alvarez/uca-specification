@@ -10,7 +10,7 @@ export const contextSchema = z.object({
     parentTo: z.string().optional(),
     compositionId: z.string().optional(),
     depth: z.number().optional(),
-    correlationId: z.string().optional(),
+    sessionId: z.string().optional(),
     selectedId: z.string().optional(),
     selectedIds: z.array(z.string()).optional(),
     path: z.string().optional(),

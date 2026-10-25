@@ -11,8 +11,8 @@ export const DEFAULT_MAX_OUTPUT_TOKENS = 16384;
 export const DELIBERATION_BUDGET_SCALE = 2048;
 
 export const normalizeInference = (payload: import('./types.js').InferenceRequest): import('@uca/llm/types').InferPayload => {
-    const { correlationId = crypto.randomUUID(), ...request } = payload;
-    return { ...request, correlationId };
+    const { sessionId = crypto.randomUUID(), ...request } = payload;
+    return { ...request, sessionId };
 };
 
 export const SSE_HEADERS = { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache', Connection: 'keep-alive' } as const;

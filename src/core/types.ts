@@ -15,7 +15,7 @@ export interface Signal<T = unknown> {
     property: string;
     value: T;
     timestamp?: number;
-    correlationId?: string;
+    sessionId?: string;
 }
 
 /**
@@ -68,7 +68,7 @@ export interface Disposition<TBody = unknown> {
 export interface TransportPayload<TBody = unknown> {
     readonly aim: Aim<TBody>;
     readonly limits?: Record<string, unknown>;
-    readonly correlationId?: string;
+    readonly sessionId?: string;
 }
 
 /**
@@ -79,6 +79,8 @@ export enum DispositionSignal {
     UPDATED = 'disposition.updated',
     GET = 'GET',
     PROVIDE = 'disposition.provide',
+    INNERVATED = 'innervated',
+    DENERVATED = 'denervated',
 }
 
 export type DispositionSignalType = DispositionSignal;

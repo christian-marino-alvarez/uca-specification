@@ -18,7 +18,7 @@ export enum DataType {
 
 export interface CompositionPayload {
     readonly request: InferPayload;
-    readonly correlationId: string;
+    readonly sessionId: string;
 }
 
 export type { Body } from './schema.js';

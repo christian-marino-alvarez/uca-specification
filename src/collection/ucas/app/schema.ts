@@ -5,12 +5,20 @@ export const navigationParameterSchema = z.object({
     value: z.unknown(),
 }).strict();
 
+export const runSchema = z.object({
+    initialPage: z.string().optional(),
+    sessionId: z.string().optional(),
+    context: z.record(
+        z.string(),
+        z.unknown(),
+    ).optional(),
+}).strict().optional();
+
 export const navigationSchema = z.object({
     navigateTo: z.string().min(1),
     parameters: z.array(
         navigationParameterSchema,
     ).optional(),
-    correlationId: z.string().optional(),
     sessionId: z.string().optional(),
 }).strict();
 
@@ -41,18 +49,26 @@ export const decisionResultSchema = z.object({
         z.string(),
         z.unknown(),
     ).optional(),
-    correlationId: z.string().optional(),
+    sessionId: z.string().optional(),
 }).passthrough();
 
 export const sessionSchema = z.object({
-    sessionId: z.string().min(1),
-    lastRoute: z.string().min(1),
-    timestamp: z.number(),
+    id: z.string().optional(),
+    sessionId: z.string().optional(),
+    state: z.enum([
+        'PROMPT_RESUME',
+        'FRESH',
+        'ACTIVE',
+    ]).optional(),
+    lastRoute: z.string().optional(),
+    timestamp: z.number().optional(),
+    createdAt: z.number().optional(),
+    storage: z.string().optional(),
     parameters: z.record(
         z.string(),
         z.unknown(),
     ).optional(),
-}).strict();
+}).passthrough();
 
 export const bodySchema = z.object({
     id: z.string().optional(),
@@ -70,20 +86,10 @@ export const bodySchema = z.object({
         z.string(),
         z.unknown(),
     ).optional(),
-    sessionState: z.enum([
-        'PROMPT_RESUME',
-        'FRESH',
-        'ACTIVE',
-    ]).optional(),
-    previousSession: sessionSchema.optional(),
     parameters: z.array(
         navigationParameterSchema,
     ).optional(),
     browserContext: z.record(
-        z.string(),
-        z.unknown(),
-    ).optional(),
-    specification: z.record(
         z.string(),
         z.unknown(),
     ).optional(),
@@ -94,6 +100,7 @@ export const bodySchema = z.object({
 }).strict();
 
 export type NavigationParameter = z.infer<typeof navigationParameterSchema>;
+export type Run = z.infer<typeof runSchema>;
 export type Navigation = z.infer<typeof navigationSchema>;
 export type BrowserContext = z.infer<typeof browserContextSchema>;
 export type DecisionResult = z.infer<typeof decisionResultSchema>;

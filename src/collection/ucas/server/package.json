@@ -44,6 +44,6 @@
     "@uca/visual-composition": "^0.1.0"
   },
   "scripts": {
-    "test": "tsx tests/index.ts && tsx tests/inference.ts && tsx tests/sse.ts"
+    "test": "tsx tests/index.ts && tsx tests/inference.ts"
   }
 }

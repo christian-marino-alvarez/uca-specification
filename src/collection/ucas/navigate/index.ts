@@ -4,8 +4,6 @@ import { Memory } from '@uca/memory';
 import { SignalType as MemorySignalType } from '@uca/memory/types';
 import { Uca } from '@uca/core/uca';
 import type {
-    Aim,
-    CapabilityConstructor,
     Cooky,
     Disposition,
     Signal,
@@ -65,32 +63,20 @@ export class Navigate extends Uca<Body> {
                 schema: navigationStateSchema,
                 description: 'Active navigation state updated',
             },
-            {
-                signal: SignalType.RESTORED,
-                type: DataType.NAVIGATION_STATE,
-                schema: navigationStateSchema,
-                description: 'Previous navigation state restored from memory',
-            },
         ],
     };
 
     private static reactToHistory(): string[] {
-        const {
-            reactTo = [],
-        } = History.disposition;
         return [
-            ...reactTo,
+            ...History.disposition?.reactTo || [],
             HistorySignalType.CHANGED,
             HistorySignalType.CURRENT,
         ];
     }
 
     private static reactToMemory(): string[] {
-        const {
-            reactTo = [],
-        } = Memory.disposition;
         return [
-            ...reactTo,
+            ...Memory.disposition?.reactTo || [],
             MemorySignalType.RETRIEVED,
             MemorySignalType.SAVED,
         ];
@@ -102,8 +88,25 @@ export class Navigate extends Uca<Body> {
 
     protected override catalog(): Cooky {
         return [
-            this.buildHistoryCooky(),
-            this.buildMemoryCooky(),
+            [
+                History,
+                this.createDisposition(
+                    History.disposition,
+                    History.AIM,
+                    'history',
+                ),
+            ],
+            [
+                Memory,
+                this.createDisposition(
+                    Memory.disposition,
+                    Memory.purpose,
+                    'memory',
+                    {
+                        namespace: MEMORY_NAMESPACE,
+                    },
+                ),
+            ],
         ];
     }
 
@@ -130,56 +133,6 @@ export class Navigate extends Uca<Body> {
             default:
                 break;
         }
-    }
-
-    private buildHistoryCooky(): [CapabilityConstructor, Disposition] {
-        const {
-            id,
-        } = this;
-        return [
-            History,
-            this.createHistoryDisposition(`${id}:history`),
-        ];
-    }
-
-    private buildMemoryCooky(): [CapabilityConstructor, Disposition] {
-        const {
-            id,
-        } = this;
-        return [
-            Memory,
-            this.createMemoryDisposition(`${id}:memory`),
-        ];
-    }
-
-    private createHistoryDisposition(id: string): Disposition {
-        const aim = this.createAim(History.AIM, id);
-        return {
-            ...History.disposition,
-            aim,
-        };
-    }
-
-    private createMemoryDisposition(id: string): Disposition {
-        const aim = this.createAim(Memory.purpose, id);
-        return {
-            ...Memory.disposition,
-            aim: {
-                ...aim,
-                body: {
-                    namespace: MEMORY_NAMESPACE,
-                },
-            },
-        };
-    }
-
-    private createAim(description: string, id: string): Aim {
-        return {
-            description,
-            body: {
-                id,
-            },
-        };
     }
 
     private handleGo(signal: Signal): void {
@@ -284,6 +237,5 @@ export class Navigate extends Uca<Body> {
             path,
             parameters,
         });
-        this.pulse(SignalType.RESTORED, routeState);
     }
 }

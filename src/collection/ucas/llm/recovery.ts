@@ -17,5 +17,5 @@ export const createRepairRequest = (original: InferPayload, recovery: RepairCont
     const originalLimits = ((facts as Record<string, unknown>)?.limits ?? {}) as Record<string, unknown>;
     const resolvedContext = { original: facts, correction, limits: { ...originalLimits, repairOnly: true } };
     const repairedSchema = contextSchema ? { ...contextSchema, const: resolvedContext } : undefined;
-    return { ...original, correlationId: requestId, context: resolvedContext, ...(repairedSchema && { contextSchema: repairedSchema }), goal: REPAIR_GOAL };
+    return { ...original, sessionId: requestId, context: resolvedContext, ...(repairedSchema && { contextSchema: repairedSchema }), goal: REPAIR_GOAL };
 };

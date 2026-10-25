@@ -25,13 +25,13 @@ try {
         return Response.json({ answers: { ready: true } });
     };
     const result = receive(bus, SignalType.INFERRED);
-    emit(bus, SignalType.INFER, { state: { areaId: 'root' }, questions: { ready: 'Ready?', strategy: { instructions: 'Choose', options: { KEEP: 'Keep' } } }, limit: 20, correlationId: 'area:root' });
-    const { state, answers, correlationId } = await result as InferResult;
-    assert.deepEqual(state, { areaId: 'root' }); assert.deepEqual(answers, { ready: true }); assert.equal(correlationId, 'area:root');
+    emit(bus, SignalType.INFER, { state: { areaId: 'root' }, questions: { ready: 'Ready?', strategy: { instructions: 'Choose', options: { KEEP: 'Keep' } } }, limit: 20, sessionId: 'area:root' });
+    const { state, answers, sessionId } = await result as InferResult;
+    assert.deepEqual(state, { areaId: 'root' }); assert.deepEqual(answers, { ready: true }); assert.equal(sessionId, 'area:root');
     globalThis.fetch = async () => new Response('Unavailable', { status: 503 });
     const failure = receive(bus, SignalType.ERROR);
-    emit(bus, SignalType.INFER, { state: {}, questions: {}, correlationId: 'area:failed' });
-    const { error, correlationId: failureId } = await failure as { error: Error; correlationId: string };
+    emit(bus, SignalType.INFER, { state: {}, questions: {}, sessionId: 'area:failed' });
+    const { error, sessionId: failureId } = await failure as { error: Error; sessionId: string };
     assert.match(error.message, /Jev HTTP 503/); assert.equal(failureId, 'area:failed');
 } finally { globalThis.fetch = originalFetch; jev.denervate(); }
 console.log('✔ Jev backend HTTP protocol and correlated errors verified');

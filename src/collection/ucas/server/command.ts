@@ -34,7 +34,7 @@ export function createCommand(payload: InferPayload, stream = false): Command {
         imagination,
         thinkingBudget,
         thinkingLevel,
-        correlationId,
+        sessionId,
         streamId,
         contextSchema,
         context,
@@ -54,13 +54,13 @@ export function createCommand(payload: InferPayload, stream = false): Command {
         maxOutputTokens: limit,
         thinkingBudget,
         thinkingLevel,
-        correlationId,
+        sessionId,
         streamId,
     };
     switch (provider) {
         case 'jev':
             return stream
-                ? { property: LlmSignalType.ERROR, value: { error: 'Jev does not support streaming', correlationId } }
+                ? { property: LlmSignalType.ERROR, value: { error: 'Jev does not support streaming', sessionId } }
                 : { property: JevSignalType.INFER, value: createEvaluation(payload) };
         case 'gemini':
             return { property: stream ? GeminiSignalType.STREAM : GeminiSignalType.GENERATE, value: { ...value, model: resolveGeminiModel(payload) } };
@@ -78,10 +78,10 @@ function buildQuestionCriteria(questions: Record<string, unknown>, contract: str
 }
 
 export function createEvaluation(payload: InferPayload): Record<string, unknown> {
-    const { contextSchema, context, goal, model = DEFAULT_JEV_MODEL, limit, correlationId } = payload;
+    const { contextSchema, context, goal, model = DEFAULT_JEV_MODEL, limit, sessionId } = payload;
     const facts = (context ?? (contextSchema as { const?: unknown })?.const ?? {}) as Record<string, unknown>;
     const { state = facts, questions, question } = facts as EvaluationContext & { question?: Question & { id?: string } };
     const resolved = questions ?? (question ? { [question.id ?? 'question']: question } : { assessment: goal });
     const criteria = buildQuestionCriteria(resolved, serializeRequest(payload));
-    return { state, questions: criteria, model, limit, correlationId };
+    return { state, questions: criteria, model, limit, sessionId };
 }

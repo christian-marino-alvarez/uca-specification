@@ -29,7 +29,7 @@ export const questionSchema = z.object({
 }).strict();
 
 export const requestSchema = z.object({
-    correlationId: z.string().min(1),
+    sessionId: z.string().min(1),
     question: questionSchema,
     context: z.record(
         z.string(),
@@ -68,7 +68,7 @@ export const resultSchema = z.object({
         z.string(),
         z.unknown(),
     ).optional(),
-    correlationId: z.string().optional(),
+    sessionId: z.string().optional(),
 }).passthrough();
 
 export const metadataSchema = z.object({
@@ -83,11 +83,11 @@ export const validationContextSchema = z.object({
 }).strict();
 
 export const identitySchema = z.object({
-    correlationId: z.string().min(1).optional(),
+    sessionId: z.string().min(1).optional(),
 });
 
 export const errorSchema = z.object({
-    correlationId: z.string().min(1).nullable(),
+    sessionId: z.string().min(1).nullable(),
     error: z.string(),
     attempts: z.number().int().min(0).max(MAXIMUM_RETRIES + 1),
 }).strict();

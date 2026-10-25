@@ -380,32 +380,32 @@ export class View extends Uca<Body> {
 
     private createInferMeta(
         goal: string,
-        correlationId: string,
+        sessionId: string,
         streamId: string,
     ): Record<string, unknown> {
         return {
             goal,
-            correlationId,
+            sessionId,
             streamId,
         };
     }
 
-    private createInferRequest(payload: BuildPayload, correlationId: string): Record<string, unknown> {
+    private createInferRequest(payload: BuildPayload, sessionId: string): Record<string, unknown> {
         const { aim } = payload;
         const { description: intention, body } = aim;
         const area = (body?.area ?? {}) as Record<string, unknown>;
         const areaId = (area.id as string) ?? 'main';
         const context = this.buildEnrichedContext(body);
         const goal = this.getGoal(areaId, area);
-        const meta = this.createInferMeta(goal, correlationId, `${correlationId}:view:${areaId}`);
+        const meta = this.createInferMeta(goal, sessionId, `${sessionId}:view:${areaId}`);
         const outputSchema = Zod.toJsonSchema(viewCompositionSchema);
         return { id: 'view', purpose: this.purpose, goal, intention, context, outputSchema, ...meta };
     }
 
-    private dispatchLlmInfer(payload: BuildPayload, correlationId: string): void {
-        const inferPayload = this.createInferRequest(payload, correlationId);
+    private dispatchLlmInfer(payload: BuildPayload, sessionId: string): void {
+        const inferPayload = this.createInferRequest(payload, sessionId);
         webSignalBodySchema.parse(inferPayload);
-        this.pulse(LlmSignalType.INFER, inferPayload, undefined, correlationId);
+        this.pulse(LlmSignalType.INFER, inferPayload, undefined, sessionId);
     }
 
     private showAreaSkeleton(elementId: string): void {
@@ -422,7 +422,7 @@ export class View extends Uca<Body> {
 
     private handleBuild(signal: Signal): void {
         const {
-            correlationId = crypto.randomUUID(),
+            sessionId = crypto.randomUUID(),
             value,
         } = signal;
         const payload = value as BuildPayload;
@@ -430,7 +430,7 @@ export class View extends Uca<Body> {
         if (areaId) {
             this.showAreaSkeleton(areaId);
         }
-        this.dispatchLlmInfer(payload, correlationId);
+        this.dispatchLlmInfer(payload, sessionId);
     }
 
     private dispatchRender(
@@ -453,7 +453,7 @@ export class View extends Uca<Body> {
         return (comp.components ?? comp.items ?? []) as unknown[];
     }
 
-    private handleViewInferred(result: BuiltResult, correlationId?: string): void {
+    private handleViewInferred(result: BuiltResult, sessionId?: string): void {
         const {
             composition,
             context = {},
@@ -464,11 +464,11 @@ export class View extends Uca<Body> {
         }
         const list = this.extractComponentList(composition);
         this.dispatchRender(list, context, areaId);
-        this.pulse(SignalType.BUILT, result, undefined, correlationId);
+        this.pulse(SignalType.BUILT, result, undefined, sessionId);
         this.pulse(SignalType.CREATED, {
             areaId,
             context,
-        }, undefined, correlationId);
+        }, undefined, sessionId);
     }
 
     private resolveInferredAreaId(context: Record<string, unknown>): string | undefined {
@@ -489,19 +489,19 @@ export class View extends Uca<Body> {
     private handleLlmInferred(signal: Signal): void {
         const {
             value,
-            correlationId = (signal.value as InferResult)?.correlationId,
+            sessionId = (signal.value as InferResult)?.sessionId,
         } = signal;
         const result = this.extractInferredResult(value);
-        this.handleViewInferred(result, correlationId);
+        this.handleViewInferred(result, sessionId);
     }
 
     private handleLlmStreaming(_signal: Signal): void {}
 
     private buildTransformPayload(result: StreamResult): Record<string, unknown> {
-        const { correlationId, stream, context, request } = result as StreamResult & { context?: Record<string, unknown> };
+        const { sessionId, stream, context, request } = result as StreamResult & { context?: Record<string, unknown> };
         const resolvedContext = context ?? request?.context ?? (request as unknown as Record<string, unknown>) ?? {};
         return {
-            correlationId,
+            sessionId,
             stream,
             schema: componentItemSchema,
             mode: StreamTransformerMode.ITEMS,
@@ -524,50 +524,50 @@ export class View extends Uca<Body> {
     }
 
     private async handleStreamTransformerTransformed(signal: Signal): Promise<void> {
-        const { stream, context, correlationId } = this.extractTransformedPayload(signal);
+        const { stream, context, sessionId } = this.extractTransformedPayload(signal);
         if (!stream) { return; }
         try {
-            await stream.pipeTo(this.createStreamConsumer(context as Record<string, unknown> | undefined, correlationId));
+            await stream.pipeTo(this.createStreamConsumer(context as Record<string, unknown> | undefined, sessionId));
         } catch (error) {
-            this.pulse(SignalType.ERROR, error, undefined, correlationId);
+            this.pulse(SignalType.ERROR, error, undefined, sessionId);
         }
     }
 
     private createStreamConsumer(
         context?: Record<string, unknown>,
-        correlationId?: string,
+        sessionId?: string,
     ): WritableStream<Record<string, unknown>> {
         const components: Record<string, unknown>[] = [];
         return new WritableStream({
             write: (item) => {
                 components.push(item);
-                this.handleStreamChunk(item, context, correlationId);
+                this.handleStreamChunk(item, context, sessionId);
             },
-            close: () => this.handleStreamClose(components, context, correlationId),
+            close: () => this.handleStreamClose(components, context, sessionId),
         });
     }
 
     private handleStreamClose(
         components: Record<string, unknown>[],
         context?: Record<string, unknown>,
-        correlationId?: string,
+        sessionId?: string,
     ): void {
         const areaId = (context?.areaId as string) ?? (context?.containerId as string) ?? 'main';
         this.removeAreaSkeleton(areaId);
         this.pulse(SignalType.BUILT, {
             composition: { components },
             areaId,
-        }, undefined, correlationId);
+        }, undefined, sessionId);
         this.pulse(SignalType.CREATED, {
             areaId,
             context,
-        }, undefined, correlationId);
+        }, undefined, sessionId);
     }
 
     private handleStreamChunk(
         item: Record<string, unknown>,
         context?: Record<string, unknown>,
-        _correlationId?: string,
+        _sessionId?: string,
     ): void {
         const areaId = (context?.areaId as string) ?? (context?.containerId as string) ?? 'main';
         const body = (context?.body ?? context ?? {}) as Record<string, unknown>;
@@ -591,12 +591,12 @@ export class View extends Uca<Body> {
     }
 
     private handleLlmError(signal: Signal): void {
-        const { correlationId, value } = signal;
+        const { sessionId, value } = signal;
         const areaId = (value as { context?: { areaId?: string } })?.context?.areaId;
         if (areaId) {
             this.removeAreaSkeleton(areaId);
         }
-        this.pulse(SignalType.ERROR, value, undefined, correlationId);
+        this.pulse(SignalType.ERROR, value, undefined, sessionId);
     }
 
     private handleRenderRendered(signal: Signal): void {

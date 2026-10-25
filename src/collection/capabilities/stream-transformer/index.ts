@@ -116,12 +116,12 @@ export class StreamTransformer extends Capability<Body> {
     private processTransformPipeline(payload: TransformPayload): void {
         const { aim } = this.disposition;
         const { schema: defaultSchema } = aim.body ?? {};
-        const { correlationId, context, schema = defaultSchema, streamId } = payload;
-        const session = createSession(payload, (sessionId, error) => this.cancelSession(sessionId, error));
-        const { sessionId } = session;
-        this.sessions.set(sessionId, session);
-        const stream = createPipeline({ ...payload, schema }, session, (fields, resolution) => this.request(fields, resolution), (error) => this.finishSession(sessionId, error));
-        this.pulse(SignalType.TRANSFORMED, { correlationId, streamId, context, stream });
+        const { sessionId, correlationId, context, schema = defaultSchema, streamId } = payload;
+        const session = createSession(payload, (sid, error) => this.cancelSession(sid, error));
+        const { sessionId: activeSessionId } = session;
+        this.sessions.set(activeSessionId, session);
+        const stream = createPipeline({ ...payload, schema }, session, (fields, resolution) => this.request(fields, resolution), (error) => this.finishSession(activeSessionId, error));
+        this.pulse(SignalType.TRANSFORMED, { sessionId: sessionId ?? activeSessionId, correlationId, streamId, context, stream }, undefined, sessionId ?? activeSessionId);
     }
 
     private async handleRepair(payload: RepairPayload): Promise<void> {

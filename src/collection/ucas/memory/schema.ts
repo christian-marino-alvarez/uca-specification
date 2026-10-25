@@ -14,7 +14,7 @@ export const bodySchema = z.object({
 
 export const recallSchema = z.object({
     descriptor: z.record(z.string(), z.unknown()),
-    correlationId: z.string().min(1),
+    sessionId: z.string().min(1),
     context: z.unknown().optional(),
 }).strict();
 
@@ -32,7 +32,7 @@ export const storedEntrySchema = z.object({
 export const cacheSchema = z.array(storedEntrySchema);
 
 export const cacheResultSchema = z.object({
-    correlationId: z.string(),
+    sessionId: z.string(),
     value: z.unknown(),
     context: z.unknown().optional(),
 }).strict();

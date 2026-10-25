@@ -57,12 +57,24 @@ export enum StorageStage {
 export interface SavePayload {
     readonly key: string;
     readonly value: unknown;
-    readonly correlationId?: string;
+    readonly sessionId?: string;
 }
 
 export interface GetPayload {
     readonly key: string;
-    readonly correlationId?: string;
+    readonly sessionId?: string;
 }
 
 export interface RemovePayload extends GetPayload {}
+
+export interface SavedResult {
+    readonly key: string;
+    readonly value: unknown;
+    readonly sessionId?: string;
+}
+
+export interface RetrievedResult {
+    readonly key: string;
+    readonly value: unknown;
+    readonly sessionId?: string;
+}

@@ -1,155 +1,177 @@
 import type {
-    CorePrinciple,
-    FormalEntity,
-    FormalRelation,
+    Audience,
+    DomainEntity,
+    ExperienceScenario,
+    FunctionalDesign,
+    GraphicDesign,
+    InformationDisposition,
+    SpecificationModel,
+    UserExperience,
 } from './types.js';
 
 export const __ID__ = 'specification';
 
 export const AIM =
-    'Read, parse, and transform the UCA architectural specification from markdown into an ontological data model';
+    'Provide the ontological, functional, and experiential specification model of the application to cognitive agents and models';
 
-export const DEFAULT_SPECIFICATION_SOURCE = 'SPECIFICATION.es.md';
+export const DEFAULT_AUDIENCE: Audience = {
+    profile: [
+        'Desarrolladores',
+        'Diseñadores',
+        'Arquitectos de Software e IA',
+    ],
+    cognitiveGoal:
+        'Comprobar empíricamente que la arquitectura UCA es un paradigma real, reactivo y viable para sistemas cognitivos.',
+};
 
-export const DEFAULT_WEB_SOURCE = '/SPECIFICATION.es.md';
-
-export const DEFAULT_ENTITIES: readonly FormalEntity[] = [
+export const DEFAULT_SCENARIOS: readonly ExperienceScenario[] = [
     {
-        domain: 'U',
-        symbol: 'u',
+        name: 'Inspección de Reactividad y Señales',
+        context: 'Desarrolladores analizando el flujo de eventos, estímulos y pulsos nerviosos',
+        perceptionGoal: 'Verificar la ausencia de callbacks imperativos y comprobar la trazabilidad pura de Signals',
+    },
+    {
+        name: 'Validación de Invariantes Arquitectónicas',
+        context: 'Arquitectos evaluando los límites constitutivos, disposiciones e inervación',
+        perceptionGoal: 'Comprobar el desacoplamiento total, la idempotencia de disposiciones y la pureza ontológica sin estado mutable',
+    },
+    {
+        name: 'Composición Espacial y Adaptación Ambiental',
+        context: 'Diseñadores observando la emergencia de layouts y el contraste bicromático adaptativo',
+        perceptionGoal: 'Experimentar una estética inspirada en Material Design con contraste bicromático simple y adaptación temporal y geográfica',
+    },
+] as const;
+
+export const DEFAULT_USER_EXPERIENCE: UserExperience = {
+    scenarios: [
+        ...DEFAULT_SCENARIOS,
+    ],
+    dynamicPrinciples: [
+        'La interfaz emerge dinámicamente de la interacción y del estado ontológico; no existen páginas estáticas.',
+        'Agilidad e interactividad continua: cada acción del usuario emite impulsos nerviosos que recomponen la vista en tiempo real.',
+        'Cercanía contextual: la aplicación modula su presencia estética según el momento del día y la localización del observador.',
+        'Prueba de fe ontológica: la propia aplicación se describe y renderiza a través de sus propias UCAs y Capabilities.',
+    ],
+};
+
+export const DEFAULT_INFORMATION_DISPOSITION: InformationDisposition = {
+    tone: 'Didáctico, formal, ágil y conceptualmente riguroso.',
+    structure: 'Modular y jerárquica con segmentación semántica según el perfil del observador.',
+    segmentation: [
+        'Propósito e Intención Ontológica',
+        'Grafo de Señales e Impulsos Nerviosos',
+        'Catálogo de Capacidades y Disposiciones Vivas',
+        'Métricas de Ejecución y Límites Operativos',
+    ],
+};
+
+export const DEFAULT_FUNCTIONAL_DESIGN: FunctionalDesign = {
+    interactiveFeatures: [
+        'Árbol reactivo de componentes e inspección de disposiciones vivas',
+        'Visualizador en tiempo real del flujo de impulsos y estímulos nerviosos',
+        'Mutación interactiva de disposiciones con reconciliación idempotente',
+        'Adaptación perceptual según fase horaria y entorno geográfico',
+    ],
+    feedbackModes: [
+        'Respuesta reactiva inmediata mediante pulsos de dominio',
+        'Notificación sensorial no intrusiva con contraste positivo/negativo',
+        'Trazabilidad de estados y telemetría transparente',
+    ],
+    dynamicCapabilities: [
+        'Composición declarativa mediante Cooky',
+        'Inervación y denervación de capacidades bajo demanda',
+        'Reconciliación perceptual adaptativa',
+    ],
+};
+
+export const DEFAULT_GRAPHIC_DESIGN: GraphicDesign = {
+    density: 'comfortable',
+    contrastMode: 'bichromatic-high-contrast',
+    paletteIntent: 'Estética inspirada en Material Design simplificada en 2 colores de contraste positivo y negativo',
+    dayPeriodAdaptation: true,
+    locationAdaptation: true,
+    supportedDevices: [
+        'desktop',
+        'tablet',
+        'mobile',
+    ],
+};
+
+export const DEFAULT_LIMITS: readonly string[] = [
+    'Prohibición estricta de cadenas CSS o estilos inline en capas de dominio',
+    'Prohibición de almacenamiento de propiedades de dominio en variables de instancia en UCAs y Capabilities',
+    'Máximo estricto de 10 líneas por método con formateo vertical',
+    'Cero dependencias circulares y cero acoplamientos imperativos entre UCAs',
+    'Toda interacción externa debe transducirse a través de Signals formales',
+] as const;
+
+export const DEFAULT_DOMAIN_ENTITIES: readonly DomainEntity[] = [
+    {
         name: 'UCA',
-        definition: 'Instancia conceptual de una Unidad Cognitiva Artificial (UCA)',
+        symbol: 'u',
+        definition: 'Unidad Cognitiva Autónoma con propósito ontológico explícito e invariante y composición declarativa de capacidades',
     },
     {
-        domain: 'P',
-        symbol: 'p',
         name: 'Purpose',
-        definition: 'Propósito propio, explícito e invariante de una UCA que determina qué es y qué persigue',
+        symbol: 'p',
+        definition: 'Propósito propio, explícito e invariante de una UCA que define su razón de ser y aquello que persigue',
     },
     {
-        domain: 'D',
-        symbol: 'd',
         name: 'Disposition',
-        definition: 'Condiciones constitutivas, paramétricas e interactivas de las Capabilities',
+        symbol: 'd',
+        definition: 'Condición constitutiva, paramétrica y relacional que predispone la conducta de capabilities y UCAs',
     },
     {
-        domain: 'C',
-        symbol: 'c',
         name: 'Capability',
-        definition: 'Recurso operacional concreto; delimita los límites de lo que la UCA puede hacer',
+        symbol: 'c',
+        definition: 'Recurso operacional concreto y terminal reactivo que delimita lo que una UCA puede hacer',
     },
     {
-        domain: 'S',
-        symbol: 's',
         name: 'Stimulus',
-        definition: 'Recepción por una UCA de un cambio observable externo a su dominio que provoca su reacción',
+        symbol: 's',
+        definition: 'Cambio observable externo recibido en la frontera de una UCA que dispara su reacción interna',
     },
     {
-        domain: 'O',
-        symbol: 'o',
         name: 'Outcome',
-        definition: 'Cambio observable estructurado producido por una UCA como consecuencia de su actividad',
+        symbol: 'o',
+        definition: 'Consecuencia observable estructurada producida por una UCA como fruto de su actividad',
     },
     {
-        domain: 'Rxn',
-        symbol: 'r',
         name: 'Reaction',
-        definition: 'Proceso interno desencadenado por un Stimulus, compuesto por Actions y dinámica interna',
+        symbol: 'r',
+        definition: 'Proceso interno desencadenado por un estímulo mediante handlers unívocos y dedicados',
     },
     {
-        domain: 'A',
-        symbol: 'a',
         name: 'Action',
+        symbol: 'a',
         definition: 'Operación o transición interna perteneciente a la Reaction encapsulada de la UCA',
     },
     {
-        domain: 'Mut',
-        symbol: 'μ',
         name: 'Mutation',
-        definition: 'Cambio atómico identificable sobre la Disposition',
+        symbol: 'μ',
+        definition: 'Cambio atómico identificable sobre la Disposition sin abandonar el propósito',
+    },
+    {
+        name: 'Signal',
+        symbol: 'σ',
+        definition: 'Unidad atómica de comunicación nerviosa constituida por source, property y value',
     },
 ] as const;
 
-export const DEFAULT_RELATIONS: readonly FormalRelation[] = [
-    {
-        name: 'hasPurpose(u, p)',
-        description: 'Afirma que la UCA u posee el propósito propio p (existencia de un único propósito invariante)',
+export const DEFAULT_SPECIFICATION_MODEL: SpecificationModel = {
+    purpose: 'Demostrar empíricamente que la arquitectura UCA es real, reactiva y funcional mediante la ejecución autorreferencial de la propia aplicación.',
+    intention: 'Constituir un entorno interactivo y dinámico donde desarrolladores, diseñadores y arquitectos experimenten la reactividad ontológica, inspeccionen el flujo de señales en tiempo real y comprueben la ausencia de dependencias imperativas tradicionales.',
+    data: {
+        experience: DEFAULT_USER_EXPERIENCE,
+        information: DEFAULT_INFORMATION_DISPOSITION,
+        functional: DEFAULT_FUNCTIONAL_DESIGN,
+        graphic: DEFAULT_GRAPHIC_DESIGN,
+        limits: [
+            ...DEFAULT_LIMITS,
+        ],
+        audience: DEFAULT_AUDIENCE,
+        domainEntities: [
+            ...DEFAULT_DOMAIN_ENTITIES,
+        ],
     },
-    {
-        name: 'hasDisposition(u, d)',
-        description: 'Afirma que la UCA u está predispuesta por la disposición efectiva d',
-    },
-    {
-        name: 'hasCapability(u, c)',
-        description: 'Afirma que la capacidad c pertenece al conjunto constitutivo de u',
-    },
-    {
-        name: 'receives(u, Δx)',
-        description: 'Afirma que la UCA u recibe mecánicamente en su frontera el cambio observable externo Δx',
-    },
-    {
-        name: 'triggers(s, u)',
-        description: 'Afirma que la recepción del estímulo externo s por u desencadena su proceso interno de reacción',
-    },
-    {
-        name: 'produces(u, o)',
-        description: 'Afirma que la reacción de la UCA u genera como consecuencia observable externa el outcome o',
-    },
-    {
-        name: 'reactsTo(target, change)',
-        description: 'Afirma una relación reactiva declarada donde una Capability responde a un cambio local observable',
-    },
-] as const;
-
-export const DEFAULT_PRINCIPLES: readonly CorePrinciple[] = [
-    {
-        number: 1,
-        title: 'Conception',
-        statement: 'Conception determina qué UCA existe',
-    },
-    {
-        number: 2,
-        title: 'Purpose',
-        statement: 'Purpose determina funcionalmente qué UCA es y aquello que persigue durante toda su existencia',
-    },
-    {
-        number: 3,
-        title: 'Capabilities',
-        statement: 'Capabilities determinan los límites de lo que la UCA puede hacer',
-    },
-    {
-        number: 4,
-        title: 'Disposition',
-        statement: 'Disposition determina cómo esas Capabilities están constituidas y predispuestas para comportarse e interactuar',
-    },
-    {
-        number: 5,
-        title: 'Stimulus',
-        statement: 'Stimulus es una señal externa a la frontera de la UCA cuya recepción provoca la reacción de una UCA ya concebida',
-    },
-    {
-        number: 6,
-        title: 'reactTo',
-        statement: 'Las Capabilities reaccionan mediante su predisposición reactTo y no mediante dependencias directas ni pipelines centrales',
-    },
-    {
-        number: 7,
-        title: 'Process y Actions',
-        statement: 'El Process y las Actions emergen dinámicamente de las relaciones reactivas locales entre Capabilities conforme a sus Dispositions',
-    },
-    {
-        number: 8,
-        title: 'Outcome',
-        statement: 'Outcome es la consecuencia observable de dicha actividad, validada ontológicamente de forma inmutable',
-    },
-    {
-        number: 9,
-        title: 'Evolution',
-        statement: 'Evolution modifica la Disposition sin abandonar el Purpose ni los límites de las Capabilities',
-    },
-    {
-        number: 10,
-        title: 'Mutation',
-        statement: 'La unidad mínima de Evolution es una Mutation atómica, limitada, observable y potencialmente reversible',
-    },
-] as const;
+};

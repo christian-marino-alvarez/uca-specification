@@ -8,7 +8,7 @@ export const phaseSchema = z.enum([
 
 export const bodySchema = z.object({
     request: z.record(z.string(), z.unknown()).optional(),
-    correlationId: z.string().optional(),
+    sessionId: z.string().optional(),
     phase: phaseSchema.optional(),
     structure: z.unknown().optional(),
     visualPlan: z.record(z.string(), z.unknown()).optional(),

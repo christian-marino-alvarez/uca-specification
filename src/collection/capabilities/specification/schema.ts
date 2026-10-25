@@ -1,68 +1,80 @@
 import { z } from 'zod';
 
-export const corePrincipleSchema = z.object({
-    number: z.number().optional(),
-    title: z.string().min(1),
-    statement: z.string().min(1),
+export const experienceScenarioSchema = z.object({
+    name: z.string().min(1),
+    context: z.string().min(1),
+    perceptionGoal: z.string().min(1),
 }).strict();
 
-export const formalEntitySchema = z.object({
-    domain: z.string().min(1),
-    symbol: z.string().min(1),
+export const userExperienceSchema = z.object({
+    scenarios: z.array(experienceScenarioSchema),
+    dynamicPrinciples: z.array(z.string().min(1)),
+}).strict();
+
+export const informationDispositionSchema = z.object({
+    tone: z.string().min(1),
+    structure: z.string().min(1),
+    segmentation: z.array(z.string().min(1)),
+}).strict();
+
+export const functionalDesignSchema = z.object({
+    interactiveFeatures: z.array(z.string().min(1)),
+    feedbackModes: z.array(z.string().min(1)),
+    dynamicCapabilities: z.array(z.string().min(1)),
+}).strict();
+
+export const graphicDesignSchema = z.object({
+    density: z.string().min(1),
+    contrastMode: z.string().min(1),
+    paletteIntent: z.string().min(1),
+    dayPeriodAdaptation: z.boolean(),
+    locationAdaptation: z.boolean(),
+    supportedDevices: z.array(z.string().min(1)),
+}).strict();
+
+export const audienceSchema = z.object({
+    profile: z.array(z.string().min(1)),
+    cognitiveGoal: z.string().min(1),
+}).strict();
+
+export const domainEntitySchema = z.object({
     name: z.string().min(1),
+    symbol: z.string().min(1),
     definition: z.string().min(1),
 }).strict();
 
-export const formalRelationSchema = z.object({
-    name: z.string().min(1),
-    description: z.string().min(1),
-}).strict();
-
-export interface SpecificationSection {
-    id: string;
-    title: string;
-    level: number;
-    content: string;
-    subsections?: SpecificationSection[];
-}
-
-export const specificationSectionSchema: z.ZodType<SpecificationSection> = z.lazy(() => {
-    return z.object({
-        id: z.string().min(1),
-        title: z.string().min(1),
-        level: z.number().min(1),
-        content: z.string(),
-        subsections: z.array(specificationSectionSchema).optional(),
-    }).strict();
-});
+export const specificationDataSchema = z.object({
+    experience: userExperienceSchema,
+    information: informationDispositionSchema,
+    functional: functionalDesignSchema,
+    graphic: graphicDesignSchema,
+    limits: z.array(z.string().min(1)),
+    audience: audienceSchema,
+    domainEntities: z.array(domainEntitySchema),
+}).passthrough();
 
 export const specificationModelSchema = z.object({
-    title: z.string().min(1),
-    subtitle: z.string().min(1),
-    source: z.string().min(1),
-    summary: z.string().min(1),
-    principles: z.array(corePrincipleSchema),
-    entities: z.array(formalEntitySchema),
-    relations: z.array(formalRelationSchema),
-    sections: z.array(specificationSectionSchema),
-    rawContent: z.string().optional(),
+    purpose: z.string().min(1),
+    intention: z.string().min(1),
+    data: specificationDataSchema,
 }).strict();
 
-export const parsePayloadSchema = z.object({
-    source: z.string().optional(),
-    content: z.string().optional(),
-    correlationId: z.string().optional(),
-}).strict();
+export const queryRequestSchema = z.object({
+    keys: z.array(z.string().min(1)).optional(),
+}).strict().optional();
 
 export const bodySchema = z.object({
-    id: z.string().optional(),
-    source: z.string().optional(),
-    model: specificationModelSchema.optional(),
+    model: specificationModelSchema,
 }).strict();
 
-export type CorePrinciple = z.infer<typeof corePrincipleSchema>;
-export type FormalEntity = z.infer<typeof formalEntitySchema>;
-export type FormalRelation = z.infer<typeof formalRelationSchema>;
+export type ExperienceScenario = z.infer<typeof experienceScenarioSchema>;
+export type UserExperience = z.infer<typeof userExperienceSchema>;
+export type InformationDisposition = z.infer<typeof informationDispositionSchema>;
+export type FunctionalDesign = z.infer<typeof functionalDesignSchema>;
+export type GraphicDesign = z.infer<typeof graphicDesignSchema>;
+export type Audience = z.infer<typeof audienceSchema>;
+export type DomainEntity = z.infer<typeof domainEntitySchema>;
+export type SpecificationData = z.infer<typeof specificationDataSchema>;
 export type SpecificationModel = z.infer<typeof specificationModelSchema>;
-export type ParsePayload = z.infer<typeof parsePayloadSchema>;
+export type QueryRequest = z.infer<typeof queryRequestSchema>;
 export type Body = z.infer<typeof bodySchema>;

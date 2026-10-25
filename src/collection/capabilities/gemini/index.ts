@@ -76,13 +76,13 @@ export class Gemini extends Capability<Body> {
 
     private async handleStream(value: unknown): Promise<void> {
         const payload = this.extractPayload<GeneratePayload>(value)!;
-        const { correlationId = crypto.randomUUID(), streamId } = payload;
+        const { sessionId = crypto.randomUUID(), streamId } = payload;
         const controller = new AbortController(); const { signal } = controller;
-        const requestId = streamId ?? correlationId;
-        this.replaceController(requestId, correlationId, controller);
+        const requestId = streamId ?? sessionId;
+        this.replaceController(requestId, sessionId, controller);
         try {
             const stream = await this.openStream(payload, requestId, controller);
-            this.pulse(SignalType.STREAMED, { correlationId, streamId, stream });
+            this.pulse(SignalType.STREAMED, { sessionId, streamId, stream });
         } catch (error) {
             this.releaseController(requestId, controller); !signal.aborted && this.pulse(SignalType.ERROR, this.describeFailure(error, payload));
         }
@@ -99,9 +99,9 @@ export class Gemini extends Capability<Body> {
     }
 
     private handleAbort(value: unknown): void {
-        const { correlationId, streamId } = value as AbortPayload;
-        this.controllers.forEach(({ controller, correlationId: activeCorrelation }, requestId) => {
-            const matches = streamId ? requestId === streamId : !correlationId || activeCorrelation === correlationId;
+        const { sessionId, streamId } = value as AbortPayload;
+        this.controllers.forEach(({ controller, sessionId: activeSession }, requestId) => {
+            const matches = streamId ? requestId === streamId : !sessionId || activeSession === sessionId;
             if (matches) {
                 controller.abort();
                 this.controllers.delete(requestId);
@@ -109,13 +109,13 @@ export class Gemini extends Capability<Body> {
         });
     }
 
-    private replaceController(requestId: string, correlationId: string, controller: AbortController): void {
+    private replaceController(requestId: string, sessionId: string, controller: AbortController): void {
         const active = this.controllers.get(requestId);
         const {
             controller: activeController,
         } = active ?? {};
         activeController?.abort();
-        this.controllers.set(requestId, { controller, correlationId });
+        this.controllers.set(requestId, { controller, sessionId });
     }
 
     private releaseController(requestId: string, controller: AbortController): void {
@@ -141,7 +141,7 @@ export class Gemini extends Capability<Body> {
     private async handleGenerate(value: unknown): Promise<void> {
         const payload = this.extractPayload<GeneratePayload>(value);
         if (!payload) { return; }
-        const { correlationId } = payload;
+        const { sessionId } = payload;
         try {
             const client = this.resolveClient();
             const result = await this.executeGeneration(client, payload);
@@ -153,7 +153,7 @@ export class Gemini extends Capability<Body> {
 
     private describeFailure(error: unknown, payload: GeneratePayload): Failure {
         const {
-            correlationId,
+            sessionId,
         } = payload;
         const {
             model,
@@ -172,15 +172,15 @@ export class Gemini extends Capability<Body> {
             model,
             configuration,
             schemaSize,
-            correlationId,
+            sessionId,
         };
     }
 
     private async executeGeneration(client: GoogleGenAI, payload: GeneratePayload): Promise<GenerateResult> {
-        const { prompt, correlationId } = payload;
+        const { prompt, sessionId } = payload;
         const { model, config } = this.resolveGenerationConfig(payload);
         const response = await client.models.generateContent({ model, contents: prompt, config });
-        return this.formatResult(response, prompt, model, correlationId);
+        return this.formatResult(response, prompt, model, sessionId);
     }
 
     private resolveGenerationConfig(payload: GeneratePayload): { model: string; config: Record<string, unknown> } {
@@ -217,7 +217,7 @@ export class Gemini extends Capability<Body> {
         return { thinkingBudget: 0 };
     }
 
-    private formatResult(response: { text?: string; usageMetadata?: unknown }, prompt: string, model: string, correlationId?: string): GenerateResult {
+    private formatResult(response: { text?: string; usageMetadata?: unknown }, prompt: string, model: string, sessionId?: string): GenerateResult {
         const { text = '', usageMetadata } = response;
         const usage = usageMetadata as Record<string, unknown> | undefined;
         let data: unknown;
@@ -226,7 +226,7 @@ export class Gemini extends Capability<Body> {
         } catch {
             data = undefined;
         }
-        return { prompt, text, data, model, usage, correlationId };
+        return { prompt, text, data, model, usage, sessionId };
     }
 
     private resolveClient(): GoogleGenAI {

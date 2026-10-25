@@ -429,11 +429,11 @@ export class Layout extends Uca<Body> {
         };
     }
 
-    private buildInferMeta(goal: string, correlationId?: string): Record<string, unknown> {
+    private buildInferMeta(goal: string, sessionId?: string): Record<string, unknown> {
         return {
             goal,
-            correlationId,
-            streamId: `${correlationId}:layout`,
+            sessionId,
+            streamId: `${sessionId}:layout`,
         };
     }
 
@@ -459,30 +459,30 @@ export class Layout extends Uca<Body> {
         };
     }
 
-    private createInferRequest(payload: BuildPayload, correlationId: string): Record<string, unknown> {
+    private createInferRequest(payload: BuildPayload, sessionId: string): Record<string, unknown> {
         const {
             aim,
         } = payload;
         const limits = (payload as { limits?: Record<string, unknown> }).limits ?? {};
         const goal = this.resolveTargetGoal(aim.body);
         const contextData = this.buildInferContext(aim.body, limits, goal);
-        const meta = this.buildInferMeta(goal, correlationId);
+        const meta = this.buildInferMeta(goal, sessionId);
         return this.formatInferRequest(aim.description, contextData, meta);
     }
 
-    private logInferRequest(request: Record<string, unknown>, correlationId: string): void {
+    private logInferRequest(request: Record<string, unknown>, sessionId: string): void {
         const {
             context,
         } = request;
         const target = (context as LayoutContext)?.area?.containerId ?? ROOT_AREA_ID;
-        console.log(`🧠 [LAYOUT::INFER_REQUEST] #${target} [${correlationId}]:`, request);
+        console.log(`🧠 [LAYOUT::INFER_REQUEST] #${target} [${sessionId}]:`, request);
     }
 
-    private dispatchLlmInfer(payload: BuildPayload, correlationId: string): void {
-        const inferRequest = this.createInferRequest(payload, correlationId);
+    private dispatchLlmInfer(payload: BuildPayload, sessionId: string): void {
+        const inferRequest = this.createInferRequest(payload, sessionId);
         signalBodySchema.parse(inferRequest);
-        this.logInferRequest(inferRequest, correlationId);
-        this.pulse(LlmSignalType.INFER, inferRequest, undefined, correlationId);
+        this.logInferRequest(inferRequest, sessionId);
+        this.pulse(LlmSignalType.INFER, inferRequest, undefined, sessionId);
     }
 
     private extractTargetAreaId(payload: BuildPayload): string {
@@ -492,12 +492,12 @@ export class Layout extends Uca<Body> {
 
     private handleBuild(signal: Signal): void {
         const {
-            correlationId = crypto.randomUUID(),
+            sessionId = crypto.randomUUID(),
             value,
         } = signal;
         const payload = value as BuildPayload;
         this.showAreaSkeleton(this.extractTargetAreaId(payload));
-        this.dispatchLlmInfer(payload, correlationId);
+        this.dispatchLlmInfer(payload, sessionId);
     }
 
     private normalizeParentId(parentId?: string): string | undefined {
@@ -651,9 +651,9 @@ export class Layout extends Uca<Body> {
         };
     }
 
-    private formatTransformPayload(correlationId: string | undefined, stream: ReadableStream<string>, areaId: string): Record<string, unknown> {
+    private formatTransformPayload(sessionId: string | undefined, stream: ReadableStream<string>, areaId: string): Record<string, unknown> {
         return {
-            correlationId,
+            sessionId,
             stream,
             schema: areaConceptSchema,
             mode: StreamTransformerMode.ITEMS,
@@ -663,12 +663,12 @@ export class Layout extends Uca<Body> {
 
     private buildTransformPayload(result: StreamResult): Record<string, unknown> {
         const {
-            correlationId,
+            sessionId,
             stream,
             request,
         } = result;
         const areaId = this.extractRequestContextAreaId(request);
-        return this.formatTransformPayload(correlationId, stream, areaId);
+        return this.formatTransformPayload(sessionId, stream, areaId);
     }
 
     private handleLlmStreamed(signal: Signal): void {
@@ -688,20 +688,20 @@ export class Layout extends Uca<Body> {
     private async handleStreamTransformerTransformed(signal: Signal): Promise<void> {
         const {
             context,
-            correlationId,
+            sessionId,
             stream,
         } = this.extractTransformedPayload(signal);
         if (stream) {
-            await this.pipeTransformedStream(stream, context as Record<string, unknown> | undefined, correlationId);
+            await this.pipeTransformedStream(stream, context as Record<string, unknown> | undefined, sessionId);
         }
     }
 
-    private async pipeTransformedStream(stream: ReadableStream<Record<string, unknown>>, context?: Record<string, unknown>, correlationId?: string): Promise<void> {
+    private async pipeTransformedStream(stream: ReadableStream<Record<string, unknown>>, context?: Record<string, unknown>, sessionId?: string): Promise<void> {
         try {
-            const transform = this.createAreaTransformStream(context, correlationId);
+            const transform = this.createAreaTransformStream(context, sessionId);
             await this.consumeTransformedStream(stream.pipeThrough(transform));
         } catch (error) {
-            this.pulse(SignalType.ERROR, error, undefined, correlationId);
+            this.pulse(SignalType.ERROR, error, undefined, sessionId);
         }
     }
 
@@ -710,22 +710,29 @@ export class Layout extends Uca<Body> {
         while (!(await reader.read()).done) { }
     }
 
-    private createAreaTransformStream(context?: Record<string, unknown>, correlationId?: string): TransformStream<Record<string, unknown>, Area> {
+    private createAreaTransformStream(context?: Record<string, unknown>, sessionId?: string): TransformStream<Record<string, unknown>, Area> {
         const areas: Area[] = [];
         const currentAreaId = this.resolveCurrentAreaId(context);
         this.ensureRootContainerLayout(currentAreaId);
         return new TransformStream({
-            transform: (item, controller) => this.enqueueTransformedArea(item, areas, controller, currentAreaId, context),
-            flush: () => this.handleStreamClose(areas, context, correlationId),
+            transform: (item, controller) => this.enqueueTransformedArea(item, areas, controller, currentAreaId, context, sessionId),
+            flush: () => this.handleStreamClose(areas, context, sessionId),
         });
     }
 
-    private enqueueTransformedArea(item: Record<string, unknown>, areas: Area[],
-        controller: TransformStreamDefaultController<Area>, currentAreaId: string, context?: Record<string, unknown>): void {
+    private enqueueTransformedArea(
+        item: Record<string, unknown>,
+        areas: Area[],
+        controller: TransformStreamDefaultController<Area>,
+        currentAreaId: string,
+        context?: Record<string, unknown>,
+        sessionId?: string,
+    ): void {
         const area = this.transformAreaChunk(item, currentAreaId, context);
         if (area) {
             areas.push(area);
             controller.enqueue(area);
+            this.dispatchAreaBox(area, context, sessionId);
         }
     }
 
@@ -756,14 +763,14 @@ export class Layout extends Uca<Body> {
         };
     }
 
-    private handleStreamClose(areas: Area[], context?: Record<string, unknown>, correlationId?: string): void {
+    private handleStreamClose(areas: Area[], context?: Record<string, unknown>, sessionId?: string): void {
         const areaId = this.resolveCurrentAreaId(context);
         this.removeAreaSkeleton(areaId);
         this.pulse(SignalType.BUILT, {
             composition: this.createBuiltComposition(areas),
             areaId,
-            correlationId,
-        }, undefined, correlationId);
+            sessionId,
+        }, undefined, sessionId);
     }
 
     private handleStreamTransformerRecover(signal: Signal): void {
@@ -797,8 +804,59 @@ export class Layout extends Uca<Body> {
         });
     }
 
+    private resolveAreaContainer(parentId?: string): string {
+        const clean = parentId?.replace('#', '');
+        if (!clean || clean === 'root' || clean === 'app' || clean === 'body') {
+            return 'body';
+        }
+        return `#${clean}`;
+    }
+
+    private resolveBoxQualities(area: Area): Qualities {
+        const {
+            visual,
+            dimensions,
+            parentId,
+        } = area;
+        return this.mergeAreaQualities(dimensions, visual?.disposicion, parentId);
+    }
+
+    private mergeAreaQualities(dimensions?: Qualities, disposicion?: Qualities, parentId?: string): Qualities {
+        const gap = disposicion?.gap ?? (disposicion?.division ? 'medium' : undefined);
+        return {
+            ...dimensions,
+            ...disposicion,
+            ...(!dimensions?.height && dimensions?.flex === 'fill' && { height: 'full' }),
+            ...(gap && { gap }),
+            ...((!parentId || parentId === ROOT_AREA_ID || parentId === 'body') && { marginBlock: 'none' }),
+        };
+    }
+
+    private createBoxPayload(area: Area, target: string, context?: unknown): Record<string, unknown> {
+        return {
+            elementId: area.id,
+            parentTo: target.replace('#', ''),
+            containerElement: target,
+            qualities: this.resolveBoxQualities(area),
+            context,
+        };
+    }
+
+    private dispatchAreaBox(area: Area, context?: Record<string, unknown>, sessionId?: string): void {
+        const target = this.resolveAreaContainer(area.parentId);
+        const boxContext = {
+            area,
+            context,
+            sessionId,
+        };
+        this.pulse(BoxSignalType.RENDER, this.createBoxPayload(area, target, boxContext), undefined, sessionId);
+    }
+
     private clearParentSkeleton(area?: Area): void {
-        const parentId = area?.parentId ?? ROOT_AREA_ID;
+        const rawParent = area?.parentId?.replace('#', '');
+        const parentId = !rawParent || rawParent === 'root' || rawParent === 'app' || rawParent === 'body'
+            ? 'body'
+            : rawParent;
         this.removeAreaSkeleton(parentId);
     }
 
@@ -816,7 +874,7 @@ export class Layout extends Uca<Body> {
     private handleViewCreated(signal: Signal): void {
         const {
             areaId = 'body',
-        } = (signal.value ?? {}) as { areaId?: string; correlationId?: string };
+        } = (signal.value ?? {}) as { areaId?: string; sessionId?: string };
         this.removeAreaSkeleton(areaId);
     }
 

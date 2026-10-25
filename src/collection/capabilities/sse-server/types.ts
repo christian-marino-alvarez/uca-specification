@@ -17,27 +17,27 @@ export enum DataType {
 }
 
 export interface OpenPayload {
-    readonly correlationId: string;
+    readonly sessionId: string;
     readonly request: (abort: AbortSignal) => void;
     readonly cancel: () => void;
 }
 
 export interface OpenedPayload {
-    readonly correlationId: string;
+    readonly sessionId: string;
     readonly stream: ReadableStream<Uint8Array>;
 }
 
 export interface CompletedPayload {
-    readonly correlationId: string;
+    readonly sessionId: string;
 }
 
 export interface CancelledPayload {
-    readonly correlationId: string;
+    readonly sessionId: string;
     readonly reason?: unknown;
 }
 
 export interface ErrorPayload {
-    readonly correlationId: string;
+    readonly sessionId: string;
     readonly error: unknown;
 }
 
@@ -47,7 +47,7 @@ export interface Source {
 }
 
 export interface Binding {
-    readonly correlationId: string;
+    readonly sessionId: string;
     readonly controller: AbortController;
     readonly request: (abort: AbortSignal) => void;
     readonly cancel: () => void;

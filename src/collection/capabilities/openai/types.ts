@@ -38,7 +38,7 @@ export interface ConnectionStatus {
 
 export interface GeneratePayload {
     readonly id?: string;
-    readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly streamId?: string;
     readonly prompt: string;
     readonly systemInstruction?: string;
@@ -49,7 +49,7 @@ export interface GeneratePayload {
 }
 
 export interface GenerateResult {
-    readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly prompt: string;
     readonly text?: string;
     readonly data?: unknown;
@@ -58,7 +58,7 @@ export interface GenerateResult {
 }
 
 export interface ChunkResult {
-    readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly streamId?: string;
     readonly text: string;
     readonly prompt?: string;
@@ -66,7 +66,7 @@ export interface ChunkResult {
 }
 
 export interface StreamEndResult {
-    readonly correlationId?: string;
+    readonly sessionId?: string;
     readonly streamId?: string;
     readonly prompt?: string;
     readonly model?: string;
@@ -79,6 +79,6 @@ export interface Body {
     readonly model?: string;
 }
 
-export interface StreamResult { readonly correlationId?: string; readonly streamId?: string; readonly stream: ReadableStream<string>; }
+export interface StreamResult { readonly sessionId?: string; readonly streamId?: string; readonly stream: ReadableStream<string>; }
 
 export type StreamIterator = AsyncIterator<import('openai').default.Chat.Completions.ChatCompletionChunk>;
