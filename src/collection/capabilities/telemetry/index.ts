@@ -152,6 +152,8 @@ export class Telemetry extends Capability<Body> {
                 return '⚡ [CORE::INNERVATED]';
             case DispositionSignal.DENERVATED:
                 return '🔌 [CORE::DENERVATED]';
+            case DispositionSignal.UPDATED:
+                return '🔄 [CORE::UPDATED]';
             case SessionSignalType.GET:
                 return '🔍 [SESSION::GET]';
             case SessionSignalType.RETRIEVED:
@@ -160,6 +162,26 @@ export class Telemetry extends Capability<Body> {
                 return '➕ [SESSION::CREATE]';
             case SessionSignalType.CREATED:
                 return '✨ [SESSION::CREATED]';
+            case 'navigate.init':
+                return '🧭 [NAVIGATE::INIT]';
+            case 'navigate.go':
+                return '🚀 [NAVIGATE::GO]';
+            case 'navigate.changed':
+                return '📍 [NAVIGATE::CHANGED]';
+            case 'navigate.destroy':
+                return '🗑️ [NAVIGATE::DESTROY]';
+            case 'memory.get':
+                return '🔍 [MEMORY::GET]';
+            case 'memory.set':
+                return '💾 [MEMORY::SET]';
+            case 'memory.clear':
+                return '🧹 [MEMORY::CLEAR]';
+            case 'memory.retrieved':
+                return '📦 [MEMORY::RETRIEVED]';
+            case 'memory.saved':
+                return '✅ [MEMORY::SAVED]';
+            case 'memory.cleared':
+                return '✨ [MEMORY::CLEARED]';
             default:
                 return `📡 [${property ? property.toUpperCase() : 'SIGNAL'}]`;
         }
@@ -171,6 +193,8 @@ export class Telemetry extends Capability<Body> {
                 return 'color: #7C3AED; font-weight: bold; font-size: 11px;';
             case DispositionSignal.DENERVATED:
                 return 'color: #9CA3AF; font-weight: bold; font-size: 11px;';
+            case DispositionSignal.UPDATED:
+                return 'color: #10B981; font-weight: bold; font-size: 11px;';
             case SessionSignalType.GET:
                 return 'color: #0284C7; font-weight: bold; font-size: 11px;';
             case SessionSignalType.RETRIEVED:
@@ -179,6 +203,23 @@ export class Telemetry extends Capability<Body> {
                 return 'color: #2563EB; font-weight: bold; font-size: 11px;';
             case SessionSignalType.CREATED:
                 return 'color: #16A34A; font-weight: bold; font-size: 11px;';
+            case 'navigate.init':
+                return 'color: #06B6D4; font-weight: bold; font-size: 11px;';
+            case 'navigate.go':
+                return 'color: #8B5CF6; font-weight: bold; font-size: 11px;';
+            case 'navigate.changed':
+                return 'color: #059669; font-weight: bold; font-size: 11px;';
+            case 'navigate.destroy':
+                return 'color: #EF4444; font-weight: bold; font-size: 11px;';
+            case 'memory.get':
+            case 'memory.retrieved':
+                return 'color: #D97706; font-weight: bold; font-size: 11px;';
+            case 'memory.set':
+            case 'memory.saved':
+                return 'color: #10B981; font-weight: bold; font-size: 11px;';
+            case 'memory.clear':
+            case 'memory.cleared':
+                return 'color: #EF4444; font-weight: bold; font-size: 11px;';
             default:
                 return 'color: #6B7280; font-weight: bold; font-size: 11px;';
         }

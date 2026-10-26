@@ -1,7 +1,9 @@
 import { History } from '@uca/capability-history';
 import { SignalType as HistorySignalType } from '@uca/capability-history/types';
-import { Memory } from '@uca/memory';
-import { SignalType as MemorySignalType } from '@uca/memory/types';
+import { Memory } from '@uca/capability-memory';
+import {
+    SignalType as MemorySignalType,
+} from '@uca/capability-memory/types';
 import { Uca } from '@uca/core/uca';
 import type {
     Cooky,
@@ -9,13 +11,13 @@ import type {
     Signal,
 } from '@uca/core/types';
 import {
-    DEFAULT_PATH,
     DEFAULT_PURPOSE,
-    MEMORY_LAST_ROUTE_KEY,
-    MEMORY_NAMESPACE,
+    DEFAULT_URL,
     __ID__,
 } from './constants.js';
 import {
+    navigateDestroySchema,
+    navigateInitSchema,
     navigateRequestSchema,
     navigationStateSchema,
 } from './schema.js';
@@ -24,6 +26,7 @@ import {
     SignalType,
     type Body,
     type NavigateRequest,
+    type NavigationEntry,
     type NavigationState,
 } from './types.js';
 
@@ -34,26 +37,34 @@ export class Navigate extends Uca<Body> {
         aim: {
             description: DEFAULT_PURPOSE,
             body: {
-                currentPath: DEFAULT_PATH,
+                url: DEFAULT_URL,
             },
         },
         reactTo: [
+            SignalType.INIT,
             SignalType.GO,
-            SignalType.RESTORE,
+            SignalType.DESTROY,
             ...Navigate.reactToHistory(),
             ...Navigate.reactToMemory(),
         ],
         inputs: [
             {
+                signal: SignalType.INIT,
+                type: DataType.NAVIGATE_INIT,
+                schema: navigateInitSchema,
+                description: 'Initialize navigation session with default url if not registered',
+            },
+            {
                 signal: SignalType.GO,
                 type: DataType.NAVIGATE_REQUEST,
                 schema: navigateRequestSchema,
-                description: 'Navigate to target path and synchronize history with memory',
+                description: 'Navigate to target url and synchronize history',
             },
             {
-                signal: SignalType.RESTORE,
-                type: DataType.VOID,
-                description: 'Restore previous navigation from memory',
+                signal: SignalType.DESTROY,
+                type: DataType.NAVIGATE_DESTROY,
+                schema: navigateDestroySchema,
+                description: 'Clear navigation session storage and state',
             },
         ],
         outputs: [
@@ -70,7 +81,6 @@ export class Navigate extends Uca<Body> {
         return [
             ...History.disposition?.reactTo || [],
             HistorySignalType.CHANGED,
-            HistorySignalType.CURRENT,
         ];
     }
 
@@ -88,25 +98,8 @@ export class Navigate extends Uca<Body> {
 
     protected override catalog(): Cooky {
         return [
-            [
-                History,
-                this.createDisposition(
-                    History.disposition,
-                    History.AIM,
-                    'history',
-                ),
-            ],
-            [
-                Memory,
-                this.createDisposition(
-                    Memory.disposition,
-                    Memory.purpose,
-                    'memory',
-                    {
-                        namespace: MEMORY_NAMESPACE,
-                    },
-                ),
-            ],
+            this.buildHistoryCooky(),
+            this.buildMemoryCooky(),
         ];
     }
 
@@ -115,17 +108,17 @@ export class Navigate extends Uca<Body> {
             property,
         } = signal;
         switch (property) {
+            case SignalType.INIT:
+                this.handleInit(signal);
+                break;
             case SignalType.GO:
                 this.handleGo(signal);
                 break;
-            case SignalType.RESTORE:
-                this.handleRestore();
+            case SignalType.DESTROY:
+                this.handleDestroy(signal);
                 break;
             case HistorySignalType.CHANGED:
                 this.handleHistoryChanged(signal);
-                break;
-            case HistorySignalType.CURRENT:
-                this.handleHistoryCurrent(signal);
                 break;
             case MemorySignalType.RETRIEVED:
                 this.handleMemoryRetrieved(signal);
@@ -133,6 +126,54 @@ export class Navigate extends Uca<Body> {
             default:
                 break;
         }
+    }
+
+    private buildHistoryCooky(): Cooky[number] {
+        return [
+            History,
+            this.createDisposition(
+                History.disposition,
+                History.AIM,
+                'history',
+            ),
+        ];
+    }
+
+    private buildMemoryCooky(): Cooky[number] {
+        return [
+            Memory,
+            this.createDisposition(
+                Memory.disposition,
+                Memory.AIM,
+                'memory',
+            ),
+        ];
+    }
+
+    private handleInit(signal: Signal): void {
+        const {
+            sessionId = '',
+        } = signal;
+        this.pulse(MemorySignalType.GET, {
+            keys: [sessionId],
+        });
+    }
+
+    private handleMemoryRetrieved(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        const navigations = (Array.isArray(value) ? value : []) as NavigationEntry[];
+        const lastNavigation = this.getLatestNavigation(navigations);
+        this.pulse(SignalType.GO, {
+            replace: true,
+            url: lastNavigation.url,
+        });
+    }
+
+    private getLatestNavigation(entries: NavigationEntry[]): NavigationEntry {
+        const sorted = [...entries].sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+        return sorted[0] ?? { url: DEFAULT_URL };
     }
 
     private handleGo(signal: Signal): void {
@@ -145,97 +186,145 @@ export class Navigate extends Uca<Body> {
 
     private executeGo(payload: NavigateRequest): void {
         const {
-            path,
             parameters,
             replace,
+            url,
         } = payload;
+        const updated = this.buildAppendedRecords(url);
+        this.persistTargetRoute(url, updated);
+        this.pulseHistory(url, parameters, replace);
+        this.emitRouteChanged(url, parameters, updated);
+    }
+
+    private buildAppendedRecords(url: string): NavigationEntry[] {
+        const {
+            aim,
+        } = this.disposition;
+        const existing = aim.body?.records ?? [];
+        return this.appendUniqueRecord(existing, url);
+    }
+
+    private appendUniqueRecord(existing: NavigationEntry[], url: string): NavigationEntry[] {
+        const last = existing[existing.length - 1];
+        if (last?.url === url) {
+            return existing;
+        }
+        const entry = this.createNavigationEntry(url);
+        return [
+            ...existing,
+            entry,
+        ];
+    }
+
+    private createNavigationEntry(url: string): NavigationEntry {
+        return {
+            timestamp: Date.now(),
+            url,
+        };
+    }
+
+    private persistTargetRoute(url: string, records?: NavigationEntry[]): void {
+        const updated = records ?? this.buildAppendedRecords(url);
+        const {
+            aim,
+        } = this.disposition;
+        const sessionId = this.currentSignal?.sessionId ?? aim.body?.sessionId ?? '';
+        this.pulse(MemorySignalType.SET, {
+            entries: [{
+                key: sessionId,
+                value: updated,
+            }],
+        });
+    }
+
+    private pulseHistory(url: string, parameters?: Record<string, unknown>, replace?: boolean): void {
         const historyProperty = replace
             ? HistorySignalType.REPLACE
             : HistorySignalType.PUSH;
         this.pulse(historyProperty, {
-            path,
             parameters,
+            path: url,
         });
     }
 
-    private handleRestore(): void {
-        this.pulse(MemorySignalType.GET, {
-            key: MEMORY_LAST_ROUTE_KEY,
+    private emitRouteChanged(
+        url: string,
+        parameters?: Record<string, unknown>,
+        records?: NavigationEntry[],
+    ): void {
+        this.updateAimBody(url, parameters, records);
+        this.pulse(SignalType.CHANGED, {
+            parameters,
+            url,
         });
     }
 
-    private handleHistoryCurrent(signal: Signal): void {
-        this.processRouteState(signal);
+    private handleDestroy(_signal: Signal): void {
+        this.persistTargetRoute(DEFAULT_URL, []);
+        this.updateAimBody(DEFAULT_URL, undefined, []);
     }
 
     private handleHistoryChanged(signal: Signal): void {
-        this.processRouteState(signal);
-    }
-
-    private processRouteState(signal: Signal): void {
         const routeState = this.extractPayload<NavigationState>(signal.value);
         if (!routeState) {
             return;
         }
-        this.persistAndEmit(routeState);
+        this.processHistoryRoute(routeState);
     }
 
-    private persistAndEmit(routeState: NavigationState): void {
+    private processHistoryRoute(routeState: NavigationState): void {
         const {
-            path,
             parameters,
             url,
-            timestamp,
         } = routeState;
-        this.pulse(MemorySignalType.SAVE, {
-            key: MEMORY_LAST_ROUTE_KEY,
-            value: routeState,
-        });
-        const navigationState: NavigationState = {
-            path,
-            parameters,
-            url,
-            timestamp,
-        };
-        this.updateAimBody(path, parameters);
-        this.pulse(SignalType.CHANGED, navigationState);
+        this.persistTargetRoute(url);
+        this.emitRouteChanged(url, parameters);
     }
 
-    private updateAimBody(currentPath: string, parameters?: Record<string, unknown>): void {
-        const {
-            aim,
-        } = this.disposition;
-        const previousPath = aim.body?.currentPath;
+    private updateAimBody(
+        url: string,
+        parameters?: Record<string, unknown>,
+        records?: NavigationEntry[],
+    ): void {
+        const updatedBody = this.createUpdatedBody(url, parameters, records);
         this.pulse(this.updateEvent, {
             ...this.disposition,
             aim: {
-                ...aim,
-                body: {
-                    ...aim.body,
-                    currentPath,
-                    previousPath,
-                    parameters,
-                },
+                ...this.disposition.aim,
+                body: updatedBody,
             },
         });
     }
 
-    private handleMemoryRetrieved(signal: Signal): void {
-        const routeState = this.extractPayload<NavigationState>(signal.value);
-        if (!routeState) {
-            return;
-        }
-        this.restoreRoute(routeState);
+    private createUpdatedBody(
+        url: string,
+        parameters?: Record<string, unknown>,
+        records?: NavigationEntry[],
+    ): Body {
+        const base = this.resolveBaseBody(url, parameters, records);
+        const sessionId = this.currentSignal?.sessionId ?? this.disposition.aim.body?.sessionId;
+        return sessionId ? {
+            ...base,
+            sessionId,
+        } : base;
     }
 
-    private restoreRoute(routeState: NavigationState): void {
+    private resolveBaseBody(
+        url: string,
+        parameters?: Record<string, unknown>,
+        records?: NavigationEntry[],
+    ): Body {
         const {
-            path,
+            aim,
+        } = this.disposition;
+        return {
+            ...aim.body,
+            currentPath: url,
+            previousPath: aim.body?.url ?? aim.body?.currentPath,
+            previousUrl: aim.body?.url,
+            records: records ?? aim.body?.records,
+            url,
             parameters,
-        } = routeState;
-        this.pulse(HistorySignalType.REPLACE, {
-            path,
-            parameters,
-        });
+        };
     }
 }

@@ -123,7 +123,7 @@ export class Llm extends HttpClient {
     }
 
     private emitInferError(error: string, sessionId?: string, replyTo?: string): void {
-        this.pulse(SignalType.ERROR, { error, sessionId }, replyTo, sessionId);
+        this.pulse(SignalType.ERROR, { error, sessionId }, replyTo);
     }
 
     private handleAbortInference(signal: Signal): void {
@@ -145,14 +145,14 @@ export class Llm extends HttpClient {
         const { replyTo, context: requestContext, sessionId: transportSessionId } = (transportCtx ?? {}) as TransportContext & { sessionId?: string };
         const { sessionId: receivedId = transportSessionId, context: responseContext, ...result } = (data ?? {}) as InferResult;
         const finalContext = this.resolveResponseContext(requestContext, responseContext);
-        this.pulse(SignalType.INFERRED, { ...result, context: finalContext, sessionId: receivedId }, replyTo, receivedId);
+        this.pulse(SignalType.INFERRED, { ...result, context: finalContext, sessionId: receivedId }, replyTo);
     }
 
     private handleError(signal: Signal): void {
         const { value } = signal;
         const { context, ...failure } = (value ?? {}) as ErrorPayload;
         const { replyTo, sessionId, context: requestContext } = (context ?? {}) as TransportContext & { sessionId?: string };
-        this.pulse(SignalType.ERROR, { ...failure, context: requestContext, sessionId }, replyTo, sessionId);
+        this.pulse(SignalType.ERROR, { ...failure, context: requestContext, sessionId }, replyTo);
     }
 
     private resolveEndpoint(endpoint: string): string {

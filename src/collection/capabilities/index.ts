@@ -11,4 +11,5 @@ export { SseServer } from './sse-server/index.js';
 export { Material } from './material/index.js';
 export { Session } from './session/index.js';
 export { Telemetry } from './telemetry/index.js';
+export { Memory } from './memory/index.js';
 export { Zod } from './zod/index.js';

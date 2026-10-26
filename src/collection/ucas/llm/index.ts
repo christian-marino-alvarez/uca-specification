@@ -501,7 +501,7 @@ export class Llm extends Uca<Body> {
             sessionId: decisionSessionId,
             question: this.buildModelSelectionQuestion(payload),
             context: this.createDecisionContext(payload),
-        }, undefined, decisionSessionId);
+        });
     }
 
     private extractModelConfig(candidate: typeof AVAILABLE_MODELS[number]): ChosenModelConfig {
@@ -577,7 +577,7 @@ export class Llm extends Uca<Body> {
     private dispatchDecisionChoice(payload: InferPayload, config: ChosenModelConfig, sessionId: string, replyTo?: string): void {
         const operation = config.transport === 'stream' ? SignalType.STREAM : SignalType.INFER;
         if (operation === SignalType.STREAM) {
-            this.pulse(SignalType.STREAMING, { sessionId, model: config.model, transport: 'stream' }, replyTo, sessionId);
+            this.pulse(SignalType.STREAMING, { sessionId, model: config.model, transport: 'stream' }, replyTo);
         }
         this.dispatchBackendRequest({ ...payload, ...config, sessionId }, replyTo ?? '', operation);
     }
@@ -681,21 +681,21 @@ export class Llm extends Uca<Body> {
         const { model, context: requestContext } = request;
         const target = replyTo ?? this.resultTarget();
         const payload = { sessionId, stream, model, request, context: requestContext ?? request };
-        this.pulse(SignalType.STREAMED, payload, target, sessionId);
+        this.pulse(SignalType.STREAMED, payload, target);
     }
 
     private handleSseEnd(signal: Signal): void {
         const { sessionId, context } = (signal.value ?? {}) as { sessionId?: string; context?: unknown };
         const { replyTo, model } = (context ?? {}) as { replyTo?: string; model?: string };
         const target = replyTo ?? this.resultTarget();
-        this.pulse(SignalType.STREAM_END, { sessionId, model }, target, sessionId);
+        this.pulse(SignalType.STREAM_END, { sessionId, model }, target);
     }
 
     private handleSseError(signal: Signal): void {
         const { context, ...failure } = (signal.value ?? {}) as ErrorPayload;
         const { replyTo, sessionId } = (context ?? {}) as TransportContext & { sessionId?: string };
         const target = replyTo ?? this.resultTarget();
-        this.pulse(SignalType.ERROR, failure, target, sessionId);
+        this.pulse(SignalType.ERROR, failure, target);
     }
 
 
@@ -713,7 +713,7 @@ export class Llm extends Uca<Body> {
         const target = replyTo ?? this.resultTarget(request.provider);
         const result = data as InferResult;
         const sessionId = result.sessionId ?? request.sessionId ?? signal.sessionId;
-        this.pulse(SignalType.INFERRED, { ...result, sessionId, request }, target, sessionId);
+        this.pulse(SignalType.INFERRED, { ...result, sessionId, request }, target);
     }
 
     private handleBackendError(signal: Signal): void {
@@ -723,7 +723,7 @@ export class Llm extends Uca<Body> {
             return;
         }
         const target = replyTo ?? this.resultTarget(request.provider);
-        this.pulse(SignalType.ERROR, { ...failure, request }, target, request.sessionId);
+        this.pulse(SignalType.ERROR, { ...failure, request }, target);
     }
 
     private retryWithFallbackModel(request: InferPayload, replyTo?: string): boolean {

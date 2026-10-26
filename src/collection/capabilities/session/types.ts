@@ -23,6 +23,7 @@ export enum SignalType {
 }
 
 export enum DataType {
+    SESSION = 'Session',
     SESSION_PAYLOAD = 'SessionPayload',
     SESSION_REQUEST = 'SessionRequest',
 }

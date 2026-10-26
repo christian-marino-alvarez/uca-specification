@@ -1,18 +1,32 @@
 import { DispositionSignal } from '@uca/core/types';
 import { SignalType as SessionSignalType } from '@uca/capability-session/types';
+import { SignalType as MemorySignalType } from '@uca/capability-memory/types';
+import { SignalType as NavigateSignalType } from '@uca/navigate/types';
 
 export const __ID__ = 'app';
 
 export const TELEMETRY_OBSERVED_SIGNALS = [
     DispositionSignal.INNERVATED,
+    DispositionSignal.UPDATED,
     SessionSignalType.GET,
     SessionSignalType.RETRIEVED,
     SessionSignalType.CREATE,
     SessionSignalType.CREATED,
+    NavigateSignalType.INIT,
+    NavigateSignalType.GO,
+    NavigateSignalType.CHANGED,
+    NavigateSignalType.DESTROY,
+    MemorySignalType.GET,
+    MemorySignalType.SET,
+    MemorySignalType.CLEAR,
+    MemorySignalType.RETRIEVED,
+    MemorySignalType.SAVED,
+    MemorySignalType.CLEARED,
 ] as const;
 
 
-export const DEFAULT_PAGE = 'presentation';
+
+export const DEFAULT_PAGE = '/';
 
 export const DEFAULT_PURPOSE =
     'Constituir la manifestación viva y emergente de la Arquitectura Cognitiva Universal (UCA): una experiencia interactiva disruptiva donde la propia aplicación es la demostración en tiempo real de su propia arquitectura ontológica';

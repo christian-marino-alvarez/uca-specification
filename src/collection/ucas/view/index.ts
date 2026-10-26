@@ -405,7 +405,7 @@ export class View extends Uca<Body> {
     private dispatchLlmInfer(payload: BuildPayload, sessionId: string): void {
         const inferPayload = this.createInferRequest(payload, sessionId);
         webSignalBodySchema.parse(inferPayload);
-        this.pulse(LlmSignalType.INFER, inferPayload, undefined, sessionId);
+        this.pulse(LlmSignalType.INFER, inferPayload);
     }
 
     private showAreaSkeleton(elementId: string): void {
@@ -464,11 +464,11 @@ export class View extends Uca<Body> {
         }
         const list = this.extractComponentList(composition);
         this.dispatchRender(list, context, areaId);
-        this.pulse(SignalType.BUILT, result, undefined, sessionId);
+        this.pulse(SignalType.BUILT, result);
         this.pulse(SignalType.CREATED, {
             areaId,
             context,
-        }, undefined, sessionId);
+        });
     }
 
     private resolveInferredAreaId(context: Record<string, unknown>): string | undefined {
@@ -529,7 +529,7 @@ export class View extends Uca<Body> {
         try {
             await stream.pipeTo(this.createStreamConsumer(context as Record<string, unknown> | undefined, sessionId));
         } catch (error) {
-            this.pulse(SignalType.ERROR, error, undefined, sessionId);
+            this.pulse(SignalType.ERROR, error);
         }
     }
 
@@ -557,11 +557,11 @@ export class View extends Uca<Body> {
         this.pulse(SignalType.BUILT, {
             composition: { components },
             areaId,
-        }, undefined, sessionId);
+        });
         this.pulse(SignalType.CREATED, {
             areaId,
             context,
-        }, undefined, sessionId);
+        });
     }
 
     private handleStreamChunk(
@@ -596,7 +596,7 @@ export class View extends Uca<Body> {
         if (areaId) {
             this.removeAreaSkeleton(areaId);
         }
-        this.pulse(SignalType.ERROR, value, undefined, sessionId);
+        this.pulse(SignalType.ERROR, value);
     }
 
     private handleRenderRendered(signal: Signal): void {

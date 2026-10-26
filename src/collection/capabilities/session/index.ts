@@ -10,8 +10,8 @@ import {
     __ID__,
 } from './constants.js';
 import {
-    sessionPayloadSchema,
     sessionRequestSchema,
+    sessionSchema,
 } from './schema.js';
 import {
     DataType,
@@ -62,20 +62,20 @@ export class Session extends Capability<Body> {
         outputs: [
             {
                 signal: SignalType.RETRIEVED,
-                type: DataType.SESSION_PAYLOAD,
-                schema: sessionPayloadSchema,
+                type: DataType.SESSION,
+                schema: sessionSchema.nullable(),
                 description: 'Session retrieved from storage',
             },
             {
                 signal: SignalType.CREATED,
-                type: DataType.SESSION_PAYLOAD,
-                schema: sessionPayloadSchema,
+                type: DataType.SESSION,
+                schema: sessionSchema,
                 description: 'Session created and persisted in storage',
             },
             {
                 signal: SignalType.DELETED,
-                type: DataType.SESSION_PAYLOAD,
-                schema: sessionPayloadSchema,
+                type: DataType.SESSION,
+                schema: sessionSchema.nullable(),
                 description: 'Session deleted from storage',
             },
         ],
@@ -110,46 +110,48 @@ export class Session extends Capability<Body> {
         const key = this.resolveKey();
         const stored = this.readStorage(key);
         const activeId = stored?.id ?? signal.sessionId;
-        const payload: SessionPayload = {
-            sessionId: activeId ?? '',
-            timestamp: Date.now(),
-            value: stored,
+        this.currentSignal = {
+            ...signal,
+            sessionId: activeId,
         };
-        this.pulse(SignalType.RETRIEVED, payload, undefined, activeId);
+        this.pulse(SignalType.RETRIEVED, stored);
     }
 
     private handleCreate(signal: Signal): void {
+        const activeId = this.resolveCreateSessionId(signal);
+        const entity = this.persistCreatedSession(signal, activeId);
+        this.currentSignal = {
+            ...signal,
+            sessionId: activeId,
+        };
+        this.pulse(SignalType.CREATED, entity);
+    }
+
+    private resolveCreateSessionId(signal: Signal): string {
         const {
-            value,
             sessionId,
+            value,
         } = signal;
         const request = (value ?? {}) as SessionRequest;
+        return sessionId ?? request.sessionId ?? `session-${Date.now()}`;
+    }
+
+    private persistCreatedSession(signal: Signal, activeId: string): SessionEntity {
+        const request = (signal.value ?? {}) as SessionRequest;
         const timestamp = request.timestamp ?? Date.now();
-        const activeId = sessionId ?? request.sessionId ?? `session-${timestamp}`;
-        const sessionEntity = this.resolveSessionEntity(activeId, timestamp, request);
-        this.writeStorage(this.resolveKey(), sessionEntity);
-        const payload: SessionPayload = {
-            sessionId: activeId,
-            timestamp,
-            value: sessionEntity,
-        };
-        this.pulse(SignalType.CREATED, payload, undefined, activeId);
+        const entity = this.resolveSessionEntity(activeId, timestamp, request);
+        this.writeStorage(this.resolveKey(), entity);
+        return entity;
     }
 
     private handleDestroy(signal: Signal): void {
-        const {
-            value,
-            sessionId,
-        } = signal;
-        const request = (value ?? {}) as SessionRequest;
-        const activeId = sessionId ?? request.sessionId;
+        const activeId = signal.sessionId ?? (signal.value as SessionRequest)?.sessionId;
         this.removeStorage(this.resolveKey());
-        const payload: SessionPayload = {
+        this.currentSignal = {
+            ...signal,
             sessionId: activeId,
-            timestamp: Date.now(),
-            value: null,
         };
-        this.pulse(SignalType.DELETED, payload, undefined, activeId);
+        this.pulse(SignalType.DELETED, null);
     }
 
     private resolveKey(): string {

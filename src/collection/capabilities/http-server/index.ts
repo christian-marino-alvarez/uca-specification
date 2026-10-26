@@ -139,7 +139,7 @@ export class HttpServer extends Capability<Body> {
     private evaluateAutoStart(): void {
         const { aim } = this.disposition;
         const { autoStart, port, hostname } = (aim.body ?? {}) as Body;
-        if (autoStart) {
+        if (autoStart && !this.server) {
             this.startServer(port ?? DEFAULT_PORT, hostname ?? DEFAULT_HOSTNAME);
         }
     }
@@ -156,8 +156,10 @@ export class HttpServer extends Capability<Body> {
     }
 
     private startServer(port: number, hostname: string): void {
+        if (this.server) {
+            return;
+        }
         try {
-            this.stopServer();
             this.server = serve({ fetch: this.app.fetch, port, hostname });
             this.pulse(SignalType.LISTENING, { port, hostname, url: `http://${hostname}:${port}` });
         } catch (error) {

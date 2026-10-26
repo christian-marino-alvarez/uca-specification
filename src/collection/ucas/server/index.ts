@@ -168,7 +168,7 @@ export class Server extends Uca<Body> {
     private createHttpServerDisposition(body: Body, routes: RouteConfig[]): Disposition<HttpServerBody> {
         const { port = DEFAULT_PORT, hostname = DEFAULT_HOSTNAME, autoStart = DEFAULT_AUTO_START } = body;
         return {
-            aim: { description: HttpServer.AIM, body: { port, hostname, routes, autoStart } },
+            aim: { description: HttpServer.AIM, body: { id: `${this.id}:http-server`, port, hostname, routes, autoStart } },
             reactTo: [...HttpServer.disposition.reactTo ?? []],
         };
     }

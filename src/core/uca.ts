@@ -141,11 +141,17 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
     private syncCatalogEntry(Factory: CapabilityConstructor, declared: Disposition): void {
         const { reactTo = [] } = this.disposition;
         const { reactTo: signals = [], aim } = declared;
-        const { id } = (aim.body ?? {}) as { id?: string };
+        const id = this.resolveCapabilityId(Factory, declared);
         const isActive = signals.some((signal) => reactTo.includes(signal) || signal === '*');
-        if (!isActive) { return void this.getCapability(id ?? '')?.denervate(); }
-        const capability = this.getCapability(id ?? '') ?? this.registerCapability(Factory, id);
+        if (!isActive) { return void this.getCapability(id)?.denervate(); }
+        const capability = this.getCapability(id) ?? this.registerCapability(Factory, id);
         this.connectCapability(capability, declared);
+    }
+
+    private resolveCapabilityId(Factory: CapabilityConstructor, declared: Disposition): string {
+        const { id } = (declared.aim.body ?? {}) as { id?: string };
+        const fallback = (Factory as { __ID__?: string }).__ID__ ?? Factory.name.toLowerCase();
+        return id ?? fallback;
     }
 
     private registerCapability(Factory: CapabilityConstructor, id?: string): ICapability {

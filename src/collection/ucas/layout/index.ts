@@ -482,7 +482,7 @@ export class Layout extends Uca<Body> {
         const inferRequest = this.createInferRequest(payload, sessionId);
         signalBodySchema.parse(inferRequest);
         this.logInferRequest(inferRequest, sessionId);
-        this.pulse(LlmSignalType.INFER, inferRequest, undefined, sessionId);
+        this.pulse(LlmSignalType.INFER, inferRequest);
     }
 
     private extractTargetAreaId(payload: BuildPayload): string {
@@ -701,7 +701,7 @@ export class Layout extends Uca<Body> {
             const transform = this.createAreaTransformStream(context, sessionId);
             await this.consumeTransformedStream(stream.pipeThrough(transform));
         } catch (error) {
-            this.pulse(SignalType.ERROR, error, undefined, sessionId);
+            this.pulse(SignalType.ERROR, error);
         }
     }
 
@@ -770,7 +770,7 @@ export class Layout extends Uca<Body> {
             composition: this.createBuiltComposition(areas),
             areaId,
             sessionId,
-        }, undefined, sessionId);
+        });
     }
 
     private handleStreamTransformerRecover(signal: Signal): void {
@@ -849,7 +849,7 @@ export class Layout extends Uca<Body> {
             context,
             sessionId,
         };
-        this.pulse(BoxSignalType.RENDER, this.createBoxPayload(area, target, boxContext), undefined, sessionId);
+        this.pulse(BoxSignalType.RENDER, this.createBoxPayload(area, target, boxContext));
     }
 
     private clearParentSkeleton(area?: Area): void {

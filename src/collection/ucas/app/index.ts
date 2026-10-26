@@ -1,8 +1,10 @@
+import { Navigate } from '@uca/navigate';
+import { SignalType as NavigateSignalType } from '@uca/navigate/types';
 import { Telemetry } from '@uca/capability-telemetry';
 import { Session as SessionCapability } from '@uca/capability-session';
 import {
     SignalType as SessionSignalType,
-    type SessionPayload,
+    type Session,
 } from '@uca/capability-session/types';
 import { Uca } from '@uca/core/uca';
 import {
@@ -15,6 +17,7 @@ import {
 import {
     DEFAULT_AIM_BODY,
     DEFAULT_AIM_DESCRIPTION,
+    DEFAULT_PAGE,
     DEFAULT_PURPOSE,
     TELEMETRY_OBSERVED_SIGNALS,
     __ID__,
@@ -36,7 +39,9 @@ export class App extends Uca<Body> {
         },
         reactTo: [
             DispositionSignal.INNERVATED,
+            DispositionSignal.UPDATED,
             ...App.reactToSession(),
+            ...App.reactToNavigate(),
         ],
         inputs: [
             {
@@ -68,6 +73,13 @@ export class App extends Uca<Body> {
         ];
     }
 
+    private static reactToNavigate(): string[] {
+        return [
+            ...Navigate.disposition?.reactTo || [],
+            NavigateSignalType.CHANGED,
+        ];
+    }
+
     private static createTelemetryExtraBody(): Record<string, unknown> {
         return {
             filter: [
@@ -82,8 +94,9 @@ export class App extends Uca<Body> {
 
     protected override catalog(): Cooky {
         return [
-            this.catalogSession(),
             this.catalogTelemetry(),
+            this.catalogSession(),
+            this.catalogNavigate(),
         ];
     }
 
@@ -112,6 +125,17 @@ export class App extends Uca<Body> {
         ];
     }
 
+    private catalogNavigate(): Cooky[number] {
+        return [
+            Navigate as unknown as CapabilityConstructor,
+            this.createDisposition(
+                Navigate.disposition,
+                Navigate.purpose,
+                'navigate',
+            ),
+        ];
+    }
+
     protected override react(signal: Signal): void {
         const {
             property,
@@ -119,6 +143,9 @@ export class App extends Uca<Body> {
         switch (property) {
             case DispositionSignal.INNERVATED:
                 this.handleInnervated(signal);
+                break;
+            case DispositionSignal.UPDATED:
+                this.handleUpdated(signal);
                 break;
             case SessionSignalType.RETRIEVED:
                 this.handleSessionRetrieved(signal);
@@ -129,6 +156,30 @@ export class App extends Uca<Body> {
             default:
                 break;
         }
+    }
+
+    private handleUpdated(signal: Signal): void {
+        if (signal.source !== this.id) {
+            return;
+        }
+        console.log('[App] Disposition updated, ready to query Specification:', signal);
+        this.requestNavigationOnSession();
+    }
+
+    private requestNavigationOnSession(): void {
+        const {
+            aim,
+        } = this.disposition;
+        const {
+            sessionId,
+        } = aim.body ?? {};
+        if (!sessionId) {
+            return;
+        }
+        this.pulse(NavigateSignalType.INIT, {
+            sessionId,
+            url: DEFAULT_PAGE,
+        });
     }
 
     private handleInnervated(signal: Signal): void {
@@ -142,34 +193,30 @@ export class App extends Uca<Body> {
         const {
             value,
         } = signal;
-        const payload = (value ?? {}) as SessionPayload;
-        this.routeSessionPayload(payload);
+        this.routeSessionPayload(value as Session | null);
     }
 
-    private routeSessionPayload(payload: SessionPayload): void {
-        if (!payload.value) {
+    private routeSessionPayload(session?: Session | null): void {
+        if (!session) {
             this.pulse(SessionSignalType.CREATE, {});
             return;
         }
-        this.handleSessionReceived(payload);
+        this.handleSessionReceived(session);
     }
 
     private handleSessionCreated(signal: Signal): void {
         const {
             value,
         } = signal;
-        const payload = (value ?? {}) as SessionPayload;
-        this.handleSessionReceived(payload);
+        this.handleSessionReceived(value as Session);
     }
 
-    private handleSessionReceived(payload: SessionPayload): void {
+    private handleSessionReceived(session?: Session | null): void {
         const {
-            sessionId,
-            value,
-        } = payload;
-        const activeId = sessionId || value?.id;
+            id,
+        } = session ?? {};
         this.updateDispositionBody({
-            sessionId: activeId,
+            sessionId: id,
         });
     }
 

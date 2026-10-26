@@ -40,6 +40,7 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
     public target?: EventTarget;
     public readonly updateEvent: string;
     public readonly getEvent: string;
+    protected currentSignal?: Signal;
     private _disposition: Disposition<TBody>;
 
     public constructor(id: string) {
@@ -53,10 +54,9 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
         const activeTarget = target ?? this.target ?? new EventTarget();
         this.denervate();
         this.target = activeTarget;
-        this.target.addEventListener(this.updateEvent, this);
-        this.target.addEventListener(this.getEvent, this);
-        this.target.addEventListener(DispositionSignal.GET, this);
+        this.attachCoreListeners();
         this.connectReceptors();
+        this.onInnervated();
         this.pulse(DispositionSignal.INNERVATED, this.disposition.aim.body ?? { id: this.id });
         return this;
     }
@@ -65,11 +65,23 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
         if (!this.target) { return; }
         this.pulse(DispositionSignal.DENERVATED, { id: this.id });
         this.disconnectReceptors();
-        this.target.removeEventListener(this.updateEvent, this);
-        this.target.removeEventListener(this.getEvent, this);
-        this.target.removeEventListener(DispositionSignal.GET, this);
+        this.detachCoreListeners();
         this.target = undefined;
         this._disposition = this.initialDisposition();
+    }
+
+    protected onInnervated(): void {}
+
+    private attachCoreListeners(): void {
+        this.target?.addEventListener(this.updateEvent, this);
+        this.target?.addEventListener(this.getEvent, this);
+        this.target?.addEventListener(DispositionSignal.GET, this);
+    }
+
+    private detachCoreListeners(): void {
+        this.target?.removeEventListener(this.updateEvent, this);
+        this.target?.removeEventListener(this.getEvent, this);
+        this.target?.removeEventListener(DispositionSignal.GET, this);
     }
 
     private initialDisposition(): Disposition<TBody> {
@@ -146,7 +158,6 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
         property: string,
         value: unknown,
         targetId?: string,
-        sessionId?: string,
     ): Signal | undefined {
         const {
             target,
@@ -155,7 +166,7 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
         } = this;
         if (!target) { return undefined; }
         const destination = targetId ?? this.resolveTargetId(property);
-        const resolvedSessionId = sessionId ?? (value as { sessionId?: string })?.sessionId;
+        const resolvedSessionId = this.resolveSessionId();
         const signal: Signal = {
             source: id,
             sourceKind: entityKind,
@@ -194,11 +205,20 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
     }
 
     protected async executeReaction(signal: Signal): Promise<void> {
+        const previous = this.currentSignal;
+        this.currentSignal = signal;
         try {
             await this.react(signal);
         } catch (error) {
             this.pulse('error', error);
+        } finally {
+            this.currentSignal = previous;
         }
+    }
+
+    private resolveSessionId(): string | undefined {
+        const dispositionSession = (this.disposition.aim.body as { sessionId?: string })?.sessionId;
+        return this.currentSignal?.sessionId ?? dispositionSession;
     }
 
     private handleDispositionUpdate(event: Event): void {
@@ -236,11 +256,12 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
     }
 
     private acceptsSignal(signal: Signal): boolean {
-        const { targetId, value } = signal;
-        if (targetId !== undefined) { return targetId === this.id || this.receptors().includes('*'); }
-        // Compatibility for callers that still address signals through value.id.
-        const payload = Capability.extractPayload<Record<string, unknown>>(value);
-        const { id } = (payload ?? {}) as { id?: unknown };
-        return !id || this.matchesId(String(id));
+        const {
+            targetId,
+        } = signal;
+        if (targetId !== undefined) {
+            return this.matchesId(targetId) || this.receptors().includes('*');
+        }
+        return true;
     }
 }

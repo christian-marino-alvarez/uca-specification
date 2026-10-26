@@ -231,7 +231,7 @@ export class Memory extends Uca<Body> {
         const activeSessionId = (result.sessionId ?? sessionId) as string | undefined;
         if (!cache) {
             const payload = this.createRetrievedPayload(result, stored, activeSessionId);
-            this.pulse(SignalType.RETRIEVED, payload, undefined, activeSessionId);
+            this.pulse(SignalType.RETRIEVED, payload);
             return;
         }
         this.handleEntry(stored as StoredEntry | null, cache as CacheContext);
@@ -332,7 +332,7 @@ export class Memory extends Uca<Body> {
             key,
             ...rest,
             sessionId: activeSessionId,
-        }, undefined, activeSessionId);
+        });
     }
 
     private handleRemove(value: unknown): void {

@@ -208,12 +208,17 @@ export class Decision extends Uca<Body> {
     }
 
     private emitDecided(decision: DecisionPayload, operation: Metadata): void {
-        const { replyTo, request } = operation;
-        const { sessionId, context } = request;
+        const {
+            replyTo,
+            request,
+        } = operation;
+        const {
+            context,
+        } = request;
         this.pulse(SignalType.DECIDED, {
             result: decision,
             context,
-        }, replyTo, sessionId);
+        }, replyTo);
     }
 
     private handleLlmError(signal: Signal): void {
@@ -252,13 +257,10 @@ export class Decision extends Uca<Body> {
     }
 
     private sendInference(request: Request, outputSchema: Record<string, unknown>, replyTo: string): void {
-        const {
-            sessionId,
-        } = request;
         const config = this.resolveInferenceConfig();
         const payload = this.buildInferencePayload(request, outputSchema, replyTo, config);
         signalBodySchema.parse(payload);
-        this.pulse(LlmSignalType.INFER, payload, undefined, sessionId);
+        this.pulse(LlmSignalType.INFER, payload);
     }
 
     private resolveInferenceConfig(): Configuration {
@@ -475,8 +477,7 @@ export class Decision extends Uca<Body> {
     ): void {
         const { data, response } = inferred as InferResult;
         const payload = this.assembleRecoveryPayload(operation, data ?? response, error);
-        const { sessionId } = operation.request;
-        this.pulse(LlmSignalType.INFER, payload, undefined, sessionId);
+        this.pulse(LlmSignalType.INFER, payload);
     }
 
     private emitFailure(error: unknown, identity: unknown, replyTo?: string, attempts = 0): void {

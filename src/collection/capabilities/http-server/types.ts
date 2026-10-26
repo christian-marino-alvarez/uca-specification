@@ -64,6 +64,7 @@ export interface RespondConfig {
 }
 
 export interface Body {
+    readonly id?: string;
     readonly port?: number;
     readonly hostname?: string;
     readonly routes?: readonly RouteConfig[];

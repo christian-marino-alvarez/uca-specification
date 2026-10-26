@@ -85,13 +85,10 @@ export class Specification extends Capability<Body> {
     }
 
     private handleQuery(signal: Signal): void {
-        const {
-            sessionId,
-        } = signal;
         const keys = this.extractQueryKeys(signal.value);
         const model = this.resolveActiveModel();
         const payload = this.filterSpecification(model, keys);
-        this.pulse(SignalType.PROVIDED, payload, undefined, sessionId);
+        this.pulse(SignalType.PROVIDED, payload);
     }
 
     private extractQueryKeys(value?: unknown): string[] | undefined {
