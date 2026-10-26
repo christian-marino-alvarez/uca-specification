@@ -143,38 +143,43 @@ export class History extends Capability<Body> {
 
     private applyHistoryPush(payload: RoutePayload): void {
         const {
-            path,
             parameters,
+            path,
         } = payload;
         this.executePushState(path, parameters);
-        const routeState = this.resolveCurrentRouteState();
-        this.pulse(SignalType.CHANGED, routeState);
     }
 
     private applyHistoryReplace(payload: RoutePayload): void {
         const {
-            path,
             parameters,
+            path,
         } = payload;
         this.executeReplaceState(path, parameters);
-        const routeState = this.resolveCurrentRouteState();
-        this.pulse(SignalType.CHANGED, routeState);
     }
 
     private executePushState(path: string, parameters?: Record<string, unknown>): void {
         if (typeof window === 'undefined' || !window.history) {
             return;
         }
-        const hash = `#/${path}`;
+        const hash = this.resolveHash(path);
         window.history.pushState(parameters ?? {}, '', hash);
+        this.dispatchPopState(parameters);
     }
 
     private executeReplaceState(path: string, parameters?: Record<string, unknown>): void {
         if (typeof window === 'undefined' || !window.history) {
             return;
         }
-        const hash = `#/${path}`;
+        const hash = this.resolveHash(path);
         window.history.replaceState(parameters ?? {}, '', hash);
+        this.dispatchPopState(parameters);
+    }
+
+    private dispatchPopState(state?: Record<string, unknown>): void {
+        const event = new PopStateEvent('popstate', {
+            state: state ?? {},
+        });
+        window.dispatchEvent(event);
     }
 
     private emitCurrentRoute(): void {
@@ -197,12 +202,23 @@ export class History extends Capability<Body> {
             const {
                 aim,
             } = this.disposition;
-            return aim.body?.defaultPath ?? DEFAULT_PATH;
+            const defaultPath = aim.body?.defaultPath ?? DEFAULT_PATH;
+            return this.normalizePath(defaultPath);
         }
         const {
             hash,
         } = window.location;
-        const normalized = hash.replace(/^#\/?/, '').trim();
-        return normalized.length > 0 ? normalized : DEFAULT_PATH;
+        return this.normalizePath(hash);
+    }
+
+    private resolveHash(path: string): string {
+        const normalized = this.normalizePath(path);
+        return normalized === '/' ? '#/' : `#${normalized}`;
+    }
+
+    private normalizePath(raw: string): string {
+        const afterHash = raw.includes('#') ? raw.slice(raw.indexOf('#') + 1) : raw;
+        const cleaned = afterHash.replace(/^#\/?/, '').replace(/^\/+/, '').trim();
+        return cleaned.length > 0 ? `/${cleaned}` : '/';
     }
 }

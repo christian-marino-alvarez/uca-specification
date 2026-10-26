@@ -1,14 +1,18 @@
 import { History } from '@uca/capability-history';
-import { SignalType as HistorySignalType } from '@uca/capability-history/types';
+import {
+    SignalType as HistorySignalType,
+    type RouteState,
+} from '@uca/capability-history/types';
 import { Memory } from '@uca/capability-memory';
 import {
     SignalType as MemorySignalType,
 } from '@uca/capability-memory/types';
 import { Uca } from '@uca/core/uca';
-import type {
-    Cooky,
-    Disposition,
-    Signal,
+import {
+    DispositionSignal,
+    type Cooky,
+    type Disposition,
+    type Signal,
 } from '@uca/core/types';
 import {
     DEFAULT_PURPOSE,
@@ -41,6 +45,7 @@ export class Navigate extends Uca<Body> {
             },
         },
         reactTo: [
+            DispositionSignal.UPDATED,
             SignalType.INIT,
             SignalType.GO,
             SignalType.DESTROY,
@@ -108,6 +113,9 @@ export class Navigate extends Uca<Body> {
             property,
         } = signal;
         switch (property) {
+            case DispositionSignal.UPDATED:
+                this.handleUpdated(signal);
+                break;
             case SignalType.INIT:
                 this.handleInit(signal);
                 break;
@@ -122,6 +130,9 @@ export class Navigate extends Uca<Body> {
                 break;
             case MemorySignalType.RETRIEVED:
                 this.handleMemoryRetrieved(signal);
+                break;
+            case MemorySignalType.SAVED:
+                this.handleMemorySaved(signal);
                 break;
             default:
                 break;
@@ -173,7 +184,17 @@ export class Navigate extends Uca<Body> {
 
     private getLatestNavigation(entries: NavigationEntry[]): NavigationEntry {
         const sorted = [...entries].sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
-        return sorted[0] ?? { url: DEFAULT_URL };
+        const latest = sorted[0];
+        return latest ? {
+            ...latest,
+            url: this.cleanPath(latest.url),
+        } : { url: DEFAULT_URL };
+    }
+
+    private cleanPath(raw: string): string {
+        const afterHash = raw.includes('#') ? raw.slice(raw.indexOf('#') + 1) : raw;
+        const cleaned = afterHash.replace(/^#\/?/, '').replace(/^\/+/, '').trim();
+        return cleaned.length > 0 ? `/${cleaned}` : '/';
     }
 
     private handleGo(signal: Signal): void {
@@ -190,10 +211,52 @@ export class Navigate extends Uca<Body> {
             replace,
             url,
         } = payload;
-        const updated = this.buildAppendedRecords(url);
-        this.persistTargetRoute(url, updated);
         this.pulseHistory(url, parameters, replace);
-        this.emitRouteChanged(url, parameters, updated);
+    }
+
+    private pulseHistory(
+        url: string,
+        parameters?: Record<string, unknown>,
+        replace?: boolean,
+    ): void {
+        const historyProperty = replace
+            ? HistorySignalType.REPLACE
+            : HistorySignalType.PUSH;
+        this.pulse(historyProperty, {
+            parameters,
+            path: url,
+        });
+    }
+
+    private handleHistoryChanged(signal: Signal): void {
+        const payload = this.extractPayload<RouteState>(signal.value);
+        if (!payload) {
+            return;
+        }
+        this.processHistoryRoute(payload);
+    }
+
+    private processHistoryRoute(payload: RouteState): void {
+        const {
+            path,
+            url,
+        } = payload;
+        const targetUrl = this.cleanPath(path ?? url ?? DEFAULT_URL);
+        this.persistTargetRoute(targetUrl);
+    }
+
+    private persistTargetRoute(url: string): void {
+        const updated = this.buildAppendedRecords(url);
+        const {
+            aim,
+        } = this.disposition;
+        const sessionId = this.currentSignal?.sessionId ?? aim.body?.sessionId ?? '';
+        this.pulse(MemorySignalType.SET, {
+            entries: [{
+                key: sessionId,
+                value: updated,
+            }],
+        });
     }
 
     private buildAppendedRecords(url: string): NavigationEntry[] {
@@ -223,62 +286,49 @@ export class Navigate extends Uca<Body> {
         };
     }
 
-    private persistTargetRoute(url: string, records?: NavigationEntry[]): void {
-        const updated = records ?? this.buildAppendedRecords(url);
+    private handleMemorySaved(signal: Signal): void {
+        const payload = this.extractPayload<{ key?: string; value?: NavigationEntry[] }>(signal.value);
+        const records = Array.isArray(payload?.value)
+            ? payload.value
+            : (Array.isArray(signal.value) ? signal.value : []);
+        const latest = this.getLatestNavigation(records);
+        this.updateAimBody(latest.url, undefined, records);
+    }
+
+    private handleUpdated(signal: Signal): void {
+        if (signal.source !== this.id) {
+            return;
+        }
         const {
             aim,
         } = this.disposition;
-        const sessionId = this.currentSignal?.sessionId ?? aim.body?.sessionId ?? '';
-        this.pulse(MemorySignalType.SET, {
-            entries: [{
-                key: sessionId,
-                value: updated,
-            }],
-        });
+        if (!aim.body?.records?.length) {
+            return;
+        }
+        this.pulseActiveNavigation();
     }
 
-    private pulseHistory(url: string, parameters?: Record<string, unknown>, replace?: boolean): void {
-        const historyProperty = replace
-            ? HistorySignalType.REPLACE
-            : HistorySignalType.PUSH;
-        this.pulse(historyProperty, {
+    private pulseActiveNavigation(): void {
+        const {
+            aim,
+        } = this.disposition;
+        const {
             parameters,
-            path: url,
-        });
-    }
-
-    private emitRouteChanged(
-        url: string,
-        parameters?: Record<string, unknown>,
-        records?: NavigationEntry[],
-    ): void {
-        this.updateAimBody(url, parameters, records);
+            previousUrl,
+            sessionId,
+            url = DEFAULT_URL,
+        } = aim.body ?? {};
         this.pulse(SignalType.CHANGED, {
             parameters,
+            previousUrl,
+            sessionId,
             url,
         });
     }
 
     private handleDestroy(_signal: Signal): void {
-        this.persistTargetRoute(DEFAULT_URL, []);
+        this.pulse(MemorySignalType.CLEAR, {});
         this.updateAimBody(DEFAULT_URL, undefined, []);
-    }
-
-    private handleHistoryChanged(signal: Signal): void {
-        const routeState = this.extractPayload<NavigationState>(signal.value);
-        if (!routeState) {
-            return;
-        }
-        this.processHistoryRoute(routeState);
-    }
-
-    private processHistoryRoute(routeState: NavigationState): void {
-        const {
-            parameters,
-            url,
-        } = routeState;
-        this.persistTargetRoute(url);
-        this.emitRouteChanged(url, parameters);
     }
 
     private updateAimBody(

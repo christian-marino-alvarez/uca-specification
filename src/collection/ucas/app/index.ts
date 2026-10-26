@@ -126,14 +126,31 @@ export class App extends Uca<Body> {
     }
 
     private catalogNavigate(): Cooky[number] {
+        const extra = this.createNavigateExtraBody();
+        const disposition = this.createDisposition(
+            Navigate.disposition,
+            Navigate.purpose,
+            'navigate',
+            extra,
+        );
         return [
             Navigate as unknown as CapabilityConstructor,
-            this.createDisposition(
-                Navigate.disposition,
-                Navigate.purpose,
-                'navigate',
-            ),
+            disposition,
         ];
+    }
+
+    private createNavigateExtraBody(): Record<string, unknown> {
+        const {
+            aim,
+        } = this.disposition;
+        const {
+            activePage = DEFAULT_PAGE,
+            sessionId,
+        } = aim.body ?? {};
+        return {
+            ...(sessionId && { sessionId }),
+            url: activePage,
+        };
     }
 
     protected override react(signal: Signal): void {
@@ -153,9 +170,22 @@ export class App extends Uca<Body> {
             case SessionSignalType.CREATED:
                 this.handleSessionCreated(signal);
                 break;
+            case NavigateSignalType.CHANGED:
+                this.handleNavigateChanged(signal);
+                break;
             default:
                 break;
         }
+    }
+
+    private handleNavigateChanged(signal: Signal): void {
+        const payload = this.extractPayload<{ url?: string }>(signal.value);
+        const {
+            url = DEFAULT_PAGE,
+        } = payload ?? {};
+        this.updateDispositionBody({
+            activePage: url,
+        });
     }
 
     private handleUpdated(signal: Signal): void {
@@ -163,23 +193,6 @@ export class App extends Uca<Body> {
             return;
         }
         console.log('[App] Disposition updated, ready to query Specification:', signal);
-        this.requestNavigationOnSession();
-    }
-
-    private requestNavigationOnSession(): void {
-        const {
-            aim,
-        } = this.disposition;
-        const {
-            sessionId,
-        } = aim.body ?? {};
-        if (!sessionId) {
-            return;
-        }
-        this.pulse(NavigateSignalType.INIT, {
-            sessionId,
-            url: DEFAULT_PAGE,
-        });
     }
 
     private handleInnervated(signal: Signal): void {
@@ -187,6 +200,16 @@ export class App extends Uca<Body> {
             return;
         }
         this.pulse(SessionSignalType.GET, {});
+    }
+
+    private initNavigation(sessionId?: string): void {
+        if (!sessionId) {
+            return;
+        }
+        this.pulse(NavigateSignalType.INIT, {
+            sessionId,
+            url: DEFAULT_PAGE,
+        });
     }
 
     private handleSessionRetrieved(signal: Signal): void {
@@ -218,6 +241,7 @@ export class App extends Uca<Body> {
         this.updateDispositionBody({
             sessionId: id,
         });
+        this.initNavigation(id);
     }
 
     private updateDispositionBody(partial: Partial<Body>): void {
