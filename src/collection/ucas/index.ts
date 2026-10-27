@@ -29,3 +29,4 @@ export { Card } from './card/index.js';
 export { Chip } from './chip/index.js';
 export { Slider } from './slider/index.js';
 export { Dialog } from './dialog/index.js';
+export { Toast } from './toast/index.js';

@@ -15,6 +15,7 @@ import {
     type Signal,
 } from '@uca/core/types';
 import {
+    DEFAULT_MEMORY_PREFIX,
     DEFAULT_PURPOSE,
     DEFAULT_URL,
     __ID__,
@@ -151,14 +152,23 @@ export class Navigate extends Uca<Body> {
     }
 
     private buildMemoryCooky(): Cooky[number] {
+        const extra = this.createMemoryExtraBody();
+        const disposition = this.createDisposition(
+            Memory.disposition,
+            Memory.AIM,
+            'memory',
+            extra,
+        );
         return [
             Memory,
-            this.createDisposition(
-                Memory.disposition,
-                Memory.AIM,
-                'memory',
-            ),
+            disposition,
         ];
+    }
+
+    private createMemoryExtraBody(): Record<string, unknown> {
+        return {
+            prefix: DEFAULT_MEMORY_PREFIX,
+        };
     }
 
     private handleInit(signal: Signal): void {

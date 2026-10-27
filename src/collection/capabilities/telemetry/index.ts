@@ -5,9 +5,11 @@ import {
     type Signal,
 } from '@uca/core/types';
 import {
+    COLOR_PALETTE,
     DEFAULT_AIM,
     DEFAULT_FILTER,
     INTERCEPTED_SIGNALS,
+    SOURCE_COLORS,
     __ID__,
 } from './constants.js';
 import {
@@ -140,88 +142,80 @@ export class Telemetry extends Capability<Body> {
             property = '',
             payload,
         } = event;
-        const badge = this.resolveLifecycleBadge(property);
-        const sourceLabel = source ? ` [${source}]` : '';
-        const style = this.resolveLifecycleStyle(property);
-        console.log(`%c${badge}${sourceLabel} ${property}`, style, payload ?? event);
+        const icon = this.resolveLifecycleIcon(property);
+        const badgeStyle = this.resolveSourceBadgeStyle(source);
+        const textStyle = this.resolvePropertyStyle(source);
+        console.log(`%c[${source ?? 'uca'}]%c ${icon} ${property}`, badgeStyle, textStyle, payload ?? event);
     }
 
-    private resolveLifecycleBadge(property?: string): string {
+    private resolveLifecycleIcon(property?: string): string {
         switch (property) {
             case DispositionSignal.INNERVATED:
-                return '⚡ [CORE::INNERVATED]';
+                return '⚡';
             case DispositionSignal.DENERVATED:
-                return '🔌 [CORE::DENERVATED]';
+                return '🔌';
             case DispositionSignal.UPDATED:
-                return '🔄 [CORE::UPDATED]';
+                return '🔄';
             case SessionSignalType.GET:
-                return '🔍 [SESSION::GET]';
+                return '🔍';
             case SessionSignalType.RETRIEVED:
-                return '💾 [SESSION::RETRIEVED]';
+                return '💾';
             case SessionSignalType.CREATE:
-                return '➕ [SESSION::CREATE]';
+                return '➕';
             case SessionSignalType.CREATED:
-                return '✨ [SESSION::CREATED]';
+                return '✨';
             case 'navigate.init':
-                return '🧭 [NAVIGATE::INIT]';
+                return '🧭';
             case 'navigate.go':
-                return '🚀 [NAVIGATE::GO]';
+                return '🚀';
             case 'navigate.changed':
-                return '📍 [NAVIGATE::CHANGED]';
+                return '📍';
             case 'navigate.destroy':
-                return '🗑️ [NAVIGATE::DESTROY]';
+                return '🗑️';
             case 'memory.get':
-                return '🔍 [MEMORY::GET]';
+                return '🔍';
             case 'memory.set':
-                return '💾 [MEMORY::SET]';
+                return '💾';
             case 'memory.clear':
-                return '🧹 [MEMORY::CLEAR]';
+                return '🧹';
             case 'memory.retrieved':
-                return '📦 [MEMORY::RETRIEVED]';
+                return '📦';
             case 'memory.saved':
-                return '✅ [MEMORY::SAVED]';
+                return '✅';
             case 'memory.cleared':
-                return '✨ [MEMORY::CLEARED]';
+                return '✨';
             default:
-                return `📡 [${property ? property.toUpperCase() : 'SIGNAL'}]`;
+                return '📡';
         }
     }
 
-    private resolveLifecycleStyle(property?: string): string {
-        switch (property) {
-            case DispositionSignal.INNERVATED:
-                return 'color: #7C3AED; font-weight: bold; font-size: 11px;';
-            case DispositionSignal.DENERVATED:
-                return 'color: #9CA3AF; font-weight: bold; font-size: 11px;';
-            case DispositionSignal.UPDATED:
-                return 'color: #10B981; font-weight: bold; font-size: 11px;';
-            case SessionSignalType.GET:
-                return 'color: #0284C7; font-weight: bold; font-size: 11px;';
-            case SessionSignalType.RETRIEVED:
-                return 'color: #EA580C; font-weight: bold; font-size: 11px;';
-            case SessionSignalType.CREATE:
-                return 'color: #2563EB; font-weight: bold; font-size: 11px;';
-            case SessionSignalType.CREATED:
-                return 'color: #16A34A; font-weight: bold; font-size: 11px;';
-            case 'navigate.init':
-                return 'color: #06B6D4; font-weight: bold; font-size: 11px;';
-            case 'navigate.go':
-                return 'color: #8B5CF6; font-weight: bold; font-size: 11px;';
-            case 'navigate.changed':
-                return 'color: #059669; font-weight: bold; font-size: 11px;';
-            case 'navigate.destroy':
-                return 'color: #EF4444; font-weight: bold; font-size: 11px;';
-            case 'memory.get':
-            case 'memory.retrieved':
-                return 'color: #D97706; font-weight: bold; font-size: 11px;';
-            case 'memory.set':
-            case 'memory.saved':
-                return 'color: #10B981; font-weight: bold; font-size: 11px;';
-            case 'memory.clear':
-            case 'memory.cleared':
-                return 'color: #EF4444; font-weight: bold; font-size: 11px;';
-            default:
-                return 'color: #6B7280; font-weight: bold; font-size: 11px;';
+    private resolveSourceBadgeStyle(source?: string): string {
+        const color = this.resolveSourceColor(source);
+        return `background: ${color}; color: #FFFFFF; font-weight: bold; font-size: 11px; padding: 2px 6px; border-radius: 3px;`;
+    }
+
+    private resolvePropertyStyle(source?: string): string {
+        const color = this.resolveSourceColor(source);
+        return `color: ${color}; font-weight: 600; font-size: 11px; margin-left: 4px;`;
+    }
+
+    private resolveSourceColor(source?: string): string {
+        if (!source) {
+            return '#64748B';
         }
+        if (source in SOURCE_COLORS) {
+            return SOURCE_COLORS[source];
+        }
+        return this.hashSourceColor(source);
+    }
+
+    private hashSourceColor(source: string): string {
+        let hash = 0;
+        for (let i = 0; i < source.length; i++) {
+            hash = (hash << 5) - hash + source.charCodeAt(i);
+            hash |= 0;
+        }
+        const index = Math.abs(hash) % COLOR_PALETTE.length;
+        return COLOR_PALETTE[index] ?? '#0284C7';
     }
 }

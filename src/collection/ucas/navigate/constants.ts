@@ -4,3 +4,5 @@ export const DEFAULT_PURPOSE = 'Coordinate autonomous user navigation by synchro
 
 export const DEFAULT_URL = '/';
 export const DEFAULT_PATH = DEFAULT_URL;
+
+export const DEFAULT_MEMORY_PREFIX = 'navigate-';

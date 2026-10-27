@@ -1,4 +1,5 @@
 import { Presentation } from '@uca/capability-presentation';
+import { WebComponent } from '@uca/capability-web-component';
 import { Css } from '@uca/capability-css';
 import { Zod } from '@uca/capability-zod';
 import type { Aim, Declaration, Disposition } from '@uca/core/types';
@@ -29,6 +30,15 @@ export function presentationDeclaration(id: string, kind: Kind): Declaration {
         identifiedDisposition(Presentation.disposition, {
             id: `${id}:presentation`,
             kind,
+        }),
+    ];
+}
+
+export function webComponentDeclaration(id: string): Declaration {
+    return [
+        WebComponent,
+        identifiedDisposition(WebComponent.disposition, {
+            id: `${id}:web-component`,
         }),
     ];
 }
