@@ -53,6 +53,10 @@ El dominio `src/core` contiene **única y exclusivamente las primitivas ontológ
    * **Actualización Permanente de la Disposición**: La comunicación reactiva que transporta cambios de contexto, estructurales, espaciales o de dominio debe canalizarse actualizando la `Disposition` (`aim.body`) a través del ciclo idempotente del Core (`Capability.updateEvent(id)`), garantizando que el organismo preserve su estado reactivo de forma declarativa y sincronice su catálogo (`syncCatalog`).
 8. **Pruebas Manuales de Core**:
    * Las pruebas de integridad de Core corresponden al usuario. El agente solo ejecuta validaciones si el usuario las solicita expresamente.
+9. **Regla Inmutable de Minimalismo y Prohibición Estricta de Sobreingeniería**:
+   * Las primitivas ontológicas del Core (`Signal`, `Disposition`, `pulse`, `react`) son autosuficientes, minimalistas y altamente eficaces.
+   * Queda terminantemente prohibido introducir sobreingeniería, capas de abstracción innecesarias, estados intermedios paralelos o metadatos sintéticos en la disposición para resolver flujos que el canal nativo de señales (`Signal`: `source`, `property`, `value`) ya resuelve de forma natural.
+   * Toda interacción reactiva debe confiar plenamente en las herramientas nativas del sistema: cada señal (`Signal`) ya identifica de forma determinista su origen (`source`), su estímulo (`property`) y su carga (`value`).
 
 ---
 

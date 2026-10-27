@@ -19,9 +19,13 @@ import {
 } from './schema.js';
 import {
     DataType,
+    SignalDomain,
     SignalType,
 } from './types.js';
 import { SignalType as SessionSignalType } from '@uca/capability-session/types';
+import { SignalType as NavigateSignalType } from '@uca/navigate/types';
+import { SignalType as MemorySignalType } from '@uca/capability-memory/types';
+import { SignalType as SpecificationSignalType } from '@uca/capability-specification/types';
 
 export class Telemetry extends Capability<Body> {
     public static readonly AIM: string = DEFAULT_AIM;
@@ -148,7 +152,47 @@ export class Telemetry extends Capability<Body> {
         console.log(`%c[${source ?? 'uca'}]%c ${icon} ${property}`, badgeStyle, textStyle, payload ?? event);
     }
 
-    private resolveLifecycleIcon(property?: string): string {
+    private resolveLifecycleIcon(property: string = ''): string {
+        const domain = this.extractSignalDomain(property);
+        switch (domain) {
+            case SignalDomain.CORE:
+            case SignalDomain.DISPOSITION:
+                return this.resolveCoreIcon(property);
+            case SignalDomain.SESSION:
+                return this.resolveSessionIcon(property);
+            case SignalDomain.NAVIGATE:
+                return this.resolveNavigateIcon(property);
+            case SignalDomain.MEMORY:
+                return this.resolveMemoryIcon(property);
+            case SignalDomain.SPECIFICATION:
+                return this.resolveSpecificationIcon(property);
+            default:
+                return '📡';
+        }
+    }
+
+    private extractSignalDomain(property: string): SignalDomain {
+        if (!property.includes('.')) {
+            return SignalDomain.CORE;
+        }
+        const [prefix] = property.split('.');
+        switch (prefix) {
+            case SignalDomain.DISPOSITION:
+                return SignalDomain.DISPOSITION;
+            case SignalDomain.SESSION:
+                return SignalDomain.SESSION;
+            case SignalDomain.NAVIGATE:
+                return SignalDomain.NAVIGATE;
+            case SignalDomain.MEMORY:
+                return SignalDomain.MEMORY;
+            case SignalDomain.SPECIFICATION:
+                return SignalDomain.SPECIFICATION;
+            default:
+                return SignalDomain.UNKNOWN;
+        }
+    }
+
+    private resolveCoreIcon(property: string): string {
         switch (property) {
             case DispositionSignal.INNERVATED:
                 return '⚡';
@@ -156,6 +200,13 @@ export class Telemetry extends Capability<Body> {
                 return '🔌';
             case DispositionSignal.UPDATED:
                 return '🔄';
+            default:
+                return '📡';
+        }
+    }
+
+    private resolveSessionIcon(property: string): string {
+        switch (property) {
             case SessionSignalType.GET:
                 return '🔍';
             case SessionSignalType.RETRIEVED:
@@ -164,26 +215,55 @@ export class Telemetry extends Capability<Body> {
                 return '➕';
             case SessionSignalType.CREATED:
                 return '✨';
-            case 'navigate.init':
+            default:
+                return '📡';
+        }
+    }
+
+    private resolveNavigateIcon(property: string): string {
+        switch (property) {
+            case NavigateSignalType.INIT:
                 return '🧭';
-            case 'navigate.go':
+            case NavigateSignalType.GO:
                 return '🚀';
-            case 'navigate.changed':
+            case NavigateSignalType.CHANGED:
                 return '📍';
-            case 'navigate.destroy':
+            case NavigateSignalType.DESTROY:
                 return '🗑️';
-            case 'memory.get':
+            default:
+                return '📡';
+        }
+    }
+
+    private resolveMemoryIcon(property: string): string {
+        switch (property) {
+            case MemorySignalType.GET:
                 return '🔍';
-            case 'memory.set':
+            case MemorySignalType.SET:
                 return '💾';
-            case 'memory.clear':
+            case MemorySignalType.CLEAR:
                 return '🧹';
-            case 'memory.retrieved':
+            case MemorySignalType.RETRIEVED:
                 return '📦';
-            case 'memory.saved':
+            case MemorySignalType.SAVED:
                 return '✅';
-            case 'memory.cleared':
+            case MemorySignalType.CLEARED:
                 return '✨';
+            case MemorySignalType.ERROR:
+                return '❌';
+            default:
+                return '📡';
+        }
+    }
+
+    private resolveSpecificationIcon(property: string): string {
+        switch (property) {
+            case SpecificationSignalType.QUERY:
+                return '📋';
+            case SpecificationSignalType.PROVIDED:
+                return '📖';
+            case SpecificationSignalType.ERROR:
+                return '❌';
             default:
                 return '📡';
         }

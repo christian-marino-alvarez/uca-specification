@@ -2,6 +2,7 @@ import { DispositionSignal } from '@uca/core/types';
 import { SignalType as SessionSignalType } from '@uca/capability-session/types';
 import { SignalType as MemorySignalType } from '@uca/capability-memory/types';
 import { SignalType as NavigateSignalType } from '@uca/navigate/types';
+import { SignalType as SpecificationSignalType } from '@uca/capability-specification/types';
 
 export const __ID__ = 'app';
 
@@ -22,6 +23,9 @@ export const TELEMETRY_OBSERVED_SIGNALS = [
     MemorySignalType.RETRIEVED,
     MemorySignalType.SAVED,
     MemorySignalType.CLEARED,
+    SpecificationSignalType.QUERY,
+    SpecificationSignalType.PROVIDED,
+    SpecificationSignalType.ERROR,
 ] as const;
 
 

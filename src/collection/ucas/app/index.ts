@@ -1,5 +1,11 @@
 import { Navigate } from '@uca/navigate';
 import { SignalType as NavigateSignalType } from '@uca/navigate/types';
+import { Specification as SpecificationCapability } from '@uca/capability-specification';
+import { SignalType as SpecificationSignalType } from '@uca/capability-specification/types';
+import {
+    queryRequestSchema,
+    specificationModelSchema,
+} from '@uca/capability-specification/schema';
 import { Telemetry } from '@uca/capability-telemetry';
 import { Session as SessionCapability } from '@uca/capability-session';
 import {
@@ -42,12 +48,24 @@ export class App extends Uca<Body> {
             DispositionSignal.UPDATED,
             ...App.reactToSession(),
             ...App.reactToNavigate(),
+            ...App.reactToSpecification(),
         ],
         inputs: [
             {
                 signal: DispositionSignal.INNERVATED,
                 type: DataType.VOID,
                 description: 'Core lifecycle signal emitted upon innervation',
+            },
+            {
+                signal: SpecificationSignalType.PROVIDED,
+                type: DataType.SPECIFICATION_MODEL,
+                schema: specificationModelSchema,
+                description: 'Specification model provided by Specification capability',
+            },
+            {
+                signal: SpecificationSignalType.ERROR,
+                type: DataType.ERROR,
+                description: 'Error emitted during specification query',
             },
         ],
         outputs: [
@@ -57,12 +75,26 @@ export class App extends Uca<Body> {
                 description: 'Core lifecycle signal emitted upon innervation',
             },
             {
+                signal: SpecificationSignalType.QUERY,
+                type: DataType.QUERY_REQUEST,
+                schema: queryRequestSchema,
+                description: 'Query active specification model or filtered subset',
+            },
+            {
                 signal: DataType.ERROR,
                 type: DataType.ERROR,
                 description: 'Error emitted during app execution',
             },
         ],
     };
+
+    private static reactToSpecification(): string[] {
+        return [
+            ...SpecificationCapability.disposition?.reactTo || [],
+            SpecificationSignalType.PROVIDED,
+            SpecificationSignalType.ERROR,
+        ];
+    }
 
     private static reactToSession(): string[] {
         return [
@@ -96,7 +128,20 @@ export class App extends Uca<Body> {
         return [
             this.catalogTelemetry(),
             this.catalogSession(),
+            this.catalogSpecification(),
             this.catalogNavigate(),
+        ];
+    }
+
+    private catalogSpecification(): Cooky[number] {
+        const disposition = this.createDisposition(
+            SpecificationCapability.disposition,
+            SpecificationCapability.AIM,
+            'specification',
+        );
+        return [
+            SpecificationCapability as unknown as CapabilityConstructor,
+            disposition,
         ];
     }
 
@@ -159,10 +204,10 @@ export class App extends Uca<Body> {
         } = signal;
         switch (property) {
             case DispositionSignal.INNERVATED:
-                this.handleInnervated(signal);
+                this.handleInnervated();
                 break;
             case DispositionSignal.UPDATED:
-                this.handleUpdated(signal);
+                this.handleUpdated();
                 break;
             case SessionSignalType.RETRIEVED:
                 this.handleSessionRetrieved(signal);
@@ -173,33 +218,134 @@ export class App extends Uca<Body> {
             case NavigateSignalType.CHANGED:
                 this.handleNavigateChanged(signal);
                 break;
+            case SpecificationSignalType.PROVIDED:
+                this.handleSpecificationProvided(signal);
+                break;
+            case SpecificationSignalType.ERROR:
+                this.handleSpecificationError(signal);
+                break;
             default:
                 break;
         }
     }
 
-    private handleNavigateChanged(signal: Signal): void {
-        const payload = this.extractPayload<{ url?: string }>(signal.value);
+    private handleInnervated(): void {
+        this.pulse(SessionSignalType.GET, {});
+    }
+
+    private handleUpdated(): void {
         const {
-            url = DEFAULT_PAGE,
-        } = payload ?? {};
+            source = this.id,
+        } = this.body ?? {};
+        switch (source) {
+            case `${this.id}:navigate`:
+                this.handleNavigateUpdated();
+                break;
+            case `${this.id}:session`:
+                this.handleSessionUpdated();
+                break;
+            case `${this.id}:specification`:
+                this.handleSpecificationLoaded();
+                break;
+            default:
+                this.handleSelfUpdated();
+                break;
+        }
+    }
+
+    private handleNavigateUpdated(): void {
+        const {
+            activePage,
+            specification,
+        } = this.body ?? {};
+        if (activePage && !specification) {
+            this.pulse(SpecificationSignalType.QUERY, {});
+        }
+    }
+
+    private handleSessionUpdated(): void {
+        const {
+            sessionId,
+        } = this.body ?? {};
+        console.log('[App] Session established:', sessionId);
+    }
+
+    private handleSpecificationLoaded(): void {
+        const {
+            specification,
+        } = this.body ?? {};
+        console.log('[App] Specification model loaded:', Boolean(specification));
+    }
+
+    private handleSelfUpdated(): void {
+        console.log('[App] Self disposition updated:', this.body);
+    }
+
+    private handleSessionRetrieved(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        if (value) {
+            this.handleSessionCreated(signal);
+            return;
+        }
+        this.pulse(SessionSignalType.CREATE, {});
+    }
+
+    private handleSessionCreated(signal: Signal): void {
+        const {
+            source,
+            value,
+        } = signal;
+        this.applySession(value as Session, source);
+    }
+
+    private handleNavigateChanged(signal: Signal): void {
+        const {
+            source,
+            value,
+        } = signal;
         this.updateDispositionBody({
-            activePage: url,
+            activePage: this.extractNavigateUrl(value),
+            source,
         });
     }
 
-    private handleUpdated(signal: Signal): void {
-        if (signal.source !== this.id) {
-            return;
-        }
-        console.log('[App] Disposition updated, ready to query Specification:', signal);
+    private extractNavigateUrl(value: unknown): string {
+        const payload = this.extractPayload<{ url?: string }>(value);
+        const {
+            url = DEFAULT_PAGE,
+        } = payload ?? {};
+        return url;
     }
 
-    private handleInnervated(signal: Signal): void {
-        if (signal.source !== this.id) {
-            return;
-        }
-        this.pulse(SessionSignalType.GET, {});
+    private handleSpecificationProvided(signal: Signal): void {
+        const {
+            source,
+            value,
+        } = signal;
+        this.updateDispositionBody({
+            source,
+            specification: value as Record<string, unknown>,
+        });
+    }
+
+    private handleSpecificationError(signal: Signal): void {
+        const {
+            value,
+        } = signal;
+        console.error('[App] Specification query error:', value);
+    }
+
+    private applySession(session?: Session | null, source?: string): void {
+        const {
+            id = '',
+        } = session ?? {};
+        this.updateDispositionBody({
+            sessionId: id,
+            ...(source && { source }),
+        });
+        this.initNavigation(id);
     }
 
     private initNavigation(sessionId?: string): void {
@@ -210,38 +356,6 @@ export class App extends Uca<Body> {
             sessionId,
             url: DEFAULT_PAGE,
         });
-    }
-
-    private handleSessionRetrieved(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.routeSessionPayload(value as Session | null);
-    }
-
-    private routeSessionPayload(session?: Session | null): void {
-        if (!session) {
-            this.pulse(SessionSignalType.CREATE, {});
-            return;
-        }
-        this.handleSessionReceived(session);
-    }
-
-    private handleSessionCreated(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.handleSessionReceived(value as Session);
-    }
-
-    private handleSessionReceived(session?: Session | null): void {
-        const {
-            id,
-        } = session ?? {};
-        this.updateDispositionBody({
-            sessionId: id,
-        });
-        this.initNavigation(id);
     }
 
     private updateDispositionBody(partial: Partial<Body>): void {

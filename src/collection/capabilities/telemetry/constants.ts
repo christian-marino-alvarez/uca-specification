@@ -25,6 +25,7 @@ export const SOURCE_COLORS: Readonly<Record<string, string>> = {
     'app:navigate:history': '#7C3AED',
     'app:navigate:memory': '#D97706',
     'app:session': '#059669',
+    'app:specification': '#8B5CF6',
     server: '#4F46E5',
     'server:http-server': '#0891B2',
     'server:logger': '#475569',

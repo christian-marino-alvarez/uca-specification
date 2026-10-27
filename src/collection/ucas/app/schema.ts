@@ -74,6 +74,7 @@ export const bodySchema = z.object({
     id: z.string().optional(),
     sessionId: z.string().optional(),
     activePage: z.string().optional(),
+    source: z.string().optional(),
     structural: z.record(
         z.string(),
         z.unknown(),
@@ -94,6 +95,10 @@ export const bodySchema = z.object({
         z.unknown(),
     ).optional(),
     limits: z.record(
+        z.string(),
+        z.unknown(),
+    ).optional(),
+    specification: z.record(
         z.string(),
         z.unknown(),
     ).optional(),

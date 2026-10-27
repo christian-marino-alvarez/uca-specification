@@ -118,6 +118,16 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
         this._disposition = value;
     }
 
+    public get body(): TBody | undefined {
+        const {
+            aim,
+        } = this.disposition;
+        const {
+            body,
+        } = aim ?? {};
+        return body;
+    }
+
     protected get entityKind(): EntityKind {
         return EntityKind.CAPABILITY;
     }
@@ -191,8 +201,18 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
         return undefined;
     }
 
-    protected acceptsSource(_signal: Signal): boolean {
-        return true;
+    protected acceptsSource(signal: Signal): boolean {
+        const {
+            property,
+            source,
+        } = signal;
+        return !this.isLifecycleSignal(property) || source === this.id;
+    }
+
+    protected isLifecycleSignal(property: string): boolean {
+        return property === DispositionSignal.INNERVATED
+            || property === DispositionSignal.UPDATED
+            || property === DispositionSignal.DENERVATED;
     }
 
     protected extractPayload<T = TBody>(value: unknown): T | undefined {

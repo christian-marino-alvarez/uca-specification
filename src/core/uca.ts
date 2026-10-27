@@ -103,12 +103,19 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
     }
 
     protected override acceptsSource(signal: Signal): boolean {
-        const { source, property } = signal;
-        if (source === this.id) {
-            return true;
-        }
+        const {
+            property,
+            source,
+        } = signal;
+        return this.isLifecycleSignal(property)
+            ? source === this.id
+            : this.isAllowedCapabilitySource(source, property);
+    }
+
+    private isAllowedCapabilitySource(source: string, property: string): boolean {
         const candidates = this.matchingCapabilities(property, 'outputs', false);
-        return candidates.length === 0 || candidates.some(({ id, target }) => id === source && target === this.target);
+        return candidates.length === 0
+            || candidates.some(({ id, target }) => id === source && target === this.target);
     }
 
     protected getCapability(id: string): ICapability | undefined {

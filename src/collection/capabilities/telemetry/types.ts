@@ -8,6 +8,16 @@ export enum SignalType {
     LIFECYCLE = 'telemetry.lifecycle',
 }
 
+export enum SignalDomain {
+    CORE = 'core',
+    DISPOSITION = 'disposition',
+    SESSION = 'session',
+    NAVIGATE = 'navigate',
+    MEMORY = 'memory',
+    SPECIFICATION = 'specification',
+    UNKNOWN = 'unknown',
+}
+
 export enum DataType {
     BODY = 'Body',
     EVENT = 'TelemetryEvent',

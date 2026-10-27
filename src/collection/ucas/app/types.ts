@@ -26,5 +26,7 @@ export enum DataType {
     DECISION_RESULT = 'DecisionResult',
     BUILT_RESULT = 'BuiltResult',
     ERROR = 'Error',
+    SPECIFICATION_MODEL = 'SpecificationModel',
+    QUERY_REQUEST = 'QueryRequest',
     VOID = 'void',
 }

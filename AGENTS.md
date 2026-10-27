@@ -162,6 +162,11 @@ Todo código producido en este repositorio debe respetar rigurosamente los sigui
    * **Respeto Estricto de `Signal`**: Toda comunicación nerviosa viaja como una `Signal` formal (`source`, `property`, `value`). Queda terminantemente prohibido utilizar mecanismos paralelos de paso de mensajes, llamadas imperativas directas entre instancias o atajos fuera del canal reactivo.
    * **El `Body` como Schema de `inputs` y `outputs`**: El contrato del cuerpo (`Body`), formalizado y validado en `schema.ts` mediante Zod (`bodySchema`), **es la fuente de verdad y el esquema estructural de los puertos de entrada (`inputs`) y salida (`outputs`)**. Cada puerto en `disposition.inputs` y `disposition.outputs` debe declarar formalmente su `signal` (`SignalType`), `type` (`DataType`), `schema` (referenciando `bodySchema` o sus sub-esquemas de dominio) y `description`. Los datos transportados en `signal.value` y emitidos mediante `this.pulse()` deben corresponder rigurosamente a este esquema.
    * **Actualización Permanente de la Disposición en la Comunicación**: Toda comunicación o coordinación inter-UCA (como `App` -> `Layout`, `Layout` -> `View`) o entre UCA y Capability **debe actualizar y sincronizar siempre la disposición (`disposition`)**. La `Disposition` es el medio ontológico de comunicación y persistencia: ante cualquier cambio contextual, estructural, espacial o de diseño, la información viaja actualizando la `disposition` (`aim.body`) a través del ciclo idempotente del Core (`Capability.updateEvent(id)` -> `handleDispositionUpdate` -> `onDispositionUpdated` -> `syncCatalog`). Queda estrictamente prohibido enviar payloads o estímulos aislados que no sincronicen y actualicen la disposición de la receptora.
+25. **Regla Inmutable de Minimalismo y Prohibición Estricta de Sobreingeniería**:
+   * La arquitectura UCA está concebida sobre primitivas ontológicas simples, directas y altamente eficaces (`Signal`, `Disposition`, `pulse`, `react`).
+   * **Queda terminantemente prohibido introducir sobreingeniería**, capas de abstracción innecesarias, estados intermedios paralelos, flags artificiales o metadatos sintéticos en el cuerpo de la disposición (como tipos de mutación ad-hoc) para resolver flujos que el canal nativo de señales (`Signal`: `source`, `property`, `value`) y `pulse()` ya resuelve de forma natural.
+   * Toda interacción reactiva debe confiar plenamente en las herramientas nativas del sistema: cada señal (`Signal`) ya identifica de forma determinista quién la originó (`source`), qué estímulo representa (`property`) y qué datos transporta (`value`).
+   * Diseñar siempre con la solución más simple, limpia y directa que cumpla con los principios del Core, evitando artificios que compliquen el modelo mental o añadan fricción innecesaria.
 
 ---
 
@@ -200,4 +205,18 @@ Todo código producido en este repositorio debe respetar rigurosamente los sigui
 
 * **Análisis Rápidos y No Extensos**: Las explicaciones, análisis de errores y respuestas deben ir directamente al grano, ser concisas y concretas.
 * **Prohibido Reinspeccionar Masivamente el Repositorio**: No releer ni buscar en todos los ficheros repetidamente cuando el contexto o los logs ya proporcionan la información necesaria. Limitarse al punto exacto del problema reportado por el usuario.
+
+---
+
+## Cognitive Memory
+
+For every substantive development task:
+
+1. Activate the `cognitive-context` skill.
+2. Retrieve relevant project memories through Ariadne before implementation.
+3. Apply adaptive context hydration and validate memories against current code.
+4. Persist durable architectural decisions, verified outcomes, and resolved gotchas.
+
+Skip memory retrieval for trivial operations.
+
 

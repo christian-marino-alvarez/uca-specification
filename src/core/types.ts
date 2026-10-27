@@ -125,6 +125,7 @@ export interface ICapability<TBody = unknown> {
     readonly updateEvent: string;
     readonly getEvent: string;
     readonly disposition: Disposition<TBody>;
+    readonly body?: TBody;
     readonly target?: EventTarget;
     innervate(target?: EventTarget): this;
     denervate(): void;
