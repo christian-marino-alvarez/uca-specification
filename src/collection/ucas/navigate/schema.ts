@@ -11,7 +11,6 @@ export const navigationEntrySchema = z.object({
 }).strict();
 
 export const navigateInitSchema = z.object({
-    sessionId: z.string().optional(),
     url: z.string().optional(),
     session: z.record(
         z.string(),
@@ -26,12 +25,9 @@ export const navigateRequestSchema = z.object({
         z.unknown(),
     ).optional(),
     replace: z.boolean().optional(),
-    sessionId: z.string().optional(),
 }).strict();
 
-export const navigateDestroySchema = z.object({
-    sessionId: z.string().optional(),
-}).strict();
+export const navigateDestroySchema = z.object({}).strict();
 
 export const navigationStateSchema = z.object({
     url: z.string().min(1),
@@ -39,7 +35,6 @@ export const navigationStateSchema = z.object({
         z.string(),
         z.unknown(),
     ).optional(),
-    sessionId: z.string().optional(),
     timestamp: z.number().optional(),
     previousUrl: z.string().optional(),
 }).strict();
@@ -50,7 +45,6 @@ export const bodySchema = z.object({
     currentPath: z.string().optional(),
     previousUrl: z.string().optional(),
     previousPath: z.string().optional(),
-    sessionId: z.string().optional(),
     records: z.array(navigationEntrySchema).optional(),
     parameters: z.record(
         z.string(),

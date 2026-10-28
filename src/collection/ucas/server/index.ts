@@ -1,429 +1,1068 @@
-import { Logger } from '@uca/logger';
-import { SignalType as LoggerSignalType, Scope } from '@uca/logger/types';
-import { normalizeInference } from './constants.js';
-import type { InferenceRequest } from './types.js';
-import type { Failure } from '@uca/llm/types';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { Logger } from '@uca/logger';
+import {
+  Scope,
+  SignalType as LoggerSignalType,
+} from '@uca/logger/types';
 import { Uca } from '@uca/core/uca';
-import type { Cooky, Disposition, Signal } from '@uca/core/types';
+import {
+  DispositionSignal,
+  type CapabilityConstructor,
+  type Cooky,
+  type Disposition,
+  type Signal,
+} from '@uca/core/types';
 import { HttpServer } from '@uca/capability-http-server';
-import { SseServer } from '../../capabilities/sse-server/index.js';
 import {
-    SignalType as SseServerSignalType,
-    type OpenedPayload,
-} from '../../capabilities/sse-server/types.js';
-import {
-    SignalType as HttpServerSignalType,
-    type Body as HttpServerBody,
-    type RequestContext,
-    type RouteConfig,
+  SignalType as HttpServerSignalType,
+  type RequestContext,
+  type RespondConfig,
+  type RouteConfig,
 } from '@uca/capability-http-server/types';
+import { SseServer } from '@uca/capability-sse-server';
+import {
+  SignalType as SseServerSignalType,
+  type ErrorPayload as SseErrorPayload,
+  type OpenedPayload,
+} from '@uca/capability-sse-server/types';
 import { Jev } from '@uca/capability-jev';
+import {
+  SignalType as JevSignalType,
+  type InferResult as JevResult,
+} from '@uca/capability-jev/types';
 import { Gemini } from '@uca/capability-gemini';
+import {
+  SignalType as GeminiSignalType,
+  type GenerateResult,
+} from '@uca/capability-gemini/types';
 import { Openai } from '@uca/capability-openai';
-import { SignalType as JevSignalType, type InferResult as JevResult } from '@uca/capability-jev/types';
-import { SignalType as GeminiSignalType, type GenerateResult } from '@uca/capability-gemini/types';
 import { SignalType as OpenaiSignalType } from '@uca/capability-openai/types';
 import {
-    createCommand,
-} from './command.js';
-import {
-    DEFAULT_PROVIDER,
-    DEFAULT_GEMINI_FLASH_LITE_MODEL,
+  DEFAULT_GEMINI_FLASH_LITE_MODEL,
+  DEFAULT_PROVIDER,
 } from '@uca/llm/constants';
 import {
-    SignalType as LlmSignalType,
-    type InferPayload,
-    type InferResult,
+  SignalType as LlmSignalType,
+  type Failure,
+  type InferPayload,
+  type InferResult,
 } from '@uca/llm/types';
 import {
-    __ID__,
-    SSE_HEADERS,
-    DEFAULT_AUTO_START,
-    DEFAULT_DIST_DIR,
-    DEFAULT_HOSTNAME,
-    DEFAULT_PORT,
-    DEFAULT_WEB_DIR,
-    MIME_MAP,
-    WARMUP_CONTRACT,
+  createCommand,
+  normalizeInference,
+} from './command.js';
+import {
+  DEFAULT_AUTO_START,
+  DEFAULT_DIST_DIR,
+  DEFAULT_HOSTNAME,
+  DEFAULT_PORT,
+  DEFAULT_PURPOSE,
+  DEFAULT_WEB_DIR,
+  HEALTH_PATH,
+  LLM_PATH,
+  LLM_SSE_PATH,
+  MIME_MAP,
+  SSE_HEADERS,
+  STATIC_CACHE_CONTROL,
+  WARMUP_CONTRACT,
+  WILDCARD_PATH,
+  __ID__,
 } from './constants.js';
 import {
-    type Body,
-    type StartedStatus,
-    DataType,
-    SignalType,
+  inferenceSchema,
+  requestContextSchema,
+  respondConfigSchema,
+  routeConfigSchema,
+  startConfigSchema,
+  startedStatusSchema,
+} from './schema.js';
+import {
+  DataType,
+  SignalType,
+  type Body,
+  type InferenceRequest,
+  type PendingRequest,
+  type StartedStatus,
 } from './types.js';
 
 export class Server extends Uca<Body> {
-    public static override purpose: string = 'Orchestrate HTTP server lifecycle, cognitive LLM endpoints, and routing';
+  public static override purpose: string = DEFAULT_PURPOSE;
 
-    public static override disposition: Disposition<Body> = {
-        aim: {
-            description: Server.purpose,
-            body: { port: DEFAULT_PORT, hostname: DEFAULT_HOSTNAME, autoStart: DEFAULT_AUTO_START },
-        },
-        reactTo: [
-            ...Logger.disposition.reactTo ?? [],
-            SignalType.START,
-            SignalType.STOP,
-            SignalType.ROUTE,
-            SignalType.RESPOND,
-            SseServerSignalType.OPEN,
-            LlmSignalType.INFER,
-            LlmSignalType.STREAM,
-            HttpServerSignalType.LISTENING,
-            HttpServerSignalType.CLOSED,
-            HttpServerSignalType.REQUEST,
-            HttpServerSignalType.ERROR,
-            JevSignalType.INFERRED, JevSignalType.ERROR,
-            GeminiSignalType.GENERATED, GeminiSignalType.STREAMED, GeminiSignalType.ERROR,
-            OpenaiSignalType.GENERATED, OpenaiSignalType.STREAMED, OpenaiSignalType.ERROR,
-            ...HttpServer.disposition.reactTo ?? [],
-            ...Jev.disposition.reactTo ?? [], ...Gemini.disposition.reactTo ?? [], ...Openai.disposition.reactTo ?? [],
-        ],
-        inputs: [
-            { signal: SignalType.START, type: DataType.START_CONFIG, description: 'Start HTTP server' },
-            { signal: SignalType.STOP, type: DataType.VOID, description: 'Stop HTTP server' },
-            { signal: SignalType.ROUTE, type: DataType.ROUTE_CONFIG, description: 'Register an endpoint route' },
-            { signal: SignalType.RESPOND, type: DataType.RESPOND_CONFIG, description: 'Respond to an in-flight request' },
-            { signal: LlmSignalType.INFER, type: DataType.INFER_RESULT, description: 'Dispatch a non-streaming inference from a composed UCA' },
-            { signal: LlmSignalType.STREAM, type: DataType.INFER_RESULT, description: 'Dispatch a streaming inference from a composed UCA' },
-        ],
-        outputs: [
-            { signal: SignalType.STARTED, type: DataType.STARTED_STATUS, description: 'Server started successfully' },
-            { signal: SignalType.STOPPED, type: DataType.VOID, description: 'Server stopped' },
-            { signal: SignalType.REQUEST, type: DataType.REQUEST_CONTEXT, description: 'Incoming HTTP request' },
-            { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'Server error' },
-            { signal: LlmSignalType.INFERRED, type: DataType.INFER_RESULT },
-            { signal: LlmSignalType.STREAMED, type: DataType.STREAM_RESULT },
-            { signal: LlmSignalType.STREAM_END, type: DataType.STREAM_END_RESULT },
-            { signal: LlmSignalType.ERROR, type: DataType.UNKNOWN },
-        ],
+  public static override disposition: Disposition<Body> = {
+    aim: {
+      description: DEFAULT_PURPOSE,
+      body: {
+        autoStart: DEFAULT_AUTO_START,
+        hostname: DEFAULT_HOSTNAME,
+        port: DEFAULT_PORT,
+      },
+    },
+    reactTo: [
+      DispositionSignal.UPDATED,
+      SignalType.START,
+      SignalType.STOP,
+      SignalType.ROUTE,
+      SignalType.RESPOND,
+      LlmSignalType.INFER,
+      LlmSignalType.STREAM,
+      ...Server.reactToLogger(),
+      ...Server.reactToHttpServer(),
+      ...Server.reactToSseServer(),
+      ...Server.reactToJev(),
+      ...Server.reactToGemini(),
+      ...Server.reactToOpenai(),
+    ],
+    inputs: [
+      {
+        signal: SignalType.START,
+        type: DataType.START_CONFIG,
+        schema: startConfigSchema,
+        description: 'Iniciar el servidor HTTP',
+      },
+      {
+        signal: SignalType.STOP,
+        type: DataType.VOID,
+        description: 'Detener el servidor HTTP',
+      },
+      {
+        signal: SignalType.ROUTE,
+        type: DataType.ROUTE_CONFIG,
+        schema: routeConfigSchema,
+        description: 'Registrar una ruta de endpoint',
+      },
+      {
+        signal: SignalType.RESPOND,
+        type: DataType.RESPOND_CONFIG,
+        schema: respondConfigSchema,
+        description: 'Responder a una petición HTTP en curso',
+      },
+      {
+        signal: LlmSignalType.INFER,
+        type: DataType.INFER_RESULT,
+        schema: inferenceSchema,
+        description: 'Despachar una inferencia sin streaming desde una UCA compuesta',
+      },
+      {
+        signal: LlmSignalType.STREAM,
+        type: DataType.INFER_RESULT,
+        schema: inferenceSchema,
+        description: 'Despachar una inferencia con streaming desde una UCA compuesta',
+      },
+    ],
+    outputs: [
+      {
+        signal: SignalType.STARTED,
+        type: DataType.STARTED_STATUS,
+        schema: startedStatusSchema,
+        description: 'Servidor iniciado correctamente',
+      },
+      {
+        signal: SignalType.STOPPED,
+        type: DataType.VOID,
+        description: 'Servidor detenido',
+      },
+      {
+        signal: SignalType.REQUEST,
+        type: DataType.REQUEST_CONTEXT,
+        schema: requestContextSchema,
+        description: 'Petición HTTP entrante',
+      },
+      {
+        signal: SignalType.ERROR,
+        type: DataType.UNKNOWN,
+        description: 'Error del servidor',
+      },
+      {
+        signal: LlmSignalType.INFERRED,
+        type: DataType.INFER_RESULT,
+        description: 'Resultado de inferencia completada',
+      },
+      {
+        signal: LlmSignalType.STREAMED,
+        type: DataType.STREAM_RESULT,
+        description: 'Stream de inferencia abierto',
+      },
+      {
+        signal: LlmSignalType.STREAM_END,
+        type: DataType.STREAM_END_RESULT,
+        description: 'Stream de inferencia finalizado',
+      },
+      {
+        signal: LlmSignalType.ERROR,
+        type: DataType.UNKNOWN,
+        description: 'Error durante la inferencia',
+      },
+    ],
+  };
+
+  private static reactToLogger(): string[] {
+    const {
+      reactTo = [],
+    } = Logger.disposition;
+    return [
+      ...reactTo,
+    ];
+  }
+
+  private static reactToHttpServer(): string[] {
+    const {
+      reactTo = [],
+    } = HttpServer.disposition;
+    return [
+      ...reactTo,
+      HttpServerSignalType.LISTENING,
+      HttpServerSignalType.CLOSED,
+      HttpServerSignalType.REQUEST,
+      HttpServerSignalType.ERROR,
+    ];
+  }
+
+  private static reactToSseServer(): string[] {
+    const {
+      reactTo = [],
+    } = SseServer.disposition;
+    return [
+      ...reactTo,
+      SseServerSignalType.OPENED,
+      SseServerSignalType.ERROR,
+    ];
+  }
+
+  private static reactToJev(): string[] {
+    const {
+      reactTo = [],
+    } = Jev.disposition;
+    return [
+      ...reactTo,
+      JevSignalType.INFERRED,
+      JevSignalType.ERROR,
+    ];
+  }
+
+  private static reactToGemini(): string[] {
+    const {
+      reactTo = [],
+    } = Gemini.disposition;
+    return [
+      ...reactTo,
+      GeminiSignalType.GENERATED,
+      GeminiSignalType.STREAMED,
+      GeminiSignalType.ERROR,
+    ];
+  }
+
+  private static reactToOpenai(): string[] {
+    const {
+      reactTo = [],
+    } = Openai.disposition;
+    return [
+      ...reactTo,
+      OpenaiSignalType.GENERATED,
+      OpenaiSignalType.STREAMED,
+      OpenaiSignalType.ERROR,
+    ];
+  }
+
+  public constructor(id: string = __ID__) {
+    super(id);
+  }
+
+  public override denervate(): void {
+    const {
+      registry,
+    } = this;
+    registry.forEach((capability) => {
+      capability.denervate();
+    });
+    super.denervate();
+  }
+
+  protected override react(signal: Signal): void {
+    const {
+      property,
+    } = signal;
+    switch (property) {
+      case DispositionSignal.UPDATED:
+        this.handleUpdated();
+        break;
+      case SignalType.START:
+        this.handleStart(signal);
+        break;
+      case SignalType.STOP:
+        this.handleStop(signal);
+        break;
+      case SignalType.ROUTE:
+        this.handleRoute(signal);
+        break;
+      case SignalType.RESPOND:
+        this.handleRespond(signal);
+        break;
+      case LlmSignalType.INFER:
+        this.handleInferRequest(signal);
+        break;
+      case LlmSignalType.STREAM:
+        this.handleStreamRequest(signal);
+        break;
+      case JevSignalType.INFERRED:
+        this.handleJevInferred(signal);
+        break;
+      case JevSignalType.ERROR:
+        this.handleJevError(signal);
+        break;
+      case GeminiSignalType.GENERATED:
+        this.handleGeminiGenerated(signal);
+        break;
+      case GeminiSignalType.STREAMED:
+        this.handleGeminiStreamed(signal);
+        break;
+      case GeminiSignalType.ERROR:
+        this.handleGeminiError(signal);
+        break;
+      case OpenaiSignalType.GENERATED:
+        this.handleOpenaiGenerated(signal);
+        break;
+      case OpenaiSignalType.STREAMED:
+        this.handleOpenaiStreamed(signal);
+        break;
+      case OpenaiSignalType.ERROR:
+        this.handleOpenaiError(signal);
+        break;
+      default:
+        this.handleCapabilitySignal(signal);
+        break;
+    }
+  }
+
+  protected override receptors(): string[] {
+    return super.receptors().filter((property) => property !== LoggerSignalType.OBSERVE);
+  }
+
+  protected override catalog(): Cooky {
+    return [
+      this.catalogLogger(),
+      this.catalogHttpServer(),
+      this.catalogJev(),
+      this.catalogGemini(),
+      this.catalogOpenai(),
+      this.catalogSseServer(),
+    ];
+  }
+
+  private catalogLogger(): Cooky[number] {
+    const disposition = this.createDisposition(
+      Logger.disposition,
+      Logger.purpose,
+      'logger',
+      {
+        scope: Scope.BACKEND,
+      },
+    );
+    return [
+      Logger as unknown as CapabilityConstructor,
+      disposition,
+    ];
+  }
+
+  private catalogHttpServer(): Cooky[number] {
+    const extraBody = this.createHttpServerExtraBody();
+    const disposition = this.createDisposition(
+      HttpServer.disposition,
+      HttpServer.AIM,
+      'http-server',
+      extraBody,
+    );
+    return [
+      HttpServer as unknown as CapabilityConstructor,
+      disposition,
+    ];
+  }
+
+  private catalogJev(): Cooky[number] {
+    const disposition = this.createDisposition(
+      Jev.disposition,
+      Jev.AIM,
+      'jev',
+    );
+    return [
+      Jev as unknown as CapabilityConstructor,
+      disposition,
+    ];
+  }
+
+  private catalogGemini(): Cooky[number] {
+    const disposition = this.createDisposition(
+      Gemini.disposition,
+      Gemini.AIM,
+      'gemini',
+    );
+    return [
+      Gemini as unknown as CapabilityConstructor,
+      disposition,
+    ];
+  }
+
+  private catalogOpenai(): Cooky[number] {
+    const disposition = this.createDisposition(
+      Openai.disposition,
+      Openai.AIM,
+      'openai',
+    );
+    return [
+      Openai as unknown as CapabilityConstructor,
+      disposition,
+    ];
+  }
+
+  private catalogSseServer(): Cooky[number] {
+    const disposition = this.createDisposition(
+      SseServer.disposition,
+      SseServer.AIM,
+      'sse-server',
+    );
+    return [
+      SseServer as unknown as CapabilityConstructor,
+      disposition,
+    ];
+  }
+
+  private createHttpServerExtraBody(): Record<string, unknown> {
+    const {
+      autoStart = DEFAULT_AUTO_START,
+      hostname = DEFAULT_HOSTNAME,
+      port = DEFAULT_PORT,
+      routes = [],
+    } = this.body ?? {};
+    const defaultRoutes = this.buildDefaultRoutes();
+    return {
+      autoStart,
+      hostname,
+      port,
+      routes: [
+        ...routes,
+        ...defaultRoutes,
+      ],
     };
+  }
 
-    public constructor(id: string = __ID__) {
-        super(id);
-    }
+  private buildDefaultRoutes(): RouteConfig[] {
+    return [
+      {
+        method: 'GET',
+        path: HEALTH_PATH,
+        response: {
+          status: 200,
+          body: {
+            status: 'healthy',
+            uca: 'Server',
+          },
+        },
+      },
+      {
+        method: 'POST',
+        path: LLM_PATH,
+      },
+      {
+        method: 'ALL',
+        path: LLM_SSE_PATH,
+      },
+      {
+        method: 'ALL',
+        path: WILDCARD_PATH,
+      },
+    ];
+  }
 
-    public override denervate(): void {
-        this.registry.forEach((capability) => capability.denervate());
-        super.denervate();
+  private handleUpdated(): void {
+    const {
+      source = this.id,
+    } = this.body ?? {};
+    switch (source) {
+      case `${this.id}:http-server`:
+        this.handleHttpServerUpdated();
+        break;
+      default:
+        this.handleSelfUpdated();
+        break;
     }
+  }
 
-    protected override react(signal: Signal): void {
-        const { property, value } = signal;
-        switch (property) {
-            case SignalType.START:
-                this.pulse(HttpServerSignalType.LISTEN, value);
-                break;
-            case SignalType.STOP:
-                this.pulse(HttpServerSignalType.CLOSE, value);
-                break;
-            case SignalType.ROUTE:
-                this.pulse(HttpServerSignalType.ROUTE, value);
-                break;
-            case SignalType.RESPOND:
-                this.pulse(HttpServerSignalType.RESPOND, value);
-                break;
-            case LlmSignalType.INFER:
-                this.handleInferRequest(value as InferPayload);
-                break;
-            case LlmSignalType.STREAM:
-                this.handleStreamRequest(value as InferPayload);
-                break;
-            case JevSignalType.INFERRED: this.handleJevInferred(signal); break;
-            case JevSignalType.ERROR: this.handleJevError(signal); break;
-            case GeminiSignalType.GENERATED: this.handleGeminiGenerated(signal); break;
-            case GeminiSignalType.STREAMED: this.handleGeminiStreamed(signal); break;
-            case GeminiSignalType.ERROR: this.handleGeminiError(signal); break;
-            case OpenaiSignalType.GENERATED: this.handleOpenaiGenerated(signal); break;
-            case OpenaiSignalType.STREAMED: this.handleOpenaiStreamed(signal); break;
-            case OpenaiSignalType.ERROR: this.handleOpenaiError(signal); break;
+  private handleSelfUpdated(): void {
+  }
 
-            default:
-                this.handleCapabilitySignal(property, value);
-                break;
-        }
-    }
+  private handleHttpServerUpdated(): void {
+  }
 
-    // The wildcard activates Logger in the catalog; only Logger subscribes to it.
-    protected override receptors(): string[] {
-        return super.receptors().filter((property) => property !== LoggerSignalType.OBSERVE);
-    }
+  private handleStart(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(HttpServerSignalType.LISTEN, value);
+  }
 
-    protected override catalog(): Cooky {
-        const { aim } = this.disposition;
-        const body = aim.body ?? {}; const { routes = [] } = body;
-        return [
-            [Logger, { aim: { description: Logger.purpose, body: { id: `${this.id}:logger`, scope: Scope.BACKEND } }, reactTo: [...Logger.disposition.reactTo ?? []] }],
-            [HttpServer, this.createHttpServerDisposition(body, [...routes, ...this.buildDefaultRoutes(body)])],
-            [Jev, { ...Jev.disposition, aim: { description: Jev.AIM, body: { id: `${this.id}:jev` } } }],
-            [Gemini, { ...Gemini.disposition, aim: { description: Gemini.AIM, body: { id: `${this.id}:gemini` } } }],
-            [Openai, { ...Openai.disposition, aim: { description: Openai.AIM, body: { id: `${this.id}:openai` } } }],
-            [SseServer, { ...SseServer.disposition, aim: { description: SseServer.AIM, body: { id: `${this.id}:sse-server` } } }],
-        ];
-    }
+  private handleStop(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(HttpServerSignalType.CLOSE, value);
+  }
 
-    private createHttpServerDisposition(body: Body, routes: RouteConfig[]): Disposition<HttpServerBody> {
-        const { port = DEFAULT_PORT, hostname = DEFAULT_HOSTNAME, autoStart = DEFAULT_AUTO_START } = body;
-        return {
-            aim: { description: HttpServer.AIM, body: { id: `${this.id}:http-server`, port, hostname, routes, autoStart } },
-            reactTo: [...HttpServer.disposition.reactTo ?? []],
-        };
-    }
+  private handleRoute(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(HttpServerSignalType.ROUTE, value);
+  }
 
-    private handleCapabilitySignal(property: string, value: unknown): void {
-        switch (property) {
-            case HttpServerSignalType.LISTENING:
-                this.handleListening(value);
-                break;
-            case HttpServerSignalType.CLOSED:
-                this.pulse(SignalType.STOPPED, value);
-                break;
-            case HttpServerSignalType.REQUEST:
-                this.pulse(SignalType.REQUEST, value);
-                break;
-            case HttpServerSignalType.ERROR:
-                this.pulse(SignalType.ERROR, value);
-                break;
-            default:
-                break;
-        }
-    }
+  private handleRespond(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(HttpServerSignalType.RESPOND, value);
+  }
 
-    private handleListening(value: unknown): void {
-        const { url } = (value ?? {}) as StartedStatus;
-        if (url) {
-            this.logServerStarted(url);
-        }
-        this.pulse(SignalType.STARTED, value);
-        this.warmupLlm();
+  private handleCapabilitySignal(signal: Signal): void {
+    const {
+      property,
+    } = signal;
+    switch (property) {
+      case HttpServerSignalType.LISTENING:
+        this.handleListening(signal);
+        break;
+      case HttpServerSignalType.CLOSED:
+        this.handleClosed(signal);
+        break;
+      case HttpServerSignalType.REQUEST:
+        this.handleHttpServerRequest(signal);
+        break;
+      case HttpServerSignalType.ERROR:
+        this.handleHttpServerError(signal);
+        break;
+      case SseServerSignalType.OPENED:
+        this.handleSseOpened(signal);
+        break;
+      case SseServerSignalType.ERROR:
+        this.handleSseError(signal);
+        break;
+      default:
+        break;
     }
+  }
 
-    private logServerStarted(url: string): void {
-        console.log(`\n[${Scope.BACKEND}] [${this.id}] 🚀 UCA Server successfully started at: ${url}`);
-        console.log(`[${Scope.BACKEND}] [${this.id}] 🌐 Web Application running at: ${url}`);
-        console.log(`[${Scope.BACKEND}] [${this.id}] 📡 Health endpoint: ${url}/api/health`);
-        console.log(`[${Scope.BACKEND}] [${this.id}] 🧠 LLM Request endpoint: ${url}/api/llm`);
-        console.log(`[${Scope.BACKEND}] [${this.id}] ⚡ LLM SSE Stream endpoint: ${url}/api/llm/sse\n`);
+  private handleListening(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const {
+      url,
+    } = this.extractPayload<StartedStatus>(value) ?? {};
+    if (url) {
+      this.logServerStarted(url);
     }
+    this.pulse(SignalType.STARTED, value);
+    this.warmupLlm();
+  }
 
-    private warmupLlm(): void {
-        const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
-        const hasKey = typeof process !== 'undefined' && Boolean(process.env?.GEMINI_API_KEY ?? process.env?.GOOGLE_GENAI_API_KEY);
-        if (isTest || !hasKey) { return; }
-        const { property, value } = createCommand({ ...WARMUP_CONTRACT, limit: 1, sessionId: 'system-warmup' });
-        this.pulse(property, value);
-    }
+  private handleClosed(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(SignalType.STOPPED, value);
+  }
 
-    private buildDefaultRoutes(body: Body): RouteConfig[] {
-        const { staticDir, webDir } = body;
-        const effectiveWebDir = webDir ?? path.resolve(process.cwd(), DEFAULT_WEB_DIR);
-        const effectiveStaticDir = staticDir ?? path.resolve(process.cwd(), DEFAULT_DIST_DIR);
-        return [
-            { method: 'GET', path: '/api/health', response: { status: 200, body: { status: 'healthy', uca: 'Server' } } },
-            { method: 'POST', path: '/api/llm', handler: (context) => this.handleLlmPost(context) },
-            { method: 'ALL', path: '/api/llm/sse', handler: (context) => this.handleLlmSse(context) },
-            { method: 'ALL', path: '*', handler: (context) => this.handleStaticRequest(context, effectiveStaticDir, effectiveWebDir) },
-        ];
-    }
+  private handleHttpServerError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(SignalType.ERROR, value);
+  }
 
-    private async handleLlmPost(context: RequestContext): Promise<Response> {
-        const { body } = context;
-        const payload = normalizeInference(body as InferenceRequest);
-        try {
-            const result = await this.requestLlmInference(payload);
-            return Response.json(result);
-        } catch (error) {
-            return await this.respondWithFallback(payload, error);
-        }
+  private handleHttpServerRequest(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const context = value as RequestContext | undefined;
+    if (context?.requestId) {
+      this.pulse(SignalType.REQUEST, context);
+      this.routeHttpRequest(context);
     }
+  }
 
-    private async respondWithFallback(payload: InferPayload, error: unknown): Promise<Response> {
-        const { sessionId } = payload;
-        const fallback = await this.tryFallbackInference(payload);
-        if (fallback) {
-            return Response.json(fallback);
-        }
-        return Response.json({ error: String(error), sessionId }, { status: 502 });
+  private routeHttpRequest(context: RequestContext): void {
+    const {
+      path: requestPath,
+    } = context;
+    if (!this.hasCustomRoute(context)) {
+      switch (requestPath) {
+        case HEALTH_PATH:
+          break;
+        case LLM_PATH:
+          this.handleLlmHttpRequest(context);
+          break;
+        case LLM_SSE_PATH:
+          this.handleLlmSseHttpRequest(context);
+          break;
+        default:
+          this.handleStaticHttpRequest(context);
+          break;
+      }
     }
+  }
 
-    private async tryFallbackInference(payload: InferPayload): Promise<InferResult | null> {
-        const { model = DEFAULT_GEMINI_FLASH_LITE_MODEL } = payload;
-        if (model === DEFAULT_GEMINI_FLASH_LITE_MODEL) {
-            return null;
-        }
-        try {
-            const fallbackPayload = { ...payload, model: DEFAULT_GEMINI_FLASH_LITE_MODEL };
-            return await this.requestLlmInference(fallbackPayload);
-        } catch {
-            return null;
-        }
-    }
+  private hasCustomRoute(context: RequestContext): boolean {
+    const {
+      method,
+      path: requestPath,
+    } = context;
+    const {
+      routes = [],
+    } = this.body ?? {};
+    return routes.some((route) => {
+      const methodMatches = route.method === 'ALL' || route.method === method.toUpperCase();
+      return methodMatches && route.path === requestPath && Boolean(route.handler ?? route.response);
+    });
+  }
 
-    private async handleLlmSse(context: RequestContext): Promise<Response> {
-        const { query, body } = context;
-        const payload = normalizeInference({ ...query, ...(body as InferenceRequest) });
-        const { sessionId = crypto.randomUUID(), provider = DEFAULT_PROVIDER } = payload;
-        try {
-            const stream = await this.openSseStream(payload, sessionId, provider);
-            return new Response(stream, { headers: SSE_HEADERS });
-        } catch {
-            return await this.fallbackSseStream(payload, sessionId, provider);
-        }
-    }
+  private handleLlmHttpRequest(context: RequestContext): void {
+    const {
+      body,
+      requestId,
+    } = context;
+    const payload = normalizeInference({
+      sessionId: requestId,
+      ...(body as InferenceRequest),
+    });
+    const {
+      sessionId = requestId,
+    } = payload;
+    this.registerPendingRequest(sessionId, {
+      payload,
+      requestId,
+      stream: false,
+    });
+    const command = createCommand(payload, false);
+    this.pulse(command.property, command.value);
+  }
 
-    private async fallbackSseStream(payload: InferPayload, sessionId: string, provider: string): Promise<Response> {
-        const { model = DEFAULT_GEMINI_FLASH_LITE_MODEL } = payload;
-        if (model === DEFAULT_GEMINI_FLASH_LITE_MODEL) {
-            return new Response(JSON.stringify({ error: 'SSE stream failed' }), { status: 502 });
-        }
-        const fallbackPayload = { ...payload, model: DEFAULT_GEMINI_FLASH_LITE_MODEL };
-        const stream = await this.openSseStream(fallbackPayload, sessionId, provider);
-        return new Response(stream, { headers: SSE_HEADERS });
-    }
+  private handleLlmSseHttpRequest(context: RequestContext): void {
+    const {
+      body,
+      query,
+      requestId,
+    } = context;
+    const payload = normalizeInference({
+      sessionId: requestId,
+      ...query,
+      ...(body as InferenceRequest),
+    });
+    const {
+      provider = DEFAULT_PROVIDER,
+      sessionId = requestId,
+    } = payload;
+    this.registerPendingRequest(sessionId, {
+      payload,
+      provider,
+      requestId,
+      stream: true,
+    });
+    this.openSseChannel(payload, sessionId, provider);
+  }
 
-    private requestLlmInference(payload: InferPayload): Promise<InferResult> {
-        const { sessionId } = payload;
-        return new Promise((resolve, reject) => {
-            const onInferred = (event: Event) => { const { detail: { source, value } } = event as CustomEvent<Signal<InferResult>>; const { sessionId: receivedId } = value; if (source !== this.id || receivedId !== sessionId) { return; } this.removeInferenceListeners(onInferred, onError); resolve({ ...value, context: payload.context ?? value.context }); };
-            const onError = (event: Event) => { const { detail: { source, value } } = event as CustomEvent<Signal<Failure>>; const { sessionId: receivedId, error } = value; if (source !== this.id || receivedId !== sessionId) { return; } this.removeInferenceListeners(onInferred, onError); reject(new Error(String(error))); };
-            this.target?.addEventListener(LlmSignalType.INFERRED, onInferred);
-            this.target?.addEventListener(LlmSignalType.ERROR, onError);
-            const { property, value } = createCommand(payload, false);
-            this.pulse(property, value);
-        });
-    }
+  private openSseChannel(payload: InferPayload, sessionId: string, provider: string): void {
+    const abortSignal = provider === 'openai' ? OpenaiSignalType.ABORT : GeminiSignalType.ABORT;
+    const request = () => {
+      const command = createCommand(payload, true);
+      this.pulse(command.property, command.value);
+    };
+    const cancel = () => {
+      this.pulse(abortSignal, {
+        sessionId,
+      });
+    };
+    this.pulse(SseServerSignalType.OPEN, {
+      cancel,
+      request,
+      sessionId,
+    });
+  }
 
-    private removeInferenceListeners(onInferred: (e: Event) => void, onError: (e: Event) => void): void {
-        this.target?.removeEventListener(LlmSignalType.INFERRED, onInferred);
-        this.target?.removeEventListener(LlmSignalType.ERROR, onError);
+  private handleSseOpened(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const {
+      sessionId = '',
+      stream,
+    } = this.extractPayload<OpenedPayload>(value) ?? {};
+    const pending = this.getPendingRequest(sessionId);
+    if (pending) {
+      this.clearPendingRequest(sessionId);
+      this.respondHttp({
+        body: stream,
+        headers: {
+          ...SSE_HEADERS,
+        },
+        requestId: pending.requestId,
+        status: 200,
+      });
     }
+  }
 
+  private handleSseError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const {
+      error,
+      sessionId = '',
+    } = this.extractPayload<SseErrorPayload>(value) ?? {};
+    const pending = this.getPendingRequest(sessionId);
+    if (pending && !this.retryPendingSseWithFallback(sessionId, pending)) {
+      this.clearPendingRequest(sessionId);
+      this.respondHttp({
+        body: {
+          error: String(error ?? 'SSE stream failed'),
+        },
+        requestId: pending.requestId,
+        status: 502,
+      });
+    }
+  }
 
-    private openSseStream(payload: InferPayload, sessionId: string, provider: string): Promise<ReadableStream<Uint8Array>> {
-        return new Promise((resolve, reject) => {
-            const opened = (event: Event) => this.handleSseOpened(event, sessionId, resolve, reject, opened, failed);
-            const failed = (event: Event) => this.handleSseFailure(event, sessionId, reject, opened, failed);
-            this.target?.addEventListener(SseServerSignalType.OPENED, opened);
-            this.target?.addEventListener(SseServerSignalType.ERROR, failed);
-            const request = (_abort: AbortSignal) => this.requestStream(payload, sessionId);
-            const cancel = () => this.pulse(provider === 'openai' ? OpenaiSignalType.ABORT : GeminiSignalType.ABORT, { sessionId });
-            this.pulse(SseServerSignalType.OPEN, { sessionId, request, cancel });
-        });
+  private retryPendingSseWithFallback(sessionId: string, pending: PendingRequest): boolean {
+    const {
+      payload,
+      provider = DEFAULT_PROVIDER,
+    } = pending;
+    const {
+      model = DEFAULT_GEMINI_FLASH_LITE_MODEL,
+    } = payload;
+    const canRetry = model !== DEFAULT_GEMINI_FLASH_LITE_MODEL;
+    if (canRetry) {
+      const fallbackPayload = {
+        ...payload,
+        model: DEFAULT_GEMINI_FLASH_LITE_MODEL,
+      };
+      this.registerPendingRequest(sessionId, {
+        ...pending,
+        payload: fallbackPayload,
+      });
+      this.openSseChannel(fallbackPayload, sessionId, provider);
     }
+    return canRetry;
+  }
 
-    private handleSseOpened(event: Event, sessionId: string, resolve: (stream: ReadableStream<Uint8Array>) => void, reject: (error: unknown) => void, opened: (event: Event) => void, failed: (event: Event) => void): void {
-        const { detail: { source, value } } = event as CustomEvent<Signal<OpenedPayload>>;
-        const { sessionId: receivedId, stream } = value;
-        if (source !== `${this.id}:sse-server` || receivedId !== sessionId) { return; }
-        this.removeSseListeners(opened, failed);
-        stream ? resolve(stream) : reject(new Error('SSE stream was not opened'));
+  private handleInferRequest(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const payload = this.extractPayload<InferPayload>(value);
+    if (payload) {
+      const command = createCommand(payload, false);
+      this.pulse(command.property, command.value);
     }
+  }
 
-    private handleSseFailure(event: Event, sessionId: string, reject: (error: unknown) => void, opened: (event: Event) => void, failed: (event: Event) => void): void {
-        const { detail: { source, value } } = event as CustomEvent<Signal<{ sessionId?: string; error: unknown }>>;
-        const { sessionId: receivedId, error } = value;
-        if (source !== `${this.id}:sse-server` || receivedId !== sessionId) { return; }
-        this.removeSseListeners(opened, failed);
-        reject(error);
+  private handleStreamRequest(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const payload = this.extractPayload<InferPayload>(value);
+    if (payload) {
+      const command = createCommand(payload, true);
+      this.pulse(command.property, command.value);
     }
+  }
 
-    private removeSseListeners(opened: (event: Event) => void, failed: (event: Event) => void): void {
-        this.target?.removeEventListener(SseServerSignalType.OPENED, opened);
-        this.target?.removeEventListener(SseServerSignalType.ERROR, failed);
-    }
+  private handleJevInferred(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const {
+      answers,
+      model,
+      sessionId,
+      state,
+    } = this.extractPayload<JevResult>(value) ?? {};
+    const result: InferResult = {
+      context: state,
+      data: answers,
+      model,
+      response: JSON.stringify(answers),
+      sessionId,
+    };
+    this.completeInference(result);
+  }
 
-    private requestStream(payload: InferPayload, _sessionId: string): void {
-        const { property, value } = createCommand(payload, true);
-        this.pulse(property, value);
-    }
+  private handleGeminiGenerated(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const {
+      data,
+      model,
+      sessionId,
+      text: response = '',
+      usage,
+    } = this.extractPayload<GenerateResult>(value) ?? {};
+    this.completeInference({
+      data,
+      model,
+      response,
+      sessionId,
+      usage,
+    });
+  }
 
-    private handleInferRequest(payload: InferPayload): void {
-        const { property, value } = createCommand(payload, false);
-        this.pulse(property, value);
-    }
+  private handleOpenaiGenerated(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const {
+      data,
+      model,
+      sessionId,
+      text: response = '',
+      usage,
+    } = this.extractPayload<GenerateResult>(value) ?? {};
+    this.completeInference({
+      data,
+      model,
+      response,
+      sessionId,
+      usage,
+    });
+  }
 
-    private handleStreamRequest(payload: InferPayload): void {
-        const { property, value } = createCommand(payload, true);
-        this.pulse(property, value);
+  private completeInference(result: InferResult): void {
+    this.pulse(LlmSignalType.INFERRED, result);
+    const {
+      sessionId = '',
+    } = result;
+    const pending = this.getPendingRequest(sessionId);
+    if (pending && !pending.stream) {
+      this.clearPendingRequest(sessionId);
+      this.respondHttp({
+        body: {
+          ...result,
+          context: pending.payload.context ?? result.context,
+        },
+        requestId: pending.requestId,
+        status: 200,
+      });
     }
+  }
 
-    private handleJevInferred(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        const {
-            answers,
-            state,
-            model,
-            sessionId,
-        } = value as JevResult;
-        this.pulse(LlmSignalType.INFERRED, {
-            response: JSON.stringify(answers),
-            data: answers,
-            context: state,
-            model,
-            sessionId,
-        });
-    }
+  private handleJevError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.failInference(value);
+  }
 
-    private handleGeminiGenerated(signal: Signal): void {
-        const { value } = signal;
-        const { text: response, data, model, usage, sessionId } = value as GenerateResult;
-        this.pulse(LlmSignalType.INFERRED, { response, data, model, usage, sessionId });
-    }
-    private handleOpenaiGenerated(signal: Signal): void {
-        const { value } = signal;
-        const { text: response, data, model, usage, sessionId } = value as GenerateResult;
-        this.pulse(LlmSignalType.INFERRED, { response, data, model, usage, sessionId });
-    }
-    private handleJevError(signal: Signal): void {
-        const { value } = signal;
-        this.pulse(LlmSignalType.ERROR, value);
-    }
-    private handleGeminiStreamed(signal: Signal): void {
-        const { value } = signal;
-        this.pulse(LlmSignalType.STREAMED, value);
-    }
-    private handleGeminiError(signal: Signal): void {
-        const { value } = signal;
-        this.pulse(LlmSignalType.ERROR, value);
-    }
-    private handleOpenaiStreamed(signal: Signal): void {
-        const { value } = signal;
-        this.pulse(LlmSignalType.STREAMED, value);
-    }
-    private handleOpenaiError(signal: Signal): void {
-        const { value } = signal;
-        this.pulse(LlmSignalType.ERROR, value);
-    }
+  private handleGeminiError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.failInference(value);
+  }
 
-    private handleStaticRequest(context: RequestContext, staticDir?: string, webDir?: string): Response {
-        const { path: requestPath } = context;
-        const filePath = this.resolveStaticPath(requestPath, staticDir, webDir);
-        if (!filePath) {
-            return Response.json({ error: 'Not Found', path: requestPath }, { status: 404 });
-        }
-        const contentType = this.resolveMimeType(filePath);
-        const content = fs.readFileSync(filePath);
-        const headers = { 'Content-Type': contentType, 'Cache-Control': 'no-cache, no-store, must-revalidate' };
-        return new Response(content, { status: 200, headers });
-    }
+  private handleOpenaiError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.failInference(value);
+  }
 
-    private resolveStaticPath(requestPath: string, staticDir?: string, webDir?: string): string | null {
-        const normalized = requestPath === '/' || requestPath === '' ? '/index.html' : requestPath;
-        const candidates = [
-            normalized.startsWith('/src/') ? path.join(process.cwd(), normalized) : null,
-            webDir ? path.join(webDir, normalized) : null,
-            staticDir ? path.join(staticDir, normalized) : null,
-        ].filter(Boolean) as string[];
-        return candidates.find((file) => fs.existsSync(file) && fs.statSync(file).isFile()) ?? null;
+  private failInference(value: unknown): void {
+    this.pulse(LlmSignalType.ERROR, value);
+    const {
+      error,
+      sessionId = '',
+    } = this.extractPayload<Failure>(value) ?? {};
+    const pending = this.getPendingRequest(sessionId);
+    if (pending && !pending.stream && !this.retryPendingInferenceWithFallback(sessionId, pending)) {
+      this.clearPendingRequest(sessionId);
+      this.respondHttp({
+        body: {
+          error: String(error),
+          sessionId,
+        },
+        requestId: pending.requestId,
+        status: 502,
+      });
     }
+  }
 
-    private resolveMimeType(filePath: string): string {
-        const extension = path.extname(filePath).toLowerCase();
-        return MIME_MAP[extension] ?? 'application/octet-stream';
+  private retryPendingInferenceWithFallback(sessionId: string, pending: PendingRequest): boolean {
+    const {
+      payload,
+    } = pending;
+    const {
+      model = DEFAULT_GEMINI_FLASH_LITE_MODEL,
+    } = payload;
+    const canRetry = model !== DEFAULT_GEMINI_FLASH_LITE_MODEL;
+    if (canRetry) {
+      const fallbackPayload = {
+        ...payload,
+        model: DEFAULT_GEMINI_FLASH_LITE_MODEL,
+      };
+      this.registerPendingRequest(sessionId, {
+        ...pending,
+        payload: fallbackPayload,
+      });
+      const command = createCommand(fallbackPayload, false);
+      this.pulse(command.property, command.value);
     }
+    return canRetry;
+  }
+
+  private handleGeminiStreamed(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(LlmSignalType.STREAMED, value);
+  }
+
+  private handleOpenaiStreamed(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(LlmSignalType.STREAMED, value);
+  }
+
+  private handleStaticHttpRequest(context: RequestContext): void {
+    const {
+      path: requestPath,
+      requestId,
+    } = context;
+    const filePath = this.resolveStaticPath(requestPath);
+    if (filePath) {
+      this.respondStaticFile(requestId, filePath);
+    }
+    else {
+      this.respondNotFound(requestId, requestPath);
+    }
+  }
+
+  private respondStaticFile(requestId: string, filePath: string): void {
+    const contentType = this.resolveMimeType(filePath);
+    const content = fs.readFileSync(filePath);
+    this.respondHttp({
+      body: new Uint8Array(content),
+      headers: {
+        'Cache-Control': STATIC_CACHE_CONTROL,
+        'Content-Type': contentType,
+      },
+      requestId,
+      status: 200,
+    });
+  }
+
+  private respondNotFound(requestId: string, requestPath: string): void {
+    this.respondHttp({
+      body: {
+        error: 'Not Found',
+        path: requestPath,
+      },
+      requestId,
+      status: 404,
+    });
+  }
+
+  private respondHttp(config: RespondConfig): void {
+    this.pulse(HttpServerSignalType.RESPOND, config);
+  }
+
+  private resolveStaticPath(requestPath: string): string | null {
+    const {
+      staticDir,
+      webDir,
+    } = this.body ?? {};
+    const effectiveWebDir = webDir ?? path.resolve(process.cwd(), DEFAULT_WEB_DIR);
+    const effectiveStaticDir = staticDir ?? path.resolve(process.cwd(), DEFAULT_DIST_DIR);
+    const normalized = requestPath === '/' || requestPath === '' ? '/index.html' : requestPath;
+    const candidates = [
+      normalized.startsWith('/src/') ? path.join(process.cwd(), normalized) : null,
+      path.join(effectiveWebDir, normalized),
+      path.join(effectiveStaticDir, normalized),
+    ].filter(Boolean) as string[];
+    return candidates.find((file) => fs.existsSync(file) && fs.statSync(file).isFile()) ?? null;
+  }
+
+  private resolveMimeType(filePath: string): string {
+    const extension = path.extname(filePath).toLowerCase();
+    return MIME_MAP[extension] ?? 'application/octet-stream';
+  }
+
+  private getPendingRequest(sessionId: string): PendingRequest | undefined {
+    const {
+      pendingRequests = {},
+    } = this.body ?? {};
+    return pendingRequests[sessionId];
+  }
+
+  private registerPendingRequest(sessionId: string, entry: PendingRequest): void {
+    const {
+      pendingRequests = {},
+    } = this.body ?? {};
+    this.updateDispositionBody({
+      pendingRequests: {
+        ...pendingRequests,
+        [sessionId]: entry,
+      },
+      source: `${this.id}:http-server`,
+    });
+  }
+
+  private clearPendingRequest(sessionId: string): void {
+    const {
+      pendingRequests = {},
+    } = this.body ?? {};
+    const {
+      [sessionId]: _removed,
+      ...remaining
+    } = pendingRequests;
+    this.updateDispositionBody({
+      pendingRequests: remaining,
+      source: `${this.id}:http-server`,
+    });
+  }
+
+  private updateDispositionBody(partial: Partial<Body>): void {
+    const {
+      aim,
+    } = this.disposition;
+    this.pulse(this.updateEvent, {
+      ...this.disposition,
+      aim: {
+        ...aim,
+        body: {
+          ...this.body,
+          ...partial,
+        },
+      },
+    });
+  }
+
+  private logServerStarted(url: string): void {
+    console.log(`\n[${Scope.BACKEND}] [${this.id}] 🚀 UCA Server successfully started at: ${url}`);
+    console.log(`[${Scope.BACKEND}] [${this.id}] 🌐 Web Application running at: ${url}`);
+    console.log(`[${Scope.BACKEND}] [${this.id}] 📡 Health endpoint: ${url}/api/health`);
+    console.log(`[${Scope.BACKEND}] [${this.id}] 🧠 LLM Request endpoint: ${url}/api/llm`);
+    console.log(`[${Scope.BACKEND}] [${this.id}] ⚡ LLM SSE Stream endpoint: ${url}/api/llm/sse\n`);
+  }
+
+  private warmupLlm(): void {
+    const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+    const hasKey = typeof process !== 'undefined' && Boolean(process.env?.GEMINI_API_KEY ?? process.env?.GOOGLE_GENAI_API_KEY);
+    if (!isTest && hasKey) {
+      const command = createCommand({
+        ...WARMUP_CONTRACT,
+        limit: 1,
+        sessionId: 'system-warmup',
+      });
+      this.pulse(command.property, command.value);
+    }
+  }
 }

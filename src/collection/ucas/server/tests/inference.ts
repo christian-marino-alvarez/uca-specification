@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
-import { createCommand } from '../command.js';
-import { normalizeInference } from '../constants.js';
+import {
+  createCommand,
+  normalizeInference,
+} from '../command.js';
 import { SignalType as GeminiSignalType } from '@uca/capability-gemini/types';
 import { SignalType as JevSignalType } from '@uca/capability-jev/types';
 import { SignalType as OpenaiSignalType } from '@uca/capability-openai/types';

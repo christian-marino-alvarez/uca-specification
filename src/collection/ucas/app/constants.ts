@@ -2,105 +2,77 @@ import { DispositionSignal } from '@uca/core/types';
 import { SignalType as SessionSignalType } from '@uca/capability-session/types';
 import { SignalType as MemorySignalType } from '@uca/capability-memory/types';
 import { SignalType as NavigateSignalType } from '@uca/navigate/types';
+import { SignalType as CompositionSignalType } from '@uca/composition/types';
 import { SignalType as SpecificationSignalType } from '@uca/capability-specification/types';
+import { SignalType as DecisionSignalType } from '@uca/decision/types';
+import { SignalType as LlmSignalType } from '@uca/llm/types';
 
 export const __ID__ = 'app';
 
 export const TELEMETRY_OBSERVED_SIGNALS = [
-    DispositionSignal.INNERVATED,
-    DispositionSignal.UPDATED,
-    SessionSignalType.GET,
-    SessionSignalType.RETRIEVED,
-    SessionSignalType.CREATE,
-    SessionSignalType.CREATED,
-    NavigateSignalType.INIT,
-    NavigateSignalType.GO,
-    NavigateSignalType.CHANGED,
-    NavigateSignalType.DESTROY,
-    MemorySignalType.GET,
-    MemorySignalType.SET,
-    MemorySignalType.CLEAR,
-    MemorySignalType.RETRIEVED,
-    MemorySignalType.SAVED,
-    MemorySignalType.CLEARED,
-    SpecificationSignalType.QUERY,
-    SpecificationSignalType.PROVIDED,
-    SpecificationSignalType.ERROR,
+  DispositionSignal.INNERVATED,
+  DispositionSignal.UPDATED,
+  SessionSignalType.GET,
+  SessionSignalType.RETRIEVED,
+  SessionSignalType.CREATE,
+  SessionSignalType.CREATED,
+  NavigateSignalType.INIT,
+  NavigateSignalType.GO,
+  NavigateSignalType.CHANGED,
+  NavigateSignalType.DESTROY,
+  MemorySignalType.GET,
+  MemorySignalType.SET,
+  MemorySignalType.CLEAR,
+  MemorySignalType.RETRIEVED,
+  MemorySignalType.SAVED,
+  MemorySignalType.CLEARED,
+  CompositionSignalType.COMPOSE,
+  CompositionSignalType.ERROR,
+  SpecificationSignalType.QUERY,
+  SpecificationSignalType.PROVIDED,
+  SpecificationSignalType.ERROR,
+  DecisionSignalType.DECIDE,
+  DecisionSignalType.DECIDED,
+  DecisionSignalType.ERROR,
+  LlmSignalType.INFER,
+  LlmSignalType.INFERRED,
+  LlmSignalType.ERROR,
 ] as const;
-
-
 
 export const DEFAULT_PAGE = '/';
 
 export const DEFAULT_PURPOSE =
-    'Constituir la manifestación viva y emergente de la Arquitectura Cognitiva Universal (UCA): una experiencia interactiva disruptiva donde la propia aplicación es la demostración en tiempo real de su propia arquitectura ontológica';
+  'Constituir la manifestación viva y emergente de la Arquitectura Cognitiva Universal (UCA): una experiencia interactiva disruptiva donde la propia aplicación es la demostración en tiempo real de su propia arquitectura ontológica';
 
 export const DEFAULT_AIM_DESCRIPTION =
-    'Materializar una aplicación interactiva que evite scrolls trabajando exclusivamente con el área y viewport disponibles (100dvh con contención estricta), concibiendo una experiencia viva y exploratoria donde la interacción misma explica y demuestra la Arquitectura Cognitiva Universal (UCA), constituyendo la propia aplicación una demo en vivo de lo que es UCA (ontología viva, inervación de capacidades y flujo reactivo sin estado mutable).';
+  'Materializar una aplicación interactiva que evite scrolls trabajando exclusivamente con el área y viewport disponibles (100dvh con contención estricta), concibiendo una experiencia viva y exploratoria donde la interacción misma explica y demuestra la Arquitectura Cognitiva Universal (UCA), constituyendo la propia aplicación una demo en vivo de lo que es UCA (ontología viva, inervación de capacidades y flujo reactivo sin estado mutable).';
 
 export const DEFAULT_DESIGN_GUIDELINES =
-    'Design guidelines (Universal Emergent & 2-Color Positive/Negative Viewport System): 1) Strict 2-Color Positive/Negative Palette: Exclusively two colors across the entire application: deep matte dark (#070A12) for all surfaces and backgrounds (negative), and blanco grisáceo (#e2e8f0, #cbd5e1, #94a3b8) for all texts, borders, controls, and active elements (positive). Strictly NO pure white (#ffffff), NO dark text on dark backgrounds, NO chromatic colors (no blues, oranges, reds, or yellows). Contrast is produced through opacity (e.g. #e2e8f0 for primary texts and brand actions, #94a3b8 for secondary texts, rgba(226, 232, 240, 0.12) for subtle borders and cards). 2) Zero Scroll & Flow Integrity: 100dvh strict containment without scrollbars. PROHIBITED: NEVER use "position: fixed" or "position: sticky". NEVER use "height: 100vh" on inner components. Rely strictly on natural flexbox flow ("direction", "alignment", "distribution", "wrap: nowrap"). 3) Strict Single-Level Hierarchy: Each layout step partitions strictly one container into its direct children. The body container partitions ONLY into its 3 direct child stripes: a top header (direction: row, height: auto), a central workspace row (direction: row, flex: 1), and a compact footer (direction: row, height: auto). Never emit nested sub-areas (like sidebar or main inside workspace) during the body layout pass; nested areas are created exclusively in their own layout phase. 4) Interactive Live UCA Demo: The UI serves as a live, interactive manifestation explaining the Universal Cognitive Architecture (UCA Core) itself: perception, decision, innervation, capabilities, and signals. 5) Controls & Cards: Buttons use surface "brand" (blanco grisáceo) with textColor "dark" (#070A12) for primary actions, or surface "transparent" with outline "subtle" and textColor "light" for secondary actions. Cards use surface "card" (#0d111c) with outline "subtle" and shape "large".';
+  'Directrices de diseño (Sistema Emergente Universal y Viewport Bicromático Positivo/Negativo): 1) Paleta Estricta de 2 Colores Positivo/Negativo: Exclusivamente dos colores en toda la aplicación: oscuro mate profundo (#070A12) para todas las superficies y fondos (negativo), y blanco grisáceo (#e2e8f0, #cbd5e1, #94a3b8) para todos los textos, bordes, controles y elementos activos (positivo). Estrictamente PROHIBIDO el blanco puro (#ffffff), textos oscuros sobre fondos oscuros o colores cromáticos (azules, naranjas, rojos o amarillos). El contraste se produce mediante opacidad (#e2e8f0 para textos primarios y acciones de marca, #94a3b8 para textos secundarios, rgba(226, 232, 240, 0.12) para bordes sutiles y tarjetas). 2) Cero Scroll e Integridad de Flujo: Contención estricta de 100dvh sin barras de desplazamiento. PROHIBIDO usar "position: fixed", "position: sticky" o "height: 100vh" en componentes internos. Basarse exclusivamente en el flujo natural de flexbox ("direction", "alignment", "distribution", "wrap: nowrap"). 3) Jerarquía Estricta de Nivel Único: Cada paso de layout particiona exclusivamente un contenedor en sus hijos directos. El contenedor raíz (body) se particiona únicamente en sus 3 franjas hijas directas: cabecera superior (direction: row, height: auto), fila central de espacio de trabajo (direction: row, flex: 1) y pie compacto (direction: row, height: auto). Nunca emitir subáreas anidadas durante el pase de layout raíz. 4) Demo Interactiva en Vivo de UCA: La interfaz sirve como manifestación interactiva viva que explica y demuestra la propia Arquitectura Cognitiva Universal (UCA Core): percepción, decisión, inervación, capacidades y señales. 5) Controles y Tarjetas: Los botones usan superficie "brand" (blanco grisáceo) con textColor "dark" (#070A12) para acciones primarias, o superficie "transparent" con outline "subtle" y textColor "light" para acciones secundarias. Las tarjetas usan superficie "card" (#0d111c) con outline "subtle" y shape "large".';
 
 export const DEFAULT_STRUCTURAL_DISPOSITION = {
-    containerElement: 'body',
-    rootArea: 'body',
-    containment: 'strict',
+  containerElement: 'body',
+  rootArea: 'body',
+  containment: 'strict',
 } as const;
 
 export const DEFAULT_SPATIAL_DISPOSITION = {
-    flow: 'column',
-    height: '100%',
-    width: '100%',
-    overflow: 'hidden',
+  flow: 'column',
+  height: '100%',
+  width: '100%',
+  overflow: 'hidden',
 } as const;
 
 export const DEFAULT_DESIGN_DISPOSITION = {
-    palette: 'two-color-contrast',
-    surfaceDefault: '#070A12',
-    textColorBrand: '#e2e8f0',
-    guidelines: DEFAULT_DESIGN_GUIDELINES,
+  palette: 'two-color-contrast',
+  surfaceDefault: '#070A12',
+  textColorBrand: '#e2e8f0',
+  guidelines: DEFAULT_DESIGN_GUIDELINES,
 } as const;
 
 export const DEFAULT_AIM_BODY = {
-    activePage: DEFAULT_PAGE,
-    structural: DEFAULT_STRUCTURAL_DISPOSITION,
-    spatial: DEFAULT_SPATIAL_DISPOSITION,
-    design: DEFAULT_DESIGN_DISPOSITION,
+  activePage: DEFAULT_PAGE,
+  structural: DEFAULT_STRUCTURAL_DISPOSITION,
+  spatial: DEFAULT_SPATIAL_DISPOSITION,
+  design: DEFAULT_DESIGN_DISPOSITION,
 } as const;
-
-export const APP_DECISION_OPTIONS = [
-    {
-        id: 'LAYOUT',
-        label: 'Layout',
-        description: 'Estructuración espacial de la aplicación en áreas funcionales',
-        criteria:
-            'Elegir LAYOUT para estructurar la aplicación en áreas funcionales principales (cabecera, navegación, espacio de trabajo, barra lateral, contenido y pie).',
-    },
-    {
-        id: 'VIEW',
-        label: 'View',
-        description: 'Composición directa unitaria sin áreas estructurales',
-        criteria:
-            'Elegir VIEW únicamente si la aplicación completa es una vista única, simple y sin partición de áreas estructurales.',
-    },
-] as const;
-
-export const AREA_DECISION_OPTIONS = [
-    {
-        id: 'LAYOUT',
-        label: 'Layout',
-        description: 'Subdivisión espacial en áreas funcionales internas',
-        criteria:
-            'Elegir LAYOUT obligatoriamente cuando el área sea un espacio de trabajo contenedor (como workspace) que deba particionarse en barra lateral y área principal, o requiera ejes estructurales independientes. Evitar solo en áreas finales que albergan componentes directos.',
-    },
-    {
-        id: 'VIEW',
-        label: 'View',
-        description: 'Composición directa de componentes visuales',
-        criteria:
-            'Elegir VIEW cuando el área sea terminal (cabecera, barra lateral individual, contenido principal individual o pie) y deba materializar sus componentes visuales directos (tarjetas, botones, títulos, métricas).',
-    },
-] as const;
-
-export const ROOT_AREA_ID = 'body';
-

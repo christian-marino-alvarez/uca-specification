@@ -1,30 +1,26 @@
 export enum QuestionType {
-    CHOICE = 'choice',
+  CHOICE = 'choice',
 }
 
 export enum SignalType {
-    DECIDE = 'decision.decide',
-    DECIDED = 'decision.decided',
-    ERROR = 'decision.error',
+  DECIDE = 'decision.decide',
+  DECIDED = 'decision.decided',
+  ERROR = 'decision.error',
 }
 
 export enum DataType {
-    REQUEST = 'Request',
-    RESULT = 'Result',
-    ERROR = 'Error',
+  REQUEST = 'Request',
+  RESULT = 'Result',
+  ERROR = 'Error',
 }
 
 export type {
-    Body,
-    ChoiceResult,
-    Configuration,
-    DecisionPayload,
-    Failure,
-    Metadata,
-    OptionItem,
-    Question,
-    Request,
-    Result,
-    ValidationContext,
+  Body,
+  ChoiceResult,
+  DecisionPayload,
+  Failure,
+  OptionItem,
+  Question,
+  Request,
+  Result,
 } from './schema.js';
-
