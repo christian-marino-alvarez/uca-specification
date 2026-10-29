@@ -26,6 +26,8 @@ export interface Aim<TBody = unknown> {
     body?: TBody;
 }
 
+export type SignalHandler = (signal: Signal) => void | Promise<void>;
+
 /**
  * Port: Descriptor formal de un canal nervioso de entrada o salida.
  */
@@ -34,6 +36,7 @@ export interface Port {
     readonly type: string;
     readonly schema?: unknown;
     readonly description?: string;
+    readonly handler?: SignalHandler;
 }
 
 export type PortDeclaration = Port;

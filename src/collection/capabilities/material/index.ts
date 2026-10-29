@@ -45,6 +45,7 @@ export class Material extends Capability<Body> {
         type: DataType.QUERY_REQUEST,
         schema: queryRequestSchema,
         description: 'Consultar las reglas de distribución espacial y layouts canónicos de Material Design 3 para las dimensiones disponibles',
+        handler: Material.prototype.handleQuery,
       },
     ],
     outputs: [
@@ -65,19 +66,6 @@ export class Material extends Capability<Body> {
 
   public constructor(id: string = __ID__) {
     super(id);
-  }
-
-  protected override react(signal: Signal): void {
-    const {
-      property,
-    } = signal;
-    switch (property) {
-      case SignalType.QUERY:
-        this.handleQuery(signal);
-        break;
-      default:
-        break;
-    }
   }
 
   private handleQuery(signal: Signal): void {

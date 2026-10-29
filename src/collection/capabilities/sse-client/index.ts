@@ -103,16 +103,15 @@ export class SseClient extends Capability<Body> {
     private async executeFetch(payload: StreamPayload, controller: AbortController): Promise<ReadableStream<string>> {
         const {
             endpoint = DEFAULT_ENDPOINT,
-            context: _context,
-            ...body
         } = payload;
+        const body = this.resolveRequestBody(payload);
         const { signal } = controller;
         const {
             correlationId,
             streamId,
             provider,
             model,
-        } = body;
+        } = body as StreamPayload;
         this.pulse(SignalType.REQUESTED, {
             message: PROMPT_LOG_MESSAGE,
             correlationId,
@@ -125,6 +124,25 @@ export class SseClient extends Capability<Body> {
             method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(body), signal,
         });
         return this.parseStreamResponse(response);
+    }
+
+    private resolveRequestBody(payload: StreamPayload): Record<string, unknown> {
+        const {
+            context: transportContext,
+            endpoint: _endpoint,
+            ...rest
+        } = payload;
+        const {
+            context,
+            replyTo,
+        } = (transportContext ?? {}) as { context?: unknown; replyTo?: unknown };
+        const resolvedContext = context ?? (replyTo === undefined ? transportContext : undefined);
+        return {
+            ...rest,
+            ...(resolvedContext !== undefined && {
+                context: resolvedContext,
+            }),
+        };
     }
 
     private parseStreamResponse(response: Response): ReadableStream<string> {

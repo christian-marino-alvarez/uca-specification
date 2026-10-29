@@ -51,22 +51,130 @@ export class Box extends Uca<Body> {
     ],
     inputs: [
       {
+        signal: DispositionSignal.UPDATED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Continuar el flujo reactivo del contenedor espacial tras actualizar su disposición',
+        handler: Box.prototype.handleUpdated,
+      },
+      {
         signal: SignalType.RENDER,
         type: DataType.BODY,
         schema: bodySchema,
         description: 'Materializar el contenedor espacial en el DOM aplicando sus cualidades y estado de skeleton',
+        handler: Box.prototype.handleRender,
       },
       {
         signal: SignalType.UPDATE,
         type: DataType.BODY,
         schema: bodySchema,
         description: 'Actualizar las cualidades, el contenido o el estado de skeleton del contenedor espacial',
+        handler: Box.prototype.handleUpdate,
       },
       {
         signal: SignalType.REMOVE,
         type: DataType.BODY,
         schema: bodySchema,
         description: 'Eliminar el contenedor espacial y sus reglas de estilo asociadas del DOM',
+        handler: Box.prototype.handleRemove,
+      },
+      {
+        signal: WebComponentSignalType.RENDERED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de elemento del contenedor espacial renderizado en el DOM',
+        handler: Box.prototype.handleWebComponentRendered,
+      },
+      {
+        signal: WebComponentSignalType.UPDATED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de elemento del contenedor espacial actualizado en el DOM',
+        handler: Box.prototype.handleWebComponentModified,
+      },
+      {
+        signal: WebComponentSignalType.REMOVED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de elemento del contenedor espacial eliminado del DOM',
+        handler: Box.prototype.handleWebComponentRemoved,
+      },
+      {
+        signal: WebComponentSignalType.EVENT,
+        type: DataType.EVENT_CONTEXT,
+        schema: eventContextSchema,
+        description: 'Evento de interacción capturado desde el elemento del DOM',
+        handler: Box.prototype.handleWebComponentEvent,
+      },
+      {
+        signal: WebComponentSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido por la capacidad de componente web',
+        handler: Box.prototype.handleWebComponentError,
+      },
+      {
+        signal: CssSignalType.MOUNTED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de hoja raíz de tokens CSS montada en el documento',
+        handler: Box.prototype.handleCssMounted,
+      },
+      {
+        signal: CssSignalType.RESOLVED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Cualidades de dominio traducidas a declaraciones y regla CSS',
+        handler: Box.prototype.handleCssResolved,
+      },
+      {
+        signal: CssSignalType.APPLIED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de regla CSS aplicada al elemento en el DOM',
+        handler: Box.prototype.handleCssApplied,
+      },
+      {
+        signal: CssSignalType.REMOVED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de reglas CSS retiradas del elemento en el DOM',
+        handler: Box.prototype.handleCssRemoved,
+      },
+      {
+        signal: CssSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido por la capacidad de estilos CSS',
+        handler: Box.prototype.handleCssError,
+      },
+      {
+        signal: SkeletonSignalType.MOUNTED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de hoja de estilos de skeleton montada en el documento',
+        handler: Box.prototype.handleSkeletonMounted,
+      },
+      {
+        signal: SkeletonSignalType.SHOWN,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de marcador visual de carga renderizado en el contenedor',
+        handler: Box.prototype.handleSkeletonShown,
+      },
+      {
+        signal: SkeletonSignalType.REMOVED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de marcador visual de carga retirado del contenedor',
+        handler: Box.prototype.handleSkeletonRemoved,
+      },
+      {
+        signal: SkeletonSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido por la capacidad de skeleton',
+        handler: Box.prototype.handleSkeletonError,
       },
     ],
     outputs: [
@@ -146,70 +254,6 @@ export class Box extends Uca<Body> {
 
   public constructor(id: string = __ID__) {
     super(id);
-  }
-
-  protected override react(signal: Signal): void {
-    const {
-      property,
-    } = signal;
-    switch (property) {
-      case DispositionSignal.UPDATED:
-        this.handleUpdated();
-        break;
-      case SignalType.RENDER:
-        this.handleRender(signal);
-        break;
-      case SignalType.UPDATE:
-        this.handleUpdate(signal);
-        break;
-      case SignalType.REMOVE:
-        this.handleRemove(signal);
-        break;
-      case WebComponentSignalType.RENDERED:
-        this.handleWebComponentRendered(signal);
-        break;
-      case WebComponentSignalType.UPDATED:
-        this.handleWebComponentModified(signal);
-        break;
-      case WebComponentSignalType.REMOVED:
-        this.handleWebComponentRemoved(signal);
-        break;
-      case WebComponentSignalType.EVENT:
-        this.handleWebComponentEvent(signal);
-        break;
-      case WebComponentSignalType.ERROR:
-        this.handleWebComponentError(signal);
-        break;
-      case CssSignalType.MOUNTED:
-        this.handleCssMounted();
-        break;
-      case CssSignalType.RESOLVED:
-        this.handleCssResolved(signal);
-        break;
-      case CssSignalType.APPLIED:
-        this.handleCssApplied(signal);
-        break;
-      case CssSignalType.REMOVED:
-        this.handleCssRemoved(signal);
-        break;
-      case CssSignalType.ERROR:
-        this.handleCssError(signal);
-        break;
-      case SkeletonSignalType.MOUNTED:
-        this.handleSkeletonMounted();
-        break;
-      case SkeletonSignalType.SHOWN:
-        this.handleSkeletonShown(signal);
-        break;
-      case SkeletonSignalType.REMOVED:
-        this.handleSkeletonRemoved(signal);
-        break;
-      case SkeletonSignalType.ERROR:
-        this.handleSkeletonError(signal);
-        break;
-      default:
-        break;
-    }
   }
 
   protected override catalog(): Cooky {

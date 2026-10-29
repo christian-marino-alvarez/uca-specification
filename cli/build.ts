@@ -3,8 +3,7 @@ import * as path from 'node:path';
 import { execSync } from 'node:child_process';
 import { builtinModules } from 'node:module';
 import * as esbuild from 'esbuild';
-import { Css } from '@uca/capability-css';
-import { DESIGN } from './design.js';
+import { TOKENS_STYLESHEET } from '@uca/capability-css/constants';
 
 try {
     process.loadEnvFile?.();
@@ -108,8 +107,7 @@ function buildHtml(importMap: string): void {
 }
 
 function buildStylesheet(): void {
-    const stylesheet = Css.generateStylesheet(DESIGN);
-    fs.writeFileSync(path.join(WEB_DIST, 'design.css'), stylesheet);
+    fs.writeFileSync(path.join(WEB_DIST, 'design.css'), TOKENS_STYLESHEET);
 }
 
 function buildDesignPreview(): void {

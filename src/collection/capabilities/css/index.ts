@@ -54,24 +54,28 @@ export class Css extends Capability<Body> {
         type: DataType.MOUNT_PAYLOAD,
         schema: mountPayloadSchema,
         description: 'Montar la hoja raíz de tokens de diseño y reglas base en el documento',
+        handler: Css.prototype.handleMount,
       },
       {
         signal: SignalType.RESOLVE,
         type: DataType.RESOLVE_PAYLOAD,
         schema: resolvePayloadSchema,
         description: 'Traducir cualidades de dominio del elemento a declaraciones y regla CSS',
+        handler: Css.prototype.handleResolve,
       },
       {
         signal: SignalType.APPLY,
         type: DataType.APPLY_PAYLOAD,
         schema: applyPayloadSchema,
         description: 'Aplicar la regla de estilo CSS resuelta al elemento en el DOM',
+        handler: Css.prototype.handleApply,
       },
       {
         signal: SignalType.REMOVE,
         type: DataType.REMOVE_PAYLOAD,
         schema: removePayloadSchema,
         description: 'Retirar las reglas de estilo acotadas del elemento y sus descendientes',
+        handler: Css.prototype.handleRemove,
       },
     ],
     outputs: [
@@ -110,28 +114,6 @@ export class Css extends Capability<Body> {
 
   public constructor(id: string = __ID__) {
     super(id);
-  }
-
-  protected override react(signal: Signal): void {
-    const {
-      property,
-    } = signal;
-    switch (property) {
-      case SignalType.MOUNT:
-        this.handleMount(signal);
-        break;
-      case SignalType.RESOLVE:
-        this.handleResolve(signal);
-        break;
-      case SignalType.APPLY:
-        this.handleApply(signal);
-        break;
-      case SignalType.REMOVE:
-        this.handleRemove(signal);
-        break;
-      default:
-        break;
-    }
   }
 
   private handleMount(_signal: Signal): void {

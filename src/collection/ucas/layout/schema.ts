@@ -18,10 +18,14 @@ export const containerQualitiesSchema = visualQualitiesSchema.omit({
 
 export const directionQualitiesSchema = containerQualitiesSchema.required({
   direction: true,
+  height: true,
+  width: true,
 });
 
 export const divisionQualitiesSchema = containerQualitiesSchema.required({
   division: true,
+  height: true,
+  width: true,
 });
 
 export const spatialQualitiesSchema = z.union([

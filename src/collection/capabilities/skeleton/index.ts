@@ -46,18 +46,21 @@ export class Skeleton extends Capability<Body> {
         type: DataType.MOUNT_PAYLOAD,
         schema: mountPayloadSchema,
         description: 'Montar la hoja de estilos de animación del marcador visual de carga (skeleton)',
+        handler: Skeleton.prototype.handleMount,
       },
       {
         signal: SignalType.SHOW,
         type: DataType.SHOW_PAYLOAD,
         schema: showPayloadSchema,
         description: 'Renderizar marcador visual de carga (skeleton) en el contenedor objetivo',
+        handler: Skeleton.prototype.handleShow,
       },
       {
         signal: SignalType.REMOVE,
         type: DataType.REMOVE_PAYLOAD,
         schema: removePayloadSchema,
         description: 'Retirar marcador visual de carga (skeleton) del contenedor objetivo',
+        handler: Skeleton.prototype.handleRemove,
       },
     ],
     outputs: [
@@ -90,25 +93,6 @@ export class Skeleton extends Capability<Body> {
 
   public constructor(id: string = __ID__) {
     super(id);
-  }
-
-  protected override react(signal: Signal): void {
-    const {
-      property,
-    } = signal;
-    switch (property) {
-      case SignalType.MOUNT:
-        this.handleMount(signal);
-        break;
-      case SignalType.SHOW:
-        this.handleShow(signal);
-        break;
-      case SignalType.REMOVE:
-        this.handleRemove(signal);
-        break;
-      default:
-        break;
-    }
   }
 
   private handleMount(_signal: Signal): void {

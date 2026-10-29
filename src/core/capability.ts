@@ -6,6 +6,7 @@ import {
     type DispositionUpdatedPayload,
     type ICapability,
     type Signal,
+    type SignalHandler,
 } from './types.js';
 
 export abstract class Capability<TBody = unknown> implements ICapability<TBody>, EventListenerObject {
@@ -94,7 +95,7 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
     }
 
 
-    protected abstract react(signal: Signal): void | Promise<void>;
+    protected react(_signal: Signal): void | Promise<void> {}
 
     public handleEvent(event: Event): void {
         switch (event.type) {
@@ -228,12 +229,31 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
         const previous = this.currentSignal;
         this.currentSignal = signal;
         try {
-            await this.react(signal);
+            await this.invokePortHandler(signal);
         } catch (error) {
             this.pulse('error', error);
         } finally {
             this.currentSignal = previous;
         }
+    }
+
+    private async invokePortHandler(signal: Signal): Promise<void> {
+        const { property } = signal;
+        const handler = this.resolvePortHandler(property);
+        if (handler) {
+            await handler.call(this as never, signal);
+        }
+        else {
+            await this.react(signal);
+        }
+    }
+
+    private resolvePortHandler(property: string): SignalHandler | undefined {
+        const { disposition: defaults } = this.constructor as typeof Capability;
+        const { inputs = defaults.inputs ?? [], outputs = defaults.outputs ?? [] } = this.disposition;
+        const ports = [...inputs, ...outputs];
+        const port = ports.find(({ signal }) => signal === property);
+        return port?.handler;
     }
 
     private resolveSessionId(): string | undefined {

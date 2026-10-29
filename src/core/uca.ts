@@ -96,10 +96,11 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
   }
 
   protected override resolveTargetId(property: string): string | undefined {
-    const candidates = this.matchingCapabilities(property, 'inputs');
+    const isLifecycle = this.isLifecycleSignal(property);
+    const candidates = isLifecycle ? [] : this.matchingCapabilities(property, 'inputs');
     if (candidates.length > 1) { throw new Error(`Ambiguous destination for ${property} in ${this.id}; specify targetId`); }
     const [destination] = candidates;
-    return destination?.id;
+    return isLifecycle ? this.id : destination?.id;
   }
 
   protected override acceptsSource(signal: Signal): boolean {

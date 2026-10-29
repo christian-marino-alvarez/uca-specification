@@ -49,18 +49,21 @@ export class WebComponent extends Capability<Body> {
         type: DataType.RENDER_PAYLOAD,
         schema: renderPayloadSchema,
         description: 'Renderizar o actualizar idempotentemente un elemento en el Light DOM',
+        handler: WebComponent.prototype.handleRender,
       },
       {
         signal: SignalType.UPDATE,
         type: DataType.UPDATE_PAYLOAD,
         schema: updatePayloadSchema,
         description: 'Actualizar atributos, contenido y escuchadores de eventos de un elemento existente',
+        handler: WebComponent.prototype.handleUpdate,
       },
       {
         signal: SignalType.REMOVE,
         type: DataType.REMOVE_PAYLOAD,
         schema: removePayloadSchema,
         description: 'Eliminar un elemento del DOM y abortar sus escuchadores de eventos',
+        handler: WebComponent.prototype.handleRemove,
       },
     ],
     outputs: [
@@ -99,25 +102,6 @@ export class WebComponent extends Capability<Body> {
 
   public constructor(id: string = __ID__) {
     super(id);
-  }
-
-  protected override react(signal: Signal): void {
-    const {
-      property,
-    } = signal;
-    switch (property) {
-      case SignalType.RENDER:
-        this.handleRender(signal);
-        break;
-      case SignalType.UPDATE:
-        this.handleUpdate(signal);
-        break;
-      case SignalType.REMOVE:
-        this.handleRemove(signal);
-        break;
-      default:
-        break;
-    }
   }
 
   private handleRender(signal: Signal): void {

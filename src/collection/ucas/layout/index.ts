@@ -66,10 +66,67 @@ export class Layout extends Uca<Body> {
     ],
     inputs: [
       {
+        signal: DispositionSignal.UPDATED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Continuar el flujo reactivo del layout tras actualizar su disposición',
+        handler: Layout.prototype.handleUpdated,
+      },
+      {
         signal: SignalType.BUILD,
         type: DataType.BODY,
         schema: bodySchema,
         description: 'Construir las particiones espaciales de áreas del layout para el contenedor objetivo',
+        handler: Layout.prototype.handleBuild,
+      },
+      {
+        signal: MaterialSignalType.PROVIDED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Modelo espacial de Material Design 3 provisto para las dimensiones del contenedor',
+        handler: Layout.prototype.handleMaterialProvided,
+      },
+      {
+        signal: MaterialSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido por la capacidad de Material Design 3',
+        handler: Layout.prototype.handleMaterialError,
+      },
+      {
+        signal: LlmSignalType.STREAMED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Stream de inferencia recibido desde la UCA de modelo de lenguaje',
+        handler: Layout.prototype.handleLlmStreamed,
+      },
+      {
+        signal: LlmSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido por la UCA de modelo de lenguaje',
+        handler: Layout.prototype.handleLlmError,
+      },
+      {
+        signal: StreamTransformerSignalType.TRANSFORMED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Stream de áreas transformado y validado progresivamente',
+        handler: Layout.prototype.handleStreamTransformed,
+      },
+      {
+        signal: StreamTransformerSignalType.RECOVER,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Solicitud de reparación de elemento del stream ante fallo de validación',
+        handler: Layout.prototype.handleStreamRecover,
+      },
+      {
+        signal: StreamTransformerSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido por la capacidad de transformación de stream',
+        handler: Layout.prototype.handleStreamError,
       },
     ],
     outputs: [
@@ -130,45 +187,6 @@ export class Layout extends Uca<Body> {
 
   public constructor(id: string = __ID__) {
     super(id);
-  }
-
-  protected override async react(signal: Signal): Promise<void> {
-    const {
-      property,
-      source,
-      value,
-    } = signal;
-    switch (property) {
-      case DispositionSignal.UPDATED:
-        this.handleUpdated();
-        break;
-      case SignalType.BUILD:
-        this.handleBuild(value, source);
-        break;
-      case MaterialSignalType.PROVIDED:
-        this.handleMaterialProvided(value, source);
-        break;
-      case MaterialSignalType.ERROR:
-        this.handleMaterialError(value);
-        break;
-      case LlmSignalType.STREAMED:
-        this.handleLlmStreamed(value as StreamResult);
-        break;
-      case LlmSignalType.ERROR:
-        this.handleLlmError(value);
-        break;
-      case StreamTransformerSignalType.TRANSFORMED:
-        await this.handleStreamTransformed(value as StreamTransformerResult<Area>);
-        break;
-      case StreamTransformerSignalType.RECOVER:
-        this.handleStreamRecover(value as StreamTransformerRecoveryRequest);
-        break;
-      case StreamTransformerSignalType.ERROR:
-        this.handleStreamError(value);
-        break;
-      default:
-        break;
-    }
   }
 
   protected override catalog(): Cooky {
@@ -234,7 +252,11 @@ export class Layout extends Uca<Body> {
     }
   }
 
-  private handleBuild(value: unknown, source: string): void {
+  private handleBuild(signal: Signal): void {
+    const {
+      source,
+      value,
+    } = signal;
     const body = this.extractPayload<Body>(value);
     this.updateDispositionBody({
       ...body,
@@ -260,7 +282,11 @@ export class Layout extends Uca<Body> {
     return dimensions;
   }
 
-  private handleMaterialProvided(value: unknown, source: string): void {
+  private handleMaterialProvided(signal: Signal): void {
+    const {
+      source,
+      value,
+    } = signal;
     const design = this.extractPayload<MaterialModel>(value);
     this.updateDispositionBody({
       design,
@@ -291,10 +317,13 @@ export class Layout extends Uca<Body> {
     };
   }
 
-  private handleLlmStreamed(result: StreamResult): void {
+  private handleLlmStreamed(signal: Signal): void {
+    const {
+      value,
+    } = signal;
     const {
       stream,
-    } = result;
+    } = this.extractPayload<StreamResult>(value) ?? {};
     this.pulse(StreamTransformerSignalType.TRANSFORM, {
       mode: StreamTransformerMode.ITEMS,
       schema: areaSchema,
@@ -302,19 +331,18 @@ export class Layout extends Uca<Body> {
     });
   }
 
-  private async handleStreamTransformed(
-    result: StreamTransformerResult<Area>,
-  ): Promise<void> {
+  private async handleStreamTransformed(signal: Signal): Promise<void> {
+    const {
+      value,
+    } = signal;
     const {
       stream,
-    } = result;
+    } = this.extractPayload<StreamTransformerResult<Area>>(value) ?? {};
     const transform = this.createAreaTransform();
-    const writable = new WritableStream<Area>({
-      write: (area) => {
-        console.log('[Layout] Área recibida:', area);
-      },
-    });
-    await stream.pipeThrough(transform).pipeTo(writable);
+    const writable = this.createAreaWritable();
+    if (stream) {
+      await stream.pipeThrough(transform).pipeTo(writable);
+    }
   }
 
   private createAreaTransform(): TransformStream<Area, Area> {
@@ -325,28 +353,46 @@ export class Layout extends Uca<Body> {
     });
   }
 
-  private handleStreamRecover(
-    recovery: StreamTransformerRecoveryRequest,
-  ): void {
+  private createAreaWritable(): WritableStream<Area> {
+    return new WritableStream<Area>({
+      write: (area) => {
+        console.log('[Layout] Área recibida:', area);
+      },
+    });
+  }
+
+  private handleStreamRecover(signal: Signal): void {
+    const {
+      value,
+    } = signal;
     const {
       error,
       requestId,
-    } = recovery;
+    } = this.extractPayload<StreamTransformerRecoveryRequest>(value) ?? {};
     this.pulse(StreamTransformerSignalType.REPAIR, {
       error,
       requestId,
     });
   }
 
-  private handleMaterialError(value: unknown): void {
+  private handleMaterialError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
     this.pulse(SignalType.ERROR, value);
   }
 
-  private handleLlmError(value: unknown): void {
+  private handleLlmError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
     this.pulse(SignalType.ERROR, value);
   }
 
-  private handleStreamError(value: unknown): void {
+  private handleStreamError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
     this.pulse(SignalType.ERROR, value);
   }
 
