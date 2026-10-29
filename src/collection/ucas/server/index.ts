@@ -65,12 +65,15 @@ import {
   DEFAULT_PURPOSE,
   DEFAULT_WEB_DIR,
   HEALTH_PATH,
+  LAYOUT_WARMUP_CACHE_KEY,
+  LAYOUT_WARMUP_CONTRACT,
   LLM_PATH,
   LLM_SSE_PATH,
   MIME_MAP,
   SSE_HEADERS,
   STATIC_CACHE_CONTROL,
   WARMUP_CONTRACT,
+  WARMUP_SESSION_ID,
   WILDCARD_PATH,
   __ID__,
 } from './constants.js';
@@ -817,9 +820,7 @@ export class Server extends Uca<Body> {
     } = signal;
     const {
       answers,
-      model,
       sessionId = '',
-      state,
     } = this.extractPayload<JevResult>(value) ?? {};
     const pending = this.getPendingRequest(sessionId);
     if (pending?.selectingModel) {
@@ -827,9 +828,7 @@ export class Server extends Uca<Body> {
     }
     else {
       this.completeInference({
-        context: state,
         data: answers,
-        model,
         response: JSON.stringify(answers),
         sessionId,
       });
@@ -852,11 +851,9 @@ export class Server extends Uca<Body> {
     if (cacheKey) {
       this.cacheSelectedModel(cacheKey, config);
     }
-    this.executeInference({
-      ...payload,
-      ...config,
-      sessionId: requestId,
-    }, requestId, stream);
+    if (requestId !== WARMUP_SESSION_ID) {
+      this.executeInference({ ...payload, ...config, sessionId: requestId }, requestId, stream);
+    }
   }
 
   private handleGeminiGenerated(signal: Signal): void {
@@ -865,17 +862,13 @@ export class Server extends Uca<Body> {
     } = signal;
     const {
       data,
-      model,
       sessionId,
       text: response = '',
-      usage,
     } = this.extractPayload<GenerateResult>(value) ?? {};
     this.completeInference({
       data,
-      model,
       response,
       sessionId,
-      usage,
     });
   }
 
@@ -885,17 +878,13 @@ export class Server extends Uca<Body> {
     } = signal;
     const {
       data,
-      model,
       sessionId,
       text: response = '',
-      usage,
     } = this.extractPayload<GenerateResult>(value) ?? {};
     this.completeInference({
       data,
-      model,
       response,
       sessionId,
-      usage,
     });
   }
 
@@ -908,10 +897,7 @@ export class Server extends Uca<Body> {
     if (pending && !pending.stream) {
       this.clearPendingRequest(sessionId);
       this.respondHttp({
-        body: {
-          ...result,
-          context: pending.payload.context ?? result.context,
-        },
+        body: result,
         requestId: pending.requestId,
         status: 200,
       });
@@ -1159,9 +1145,10 @@ export class Server extends Uca<Body> {
       const command = createCommand({
         ...WARMUP_CONTRACT,
         limit: 1,
-        sessionId: 'system-warmup',
+        sessionId: WARMUP_SESSION_ID,
       });
       this.pulse(command.property, command.value);
+      this.requestBackendModelSelection(LAYOUT_WARMUP_CONTRACT, WARMUP_SESSION_ID, true, LAYOUT_WARMUP_CACHE_KEY);
     }
   }
 }

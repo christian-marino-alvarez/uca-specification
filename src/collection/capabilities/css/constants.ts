@@ -796,8 +796,8 @@ export const PROPERTY_MAPPINGS = [
 
 export const BASE_STYLES = [
   '*, *::before, *::after { box-sizing: border-box; }',
-  'html, body { min-block-size: 100%; margin: 0; }',
-  'body { min-block-size: 100vh; }',
+  'html, body { width: 100%; height: 100%; min-block-size: 100vh; margin: 0; }',
+  'body { display: flex; flex-direction: column; min-block-size: 100vh; background-color: var(--uca-surface-default, #070a12); color: var(--uca-textColor-light, #ffffff); }',
   'h1, h2, h3, h4, h5, h6, p, ul, ol, menu, figure, blockquote { margin: 0; }',
   'ul, ol, menu { padding: 0; list-style: none; }',
   'img, svg, video, canvas { max-width: 100%; height: auto; display: block; }',

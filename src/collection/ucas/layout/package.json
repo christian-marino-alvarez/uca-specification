@@ -42,6 +42,7 @@
     }
   },
   "dependencies": {
+    "@uca/box": "^0.1.0",
     "@uca/capability-css": "^0.1.0",
     "@uca/capability-material": "^0.1.0",
     "@uca/capability-stream-transformer": "^0.1.0",

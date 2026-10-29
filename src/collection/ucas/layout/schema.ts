@@ -10,34 +10,78 @@ export const qualitiesSchema = visualQualitiesSchema.optional();
 export const containerQualitiesSchema = visualQualitiesSchema.omit({
   fontWeight: true,
   lineHeight: true,
+  marginBlock: true,
+  marginInline: true,
+  maxWidth: true,
+  minHeight: true,
+  minWidth: true,
+  order: true,
+  outlineBottom: true,
+  outlineLeft: true,
+  outlineRight: true,
+  outlineTop: true,
+  spacingBlock: true,
+  spacingInline: true,
   textAlign: true,
   textColor: true,
   textSize: true,
   typeface: true,
+  variant: true,
 });
 
-export const directionQualitiesSchema = containerQualitiesSchema.required({
+export const baseQualitiesSchema = containerQualitiesSchema.omit({
+  alignment: true,
   direction: true,
-  height: true,
-  width: true,
-});
-
-export const divisionQualitiesSchema = containerQualitiesSchema.required({
+  distribution: true,
   division: true,
+  span: true,
+  wrap: true,
+}).required({
   height: true,
   width: true,
 });
 
-export const spatialQualitiesSchema = z.union([
-  directionQualitiesSchema,
-  divisionQualitiesSchema,
-]);
+export const directionQualitiesSchema = containerQualitiesSchema.pick({
+  alignment: true,
+  direction: true,
+  distribution: true,
+  wrap: true,
+}).required({
+  direction: true,
+});
+
+export const divisionQualitiesSchema = containerQualitiesSchema.pick({
+  division: true,
+  span: true,
+}).required({
+  division: true,
+});
+
+export const spatialQualitiesSchema = z.intersection(
+  baseQualitiesSchema,
+  z.union([
+    directionQualitiesSchema,
+    divisionQualitiesSchema,
+  ]),
+);
 
 export const areaSchema = z.object({
   id: z.string().min(1).describe('Identificador del área: usar context.area.id para el primer elemento (el propio contenedor objetivo) e identificadores semánticos únicos para cada una de sus áreas hijas directas'),
-  purpose: z.string().min(1).describe('Propósito ontológico funcional del área (máximo 6-8 palabras)'),
-  intention: z.string().min(1).describe('Estrategia de composición funcional del área (máximo 6-8 palabras)'),
   qualities: spatialQualitiesSchema.describe('Cualidades espaciales de Box en Material Design 3 (requiere direction o division, junto con las dimensiones, superficie, forma, espaciado o separación coherentes con el eje del contenedor)'),
+  purpose: z.string().min(1).describe('Propósito ontológico funcional conciso del área (4 a 6 palabras)'),
+  intention: z.string().min(1).describe('Estrategia de composición funcional concisa del área (4 a 6 palabras)'),
+});
+
+export const designSchema = materialModelSchema.pick({
+  windowSizeRule: true,
+  canonicalLayouts: true,
+  spatialPrinciples: true,
+});
+
+export const specificationSchema = z.object({
+  intention: z.string().optional(),
+  interactiveFeatures: z.unknown().optional(),
+  limits: z.unknown().optional(),
 });
 
 export const containerAreaSchema = z.object({
@@ -65,8 +109,8 @@ export const bodySchema = z.object({
     z.string(),
     z.unknown(),
   ).optional().describe('Dimensiones y capacidades del navegador'),
-  specification: z.unknown().optional().describe('Especificación funcional y experiencial del sistema'),
-  design: materialModelSchema.optional().describe('Sistema de distribución espacial y layouts canónicos de Material Design 3 provisto por la capability Material'),
+  specification: specificationSchema.optional().describe('Especificación estructural y experiencial del sistema'),
+  design: designSchema.optional().describe('Regla de tamaño de ventana y layouts canónicos de Material Design 3 provistos por la capability Material'),
   limits: z.record(
     z.string(),
     z.unknown(),
@@ -87,6 +131,8 @@ export const errorSchema = z.object({
 }).passthrough();
 
 export type Area = z.infer<typeof areaSchema>;
+export type Design = z.infer<typeof designSchema>;
+export type Specification = z.infer<typeof specificationSchema>;
 export type ContainerArea = z.infer<typeof containerAreaSchema>;
 export type Composition = z.infer<typeof compositionSchema>;
 export type Qualities = z.infer<typeof qualitiesSchema>;

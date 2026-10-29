@@ -7,6 +7,7 @@ export const choiceSchema = z.enum([
   'VIEW',
 ]);
 
+
 export const areaTargetSchema = z.object({
   id: z.string().min(1),
   parentId: z.string().optional(),

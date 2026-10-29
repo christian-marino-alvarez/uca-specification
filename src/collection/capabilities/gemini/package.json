@@ -30,11 +30,22 @@
       "types": "./constants.d.ts",
       "import": "./constants.js",
       "default": "./constants.ts"
+    },
+    "./schema": {
+      "types": "./schema.d.ts",
+      "import": "./schema.js",
+      "default": "./schema.ts"
+    },
+    "./schema.js": {
+      "types": "./schema.d.ts",
+      "import": "./schema.js",
+      "default": "./schema.ts"
     }
   },
   "dependencies": {
     "@uca/core": "^0.1.0",
-    "@google/genai": "^2.24.0"
+    "@google/genai": "^2.24.0",
+    "zod": "^4.3.6"
   },
   "scripts": {
     "test": "tsx tests/index.ts"

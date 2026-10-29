@@ -16,8 +16,6 @@ export const DEFAULT_AREA_ID = 'body';
 
 export const DEFAULT_ROOT_AREA: AreaTarget = {
   id: DEFAULT_AREA_ID,
-  purpose: 'Contenedor raíz y lienzo global de la aplicación',
-  intention: 'Albergar y estructurar las áreas espaciales directas del sistema',
 };
 
 export const ROOT_DECISION_OPTIONS: readonly OptionItem[] = [

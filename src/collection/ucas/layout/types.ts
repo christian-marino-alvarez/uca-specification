@@ -5,7 +5,9 @@ export type {
   BuiltResult,
   Composition,
   ContainerArea,
+  Design,
   Qualities,
+  Specification,
 } from './schema.js';
 
 export enum SignalType {

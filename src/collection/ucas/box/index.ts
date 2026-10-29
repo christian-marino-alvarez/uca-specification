@@ -570,10 +570,13 @@ export class Box extends Uca<Body> {
   }
 
   private updateDispositionBody(partial: Partial<Body>): void {
+    const {
+      aim,
+    } = this.disposition;
     this.pulse(this.updateEvent, {
       ...this.disposition,
       aim: {
-        description: DEFAULT_INTENTION,
+        ...aim,
         body: {
           ...this.body,
           ...partial,

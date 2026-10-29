@@ -7,6 +7,7 @@ import {
   AIM,
   DEFAULT_CLASS,
   DEFAULT_STYLES,
+  DEFAULT_TEMPLATE,
   STYLE_TAG_ID,
   __ID__,
 } from './constants.js';
@@ -171,6 +172,7 @@ export class Skeleton extends Capability<Body> {
     const skeleton = document.createElement('div');
     skeleton.className = DEFAULT_CLASS;
     skeleton.setAttribute('data-skeleton', elementId);
+    skeleton.innerHTML = DEFAULT_TEMPLATE;
     container.appendChild(skeleton);
   }
 

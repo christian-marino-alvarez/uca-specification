@@ -151,15 +151,6 @@ export class Llm extends HttpClient {
     }
   }
 
-  private resolveResponseContext(requestContext?: unknown, responseContext?: unknown): unknown {
-    const req = (requestContext ?? {}) as Record<string, unknown>;
-    const res = (responseContext ?? {}) as Record<string, unknown>;
-    return Object.keys(res).length > 0 ? {
-      ...req,
-      ...res,
-    } : requestContext;
-  }
-
   private handleResponse(signal: Signal): void {
     const {
       value,
@@ -169,18 +160,10 @@ export class Llm extends HttpClient {
       data,
     } = this.extractPayload<ResponsePayload>(value) ?? {};
     const {
-      context: requestContext,
       replyTo,
     } = (transportCtx ?? {}) as TransportContext;
-    const {
-      context: responseContext,
-      ...result
-    } = (data ?? {}) as InferResult;
-    const finalContext = this.resolveResponseContext(requestContext, responseContext);
-    this.pulse(SignalType.INFERRED, {
-      ...result,
-      context: finalContext,
-    }, replyTo);
+    const result = (data ?? {}) as InferResult;
+    this.pulse(SignalType.INFERRED, result, replyTo);
   }
 
   private handleError(signal: Signal): void {

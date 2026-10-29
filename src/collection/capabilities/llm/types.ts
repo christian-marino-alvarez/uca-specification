@@ -51,8 +51,6 @@ export interface InferResult {
     readonly response?: string;
     readonly data?: unknown;
     readonly context?: unknown;
-    readonly model?: string;
-    readonly usage?: unknown;
 }
 
 export interface StreamResult {
@@ -61,7 +59,6 @@ export interface StreamResult {
     readonly streamId?: string;
     readonly stream: ReadableStream<string>;
     readonly context?: unknown;
-    readonly model?: string;
 }
 
 export interface AbortPayload { readonly sessionId?: string; }
@@ -71,14 +68,12 @@ export interface ChunkResult {
     readonly streamId?: string;
     readonly text: string;
     readonly prompt?: string;
-    readonly model?: string;
 }
 
 export interface StreamEndResult {
     readonly sessionId?: string;
     readonly streamId?: string;
     readonly prompt?: string;
-    readonly model?: string;
 }
 
 export type GeneratePayload = InferPayload;

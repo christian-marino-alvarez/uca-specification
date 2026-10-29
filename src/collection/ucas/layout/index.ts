@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import { Box } from '@uca/box';
+import {
+  SignalType as BoxSignalType,
+  type Body as BoxBody,
+} from '@uca/box/types';
 import { Llm } from '@uca/llm';
 import {
   SignalType as LlmSignalType,
@@ -44,6 +49,7 @@ import {
   SignalType,
   type Area,
   type Body,
+  type Design,
 } from './types.js';
 
 export class Layout extends Uca<Body> {
@@ -60,6 +66,7 @@ export class Layout extends Uca<Body> {
     reactTo: [
       DispositionSignal.UPDATED,
       SignalType.BUILD,
+      ...Layout.reactToBox(),
       ...Layout.reactToMaterial(),
       ...Layout.reactToLlm(),
       ...Layout.reactToStreamTransformer(),
@@ -78,6 +85,20 @@ export class Layout extends Uca<Body> {
         schema: bodySchema,
         description: 'Construir las particiones espaciales de áreas del layout para el contenedor objetivo',
         handler: Layout.prototype.handleBuild,
+      },
+      {
+        signal: BoxSignalType.CREATED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de contenedor o área hija materializada por Box en el DOM',
+        handler: Layout.prototype.handleBoxCreated,
+      },
+      {
+        signal: BoxSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido por la UCA Box durante el renderizado espacial',
+        handler: Layout.prototype.handleBoxError,
       },
       {
         signal: MaterialSignalType.PROVIDED,
@@ -151,6 +172,17 @@ export class Layout extends Uca<Body> {
     ],
   };
 
+  private static reactToBox(): string[] {
+    const {
+      reactTo = [],
+    } = Box.disposition;
+    return [
+      ...reactTo,
+      BoxSignalType.CREATED,
+      BoxSignalType.ERROR,
+    ];
+  }
+
   private static reactToMaterial(): string[] {
     const {
       reactTo = [],
@@ -190,13 +222,27 @@ export class Layout extends Uca<Body> {
   }
 
   protected override catalog(): Cooky {
+    const box = this.catalogBox();
     const material = this.catalogMaterial();
     const llm = this.catalogLlm();
     const streamTransformer = this.catalogStreamTransformer();
     return [
+      box,
       material,
       llm,
       streamTransformer,
+    ];
+  }
+
+  private catalogBox(): Cooky[number] {
+    const disposition = this.createDisposition(
+      Box.disposition,
+      Box.purpose,
+      'box',
+    );
+    return [
+      Box as unknown as CapabilityConstructor,
+      disposition,
     ];
   }
 
@@ -243,8 +289,14 @@ export class Layout extends Uca<Body> {
     switch (source) {
       case this.id:
         break;
+      case `${this.id}:box`:
+        this.handleBoxUpdated();
+        break;
       case `${this.id}:material`:
         this.handleMaterialUpdated();
+        break;
+      case `${this.id}:stream-transformer`:
+        this.handleStreamTransformerUpdated();
         break;
       default:
         this.handleSelfUpdated();
@@ -257,19 +309,98 @@ export class Layout extends Uca<Body> {
       source,
       value,
     } = signal;
-    const body = this.extractPayload<Body>(value);
+    const body = this.resolveBuildBody(value);
     this.updateDispositionBody({
       ...body,
       areas: [],
+      design: undefined,
       source,
     });
   }
 
+  private resolveBuildBody(value: unknown): Body {
+    const {
+      area,
+      specification,
+    } = this.extractPayload<Body>(value) ?? {};
+    const {
+      intention: areaIntention,
+    } = area ?? {};
+    const {
+      intention,
+      interactiveFeatures,
+      limits,
+    } = specification ?? {};
+    return {
+      area,
+      specification: {
+        ...(!areaIntention && {
+          intention,
+        }),
+        interactiveFeatures,
+        limits,
+      },
+    };
+  }
+
   private handleSelfUpdated(): void {
+    const elementId = this.resolveTargetAreaId();
+    this.pulse(BoxSignalType.RENDER, {
+      elementId,
+      skeleton: true,
+    });
+  }
+
+  private handleBoxCreated(signal: Signal): void {
+    const {
+      source,
+      value,
+    } = signal;
+    const {
+      design,
+    } = this.body ?? {};
+    if (!design) {
+      this.updateDispositionBody({
+        source,
+      });
+    }
+    else {
+      this.emitCreatedArea(value);
+    }
+  }
+
+  private emitCreatedArea(value: unknown): void {
+    const {
+      elementId,
+    } = this.extractPayload<BoxBody>(value) ?? {};
+    const {
+      areas = [],
+    } = this.body ?? {};
+    const area = areas.find(({
+      id,
+    }) => id === elementId);
+    if (area) {
+      this.pulse(SignalType.AREA_CREATED, {
+        area,
+      });
+    }
+  }
+
+  private handleBoxUpdated(): void {
     const dimensions = this.resolveAreaDimensions();
     this.pulse(MaterialSignalType.QUERY, {
       dimensions,
     });
+  }
+
+  private resolveTargetAreaId(): string {
+    const {
+      area,
+    } = this.body ?? {};
+    const {
+      id = 'body',
+    } = area ?? {};
+    return id;
   }
 
   private resolveAreaDimensions(): Dimensions | undefined {
@@ -287,16 +418,28 @@ export class Layout extends Uca<Body> {
       source,
       value,
     } = signal;
-    const design = this.extractPayload<MaterialModel>(value);
+    const design = this.resolveDesign(value);
     this.updateDispositionBody({
       design,
       source,
     });
   }
 
+  private resolveDesign(value: unknown): Design {
+    const {
+      canonicalLayouts,
+      spatialPrinciples,
+      windowSizeRule,
+    } = this.extractPayload<MaterialModel>(value)!;
+    return {
+      canonicalLayouts,
+      spatialPrinciples,
+      windowSizeRule,
+    };
+  }
+
   private handleMaterialUpdated(): void {
     const request = this.createInferRequest();
-    console.log('[Layout] Prompt de inferencia:', request);
     this.pulse(LlmSignalType.INFER, request);
   }
 
@@ -333,31 +476,79 @@ export class Layout extends Uca<Body> {
 
   private async handleStreamTransformed(signal: Signal): Promise<void> {
     const {
+      source,
       value,
     } = signal;
     const {
       stream,
     } = this.extractPayload<StreamTransformerResult<Area>>(value) ?? {};
-    const transform = this.createAreaTransform();
     const writable = this.createAreaWritable();
     if (stream) {
-      await stream.pipeThrough(transform).pipeTo(writable);
+      await stream.pipeTo(writable);
+      this.updateDispositionBody({
+        source,
+      });
     }
-  }
-
-  private createAreaTransform(): TransformStream<Area, Area> {
-    return new TransformStream<Area, Area>({
-      transform: (area, controller) => {
-        controller.enqueue(area);
-      },
-    });
   }
 
   private createAreaWritable(): WritableStream<Area> {
     return new WritableStream<Area>({
       write: (area) => {
-        console.log('[Layout] Área recibida:', area);
+        this.renderArea(area);
       },
+    });
+  }
+
+  private renderArea(area: Area): void {
+    const {
+      id: elementId,
+      qualities,
+    } = area;
+    const targetId = this.resolveTargetAreaId();
+    const isContainer = elementId === targetId;
+    this.recordStreamedArea(area, isContainer);
+    this.pulse(BoxSignalType.RENDER, {
+      elementId,
+      ...(!isContainer && {
+        parentTo: targetId,
+      }),
+      qualities,
+      skeleton: !isContainer,
+    });
+  }
+
+  private recordStreamedArea(area: Area, isContainer: boolean): void {
+    const {
+      area: currentArea,
+      areas = [],
+    } = this.body ?? {};
+    this.disposition = {
+      ...this.disposition,
+      aim: {
+        ...this.disposition.aim,
+        body: {
+          ...this.body,
+          area: isContainer ? {
+            ...currentArea,
+            ...area,
+          } : currentArea,
+          areas: isContainer ? areas : [
+            ...areas,
+            area,
+          ],
+        },
+      },
+    };
+  }
+
+  private handleStreamTransformerUpdated(): void {
+    const {
+      areas = [],
+    } = this.body ?? {};
+    const areaId = this.resolveTargetAreaId();
+    this.pulse(SignalType.BUILT, {
+      areaId,
+      areas,
     });
   }
 
@@ -373,6 +564,13 @@ export class Layout extends Uca<Body> {
       error,
       requestId,
     });
+  }
+
+  private handleBoxError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(SignalType.ERROR, value);
   }
 
   private handleMaterialError(signal: Signal): void {
@@ -397,10 +595,13 @@ export class Layout extends Uca<Body> {
   }
 
   private updateDispositionBody(partial: Partial<Body>): void {
+    const {
+      aim,
+    } = this.disposition;
     this.pulse(this.updateEvent, {
       ...this.disposition,
       aim: {
-        description: DEFAULT_INTENTION,
+        ...aim,
         body: {
           ...this.body,
           ...partial,

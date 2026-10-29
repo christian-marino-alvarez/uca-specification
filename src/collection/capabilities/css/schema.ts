@@ -24,27 +24,19 @@ const tokenSchema = (
   ]) => name)).describe(`${description}. Tokens: ${meanings.join('; ')}.`);
 };
 
-export const dimensionPattern = /^\d+(?:\.\d+)?(?:%|px|rem|em|vh|vw|dvh|dvw)$/;
+export const dimensionSchema = tokenSchema(
+  DESIGN_TOKENS.dimensions,
+  'Token de dimensión abstracta',
+);
 
-export const dimensionSchema = z.union([
-  tokenSchema(
-    DESIGN_TOKENS.dimensions,
-    'Token de dimensión abstracta',
+const maximumDimensionSchema = tokenSchema(
+  Object.fromEntries(
+    Object.entries(DESIGN_TOKENS.dimensions).filter(([
+      name,
+    ]) => name !== 'auto'),
   ),
-  z.string().regex(dimensionPattern).describe('Unidad de dimensión CSS explícita o relativa'),
-]);
-
-const maximumDimensionSchema = z.union([
-  tokenSchema(
-    Object.fromEntries(
-      Object.entries(DESIGN_TOKENS.dimensions).filter(([
-        name,
-      ]) => name !== 'auto'),
-    ),
-    'Token de dimensión máxima abstracta',
-  ),
-  z.string().regex(dimensionPattern).describe('Unidad de dimensión CSS explícita o relativa'),
-]);
+  'Token de dimensión máxima abstracta',
+);
 
 export const designTokenSchema = z.object({
   $value: z.unknown(),
@@ -61,10 +53,7 @@ export const qualitiesSchema = z.object({
   spacing: tokenSchema(DESIGN_TOKENS.spacing, 'Relleno interno (padding) en todos los lados; no crea espacio (gap) entre hijos').optional(),
   spacingInline: tokenSchema(DESIGN_TOKENS.spacing, 'Relleno interno en ambos lados del eje en línea (inline); sobrescribe spacing en este eje').optional(),
   spacingBlock: tokenSchema(DESIGN_TOKENS.spacing, 'Relleno interno en ambos lados del eje en bloque (block); sobrescribe spacing en este eje').optional(),
-  marginInline: z.union([
-    tokenSchema(DESIGN_TOKENS.spacing, 'Margen externo en ambos lados del eje en línea'),
-    z.literal('auto').describe('Distribuye el espacio en línea disponible equitativamente fuera del elemento; útil con width o maxWidth explícito'),
-  ]).optional(),
+  marginInline: tokenSchema(DESIGN_TOKENS.spacing, 'Margen externo en ambos lados del eje en línea').optional(),
   marginBlock: tokenSchema(DESIGN_TOKENS.spacing, 'Margen externo en ambos lados verticales (block); crea espacio vertical entre elementos').optional(),
   order: z.number().int().describe('Secuencia visual explícita entre hermanos flex o grid; omitir cuando el orden semántico del DOM ya sea el orden visual').optional(),
   gap: tokenSchema(DESIGN_TOKENS.spacing, 'Espacio entre hijos en un layout flex o grid; no añade padding ni activa flex por sí mismo').optional(),

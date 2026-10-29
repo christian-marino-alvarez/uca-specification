@@ -35,6 +35,25 @@ export const STREAM_SOURCE_SIGNALS = [
 export const JEV_CONTEXT_INSTRUCTION =
   'Evaluar este criterio dentro del siguiente contrato de inferencia. Respetar su propósito, objetivo y contexto; outputSchema describe las respuestas combinadas.';
 
+export const WARMUP_SESSION_ID = 'system-warmup';
+
+export const LAYOUT_WARMUP_CACHE_KEY = 'model:layout:body';
+
+export const LAYOUT_WARMUP_CONTRACT = {
+  id: 'layout',
+  purpose: 'Construir estructuras autónomas de partición espacial y jerarquías de áreas de layout',
+  intention:
+    'Configurar la dirección espacial del contenedor actual y estructurar exclusivamente sus áreas hijas directas mediante una partición de un solo nivel guiada por Material Design 3.',
+  context: {
+    area: {
+      id: 'body',
+    },
+  },
+  outputSchema: {
+    type: 'object',
+  },
+} as const;
+
 export const WARMUP_CONTRACT = {
   outputSchema: {
     type: 'object',

@@ -345,14 +345,22 @@ export class Composition extends Uca<Body> {
     const {
       id: areaId = DEFAULT_AREA_ID,
     } = area ?? {};
-    const isRoot = areaId === DEFAULT_AREA_ID;
+    const {
+      intention,
+      interactiveFeatures,
+      limits,
+    } = specification;
     return {
       context: {
         area,
-        specification,
+        specification: {
+          intention,
+          interactiveFeatures,
+          limits,
+        },
         url,
       },
-      question: isRoot ? ROOT_DECISION_QUESTION : AREA_DECISION_QUESTION,
+      question: areaId === DEFAULT_AREA_ID ? ROOT_DECISION_QUESTION : AREA_DECISION_QUESTION,
     };
   }
 
