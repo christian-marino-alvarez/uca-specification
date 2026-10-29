@@ -1,215 +1,200 @@
 import { Capability } from '@uca/core/capability';
 import type {
-    Disposition,
-    Signal,
+  Disposition,
+  Signal,
 } from '@uca/core/types';
 import {
-    DEFAULT_CLASS,
-    SKELETON_CSS,
-    STYLE_TAG_ID,
-    __ID__,
+  AIM,
+  DEFAULT_CLASS,
+  DEFAULT_STYLES,
+  STYLE_TAG_ID,
+  __ID__,
 } from './constants.js';
 import {
-    errorSchema,
-    removePayloadSchema,
-    removedResultSchema,
-    showPayloadSchema,
-    shownResultSchema,
-    type Body,
-    type RemovePayload,
-    type ShowPayload,
+  errorSchema,
+  mountedResultSchema,
+  mountPayloadSchema,
+  removedResultSchema,
+  removePayloadSchema,
+  shownResultSchema,
+  showPayloadSchema,
+  type Body,
+  type RemovePayload,
+  type ShowPayload,
 } from './schema.js';
 import {
-    DataType,
-    SignalType,
+  DataType,
+  SignalType,
 } from './types.js';
 
 export class Skeleton extends Capability<Body> {
-    public static readonly AIM: string =
-        'Render and manage animated skeleton loading placeholders in DOM containers during asynchronous area construction';
+  public static readonly AIM: string = AIM;
 
-    public static override disposition: Disposition<Body> = {
-        aim: {
-            description: Skeleton.AIM,
-        },
-        reactTo: [
-            SignalType.SHOW,
-            SignalType.REMOVE,
-        ],
-        inputs: [
-            {
-                signal: SignalType.SHOW,
-                type: DataType.SHOW_PAYLOAD,
-                schema: showPayloadSchema,
-                description: 'Render skeleton loading placeholder in container',
-            },
-            {
-                signal: SignalType.REMOVE,
-                type: DataType.REMOVE_PAYLOAD,
-                schema: removePayloadSchema,
-                description: 'Remove skeleton loading placeholder from container',
-            },
-        ],
-        outputs: [
-            {
-                signal: SignalType.SHOWN,
-                type: DataType.SHOWN_RESULT,
-                schema: shownResultSchema,
-                description: 'Skeleton loading placeholder rendered confirmation',
-            },
-            {
-                signal: SignalType.REMOVED,
-                type: DataType.REMOVED_RESULT,
-                schema: removedResultSchema,
-                description: 'Skeleton loading placeholder removed confirmation',
-            },
-            {
-                signal: SignalType.ERROR,
-                type: DataType.ERROR_RESULT,
-                schema: errorSchema,
-                description: 'Skeleton operation failed',
-            },
-        ],
-    };
+  public static override disposition: Disposition<Body> = {
+    aim: {
+      description: Skeleton.AIM,
+      body: {},
+    },
+    reactTo: [
+      SignalType.MOUNT,
+      SignalType.SHOW,
+      SignalType.REMOVE,
+    ],
+    inputs: [
+      {
+        signal: SignalType.MOUNT,
+        type: DataType.MOUNT_PAYLOAD,
+        schema: mountPayloadSchema,
+        description: 'Montar la hoja de estilos de animación del marcador visual de carga (skeleton)',
+      },
+      {
+        signal: SignalType.SHOW,
+        type: DataType.SHOW_PAYLOAD,
+        schema: showPayloadSchema,
+        description: 'Renderizar marcador visual de carga (skeleton) en el contenedor objetivo',
+      },
+      {
+        signal: SignalType.REMOVE,
+        type: DataType.REMOVE_PAYLOAD,
+        schema: removePayloadSchema,
+        description: 'Retirar marcador visual de carga (skeleton) del contenedor objetivo',
+      },
+    ],
+    outputs: [
+      {
+        signal: SignalType.MOUNTED,
+        type: DataType.MOUNTED_RESULT,
+        schema: mountedResultSchema,
+        description: 'Confirmación de hoja de estilos de skeleton montada en el documento',
+      },
+      {
+        signal: SignalType.SHOWN,
+        type: DataType.SHOWN_RESULT,
+        schema: shownResultSchema,
+        description: 'Confirmación de marcador visual de carga (skeleton) renderizado',
+      },
+      {
+        signal: SignalType.REMOVED,
+        type: DataType.REMOVED_RESULT,
+        schema: removedResultSchema,
+        description: 'Confirmación de marcador visual de carga (skeleton) retirado',
+      },
+      {
+        signal: SignalType.ERROR,
+        type: DataType.ERROR_RESULT,
+        schema: errorSchema,
+        description: 'Error emitido durante la gestión del skeleton',
+      },
+    ],
+  };
 
-    public constructor(id: string = __ID__) {
-        super(id);
+  public constructor(id: string = __ID__) {
+    super(id);
+  }
+
+  protected override react(signal: Signal): void {
+    const {
+      property,
+    } = signal;
+    switch (property) {
+      case SignalType.MOUNT:
+        this.handleMount(signal);
+        break;
+      case SignalType.SHOW:
+        this.handleShow(signal);
+        break;
+      case SignalType.REMOVE:
+        this.handleRemove(signal);
+        break;
+      default:
+        break;
     }
+  }
 
-    protected override react(signal: Signal): void {
-        const {
-            property,
-        } = signal;
-        switch (property) {
-            case SignalType.SHOW:
-                this.handleShow(signal);
-                break;
-            case SignalType.REMOVE:
-                this.handleRemove(signal);
-                break;
-        }
+  private handleMount(_signal: Signal): void {
+    const existing = document.getElementById(STYLE_TAG_ID) as HTMLStyleElement | null;
+    if (existing?.sheet) {
+      this.pulse(SignalType.MOUNTED, {
+        mounted: true,
+      });
     }
+    else {
+      this.mountStyles(existing);
+    }
+  }
 
-    private ensureStyles(): void {
-        if (typeof document === 'undefined' || document.getElementById(STYLE_TAG_ID)) {
-            return;
-        }
-        const style = document.createElement('style');
-        style.id = STYLE_TAG_ID;
-        style.textContent = SKELETON_CSS;
-        document.head.appendChild(style);
-    }
+  private handleShow(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const {
+      containerElement,
+      context,
+      elementId = this.id,
+    } = this.extractPayload<ShowPayload>(value) ?? {};
+    const container = this.resolveContainer(containerElement ?? elementId);
+    this.mountSkeleton(container, elementId);
+    this.pulse(SignalType.SHOWN, {
+      context,
+      elementId,
+    });
+  }
 
-    private resolveContainer(elementId: string, containerElement?: string): Element | null {
-        if (typeof document === 'undefined') {
-            return null;
-        }
-        return this.findTargetElement(containerElement ?? elementId);
-    }
+  private handleRemove(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const {
+      context,
+      elementId = this.id,
+    } = this.extractPayload<RemovePayload>(value) ?? {};
+    this.unmountSkeleton(elementId);
+    this.pulse(SignalType.REMOVED, {
+      context,
+      elementId,
+    });
+  }
 
-    private findTargetElement(target: string): Element | null {
-        if (target === 'body' || target === '#body') {
-            return document.body;
-        }
-        const id = target.startsWith('#') ? target.slice(1) : target;
-        return document.getElementById(id) ?? document.querySelector(target);
+  private mountStyles(existing: HTMLStyleElement | null): void {
+    const style = existing ?? document.createElement('style');
+    style.id = STYLE_TAG_ID;
+    style.textContent = DEFAULT_STYLES;
+    style.addEventListener('load', () => {
+      this.pulse(SignalType.MOUNTED, {
+        mounted: true,
+      });
+    }, {
+      once: true,
+    });
+    if (!existing) {
+      document.head.appendChild(style);
     }
+  }
 
-    private mountSkeletonElement(container: Element, elementId: string): void {
-        if (container.querySelector(`[data-skeleton="${elementId}"]`)) {
-            return;
-        }
-        const skeleton = document.createElement('div');
-        skeleton.className = DEFAULT_CLASS;
-        skeleton.setAttribute('data-skeleton', elementId);
-        container.appendChild(skeleton);
-    }
+  private resolveContainer(target: string): Element | null {
+    const id = target.startsWith('#') ? target.slice(1) : target;
+    const element = id === 'body'
+      ? document.body
+      : document.getElementById(id) ?? document.querySelector(target);
+    return element;
+  }
 
-    private renderSkeleton(elementId: string, containerElement?: string): void {
-        this.ensureStyles();
-        const container = this.resolveContainer(elementId, containerElement);
-        if (container) {
-            this.mountSkeletonElement(container, elementId);
-        }
+  private mountSkeleton(container: Element | null, elementId: string): void {
+    const selector = `[data-skeleton="${elementId}"]`;
+    if (!container || container.querySelector(selector)) {
+      return;
     }
+    const skeleton = document.createElement('div');
+    skeleton.className = DEFAULT_CLASS;
+    skeleton.setAttribute('data-skeleton', elementId);
+    container.appendChild(skeleton);
+  }
 
-    private pulseError(message: string): void {
-        this.pulse(SignalType.ERROR, {
-            elementId: null,
-            error: message,
-        });
-    }
-
-    private parseShowPayload(value: unknown): ShowPayload | undefined {
-        const parsed = showPayloadSchema.safeParse(value);
-        if (!parsed.success) {
-            this.pulseError(parsed.error.message);
-            return undefined;
-        }
-        return parsed.data;
-    }
-
-    private dispatchShow(payload: ShowPayload): void {
-        const {
-            elementId,
-            containerElement,
-            context,
-        } = payload;
-        this.renderSkeleton(elementId, containerElement);
-        this.pulse(SignalType.SHOWN, {
-            elementId,
-            context,
-        });
-    }
-
-    private handleShow(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        const payload = this.parseShowPayload(value);
-        if (!payload) {
-            return;
-        }
-        this.dispatchShow(payload);
-    }
-
-    private parseRemovePayload(value: unknown): RemovePayload | undefined {
-        const parsed = removePayloadSchema.safeParse(value);
-        if (!parsed.success) {
-            this.pulseError(parsed.error.message);
-            return undefined;
-        }
-        return parsed.data;
-    }
-
-    private unmountSkeleton(elementId: string): void {
-        if (typeof document !== 'undefined') {
-            document.querySelectorAll(`[data-skeleton="${elementId}"]`).forEach((node) => {
-                node.remove();
-            });
-        }
-    }
-
-    private dispatchRemove(payload: RemovePayload): void {
-        const {
-            elementId,
-            context,
-        } = payload;
-        this.unmountSkeleton(elementId);
-        this.pulse(SignalType.REMOVED, {
-            elementId,
-            context,
-        });
-    }
-
-    private handleRemove(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        const payload = this.parseRemovePayload(value);
-        if (!payload) {
-            return;
-        }
-        this.dispatchRemove(payload);
-    }
+  private unmountSkeleton(elementId: string): void {
+    const selector = `[data-skeleton="${elementId}"]`;
+    const nodes = document.querySelectorAll(selector);
+    nodes.forEach((node) => {
+      node.remove();
+    });
+  }
 }

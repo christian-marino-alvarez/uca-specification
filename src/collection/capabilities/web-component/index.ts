@@ -1,277 +1,319 @@
 import { Capability } from '@uca/core/capability';
-import type { Disposition, Signal } from '@uca/core/types';
+import type {
+  Disposition,
+  Signal,
+} from '@uca/core/types';
 import {
-    __ID__,
-    DEFAULT_EVENTS,
-    DEFAULT_TAG,
-    INPUT_TAG,
-    TAG_PREFIX,
+  AIM,
+  DEFAULT_EVENTS,
+  DEFAULT_TAG,
+  INPUT_TAG,
+  TAG_PREFIX,
+  __ID__,
 } from './constants.js';
 import {
-    type Body,
-    type EventContext,
-    type RemovePayload,
-    type RenderPayload,
-    type UpdatePayload,
-    DataType,
-    SignalType,
+  errorSchema,
+  eventContextSchema,
+  removePayloadSchema,
+  removedResultSchema,
+  renderPayloadSchema,
+  renderedResultSchema,
+  updatePayloadSchema,
+  updatedResultSchema,
+} from './schema.js';
+import {
+  DataType,
+  SignalType,
+  type Body,
+  type ManagedElement,
+  type RemovePayload,
+  type RenderPayload,
+  type UpdatePayload,
 } from './types.js';
 
 export class WebComponent extends Capability<Body> {
-    public static readonly AIM: string = 'Manage native Custom Element lifecycle, Light DOM rendering, and user interactions';
+  public static readonly AIM: string = AIM;
 
-    public static override disposition: Disposition<Body> = {
-        aim: { description: WebComponent.AIM },
-        reactTo: [
-            SignalType.RENDER,
-            SignalType.UPDATE,
-            SignalType.REMOVE,
-        ],
-        inputs: [
-            { signal: SignalType.RENDER, type: DataType.RENDER_PAYLOAD, description: 'Render element in Light DOM' },
-            { signal: SignalType.UPDATE, type: DataType.UPDATE_PAYLOAD, description: 'Update element attributes and content' },
-            { signal: SignalType.REMOVE, type: DataType.REMOVE_PAYLOAD, description: 'Remove element from DOM' },
-        ],
-        outputs: [
-            { signal: SignalType.RENDERED, type: DataType.RENDERED_RESULT, description: 'Element rendered confirmation' },
-            { signal: SignalType.UPDATED, type: DataType.UPDATED_RESULT, description: 'Element updated confirmation' },
-            { signal: SignalType.REMOVED, type: DataType.REMOVED_RESULT, description: 'Element removed confirmation' },
-            { signal: SignalType.EVENT, type: DataType.EVENT_CONTEXT, description: 'DOM interaction event triggered' },
-            { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'DOM error notification' },
-        ],
-    };
+  public static override disposition: Disposition<Body> = {
+    aim: {
+      description: WebComponent.AIM,
+    },
+    reactTo: [
+      SignalType.RENDER,
+      SignalType.UPDATE,
+      SignalType.REMOVE,
+    ],
+    inputs: [
+      {
+        signal: SignalType.RENDER,
+        type: DataType.RENDER_PAYLOAD,
+        schema: renderPayloadSchema,
+        description: 'Renderizar o actualizar idempotentemente un elemento en el Light DOM',
+      },
+      {
+        signal: SignalType.UPDATE,
+        type: DataType.UPDATE_PAYLOAD,
+        schema: updatePayloadSchema,
+        description: 'Actualizar atributos, contenido y escuchadores de eventos de un elemento existente',
+      },
+      {
+        signal: SignalType.REMOVE,
+        type: DataType.REMOVE_PAYLOAD,
+        schema: removePayloadSchema,
+        description: 'Eliminar un elemento del DOM y abortar sus escuchadores de eventos',
+      },
+    ],
+    outputs: [
+      {
+        signal: SignalType.RENDERED,
+        type: DataType.RENDERED_RESULT,
+        schema: renderedResultSchema,
+        description: 'Confirmación de elemento renderizado en el DOM',
+      },
+      {
+        signal: SignalType.UPDATED,
+        type: DataType.UPDATED_RESULT,
+        schema: updatedResultSchema,
+        description: 'Confirmación de elemento actualizado en el DOM',
+      },
+      {
+        signal: SignalType.REMOVED,
+        type: DataType.REMOVED_RESULT,
+        schema: removedResultSchema,
+        description: 'Confirmación de elemento eliminado del DOM',
+      },
+      {
+        signal: SignalType.EVENT,
+        type: DataType.EVENT_CONTEXT,
+        schema: eventContextSchema,
+        description: 'Evento de interacción del usuario capturado y delegado desde el DOM',
+      },
+      {
+        signal: SignalType.ERROR,
+        type: DataType.UNKNOWN,
+        schema: errorSchema,
+        description: 'Notificación de error durante la operación en el DOM',
+      },
+    ],
+  };
 
-    private static createCustomElementClass(): CustomElementConstructor {
-        return class extends HTMLElement {
-            public onConnected?: () => void;
-            public onDisconnected?: () => void;
-            public connectedCallback(): void { this.onConnected?.(); }
-            public disconnectedCallback(): void { this.onDisconnected?.(); }
-        };
+  public constructor(id: string = __ID__) {
+    super(id);
+  }
+
+  protected override react(signal: Signal): void {
+    const {
+      property,
+    } = signal;
+    switch (property) {
+      case SignalType.RENDER:
+        this.handleRender(signal);
+        break;
+      case SignalType.UPDATE:
+        this.handleUpdate(signal);
+        break;
+      case SignalType.REMOVE:
+        this.handleRemove(signal);
+        break;
+      default:
+        break;
     }
+  }
 
-    public constructor(id: string = __ID__) {
-        super(id);
-    }
+  private handleRender(signal: Signal): void {
+    const {
+      source,
+      value,
+    } = signal;
+    const payload = this.extractPayload<RenderPayload>(value);
+    const tagName = this.registerCustomTag(payload, source);
+    const element = this.mountElement(payload, tagName);
+    this.applyElementState(element, payload);
+    this.bindElementEvents(element, payload, DEFAULT_EVENTS);
+    this.emitRenderOutcome(element, payload);
+  }
 
-    protected override react(signal: Signal): void {
-        const { property, value, source } = signal;
-        switch (property) {
-            case SignalType.RENDER:
-                this.handleRender(value, source);
-                break;
-            case SignalType.UPDATE:
-                this.handleUpdate(value);
-                break;
-            case SignalType.REMOVE:
-                this.handleRemove(value);
-                break;
-            default:
-                break;
-        }
+  private handleUpdate(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const payload = this.extractPayload<UpdatePayload>(value);
+    const {
+      context,
+      elementId = this.id,
+    } = payload ?? {};
+    const element = this.findElement(elementId);
+    if (!element) {
+      return;
     }
+    this.applyElementState(element, payload);
+    this.bindElementEvents(element, payload);
+    this.pulse(SignalType.UPDATED, {
+      context,
+      elementId,
+      updated: true,
+    });
+  }
 
-    private handleRender(value?: unknown, source?: string): void {
-        const payload = (value ?? {}) as RenderPayload;
-        const { elementId = this.id, attributes, content, context } = payload;
-        const existing = elementId && typeof document !== 'undefined' ? document.getElementById(elementId) : null;
-        if (existing) {
-            this.updateExistingElement(existing, attributes, content, context);
-            return;
-        }
-        this.renderNewElement(payload, source);
+  private handleRemove(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const {
+      context,
+      elementId = this.id,
+    } = this.extractPayload<RemovePayload>(value) ?? {};
+    const element = this.findElement(elementId);
+    if (!element) {
+      return;
     }
+    element.abortController?.abort();
+    element.remove();
+    this.pulse(SignalType.REMOVED, {
+      context,
+      elementId,
+      removed: true,
+    });
+  }
 
-    private renderNewElement(payload: RenderPayload, source?: string): void {
-        const { elementId = this.id, tag, containerElement, attributes, content, events, context } = payload;
-        const container = this.resolveContainerElement(containerElement);
-        const customTag = this.registerElement(tag, source);
-        const element = elementId && container ? this.createElement(customTag, elementId, tag, attributes, content) : null;
-        if (element && container) {
-            this.mountElement(element, container, elementId, events, context);
-        }
+  private registerCustomTag(payload?: RenderPayload, source?: string): string {
+    const {
+      tag,
+    } = payload ?? {};
+    const origin = source && source !== __ID__ ? source : this.id;
+    const suffix = origin.split(':').filter((part) => part && part !== __ID__).pop();
+    const resolvedTag = tag ?? (suffix ? `${TAG_PREFIX}${suffix}` : DEFAULT_TAG);
+    if (typeof customElements !== 'undefined' && resolvedTag.includes('-') && !customElements.get(resolvedTag)) {
+      customElements.define(resolvedTag, class extends HTMLElement {});
     }
+    return resolvedTag;
+  }
 
-    private updateExistingElement(existing: HTMLElement, attributes?: Record<string, string>, content?: string, context?: unknown): void {
-        this.applyAttributes(existing, attributes);
-        this.updateInnerOrSelf(existing, attributes, content);
-        this.pulse(SignalType.RENDERED, {
-            elementId: existing.id,
-            tag: existing.tagName.toLowerCase(),
-            ...(context !== undefined && { context }),
-        });
+  private mountElement(
+    payload: RenderPayload | undefined,
+    tagName: string,
+  ): ManagedElement | null {
+    const {
+      containerElement,
+      elementId = this.id,
+    } = payload ?? {};
+    const existing = elementId === 'body' ? document.body : document.getElementById(elementId);
+    const container = !containerElement || containerElement === 'body' || containerElement === '#body'
+      ? document.body
+      : document.querySelector(containerElement);
+    const element = existing ?? (container ? document.createElement(tagName) : null);
+    if (element && !existing && container) {
+      element.id = elementId;
+      container.appendChild(element);
     }
+    return element as ManagedElement | null;
+  }
 
-    private updateInnerOrSelf(existing: HTMLElement, attributes?: Record<string, string>, content?: string): void {
-        const inner = existing.firstElementChild as HTMLElement | null;
-        if (inner) {
-            this.applyAttributes(inner, attributes);
-            if (content !== undefined) { inner.innerHTML = content; }
-            return;
-        }
-        if (content !== undefined && existing.children.length === 0) {
-            existing.innerHTML = content;
-        }
+  private applyElementState(
+    element: HTMLElement | null,
+    payload?: RenderPayload | UpdatePayload,
+  ): void {
+    const {
+      attributes,
+      content,
+    } = payload ?? {};
+    const {
+      value,
+    } = attributes ?? {};
+    if (!element) {
+      return;
     }
+    Object.entries(attributes ?? {}).forEach(([name, attribute]) => {
+      element.setAttribute(name, attribute);
+    });
+    if (value !== undefined && element.tagName === INPUT_TAG) {
+      (element as HTMLInputElement).value = value;
+    }
+    if (content !== undefined) {
+      element.innerHTML = content;
+    }
+  }
 
-    private mountElement(element: HTMLElement, container: Element, elementId: string, events?: readonly string[], context?: unknown): void {
-        const controller = this.bindLifecycle(element, elementId, events, context);
-        document.getElementById(elementId)?.remove();
-        container.querySelectorAll(':scope > svg').forEach((svg) => svg.remove());
-        container.appendChild(element);
-        if (!element.tagName.includes('-')) {
-            this.handleConnected(element, elementId, controller.signal, events, context);
-        }
+  private bindElementEvents(
+    element: ManagedElement | null,
+    payload?: RenderPayload | UpdatePayload,
+    fallbackEvents?: readonly string[],
+  ): void {
+    const {
+      context,
+      elementId = this.id,
+      events = fallbackEvents,
+    } = payload ?? {};
+    if (!element || !events) {
+      return;
     }
+    element.abortController?.abort();
+    const controller = new AbortController();
+    element.abortController = controller;
+    events.forEach((eventName) => {
+      element.addEventListener(eventName, (event: Event) => {
+        this.emitDomEvent(elementId, eventName, event, context);
+      }, {
+        signal: controller.signal,
+      });
+    });
+  }
 
-    private bindLifecycle(element: HTMLElement, elementId: string, events?: readonly string[], context?: unknown): AbortController {
-        const controller = new AbortController();
-        const customElement = element as HTMLElement & { onConnected?: () => void; onDisconnected?: () => void; abortController?: AbortController };
-        customElement.abortController = controller;
-        customElement.onConnected = () => this.handleConnected(element, elementId, controller.signal, events, context);
-        customElement.onDisconnected = () => this.handleDisconnected(elementId, controller, context);
-        return controller;
+  private emitRenderOutcome(
+    element: HTMLElement | null,
+    payload?: RenderPayload,
+  ): void {
+    const {
+      containerElement,
+      context,
+      elementId = this.id,
+    } = payload ?? {};
+    if (element) {
+      this.pulse(SignalType.RENDERED, {
+        context,
+        elementId,
+        tag: element.tagName.toLowerCase(),
+      });
     }
+    else {
+      this.pulse(SignalType.ERROR, {
+        containerElement,
+        error: `Contenedor de renderizado no encontrado: ${containerElement}`,
+      });
+    }
+  }
 
-    private handleConnected(element: HTMLElement, elementId: string, signal: AbortSignal, events?: readonly string[], context?: unknown): void {
-        this.attachEventListeners(element, elementId, signal, events, context);
-        this.pulse(SignalType.RENDERED, {
-            elementId,
-            tag: element.tagName.toLowerCase(),
-            ...(context !== undefined && { context }),
-        });
-    }
+  private findElement(elementId: string): ManagedElement | null {
+    const target = elementId === 'body'
+      ? document.body
+      : document.getElementById(elementId);
+    return target as ManagedElement | null;
+  }
 
-    private handleDisconnected(elementId: string, controller: AbortController, context?: unknown): void {
-        controller.abort();
-        this.pulse(SignalType.REMOVED, {
-            elementId,
-            removed: true,
-            ...(context !== undefined && {
-                context,
-            }),
-        });
-    }
-
-    private createElement(customTag: string, elementId: string, tag?: string, attributes?: Record<string, string>, content?: string): HTMLElement | null {
-        if (typeof document === 'undefined') { return null; }
-        const element = document.createElement(customTag);
-        element.id = elementId;
-        this.populateElement(element, customTag, tag, attributes, content);
-        return element;
-    }
-
-    private populateElement(element: HTMLElement, customTag: string, tag?: string, attributes?: Record<string, string>, content?: string): void {
-        const innerTag = tag && tag !== customTag && !tag.startsWith('ext-') ? tag : null;
-        if (innerTag) {
-            this.appendNativeInner(element, innerTag, attributes, content);
-            return;
-        }
-        this.applyAttributes(element, attributes);
-        if (content) { element.innerHTML = content; }
-    }
-
-    private appendNativeInner(element: HTMLElement, innerTag: string, attributes?: Record<string, string>, content?: string): void {
-        const inner = document.createElement(innerTag);
-        this.applyAttributes(inner, attributes);
-        if (content) { inner.innerHTML = content; }
-        element.appendChild(inner);
-    }
-
-    private handleUpdate(value?: unknown): void {
-        const { elementId = this.id, attributes, content, events, context } = (value ?? {}) as UpdatePayload;
-        if (!elementId || typeof document === 'undefined') { return; }
-        const element = document.getElementById(elementId) as (HTMLElement & { abortController?: AbortController }) | null;
-        if (!element) { return; }
-        this.applyAttributes(element, attributes);
-        this.updateInnerOrSelf(element, attributes, content);
-        if (events) { this.updateEventListeners(element, elementId, events, context); }
-        this.pulse(SignalType.UPDATED, { elementId, updated: true, context });
-    }
-
-    private updateEventListeners(element: HTMLElement & { abortController?: AbortController }, elementId: string, events: readonly string[], context?: unknown): void {
-        element.abortController?.abort();
-        const controller = new AbortController();
-        element.abortController = controller;
-        this.attachEventListeners(element, elementId, controller.signal, events, context);
-    }
-
-    private handleRemove(value?: unknown): void {
-        const { elementId = this.id, context } = (value ?? {}) as RemovePayload;
-        if (!elementId || typeof document === 'undefined') { return; }
-        const element = document.getElementById(elementId) as (HTMLElement & { onDisconnected?: () => void; abortController?: AbortController }) | null;
-        if (!element) { return; }
-        const { tagName, abortController } = element;
-        element.remove();
-        if (!tagName.includes('-') && abortController) {
-            this.handleDisconnected(elementId, abortController, context);
-        }
-    }
-
-    private resolveTag(tag?: string, source?: string): string {
-        if (tag && tag.startsWith('ext-')) {
-            return tag;
-        }
-        const origin = source && source !== __ID__ ? source : this.id;
-        const candidate = origin.split(':').filter((part) => part && part !== __ID__ && part !== 'presentation').pop();
-        return candidate ? `${TAG_PREFIX}${candidate}` : DEFAULT_TAG;
-    }
-
-    private registerElement(tag?: string, source?: string): string {
-        const resolvedTag = this.resolveTag(tag, source);
-        if (typeof customElements !== 'undefined' && resolvedTag.includes('-') && !customElements.get(resolvedTag)) {
-            customElements.define(resolvedTag, WebComponent.createCustomElementClass());
-        }
-        return resolvedTag;
-    }
-
-    private resolveContainerElement(selector?: string): Element | null {
-        if (typeof document === 'undefined') {
-            return null;
-        }
-        if (!selector || selector === 'body' || selector === '#body') {
-            return document.body;
-        }
-        return this.findRenderContainer(selector);
-    }
-
-    private findRenderContainer(selector: string): Element | null {
-        const container = selector.startsWith('#') ? document.getElementById(selector.slice(1)) : document.querySelector(selector);
-        if (!container) {
-            this.pulse(SignalType.ERROR, {
-                containerElement: selector,
-                error: `Missing render container: ${selector}`,
-            });
-        }
-        return container;
-    }
-
-    private applyAttributes(element: HTMLElement, attributes?: Record<string, string>): void {
-        const { value } = attributes ?? {}, { tagName } = element;
-        Object.entries(attributes ?? {}).forEach(([name, attribute]) => element.setAttribute(name, attribute));
-        if (value !== undefined && tagName === INPUT_TAG) {
-            (element as HTMLInputElement).value = value;
-        }
-    }
-
-    private attachEventListeners(element: HTMLElement, elementId: string, signal: AbortSignal, events?: readonly string[], context?: unknown): void {
-        const targetEvents = events ?? DEFAULT_EVENTS;
-        for (const eventName of targetEvents) {
-            element.addEventListener(eventName, (event: Event) => {
-                this.delegateDomEvent(elementId, eventName, event, context);
-            }, { signal });
-        }
-    }
-
-    private delegateDomEvent(rootElementId: string, eventName: string, event: Event, context?: unknown): void {
-        const { target } = event;
-        const eventTarget = target as HTMLElement | null;
-        const resolved = eventTarget?.closest?.('[data-action], [id]') ?? eventTarget;
-        const elementId = resolved?.id || rootElementId;
-        const action = resolved?.getAttribute?.('data-action') ?? eventName;
-        const input = (eventTarget as HTMLInputElement | null) ?? (resolved as HTMLInputElement | null);
-        const { value, checked } = input ?? {};
-        const { detail } = event as CustomEvent;
-        this.pulse(SignalType.EVENT, { elementId, event: eventName, action, value, checked, detail, context });
-    }
+  private emitDomEvent(
+    rootElementId: string,
+    eventName: string,
+    event: Event,
+    context?: unknown,
+  ): void {
+    const {
+      detail,
+      target,
+    } = event as CustomEvent;
+    const eventTarget = target as HTMLElement | null;
+    const resolved = eventTarget?.closest?.('[data-action], [id]') ?? eventTarget;
+    const {
+      checked,
+      value,
+    } = ((eventTarget ?? resolved) as HTMLInputElement | null) ?? {};
+    this.pulse(SignalType.EVENT, {
+      action: resolved?.getAttribute?.('data-action') ?? eventName,
+      checked,
+      context,
+      detail,
+      elementId: resolved?.id || rootElementId,
+      event: eventName,
+      value,
+    });
+  }
 }

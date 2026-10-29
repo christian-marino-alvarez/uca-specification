@@ -7,7 +7,7 @@ import {
 import { Render } from '@uca/render';
 import { SignalType as RenderSignalType } from '@uca/render/types';
 import { StreamTransformer } from '@uca/capability-stream-transformer';
-import { Css } from '@uca/capability-css';
+import { DESIGN_TOKENS } from '@uca/capability-css/constants';
 import {
     Mode as StreamTransformerMode,
     SignalType as StreamTransformerSignalType,
@@ -374,8 +374,7 @@ export class View extends Uca<Body> {
     }
 
     private resolveStyleDomains(): string[] {
-        const { tokens } = Css.visualLanguage() as { tokens?: Record<string, unknown> };
-        return Object.keys(tokens ?? {});
+        return Object.keys(DESIGN_TOKENS);
     }
 
     private createInferMeta(

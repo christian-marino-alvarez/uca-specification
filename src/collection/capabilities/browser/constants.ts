@@ -1,5 +1,5 @@
 export const __ID__ = 'browser';
-export const AIM = 'Detect and stream reactive browser, viewport, and screen environment context';
+export const AIM = 'Detectar y transmitir reactivamente el contexto de entorno del navegador, viewport y pantalla';
 export const CHANGE_SETTLE_MS = 500;
 
 export const DEFAULT_VIEWPORT = { width: 1440, height: 900 } as const;

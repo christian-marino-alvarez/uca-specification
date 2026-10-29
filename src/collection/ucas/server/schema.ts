@@ -3,6 +3,7 @@ import {
   inferenceSchema,
   type InferPayload,
 } from '@uca/llm/schema';
+import type { ChosenModelConfig } from '@uca/llm/types';
 import type { RouteConfig } from '@uca/capability-http-server/types';
 
 export const startConfigSchema = z.object({
@@ -47,8 +48,12 @@ export const pendingRequestSchema = z.object({
   requestId: z.string().min(1),
   stream: z.boolean().optional(),
   provider: z.string().optional(),
+  cacheKey: z.string().optional(),
+  selectingModel: z.boolean().optional(),
   payload: z.custom<InferPayload>(),
 }).strict();
+
+export const chosenModelSchema = z.custom<ChosenModelConfig>();
 
 export const bodySchema = z.object({
   id: z.string().optional(),
@@ -64,6 +69,10 @@ export const bodySchema = z.object({
     z.string(),
     pendingRequestSchema,
   ).optional(),
+  modelCache: z.record(
+    z.string(),
+    chosenModelSchema,
+  ).optional(),
 }).strict();
 
 export {
@@ -74,4 +83,3 @@ export type StartConfig = z.infer<typeof startConfigSchema>;
 export type StartedStatus = z.infer<typeof startedStatusSchema>;
 export type PendingRequest = z.infer<typeof pendingRequestSchema>;
 export type Body = z.infer<typeof bodySchema>;
-

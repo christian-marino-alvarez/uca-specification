@@ -12,6 +12,10 @@ export const areaTargetSchema = z.object({
   parentId: z.string().optional(),
   purpose: z.string().optional(),
   intention: z.string().optional(),
+  qualities: z.record(
+    z.string(),
+    z.unknown(),
+  ).optional(),
   dimensions: z.record(
     z.string(),
     z.unknown(),
@@ -34,6 +38,10 @@ export const bodySchema = z.object({
   source: z.string().optional(),
   url: z.string().optional(),
   area: areaTargetSchema.optional(),
+  browser: z.record(
+    z.string(),
+    z.unknown(),
+  ).optional(),
   choice: choiceSchema.optional(),
   decision: decisionPayloadSchema.optional(),
   specification: specificationModelSchema.optional(),

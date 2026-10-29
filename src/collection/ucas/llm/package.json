@@ -45,12 +45,10 @@
   "dependencies": {
     "@uca/core": "^0.1.0",
     "@uca/capability-http-client": "^0.1.0",
-    "zod": "^4.6.5",
     "@uca/capability-sse-client": "^0.1.0",
     "@uca/capability-zod": "^0.1.0",
     "@uca/capability-llm": "^0.1.0",
-    "@uca/decision": "^0.1.0",
-    "@uca/memory": "^0.1.0"
+    "zod": "^4.6.5"
   },
   "scripts": {
     "test": "tsx tests/index.ts && tsx tests/recovery.ts"

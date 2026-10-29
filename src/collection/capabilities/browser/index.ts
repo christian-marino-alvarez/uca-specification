@@ -24,19 +24,42 @@ export class Browser extends Capability<Body> {
     public static readonly AIM: string = AIM;
 
     public static override disposition: Disposition<Body> = {
-        aim: { description: Browser.AIM, body: {} },
+        aim: {
+            description: Browser.AIM,
+            body: {},
+        },
         reactTo: [
             SignalType.DETECT,
             SignalType.DESTROY,
         ],
         inputs: [
-            { signal: SignalType.DETECT, type: DataType.VOID, description: 'Request fresh browser context capture' },
-            { signal: SignalType.DESTROY, type: DataType.VOID, description: 'Unbind window listeners and destroy session' },
+            {
+                signal: SignalType.DETECT,
+                type: DataType.VOID,
+                description: 'Solicitar captura actualizada del contexto de navegador y viewport',
+            },
+            {
+                signal: SignalType.DESTROY,
+                type: DataType.VOID,
+                description: 'Desvincular escuchadores de ventana y finalizar la sesión de observación',
+            },
         ],
         outputs: [
-            { signal: SignalType.DETECTED, type: DataType.CONTEXT, description: 'Initial or requested browser context' },
-            { signal: SignalType.CHANGED, type: DataType.CONTEXT, description: 'Updated browser context upon resize or orientation change' },
-            { signal: SignalType.DESTROYED, type: DataType.RECORD, description: 'Confirmation that window listeners are destroyed' },
+            {
+                signal: SignalType.DETECTED,
+                type: DataType.CONTEXT,
+                description: 'Contexto inicial o bajo demanda del navegador, viewport y pantalla',
+            },
+            {
+                signal: SignalType.CHANGED,
+                type: DataType.CONTEXT,
+                description: 'Contexto actualizado del navegador tras cambio de tamaño u orientación',
+            },
+            {
+                signal: SignalType.DESTROYED,
+                type: DataType.RECORD,
+                description: 'Confirmación de desvinculación de los escuchadores de ventana',
+            },
         ],
     };
 

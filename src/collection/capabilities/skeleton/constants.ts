@@ -1,10 +1,13 @@
 export const __ID__ = 'skeleton';
 
+export const AIM =
+  'Renderizar y gestionar marcadores visuales de carga (skeleton) en contenedores del DOM durante la construcción asíncrona de áreas';
+
 export const DEFAULT_CLASS = 'uca-skeleton';
 
 export const STYLE_TAG_ID = 'uca-skeleton-styles';
 
-export const SKELETON_CSS = `
+export const DEFAULT_STYLES = `
 @keyframes uca-skeleton-shimmer {
     0% { background-position: -200% 0; }
     100% { background-position: 200% 0; }

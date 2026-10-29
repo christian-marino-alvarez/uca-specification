@@ -1,156 +1,540 @@
-import { Uca } from '@uca/core/uca';
-import type { Cooky, Disposition, Signal } from '@uca/core/types';
+import { Css } from '@uca/capability-css';
+import {
+  SignalType as CssSignalType,
+  type ResolvedResult,
+} from '@uca/capability-css/types';
+import { Skeleton } from '@uca/capability-skeleton';
+import { SignalType as SkeletonSignalType } from '@uca/capability-skeleton/types';
 import { WebComponent } from '@uca/capability-web-component';
 import { SignalType as WebComponentSignalType } from '@uca/capability-web-component/types';
-import { Css } from '@uca/capability-css';
-import { SignalType as CssSignalType } from '@uca/capability-css/types';
+import { Uca } from '@uca/core/uca';
 import {
-    BOX_VISUAL_DISPOSITION,
-    __ID__,
-    resolveBoxQualities,
+  DispositionSignal,
+  type CapabilityConstructor,
+  type Cooky,
+  type Disposition,
+  type Signal,
+} from '@uca/core/types';
+import {
+  DEFAULT_INTENTION,
+  DEFAULT_PURPOSE,
+  __ID__,
 } from './constants.js';
-import { type Body, type CreatedResult, type EventContext, DataType, SignalType } from './types.js';
+import {
+  bodySchema,
+  errorSchema,
+  eventContextSchema,
+} from './schema.js';
+import {
+  DataType,
+  SignalType,
+  type Body,
+  type EventContext,
+} from './types.js';
 
 export class Box extends Uca<Body> {
-    public static override purpose: string = 'Autonomous spatial container that groups, distributes, and visually delimits elements through dimension, layout, and appearance qualities';
+  public static override purpose: string = DEFAULT_PURPOSE;
 
-    public static readonly visualDisposition = BOX_VISUAL_DISPOSITION;
+  public static override disposition: Disposition<Body> = {
+    aim: {
+      description: DEFAULT_INTENTION,
+      body: {},
+    },
+    reactTo: [
+      DispositionSignal.UPDATED,
+      SignalType.RENDER,
+      SignalType.UPDATE,
+      SignalType.REMOVE,
+      ...Box.reactToWebComponent(),
+      ...Box.reactToCss(),
+      ...Box.reactToSkeleton(),
+    ],
+    inputs: [
+      {
+        signal: SignalType.RENDER,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Materializar el contenedor espacial en el DOM aplicando sus cualidades y estado de skeleton',
+      },
+      {
+        signal: SignalType.UPDATE,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Actualizar las cualidades, el contenido o el estado de skeleton del contenedor espacial',
+      },
+      {
+        signal: SignalType.REMOVE,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Eliminar el contenedor espacial y sus reglas de estilo asociadas del DOM',
+      },
+    ],
+    outputs: [
+      {
+        signal: SignalType.CREATED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Contenedor espacial creado y estilizado en el DOM',
+      },
+      {
+        signal: SignalType.UPDATED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Contenedor espacial actualizado en el DOM',
+      },
+      {
+        signal: SignalType.REMOVED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Contenedor espacial eliminado del DOM',
+      },
+      {
+        signal: SignalType.EVENT,
+        type: DataType.EVENT_CONTEXT,
+        schema: eventContextSchema,
+        description: 'Evento de interacción emitido desde el contenedor espacial',
+      },
+      {
+        signal: SignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido durante la operación del contenedor espacial',
+      },
+    ],
+  };
 
-    public static override disposition: Disposition<Body> = {
-        aim: { description: Box.purpose },
-        reactTo: [
-            SignalType.RENDER,
-            SignalType.UPDATE,
-            SignalType.REMOVE,
-            WebComponentSignalType.RENDERED,
-            WebComponentSignalType.UPDATED,
-            WebComponentSignalType.REMOVED,
-            WebComponentSignalType.EVENT,
-            WebComponentSignalType.ERROR,
-            ...WebComponent.disposition.reactTo ?? [],
-            ...Css.disposition.reactTo ?? [],
-        ],
-        inputs: [
-            { signal: SignalType.RENDER, type: DataType.RENDER_PAYLOAD, description: 'Command to render the box' },
-            { signal: SignalType.UPDATE, type: DataType.UPDATE_PAYLOAD, description: 'Command to update the box' },
-            { signal: SignalType.REMOVE, type: DataType.REMOVE_PAYLOAD, description: 'Command to remove the box' },
-        ],
-        outputs: [
-            { signal: SignalType.CREATED, type: DataType.CREATED_RESULT, description: 'Box created confirmation' },
-            { signal: SignalType.UPDATED, type: DataType.UPDATED_RESULT, description: 'Box updated confirmation' },
-            { signal: SignalType.REMOVED, type: DataType.REMOVED_RESULT, description: 'Box removed confirmation' },
-            { signal: SignalType.EVENT, type: DataType.EVENT_CONTEXT, description: 'Box interaction event triggered' },
-            { signal: SignalType.ERROR, type: DataType.UNKNOWN, description: 'Box error notification' },
-        ],
-    };
+  private static reactToWebComponent(): string[] {
+    const {
+      reactTo = [],
+    } = WebComponent.disposition;
+    return [
+      ...reactTo,
+      WebComponentSignalType.RENDERED,
+      WebComponentSignalType.UPDATED,
+      WebComponentSignalType.REMOVED,
+      WebComponentSignalType.EVENT,
+      WebComponentSignalType.ERROR,
+    ];
+  }
 
-    public constructor(id: string = __ID__) {
-        super(id);
+  private static reactToCss(): string[] {
+    const {
+      reactTo = [],
+    } = Css.disposition;
+    return [
+      ...reactTo,
+      CssSignalType.MOUNTED,
+      CssSignalType.RESOLVED,
+      CssSignalType.APPLIED,
+      CssSignalType.REMOVED,
+      CssSignalType.ERROR,
+    ];
+  }
+
+  private static reactToSkeleton(): string[] {
+    const {
+      reactTo = [],
+    } = Skeleton.disposition;
+    return [
+      ...reactTo,
+      SkeletonSignalType.MOUNTED,
+      SkeletonSignalType.SHOWN,
+      SkeletonSignalType.REMOVED,
+      SkeletonSignalType.ERROR,
+    ];
+  }
+
+  public constructor(id: string = __ID__) {
+    super(id);
+  }
+
+  protected override react(signal: Signal): void {
+    const {
+      property,
+    } = signal;
+    switch (property) {
+      case DispositionSignal.UPDATED:
+        this.handleUpdated();
+        break;
+      case SignalType.RENDER:
+        this.handleRender(signal);
+        break;
+      case SignalType.UPDATE:
+        this.handleUpdate(signal);
+        break;
+      case SignalType.REMOVE:
+        this.handleRemove(signal);
+        break;
+      case WebComponentSignalType.RENDERED:
+        this.handleWebComponentRendered(signal);
+        break;
+      case WebComponentSignalType.UPDATED:
+        this.handleWebComponentModified(signal);
+        break;
+      case WebComponentSignalType.REMOVED:
+        this.handleWebComponentRemoved(signal);
+        break;
+      case WebComponentSignalType.EVENT:
+        this.handleWebComponentEvent(signal);
+        break;
+      case WebComponentSignalType.ERROR:
+        this.handleWebComponentError(signal);
+        break;
+      case CssSignalType.MOUNTED:
+        this.handleCssMounted();
+        break;
+      case CssSignalType.RESOLVED:
+        this.handleCssResolved(signal);
+        break;
+      case CssSignalType.APPLIED:
+        this.handleCssApplied(signal);
+        break;
+      case CssSignalType.REMOVED:
+        this.handleCssRemoved(signal);
+        break;
+      case CssSignalType.ERROR:
+        this.handleCssError(signal);
+        break;
+      case SkeletonSignalType.MOUNTED:
+        this.handleSkeletonMounted();
+        break;
+      case SkeletonSignalType.SHOWN:
+        this.handleSkeletonShown(signal);
+        break;
+      case SkeletonSignalType.REMOVED:
+        this.handleSkeletonRemoved(signal);
+        break;
+      case SkeletonSignalType.ERROR:
+        this.handleSkeletonError(signal);
+        break;
+      default:
+        break;
     }
+  }
 
-    protected override catalog(): Cooky {
-        const { id } = this;
-        const declarations: Cooky = [
-            [WebComponent, { aim: { description: WebComponent.AIM, body: { id: `${id}:web-component` } }, reactTo: [...WebComponent.disposition.reactTo ?? []] }],
-            [Css, { aim: { description: Css.AIM, body: { id: `${id}:css` } }, reactTo: [...Css.disposition.reactTo ?? []] }],
-        ];
-        return declarations;
+  protected override catalog(): Cooky {
+    const webComponent = this.catalogWebComponent();
+    const css = this.catalogCss();
+    const skeleton = this.catalogSkeleton();
+    return [
+      webComponent,
+      css,
+      skeleton,
+    ];
+  }
+
+  private catalogWebComponent(): Cooky[number] {
+    const disposition = this.createDisposition(
+      WebComponent.disposition,
+      WebComponent.AIM,
+      'web-component',
+    );
+    return [
+      WebComponent as unknown as CapabilityConstructor,
+      disposition,
+    ];
+  }
+
+  private catalogCss(): Cooky[number] {
+    const disposition = this.createDisposition(
+      Css.disposition,
+      Css.AIM,
+      'css',
+    );
+    return [
+      Css as unknown as CapabilityConstructor,
+      disposition,
+    ];
+  }
+
+  private catalogSkeleton(): Cooky[number] {
+    const disposition = this.createDisposition(
+      Skeleton.disposition,
+      Skeleton.AIM,
+      'skeleton',
+    );
+    return [
+      Skeleton as unknown as CapabilityConstructor,
+      disposition,
+    ];
+  }
+
+  private handleUpdated(): void {
+    const {
+      source = this.id,
+    } = this.body ?? {};
+    switch (source) {
+      case this.id:
+        break;
+      case `${this.id}:web-component`:
+        this.handleWebComponentUpdated();
+        break;
+      case `${this.id}:css`:
+        this.handleCssUpdated();
+        break;
+      case `${this.id}:skeleton`:
+        this.handleSkeletonUpdated();
+        break;
+      default:
+        this.handleSelfUpdated();
+        break;
     }
+  }
 
-    protected override react(signal: Signal): void {
-        const { property, value } = signal;
-        switch (property) {
-            case SignalType.RENDER:
-                this.handleRender(value);
-                break;
-            case SignalType.UPDATE:
-                this.handleUpdate(value);
-                break;
-            case SignalType.REMOVE:
-                this.handleRemove(value);
-                break;
-            case WebComponentSignalType.RENDERED:
-                this.handleComponentRendered(signal);
-                break;
-            case WebComponentSignalType.UPDATED:
-                this.handleComponentUpdated(signal);
-                break;
-            case WebComponentSignalType.REMOVED:
-                this.handleComponentRemoved(signal);
-                break;
-            case WebComponentSignalType.ERROR:
-                this.handleComponentError(signal);
-                break;
-            case WebComponentSignalType.EVENT:
-                this.handleComponentEvent(signal);
-                break;
-            default:
-                break;
-        }
+  private handleRender(signal: Signal): void {
+    const {
+      source,
+      value,
+    } = signal;
+    const {
+      content,
+      elementId = this.id,
+      events,
+      parentTo,
+      qualities,
+      skeleton,
+    } = this.extractPayload<Body>(value) ?? {};
+    this.updateDispositionBody({
+      content,
+      elementId,
+      events,
+      parentTo,
+      qualities,
+      skeleton,
+      source,
+    });
+  }
+
+  private handleUpdate(signal: Signal): void {
+    const {
+      source,
+      value,
+    } = signal;
+    const {
+      content,
+      elementId = this.id,
+      events,
+      parentTo,
+      qualities,
+      skeleton,
+    } = this.extractPayload<Body>(value) ?? {};
+    this.updateDispositionBody({
+      content,
+      elementId,
+      events,
+      parentTo,
+      qualities,
+      skeleton,
+      source,
+    });
+  }
+
+  private handleRemove(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const {
+      elementId = this.id,
+    } = this.extractPayload<Body>(value) ?? {};
+    this.pulse(CssSignalType.REMOVE, {
+      elementId,
+    });
+  }
+
+  private handleSelfUpdated(): void {
+    const payload = this.createWebComponentPayload();
+    this.pulse(WebComponentSignalType.RENDER, payload);
+  }
+
+  private handleWebComponentRendered(signal: Signal): void {
+    const {
+      source,
+    } = signal;
+    this.updateDispositionBody({
+      source,
+    });
+  }
+
+  private handleWebComponentModified(signal: Signal): void {
+    const {
+      source,
+    } = signal;
+    this.updateDispositionBody({
+      source,
+    });
+  }
+
+  private handleWebComponentUpdated(): void {
+    const {
+      qualities,
+    } = this.body ?? {};
+    if (qualities) {
+      this.pulse(CssSignalType.MOUNT, {});
     }
-
-    private handleRender(value?: unknown): void {
-        const { elementId = this.id, parentTo, containerElement, content, qualities, events, context, variant } = (value ?? {}) as Body & { context?: unknown };
-        const targetContainer = containerElement ?? (parentTo?.startsWith('#') ? parentTo : parentTo ? `#${parentTo}` : undefined);
-        const resolvedQualities = resolveBoxQualities(qualities, variant);
-        if (resolvedQualities && Object.keys(resolvedQualities).length > 0) {
-            this.pulse(CssSignalType.APPLY, { elementId, qualities: resolvedQualities });
-        }
-        this.pulse(WebComponentSignalType.RENDER, { elementId, containerElement: targetContainer, content, events, context });
+    else {
+      this.handleCssUpdated();
     }
+  }
 
-    private handleUpdate(value?: unknown): void {
-        const { elementId = this.id, content, qualities, events, context, variant } = (value ?? {}) as Body & { context?: unknown };
-        const resolvedQualities = resolveBoxQualities(qualities, variant);
-        if (resolvedQualities && Object.keys(resolvedQualities).length > 0) {
-            this.pulse(CssSignalType.APPLY, { elementId, qualities: resolvedQualities });
-        }
-        this.pulse(WebComponentSignalType.UPDATE, { elementId, content, events, context });
+  private handleCssMounted(): void {
+    const {
+      elementId = this.id,
+      qualities,
+    } = this.body ?? {};
+    if (qualities) {
+      this.pulse(CssSignalType.RESOLVE, {
+        elementId,
+        qualities,
+      });
     }
+  }
 
-    private handleRemove(value?: unknown): void {
-        const { elementId = this.id, context } = (value ?? {}) as Body & { context?: unknown };
-        this.pulse(CssSignalType.REMOVE, { elementId });
-        this.pulse(WebComponentSignalType.REMOVE, { elementId, context });
-    }
+  private handleCssResolved(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const payload = this.extractPayload<ResolvedResult>(value);
+    this.pulse(CssSignalType.APPLY, payload);
+  }
 
-    private handleComponentRendered(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        const {
-            elementId,
-            context,
-        } = value as CreatedResult;
-        this.pulse(SignalType.CREATED, {
-            elementId,
-            context,
+  private handleCssApplied(signal: Signal): void {
+    const {
+      source,
+    } = signal;
+    this.updateDispositionBody({
+      source,
+    });
+  }
+
+  private handleCssUpdated(): void {
+    const {
+      elementId = this.id,
+      skeleton,
+    } = this.body ?? {};
+    switch (skeleton) {
+      case true:
+        this.pulse(SkeletonSignalType.MOUNT, {});
+        break;
+      case false:
+        this.pulse(SkeletonSignalType.REMOVE, {
+          elementId,
         });
+        break;
+      default:
+        this.pulse(SignalType.CREATED, this.body);
+        break;
     }
+  }
 
-    private handleComponentError(signal: Signal): void {
-        const {
-            value,
-        } = signal;
-        this.pulse(SignalType.ERROR, value);
-    }
+  private handleSkeletonMounted(): void {
+    const {
+      elementId = this.id,
+    } = this.body ?? {};
+    this.pulse(SkeletonSignalType.SHOW, {
+      elementId,
+    });
+  }
 
-    private handleComponentUpdated(signal: Signal): void {
-        const { value } = signal;
-        const { elementId = this.id } = (value ?? {}) as { elementId?: string };
-        this.pulse(SignalType.UPDATED, { elementId, detail: value });
-    }
+  private handleSkeletonShown(signal: Signal): void {
+    const {
+      source,
+    } = signal;
+    this.updateDispositionBody({
+      source,
+    });
+  }
 
-    private handleComponentRemoved(signal: Signal): void {
-        const { value } = signal;
-        const { elementId = this.id } = (value ?? {}) as { elementId?: string };
-        this.pulse(SignalType.REMOVED, { elementId, detail: value });
-    }
+  private handleSkeletonRemoved(signal: Signal): void {
+    const {
+      source,
+    } = signal;
+    this.updateDispositionBody({
+      source,
+    });
+  }
 
-    private handleComponentEvent(signal: Signal): void {
-        const { value } = signal;
-        const { elementId, event, action, value: eventValue, checked, detail, context } = (value ?? {}) as EventContext & { context?: unknown };
-        if (!elementId) { return; }
-        this.pulse(SignalType.EVENT, { elementId, event, action, value: eventValue, checked, detail, context });
-    }
+  private handleSkeletonUpdated(): void {
+    this.pulse(SignalType.CREATED, this.body);
+  }
+
+  private handleCssRemoved(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const {
+      elementId = this.id,
+    } = this.extractPayload<Body>(value) ?? {};
+    this.pulse(WebComponentSignalType.REMOVE, {
+      elementId,
+    });
+  }
+
+  private handleWebComponentRemoved(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const payload = this.extractPayload<Body>(value);
+    this.pulse(SignalType.REMOVED, {
+      ...this.body,
+      ...payload,
+    });
+  }
+
+  private handleWebComponentEvent(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const payload = this.extractPayload<EventContext>(value);
+    this.pulse(SignalType.EVENT, payload);
+  }
+
+  private handleWebComponentError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(SignalType.ERROR, value);
+  }
+
+  private handleCssError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(SignalType.ERROR, value);
+  }
+
+  private handleSkeletonError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(SignalType.ERROR, value);
+  }
+
+  private createWebComponentPayload(): Record<string, unknown> {
+    const {
+      content,
+      elementId = this.id,
+      events,
+      parentTo,
+    } = this.body ?? {};
+    const containerElement = parentTo?.startsWith('#') ? parentTo : parentTo && `#${parentTo}`;
+    return {
+      containerElement,
+      content,
+      elementId,
+      events,
+    };
+  }
+
+  private updateDispositionBody(partial: Partial<Body>): void {
+    this.pulse(this.updateEvent, {
+      ...this.disposition,
+      aim: {
+        description: DEFAULT_INTENTION,
+        body: {
+          ...this.body,
+          ...partial,
+        },
+      },
+    });
+  }
 }

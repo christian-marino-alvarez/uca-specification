@@ -71,7 +71,8 @@ Una **UCA** (Unidad Cognitiva Autónoma) es la unidad primaria de comportamiento
    * Si una UCA necesita proyectar atributos iniciales hacia sus capacidades constitutivas (`Cooky`), debe extraerlos directamente de su propia disposición (`const { ... } = this.disposition.aim.body ?? {};`).
 7. **`innervate()` y `denervate()` son Puramente de Infraestructura/Instanciación (NO Ciclo de Vida de Negocio)**:
    * `innervate()` y `denervate()` **NO** forman parte del ciclo de vida ontológico o de negocio de una UCA.
-   * Su función es estrictamente técnica y privada a nivel de arquitectura: cablear el canal nervioso (`EventTarget`) e instanciar las conexiones.
+   * Su función es estrictamente técnica y privada a nivel de arquitectura del Core (`Capability` y `Uca`): cablear el canal nervioso (`EventTarget`) e instanciar las conexiones.
+   * **Prohibición de sobrescribir `denervate()` o `innervate()` en UCAs de dominio**: Las UCAs de dominio **NO DEBEN** sobrescribir `denervate()` (por ejemplo, para recorrer manualmente `this.registry.forEach((capability) => capability.denervate())`) ni `innervate()`. La activación y denervación de las capacidades del catálogo (`registry`) es gobernada declarativamente por el Core mediante `syncCatalog()` según `disposition.reactTo`.
    * Queda estrictamente prohibido introducir lógica de negocio, emisiones de pulsos o arrancar procesos dentro de `innervate()`.
    * El ciclo de vida de negocio de una UCA es **100% reactivo**: se activa únicamente mediante estímulos/señales recibidas en `react(signal)` o cambios de disposición en `onDispositionUpdated(event)`.
 8. **Contrato Ontológico de Comunicación (Signal, Body como Schema y Actualización de Disposición)**:
@@ -170,11 +171,12 @@ Una **UCA** (Unidad Cognitiva Autónoma) es la unidad primaria de comportamiento
         - Su teleología situacional: `this.disposition.aim` (`description` como misión activa y `body` como contexto/características de dominio).
         - Sus diales cognitivos universales: `determinism` e `imagination` (porcentajes de fidelidad estructural vs. creatividad).
       * La terminal cognitiva (`LlmWeb`) es la responsable exclusiva de transducir este estado ontológico a las particularidades técnicas de los modelos de IA, preservando la pureza ontológica y el desacoplamiento total de los compositores y agentes de dominio respecto a cualquier vendor o configuración técnica de LLM.
-18. **Mapeo Unívoco Señal -> Handler Dedicado en `react()` (Prohibición de Fallthrough y Handlers Compartidos)**:
+18. **Mapeo Unívoco Señal -> Handler Dedicado en `react()` y Regla de Único `pulse` por Handler**:
     * Cada señal nerviosa capturada en el switch-router de `react(signal: Signal)` representa un evento semántico y ontológico independiente (ej. `SignalType.CREATED` vs `SignalType.UPDATED`).
     * **Queda estrictamente prohibido agrupar múltiples señales mediante fallthrough de `case`** (ej. `case CREATED: case UPDATED: this.handleX(...)` está **PROHIBIDO**).
     * **Cada `case` de señal DEBE delegar en su propio handler privado unívoco y dedicado** (`handleCreated`, `handleUpdated`, `handleScaffoldCreated`, `handleScaffoldUpdated`).
-    * Compartir un único handler para señales de semántica distinta colapsa el ciclo de vida ontológico y vulnera el principio de propósito único.
+    * **Un Único `pulse` y Una Única Funcionalidad por Handler**: Como el canal reactivo no garantiza sincronicidad entre operaciones de distintas capacidades/UCAs, queda terminantemente prohibido que un handler ejecute múltiples funcionalidades o emita más de un `this.pulse(...)` (ni directamente ni invocando múltiples métodos que pulsen). Cada paso debe encadenarse reactivamente esperando la señal de confirmación de la capacidad o UCA invocada a través del ciclo de actualización de la disposición (`updateDispositionBody` -> `DispositionSignal.UPDATED` -> `handleUpdated`).
+    * Compartir un único handler para señales de semántica distinta o encadenar múltiples pulsos imperativos colapsa el ciclo de vida ontológico y vulnera el principio de propósito único.
 19. **Definición de Schemas con Zod como Única Fuente de Verdad (`schema.ts`)**:
     * Toda UCA debe declarar sus contratos de datos y cuerpo de disposición (`Body`) mediante esquemas formales de **Zod** en un archivo dedicado `schema.ts`.
     * Los tipos TypeScript se infieren directamente de Zod (`export type Body = z.infer<typeof bodySchema>`), erradicando interfaces `interface Body` redactadas manualmente sin validación.

@@ -44,13 +44,18 @@ import {
 } from '@uca/llm/constants';
 import {
   SignalType as LlmSignalType,
+  type ChosenModelConfig,
   type Failure,
   type InferPayload,
   type InferResult,
 } from '@uca/llm/types';
 import {
   createCommand,
+  createModelSelectionEvaluation,
+  needsModelSelection,
   normalizeInference,
+  resolveChosenModelConfig,
+  resolveModelCacheKey,
 } from './command.js';
 import {
   DEFAULT_AUTO_START,
@@ -266,16 +271,6 @@ export class Server extends Uca<Body> {
 
   public constructor(id: string = __ID__) {
     super(id);
-  }
-
-  public override denervate(): void {
-    const {
-      registry,
-    } = this;
-    registry.forEach((capability) => {
-      capability.denervate();
-    });
-    super.denervate();
   }
 
   protected override react(signal: Signal): void {
@@ -632,16 +627,7 @@ export class Server extends Uca<Body> {
       sessionId: requestId,
       ...(body as InferenceRequest),
     });
-    const {
-      sessionId = requestId,
-    } = payload;
-    this.registerPendingRequest(sessionId, {
-      payload,
-      requestId,
-      stream: false,
-    });
-    const command = createCommand(payload, false);
-    this.pulse(command.property, command.value);
+    this.dispatchBackendInference(payload, requestId, false);
   }
 
   private handleLlmSseHttpRequest(context: RequestContext): void {
@@ -655,6 +641,51 @@ export class Server extends Uca<Body> {
       ...query,
       ...(body as InferenceRequest),
     });
+    this.dispatchBackendInference(payload, requestId, true);
+  }
+
+  private dispatchBackendInference(
+    payload: InferPayload,
+    requestId: string,
+    stream: boolean,
+  ): void {
+    const cacheKey = resolveModelCacheKey(payload);
+    const cached = cacheKey ? this.getCachedModel(cacheKey) : undefined;
+    const resolvedPayload = cached ? {
+      ...payload,
+      ...cached,
+    } : payload;
+    if (needsModelSelection(resolvedPayload, stream)) {
+      this.requestBackendModelSelection(resolvedPayload, requestId, stream, cacheKey);
+    }
+    else {
+      this.executeInference(resolvedPayload, requestId, stream);
+    }
+  }
+
+  private requestBackendModelSelection(
+    payload: InferPayload,
+    requestId: string,
+    stream: boolean,
+    cacheKey?: string,
+  ): void {
+    const selectionSessionId = `${requestId}:model-select`;
+    this.registerPendingRequest(selectionSessionId, {
+      cacheKey,
+      payload,
+      requestId,
+      selectingModel: true,
+      stream,
+    });
+    const evaluation = createModelSelectionEvaluation(payload, selectionSessionId);
+    this.pulse(JevSignalType.INFER, evaluation);
+  }
+
+  private executeInference(
+    payload: InferPayload,
+    requestId: string,
+    stream: boolean,
+  ): void {
     const {
       provider = DEFAULT_PROVIDER,
       sessionId = requestId,
@@ -663,9 +694,15 @@ export class Server extends Uca<Body> {
       payload,
       provider,
       requestId,
-      stream: true,
+      stream,
     });
-    this.openSseChannel(payload, sessionId, provider);
+    if (stream) {
+      this.openSseChannel(payload, sessionId, provider);
+    }
+    else {
+      const command = createCommand(payload, false);
+      this.pulse(command.property, command.value);
+    }
   }
 
   private openSseChannel(payload: InferPayload, sessionId: string, provider: string): void {
@@ -781,17 +818,45 @@ export class Server extends Uca<Body> {
     const {
       answers,
       model,
-      sessionId,
+      sessionId = '',
       state,
     } = this.extractPayload<JevResult>(value) ?? {};
-    const result: InferResult = {
-      context: state,
-      data: answers,
-      model,
-      response: JSON.stringify(answers),
-      sessionId,
-    };
-    this.completeInference(result);
+    const pending = this.getPendingRequest(sessionId);
+    if (pending?.selectingModel) {
+      this.handleModelSelectionInferred(sessionId, pending, answers);
+    }
+    else {
+      this.completeInference({
+        context: state,
+        data: answers,
+        model,
+        response: JSON.stringify(answers),
+        sessionId,
+      });
+    }
+  }
+
+  private handleModelSelectionInferred(
+    selectionSessionId: string,
+    pending: PendingRequest,
+    answers: unknown,
+  ): void {
+    const {
+      cacheKey,
+      payload,
+      requestId,
+      stream = false,
+    } = pending;
+    this.clearPendingRequest(selectionSessionId);
+    const config = resolveChosenModelConfig(answers);
+    if (cacheKey) {
+      this.cacheSelectedModel(cacheKey, config);
+    }
+    this.executeInference({
+      ...payload,
+      ...config,
+      sessionId: requestId,
+    }, requestId, stream);
   }
 
   private handleGeminiGenerated(signal: Signal): void {
@@ -857,7 +922,21 @@ export class Server extends Uca<Body> {
     const {
       value,
     } = signal;
-    this.failInference(value);
+    const {
+      sessionId = '',
+    } = this.extractPayload<Failure>(value) ?? {};
+    const pending = this.getPendingRequest(sessionId);
+    if (pending?.selectingModel) {
+      this.clearPendingRequest(sessionId);
+      this.executeInference({
+        ...pending.payload,
+        model: DEFAULT_GEMINI_FLASH_LITE_MODEL,
+        sessionId: pending.requestId,
+      }, pending.requestId, Boolean(pending.stream));
+    }
+    else {
+      this.failInference(value);
+    }
   }
 
   private handleGeminiError(signal: Signal): void {
@@ -993,6 +1072,26 @@ export class Server extends Uca<Body> {
   private resolveMimeType(filePath: string): string {
     const extension = path.extname(filePath).toLowerCase();
     return MIME_MAP[extension] ?? 'application/octet-stream';
+  }
+
+  private getCachedModel(key: string): ChosenModelConfig | undefined {
+    const {
+      modelCache = {},
+    } = this.body ?? {};
+    return modelCache[key];
+  }
+
+  private cacheSelectedModel(key: string, config: ChosenModelConfig): void {
+    const {
+      modelCache = {},
+    } = this.body ?? {};
+    this.updateDispositionBody({
+      modelCache: {
+        ...modelCache,
+        [key]: config,
+      },
+      source: `${this.id}:http-server`,
+    });
   }
 
   private getPendingRequest(sessionId: string): PendingRequest | undefined {

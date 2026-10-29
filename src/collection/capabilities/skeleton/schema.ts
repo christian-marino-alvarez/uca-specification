@@ -1,38 +1,46 @@
 import { z } from 'zod';
 
+export const mountPayloadSchema = z.object({}).passthrough().optional();
+
+export const mountedResultSchema = z.object({
+  mounted: z.boolean(),
+});
+
 export const showPayloadSchema = z.object({
-    elementId: z.string().min(1),
-    containerElement: z.string().optional(),
-    context: z.unknown().optional(),
+  elementId: z.string().min(1),
+  containerElement: z.string().optional(),
+  context: z.unknown().optional(),
 }).strict();
 
 export const removePayloadSchema = z.object({
-    elementId: z.string().min(1),
-    containerElement: z.string().optional(),
-    context: z.unknown().optional(),
+  elementId: z.string().min(1),
+  containerElement: z.string().optional(),
+  context: z.unknown().optional(),
 }).strict();
 
 export const shownResultSchema = z.object({
-    elementId: z.string().min(1),
-    context: z.unknown().optional(),
+  elementId: z.string().min(1),
+  context: z.unknown().optional(),
 }).strict();
 
 export const removedResultSchema = z.object({
-    elementId: z.string().min(1),
-    context: z.unknown().optional(),
+  elementId: z.string().min(1),
+  context: z.unknown().optional(),
 }).strict();
 
 export const errorSchema = z.object({
-    elementId: z.string().min(1).nullable(),
-    error: z.string(),
-    context: z.unknown().optional(),
+  elementId: z.string().min(1).nullable(),
+  error: z.string(),
+  context: z.unknown().optional(),
 }).strict();
 
 export const bodySchema = z.object({
-    id: z.string().min(1).optional(),
+  id: z.string().min(1).optional(),
 }).strict();
 
 export type Body = z.infer<typeof bodySchema>;
+export type MountPayload = z.infer<typeof mountPayloadSchema>;
+export type MountedResult = z.infer<typeof mountedResultSchema>;
 export type ShowPayload = z.infer<typeof showPayloadSchema>;
 export type RemovePayload = z.infer<typeof removePayloadSchema>;
 export type ShownResult = z.infer<typeof shownResultSchema>;

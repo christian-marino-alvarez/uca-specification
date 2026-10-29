@@ -1,26 +1,23 @@
 export enum SignalType {
-    APPLY = 'material.apply',
-    THEME = 'material.theme',
-    APPLIED = 'material.applied',
+  QUERY = 'material.query',
+  PROVIDED = 'material.provided',
+  ERROR = 'material.error',
 }
 
 export enum DataType {
-    APPLY_PAYLOAD = 'ApplyPayload',
-    THEME_MODE = 'ThemeMode',
-    APPLIED_RESULT = 'AppliedResult',
-    MATERIAL_QUALITIES = 'MaterialQualities',
-    BODY = 'Body',
+  QUERY_REQUEST = 'QueryRequest',
+  MATERIAL_MODEL = 'MaterialModel',
+  BODY = 'Body',
+  ERROR = 'Error',
 }
 
 export type {
-    AppliedResult,
-    ApplyPayload,
-    Body,
-    ColorRole,
-    ComponentVariant,
-    Elevation,
-    MaterialQualities,
-    Shape,
-    SpacingScale,
-    ThemeMode,
+  Body,
+  CanonicalLayouts,
+  Dimensions,
+  MaterialModel,
+  QueryRequest,
+  SpatialPrinciples,
+  WindowSizeClass,
+  WindowSizeRule,
 } from './schema.js';

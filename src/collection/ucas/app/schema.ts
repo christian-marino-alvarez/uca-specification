@@ -59,18 +59,6 @@ export const bodySchema = z.object({
   id: z.string().optional(),
   activePage: z.string().optional(),
   source: z.string().optional(),
-  structural: z.record(
-    z.string(),
-    z.unknown(),
-  ).optional(),
-  spatial: z.record(
-    z.string(),
-    z.unknown(),
-  ).optional(),
-  design: z.record(
-    z.string(),
-    z.unknown(),
-  ).optional(),
   parameters: z.array(
     navigationParameterSchema,
   ).optional(),

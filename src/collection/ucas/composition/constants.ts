@@ -14,45 +14,26 @@ export const DEFAULT_URL = '/';
 
 export const DEFAULT_AREA_ID = 'body';
 
-export const DEFAULT_ROOT_AREA_LIMITS: readonly string[] = [
-  'Contención estricta de 100dvh sin barras de desplazamiento (cero scroll)',
-  'Partición espacial únicamente en áreas hijas directas de primer nivel',
-] as const;
-
 export const DEFAULT_ROOT_AREA: AreaTarget = {
   id: DEFAULT_AREA_ID,
-  dimensions: {
-    flow: 'column',
-    height: '100%',
-    overflow: 'hidden',
-    width: '100%',
-  },
-  limits: [
-    ...DEFAULT_ROOT_AREA_LIMITS,
-  ],
+  purpose: 'Contenedor raíz y lienzo global de la aplicación',
+  intention: 'Albergar y estructurar las áreas espaciales directas del sistema',
 };
-
-export const SPECIFICATION_DECISION_KEYS: readonly string[] = [
-  'purpose',
-  'intention',
-  'interactiveFeatures',
-  'limits',
-] as const;
 
 export const ROOT_DECISION_OPTIONS: readonly OptionItem[] = [
   {
     id: 'LAYOUT',
     label: 'Layout',
-    description: 'Estructuración espacial de la aplicación en áreas funcionales',
+    description: 'Partición espacial del contenedor en múltiples áreas funcionales complementarias',
     criteria:
-      'Elegir LAYOUT para estructurar la aplicación en áreas funcionales principales (cabecera, navegación, espacio de trabajo, barra lateral, contenido y pie).',
+      'Elegir LAYOUT cuando la complejidad funcional de la especificación requiera dividir el contenedor en múltiples áreas diferenciadas con responsabilidades y proporciones propias.',
   },
   {
     id: 'VIEW',
     label: 'View',
-    description: 'Composición directa unitaria sin áreas estructurales',
+    description: 'Articulación directa de componentes visuales en una única superficie sin subdivisión de áreas',
     criteria:
-      'Elegir VIEW únicamente si la aplicación completa es una vista única, simple y sin partición de áreas estructurales.',
+      'Elegir VIEW únicamente cuando la especificación completa pueda resolverse en un único contenedor terminal sin partición espacial.',
   },
 ] as const;
 
@@ -60,23 +41,23 @@ export const AREA_DECISION_OPTIONS: readonly OptionItem[] = [
   {
     id: 'LAYOUT',
     label: 'Layout',
-    description: 'Subdivisión espacial en áreas funcionales internas',
+    description: 'Subdivisión espacial del contenedor en subáreas funcionales internas',
     criteria:
-      'Elegir LAYOUT obligatoriamente cuando el área sea un espacio de trabajo contenedor (como workspace) que deba particionarse en barra lateral y área principal, o requiera ejes estructurales independientes.',
+      'Elegir LAYOUT cuando el área aglutine múltiples responsabilidades funcionales diferenciadas que requieran su propia partición espacial interna.',
   },
   {
     id: 'VIEW',
     label: 'View',
-    description: 'Composición directa de componentes visuales',
+    description: 'Composición directa de componentes visuales e interactivos terminales',
     criteria:
-      'Elegir VIEW cuando el área sea terminal (cabecera, barra lateral individual, contenido principal individual o pie) y deba materializar sus componentes visuales directos.',
+      'Elegir VIEW cuando el área tenga una responsabilidad funcional acotada y deba materializar directamente sus componentes visuales.',
   },
 ] as const;
 
 export const ROOT_DECISION_QUESTION: Question = {
   id: 'composition_root_mode',
   type: QuestionType.CHOICE,
-  prompt: 'Determina si la superficie principal debe articularse mediante un LAYOUT estructural en áreas o como una VIEW unitaria según la especificación y la ruta activa.',
+  prompt: 'Determina si el contenedor raíz debe articularse mediante un LAYOUT estructural en áreas o como una VIEW unitaria según la especificación y la ruta activa.',
   options: [
     ...ROOT_DECISION_OPTIONS,
   ],

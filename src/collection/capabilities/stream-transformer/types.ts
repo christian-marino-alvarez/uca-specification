@@ -51,7 +51,7 @@ export interface TransformPayload extends Identity {
     readonly maxBufferSize?: number;
     readonly signal?: AbortSignal;
 }
-export interface TransformResult extends Identity { readonly stream: ReadableStream<Record<string, unknown>>; }
+export interface TransformResult<TItem = Record<string, unknown>> extends Identity { readonly stream: ReadableStream<TItem>; }
 export interface RecoveryRequest extends Identity {
     readonly message: string;
     readonly requestId: string;

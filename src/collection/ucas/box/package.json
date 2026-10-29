@@ -1,7 +1,7 @@
 {
   "name": "@uca/box",
   "version": "0.1.0",
-  "description": "Autonomous spatial container that groups, distributes, and visually delimits elements through dimension, layout, and appearance qualities",
+  "description": "Contenedor espacial autónomo que agrupa, distribuye y delimita elementos mediante cualidades de dimensión, flujo, apariencia y estado de carga",
   "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",
@@ -44,6 +44,7 @@
   },
   "dependencies": {
     "@uca/capability-css": "^0.1.0",
+    "@uca/capability-skeleton": "^0.1.0",
     "@uca/capability-web-component": "^0.1.0",
     "@uca/core": "^0.1.0",
     "zod": "^4.6.5"

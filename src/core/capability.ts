@@ -264,6 +264,7 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
     private normalizeKeys(value: unknown): unknown {
         if (value === null || typeof value !== 'object') { return value; }
         if (Array.isArray(value)) { return value.map((item) => this.normalizeKeys(item)); }
+        if (value.constructor !== Object) { return undefined; }
         const record = value as Record<string, unknown>;
         const sorted = Object.keys(record).sort();
         return Object.fromEntries(sorted.map((key) => [key, this.normalizeKeys(record[key])]));

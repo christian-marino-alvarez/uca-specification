@@ -38,6 +38,9 @@ export class Decision extends Uca<Body> {
   public static override purpose =
     'Realizar selección probabilística rápida y ligera de candidatos y decisiones binarias sin imaginación';
 
+  private static readonly outputSchema: Record<string, unknown> =
+    Zod.toJsonSchema(choiceResultSchema);
+
   public static override disposition: Disposition<Body> = {
     aim: {
       description: Decision.purpose,
@@ -87,16 +90,6 @@ export class Decision extends Uca<Body> {
 
   public constructor(id: string = __ID__) {
     super(id);
-  }
-
-  public override denervate(): void {
-    const {
-      registry,
-    } = this;
-    registry.forEach((capability) => {
-      capability.denervate();
-    });
-    super.denervate();
   }
 
   protected override catalog(): Cooky {
@@ -232,7 +225,6 @@ export class Decision extends Uca<Body> {
       limit,
       requestContext = {},
     } = this.body ?? {};
-    const outputSchema = Zod.toJsonSchema(choiceResultSchema);
     return {
       id: this.id,
       purpose: Decision.purpose,
@@ -244,7 +236,7 @@ export class Decision extends Uca<Body> {
       ...(limit !== undefined && {
         limit,
       }),
-      outputSchema,
+      outputSchema: Decision.outputSchema,
       context: {
         ...requestContext,
         question,

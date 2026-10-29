@@ -3,14 +3,18 @@ import { SignalType as GeminiSignalType } from '@uca/capability-gemini/types';
 import { SignalType as OpenaiSignalType } from '@uca/capability-openai/types';
 import {
   SignalType as LlmSignalType,
+  type ChosenModelConfig,
   type InferPayload,
   type ProviderType,
+  type ThinkingLevel,
 } from '@uca/llm/types';
 import {
-  DEFAULT_PROVIDER,
-  DEFAULT_JEV_MODEL,
+  AVAILABLE_MODELS,
+  DEFAULT_GEMINI_FLASH_LITE_MODEL,
   DEFAULT_GEMINI_MODEL,
+  DEFAULT_JEV_MODEL,
   DEFAULT_OPENAI_MODEL,
+  DEFAULT_PROVIDER,
   SYSTEM_INSTRUCTION,
   serializeRequest,
 } from '@uca/llm/constants';
@@ -50,6 +54,106 @@ export function resolveProvider(payload: InferPayload, stream: boolean): Provide
   const hasEvaluationQuestion = Boolean(evaluationContext.question ?? evaluationContext.questions);
   const useJev = !stream && (imagination === 0 || hasEvaluationQuestion);
   return provider ?? (useJev ? 'jev' : DEFAULT_PROVIDER);
+}
+
+export function resolveModelCacheKey(payload: InferPayload): string | undefined {
+  const {
+    context,
+    id,
+  } = payload;
+  const {
+    area,
+    containerId,
+  } = (context ?? {}) as { containerId?: string; area?: { id?: string; parentId?: string } };
+  const scopeId = area?.parentId ?? containerId ?? area?.id;
+  if (id && scopeId) {
+    return `model:${id}:${scopeId}`;
+  }
+  return undefined;
+}
+
+export function needsModelSelection(payload: InferPayload, stream: boolean): boolean {
+  const {
+    model,
+  } = payload;
+  return !model && resolveProvider(payload, stream) !== 'jev';
+}
+
+export function createModelSelectionEvaluation(
+  payload: InferPayload,
+  sessionId: string,
+): Record<string, unknown> {
+  const {
+    context,
+    goal,
+    intention,
+    outputSchema,
+    purpose,
+  } = payload;
+  const options = AVAILABLE_MODELS
+    .filter(({ provider }) => provider !== 'jev')
+    .map(({ criteria, description, id, imagination, label, limit }) => ({
+      criteria,
+      description: `${description} [config: imagination=${imagination}, limit=${limit}]`,
+      id,
+      label,
+    }));
+  const prompt = outputSchema
+    ? 'Seleccionar el modelo y perfil óptimos según propósito, intención, contexto y capacidad de restricciones del esquema (debe soportar esquemas estructurados complejos sin superar límites de estados)'
+    : 'Seleccionar el modelo y perfil de configuración óptimos según propósito, intención y contexto';
+  return createEvaluation({
+    context: {
+      context,
+      intention: goal ?? intention ?? purpose,
+      purpose,
+      question: {
+        id: 'model_selection',
+        options,
+        prompt,
+        type: 'choice',
+      },
+      requiresStructuredSchema: Boolean(outputSchema),
+    },
+    purpose,
+    sessionId,
+  });
+}
+
+export function resolveChosenModelConfig(
+  answers: unknown,
+): ChosenModelConfig {
+  const raw = (answers ?? {}) as Record<string, { choice?: string } | undefined>;
+  const choice = raw.model_selection?.choice ?? '';
+  const candidate = AVAILABLE_MODELS.find(({ id }) => id === choice);
+  if (!candidate) {
+    return {
+      model: DEFAULT_GEMINI_FLASH_LITE_MODEL,
+      provider: DEFAULT_PROVIDER as ProviderType,
+      transport: 'stream',
+    };
+  }
+  const {
+    imagination,
+    limit,
+    model,
+    provider,
+    transport,
+  } = candidate;
+  const thinkingBudget = 'thinkingBudget' in candidate ? (candidate.thinkingBudget as number) : undefined;
+  const thinkingLevel = 'thinkingLevel' in candidate ? (candidate.thinkingLevel as ThinkingLevel) : undefined;
+  return {
+    imagination,
+    limit,
+    model,
+    provider: provider as ProviderType,
+    transport,
+    ...(thinkingBudget !== undefined && {
+      thinkingBudget,
+    }),
+    ...(thinkingLevel !== undefined && {
+      thinkingLevel,
+    }),
+  };
 }
 
 export function createCommand(payload: InferPayload, stream = false): Command {

@@ -1,7 +1,7 @@
 {
   "name": "@uca/capability-web-component",
   "version": "0.1.0",
-  "description": "Primitive native Custom Element capability for Light DOM interaction and rendering",
+  "description": "Capacidad primitiva para el ciclo de vida de Custom Elements nativos, renderizado en Light DOM y delegación de eventos",
   "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",
@@ -10,6 +10,16 @@
       "types": "./index.d.ts",
       "import": "./index.js",
       "default": "./index.ts"
+    },
+    "./schema": {
+      "types": "./schema.d.ts",
+      "import": "./schema.js",
+      "default": "./schema.ts"
+    },
+    "./schema.js": {
+      "types": "./schema.d.ts",
+      "import": "./schema.js",
+      "default": "./schema.ts"
     },
     "./types": {
       "types": "./types.d.ts",
@@ -33,7 +43,8 @@
     }
   },
   "dependencies": {
-    "@uca/core": "^0.1.0"
+    "@uca/core": "^0.1.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/jsdom": "^21.1.7",
