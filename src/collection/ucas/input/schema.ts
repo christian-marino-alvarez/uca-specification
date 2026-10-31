@@ -1,40 +1,69 @@
 import { z } from 'zod';
+import { qualitiesSchema as visualQualitiesSchema } from '@uca/capability-css/schema';
 
-import { qualitiesSchema as controlQualitiesSchema } from '@uca/capability-css/schema';
-export const qualitiesSchema = controlQualitiesSchema.optional();
+export const qualitiesSchema = visualQualitiesSchema.optional();
+
+export const inputTypeSchema = z.enum([
+  'text',
+  'email',
+  'password',
+  'search',
+  'tel',
+  'url',
+  'number',
+]);
+
+export const inputVariantSchema = z.enum([
+  'filled',
+  'outlined',
+]);
 
 export const bodySchema = z.object({
-    elementId: z.string().optional(),
-    parentTo: z.string().optional(),
-    containerElement: z.string().optional(),
-    type: z.enum(['text', 'email', 'password', 'search', 'tel', 'url', 'number']).optional(),
-    name: z.string().optional(),
-    value: z.string().optional(),
-    placeholder: z.string().optional(),
-    label: z.string().optional().describe('Material Design 3 field label'),
-    supportingText: z.string().optional().describe('Material Design 3 supporting text below input'),
-    leadingIcon: z.string().optional().describe('Material Design 3 leading icon symbol'),
-    trailingIcon: z.string().optional().describe('Material Design 3 trailing icon symbol'),
-    variant: z.enum(['filled', 'outlined']).optional().describe('Material Design 3 text field variant'),
-    error: z.boolean().optional().describe('Field error validation state'),
-    action: z.string().optional(),
-    autocomplete: z.string().optional(),
-    disabled: z.boolean().optional(),
-    readonly: z.boolean().optional(),
-    required: z.boolean().optional(),
-    qualities: qualitiesSchema,
-    events: z.array(z.string()).optional(),
+  purpose: z.string().optional(),
+  intention: z.string().optional(),
+  id: z.string().optional(),
+  context: z.string().optional(),
+  elementId: z.string().optional(),
+  parentTo: z.string().optional(),
+  type: inputTypeSchema.optional(),
+  name: z.string().optional(),
+  value: z.string().optional(),
+  placeholder: z.string().optional(),
+  label: z.string().optional(),
+  supportingText: z.string().optional(),
+  leadingIcon: z.string().optional(),
+  trailingIcon: z.string().optional(),
+  variant: inputVariantSchema.optional(),
+  error: z.boolean().optional(),
+  action: z.string().optional(),
+  autocomplete: z.string().optional(),
+  disabled: z.boolean().optional(),
+  readonly: z.boolean().optional(),
+  required: z.boolean().optional(),
+  qualities: qualitiesSchema,
+  events: z.array(z.string()).optional(),
+  source: z.string().optional(),
 });
 
-export const renderPayloadSchema = bodySchema.extend({
-    type: z.enum(['text', 'email', 'password', 'search', 'tel', 'url', 'number']).optional().default('text'),
-}).refine(
-    (data) => Boolean((data.name && data.name.trim().length > 0) || (data.placeholder && data.placeholder.trim().length > 0) || data.type),
-    {
-        message: 'Input requires a name, placeholder, or type',
-    },
-);
+export const inferenceSchema = z.object({
+  label: z.string().min(1).describe('Etiqueta descriptiva del campo de entrada en español'),
+  placeholder: z.string().min(1).describe('Texto guía (placeholder) en español que indica qué introducir en el campo'),
+  value: z.string().describe('Valor inicial del campo de entrada (cadena vacía si espera entrada del usuario)'),
+  type: inputTypeSchema.describe('Tipo semántico del campo de entrada'),
+});
+
+export const eventContextSchema = z.object({
+  elementId: z.string(),
+  event: z.string(),
+  action: z.string().optional(),
+  value: z.unknown().optional(),
+  checked: z.boolean().optional(),
+  detail: z.unknown().optional(),
+  context: z.unknown().optional(),
+});
+
+export const errorSchema = z.unknown();
 
 export type Qualities = z.infer<typeof qualitiesSchema>;
 export type Body = z.infer<typeof bodySchema>;
-export type RenderPayload = z.infer<typeof renderPayloadSchema>;
+export type EventContext = z.infer<typeof eventContextSchema>;

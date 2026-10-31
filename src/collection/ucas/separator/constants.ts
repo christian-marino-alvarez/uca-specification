@@ -1,29 +1,9 @@
-import { SignalType } from './types.js';
-import { SignalType as PresentationSignalType } from '@uca/capability-presentation/types';
-import { Operation } from '../types.js';
-
 export const __ID__ = 'separator';
-export const OPERATIONS = {
-    [Operation.RENDER]: PresentationSignalType.RENDER,
-    [Operation.UPDATE]: PresentationSignalType.UPDATE,
-    [Operation.REMOVE]: PresentationSignalType.REMOVE,
-    [Operation.CHANGE]: SignalType.CHANGED,
-} as const;
 
-export const INVALID_BOUNDS = {
-    error: 'The value and bounds are inconsistent with the domain contract',
-} as const;
+export const DEFAULT_PURPOSE =
+  'Unidad divisoria autónoma que delimita visual y semánticamente regiones, grupos de navegación o bloques adyacentes de contenido';
 
-export const SEPARATOR_VISUAL_DISPOSITION = {
-    role: 'divider',
-    defaultQualities: {
-        outline: 'subtle',
-    },
-    supportedQualities: [
-        'outline',
-        'direction',
-        'width',
-        'height',
-    ],
-    description: 'Línea de división y separación visual entre bloques',
-} as const;
+export const DEFAULT_INTENTION =
+  'Trazar una línea divisoria sutil de ancho completo en Material Design 3 (outlineBottom: subtle) sin texto propio (sin content), aportando orden visual, pausa de lectura y separación clara entre agrupaciones funcionales';
+
+export const DEFAULT_ORIENTATION = 'horizontal';

@@ -1,7 +1,7 @@
 {
   "name": "@uca/dialog",
   "version": "0.1.0",
-  "description": "Autonomous modal dialogue surface for Material Design 3 basic and full-screen alerts and confirmations",
+  "description": "Unidad modal autónoma que proporciona avisos contextuales, alertas y confirmaciones críticas sobre la interfaz",
   "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",
@@ -44,8 +44,13 @@
   },
   "dependencies": {
     "@uca/capability-css": "^0.1.0",
+    "@uca/capability-material": "^0.1.0",
     "@uca/capability-web-component": "^0.1.0",
     "@uca/core": "^0.1.0",
+    "@uca/llm": "^0.1.0",
     "zod": "^4.6.5"
+  },
+  "scripts": {
+    "test": "tsx tests/index.ts && tsx tests/schema.ts"
   }
 }

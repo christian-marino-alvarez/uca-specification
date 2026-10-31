@@ -44,6 +44,7 @@
   },
   "dependencies": {
     "@uca/capability-css": "^0.1.0",
+    "@uca/capability-material": "^0.1.0",
     "@uca/capability-skeleton": "^0.1.0",
     "@uca/capability-web-component": "^0.1.0",
     "@uca/core": "^0.1.0",

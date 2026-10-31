@@ -5,8 +5,10 @@ import {
   type Body as BoxBody,
 } from '@uca/box/types';
 import { Llm } from '@uca/llm';
+import { createRepairRequest } from '@uca/llm/recovery';
 import {
   SignalType as LlmSignalType,
+  type InferPayload,
   type StreamResult,
 } from '@uca/llm/types';
 import { Material } from '@uca/capability-material';
@@ -32,6 +34,7 @@ import {
 } from '@uca/core/types';
 import {
   DEFAULT_INTENTION,
+  DEFAULT_LIMITS,
   DEFAULT_PURPOSE,
   INFER_CONTRACT,
   __ID__,
@@ -43,6 +46,7 @@ import {
   builtResultSchema,
   compositionSchema,
   errorSchema,
+  repairCompositionSchema,
 } from './schema.js';
 import {
   DataType,
@@ -50,6 +54,7 @@ import {
   type Area,
   type Body,
   type Design,
+  type Qualities,
 } from './types.js';
 
 export class Layout extends Uca<Body> {
@@ -57,6 +62,9 @@ export class Layout extends Uca<Body> {
 
   private static readonly outputSchema: Record<string, unknown> =
     z.toJSONSchema(compositionSchema);
+
+  private static readonly repairOutputSchema: Record<string, unknown> =
+    z.toJSONSchema(repairCompositionSchema);
 
   public static override disposition: Disposition<Body> = {
     aim: {
@@ -235,9 +243,12 @@ export class Layout extends Uca<Body> {
   }
 
   private catalogBox(): Cooky[number] {
+    const {
+      aim,
+    } = Box.disposition;
     const disposition = this.createDisposition(
       Box.disposition,
-      Box.purpose,
+      aim.description,
       'box',
     );
     return [
@@ -259,9 +270,12 @@ export class Layout extends Uca<Body> {
   }
 
   private catalogLlm(): Cooky[number] {
+    const {
+      aim,
+    } = Llm.disposition;
     const disposition = this.createDisposition(
       Llm.disposition,
-      Llm.purpose,
+      aim.description,
       'llm',
     );
     return [
@@ -321,32 +335,31 @@ export class Layout extends Uca<Body> {
   private resolveBuildBody(value: unknown): Body {
     const {
       area,
+      siblingAreas,
       specification,
     } = this.extractPayload<Body>(value) ?? {};
-    const {
-      intention: areaIntention,
-    } = area ?? {};
-    const {
-      intention,
-      interactiveFeatures,
-      limits,
-    } = specification ?? {};
     return {
       area,
-      specification: {
-        ...(!areaIntention && {
-          intention,
-        }),
-        interactiveFeatures,
-        limits,
-      },
+      siblingAreas,
+      specification,
     };
   }
 
   private handleSelfUpdated(): void {
-    const elementId = this.resolveTargetAreaId();
+    const {
+      area,
+    } = this.body ?? {};
+    const {
+      id: elementId = 'body',
+      intention,
+      purpose,
+      qualities,
+    } = area ?? {};
     this.pulse(BoxSignalType.RENDER, {
       elementId,
+      intention,
+      purpose,
+      qualities,
       skeleton: true,
     });
   }
@@ -360,17 +373,36 @@ export class Layout extends Uca<Body> {
       design,
     } = this.body ?? {};
     if (!design) {
-      this.updateDispositionBody({
-        source,
-      });
+      this.syncContainerCreated(source, value);
     }
     else {
       this.emitCreatedArea(value);
     }
   }
 
+  private syncContainerCreated(source: string, value: unknown): void {
+    const {
+      dimensions,
+      elementId = this.id,
+    } = this.extractPayload<BoxBody>(value) ?? {};
+    const {
+      area,
+    } = this.body ?? {};
+    this.updateDispositionBody({
+      area: {
+        id: elementId,
+        ...area,
+        ...(dimensions && {
+          dimensions,
+        }),
+      },
+      source,
+    });
+  }
+
   private emitCreatedArea(value: unknown): void {
     const {
+      dimensions,
       elementId,
     } = this.extractPayload<BoxBody>(value) ?? {};
     const {
@@ -381,7 +413,12 @@ export class Layout extends Uca<Body> {
     }) => id === elementId);
     if (area) {
       this.pulse(SignalType.AREA_CREATED, {
-        area,
+        area: {
+          ...area,
+          ...(dimensions && {
+            dimensions,
+          }),
+        },
       });
     }
   }
@@ -443,17 +480,28 @@ export class Layout extends Uca<Body> {
     this.pulse(LlmSignalType.INFER, request);
   }
 
-  private createInferRequest(): Record<string, unknown> {
+  private createInferRequest(): InferPayload {
     const {
       area,
       design,
+      siblingAreas,
       specification,
     } = this.body ?? {};
+    const {
+      limits = [],
+    } = specification ?? {};
     return {
       ...INFER_CONTRACT,
+      limits: [
+        ...DEFAULT_LIMITS,
+        ...(Array.isArray(limits) ? (limits as string[]) : []),
+      ],
       context: {
         area,
         design,
+        ...(siblingAreas?.length && {
+          siblingAreas,
+        }),
         specification,
       },
       outputSchema: Layout.outputSchema,
@@ -465,12 +513,17 @@ export class Layout extends Uca<Body> {
       value,
     } = signal;
     const {
+      request,
       stream,
     } = this.extractPayload<StreamResult>(value) ?? {};
+    const {
+      streamId,
+    } = request ?? {};
     this.pulse(StreamTransformerSignalType.TRANSFORM, {
       mode: StreamTransformerMode.ITEMS,
       schema: areaSchema,
       stream,
+      streamId,
     });
   }
 
@@ -502,19 +555,63 @@ export class Layout extends Uca<Body> {
   private renderArea(area: Area): void {
     const {
       id: elementId,
+      intention,
+      purpose,
       qualities,
     } = area;
+    const {
+      area: currentArea,
+    } = this.body ?? {};
     const targetId = this.resolveTargetAreaId();
     const isContainer = elementId === targetId;
-    this.recordStreamedArea(area, isContainer);
+    const mergedQualities = this.resolveAreaQualities(qualities, currentArea?.qualities, isContainer);
+    this.recordStreamedArea({
+      ...area,
+      qualities: mergedQualities,
+    }, isContainer);
     this.pulse(BoxSignalType.RENDER, {
       elementId,
+      intention,
       ...(!isContainer && {
         parentTo: targetId,
       }),
-      qualities,
+      purpose: isContainer ? (currentArea?.purpose ?? purpose) : purpose,
+      qualities: mergedQualities,
       skeleton: !isContainer,
     });
+  }
+
+  private resolveAreaQualities(
+    qualities: Area['qualities'],
+    parentQualities: Qualities,
+    isContainer: boolean,
+  ): Area['qualities'] {
+    const {
+      direction: parentDirection,
+      flex,
+      height,
+      width,
+    } = parentQualities ?? {};
+    const isColumnChild = !isContainer && parentDirection === 'column';
+    const isFullHeight = qualities.height === 'full' || qualities.height === 'screen';
+    return {
+      ...qualities,
+      overflow: isContainer || qualities.overflow === 'visible' ? 'hidden' : qualities.overflow,
+      ...(isColumnChild && isFullHeight && {
+        height: qualities.flex === 'none' ? 'content' : 'auto',
+      }),
+      ...(isContainer && {
+        ...(flex && {
+          flex,
+        }),
+        ...(height && {
+          height,
+        }),
+        ...(width && {
+          width,
+        }),
+      }),
+    };
   }
 
   private recordStreamedArea(area: Area, isContainer: boolean): void {
@@ -531,6 +628,7 @@ export class Layout extends Uca<Body> {
           area: isContainer ? {
             ...currentArea,
             ...area,
+            purpose: currentArea?.purpose ?? area.purpose,
           } : currentArea,
           areas: isContainer ? areas : [
             ...areas,
@@ -556,14 +654,26 @@ export class Layout extends Uca<Body> {
     const {
       value,
     } = signal;
+    const recovery = this.extractPayload<StreamTransformerRecoveryRequest>(value);
+    if (recovery) {
+      const request = this.createAreaRepairRequest(recovery);
+      this.pulse(LlmSignalType.INFER, request);
+    }
+  }
+
+  private createAreaRepairRequest(
+    recovery: StreamTransformerRecoveryRequest,
+  ): InferPayload {
     const {
-      error,
       requestId,
-    } = this.extractPayload<StreamTransformerRecoveryRequest>(value) ?? {};
-    this.pulse(StreamTransformerSignalType.REPAIR, {
-      error,
-      requestId,
-    });
+    } = recovery;
+    const baseRequest = this.createInferRequest();
+    const repairRequest = createRepairRequest(baseRequest, recovery);
+    return {
+      ...repairRequest,
+      outputSchema: Layout.repairOutputSchema,
+      streamId: requestId,
+    };
   }
 
   private handleBoxError(signal: Signal): void {

@@ -1,7 +1,7 @@
 {
   "name": "@uca/toast",
   "version": "0.1.0",
-  "description": "Autonomous transient feedback surface communicating system notifications, status alerts, or brief confirmation actions",
+  "description": "Unidad transitoria autónoma de retroalimentación que comunica notificaciones breves, alertas de estado o confirmaciones",
   "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",
@@ -44,8 +44,13 @@
   },
   "dependencies": {
     "@uca/capability-css": "^0.1.0",
+    "@uca/capability-material": "^0.1.0",
     "@uca/capability-web-component": "^0.1.0",
     "@uca/core": "^0.1.0",
+    "@uca/llm": "^0.1.0",
     "zod": "^4.6.5"
+  },
+  "scripts": {
+    "test": "tsx tests/index.ts && tsx tests/schema.ts"
   }
 }

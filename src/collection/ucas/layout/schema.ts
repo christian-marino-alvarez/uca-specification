@@ -29,47 +29,25 @@ export const containerQualitiesSchema = visualQualitiesSchema.omit({
   variant: true,
 });
 
-export const baseQualitiesSchema = containerQualitiesSchema.omit({
-  alignment: true,
+export const spatialQualitiesSchema = containerQualitiesSchema.required({
   direction: true,
-  distribution: true,
-  division: true,
-  span: true,
-  wrap: true,
-}).required({
+  flex: true,
   height: true,
+  overflow: true,
   width: true,
 });
 
-export const directionQualitiesSchema = containerQualitiesSchema.pick({
-  alignment: true,
-  direction: true,
-  distribution: true,
-  wrap: true,
-}).required({
-  direction: true,
-});
-
-export const divisionQualitiesSchema = containerQualitiesSchema.pick({
-  division: true,
-  span: true,
-}).required({
-  division: true,
-});
-
-export const spatialQualitiesSchema = z.intersection(
-  baseQualitiesSchema,
-  z.union([
-    directionQualitiesSchema,
-    divisionQualitiesSchema,
-  ]),
-);
-
 export const areaSchema = z.object({
+  purpose: z.string().min(10).max(90).describe('Propósito ontológico inmutable, acotado y directo del área (1 frase breve y directa de 4 a 12 palabras): define qué es el área.'),
+  intention: z.string().min(100).describe('Intención modulada de cómo debe exponerse el área para cumplir su propósito, articulando tres dimensiones: 1) Expectativa (qué experiencia y responsabilidad resuelve para el usuario dentro de la vista), 2) Intención funcional (qué capacidades interactivas, controles, flujos de señales e indicadores de context.specification.interactiveFeatures alberga sin solaparse con context.siblingAreas), y 3) Intención visual (cómo se expone en Material Design 3: superficie tonal, jerarquía espacial, contención y presencia en el layout).'),
   id: z.string().min(1).describe('Identificador del área: usar context.area.id para el primer elemento (el propio contenedor objetivo) e identificadores semánticos únicos para cada una de sus áreas hijas directas'),
-  qualities: spatialQualitiesSchema.describe('Cualidades espaciales de Box en Material Design 3 (requiere direction o division, junto con las dimensiones, superficie, forma, espaciado o separación coherentes con el eje del contenedor)'),
-  purpose: z.string().min(1).describe('Propósito ontológico funcional conciso del área (4 a 6 palabras)'),
-  intention: z.string().min(1).describe('Estrategia de composición funcional concisa del área (4 a 6 palabras)'),
+  qualities: spatialQualitiesSchema.describe('Cualidades espaciales de Box en Material Design 3: width, height, flex, direction y overflow obligatorios (direction fija el eje donde se reparten sus hijos; division opcional convierte el área en cuadrícula y prevalece sobre direction; overflow: hidden en contenedores estructurales y auto o hidden en áreas terminales); gap, spacing, surface, shape y outline coherentes con el eje del contenedor'),
+});
+
+export const repairCompositionSchema = z.object({
+  areas: z.array(
+    areaSchema,
+  ).min(1).max(1).describe('Único elemento de área reparado que sustituye al elemento rechazado'),
 });
 
 export const designSchema = materialModelSchema.pick({
@@ -79,16 +57,20 @@ export const designSchema = materialModelSchema.pick({
 });
 
 export const specificationSchema = z.object({
+  purpose: z.string().optional(),
   intention: z.string().optional(),
+  tone: z.string().optional(),
   interactiveFeatures: z.unknown().optional(),
+  visualDispositions: z.unknown().optional(),
+  audience: z.unknown().optional(),
   limits: z.unknown().optional(),
 });
 
 export const containerAreaSchema = z.object({
-  id: z.string().min(1),
-  parentId: z.string().min(1).optional(),
   purpose: z.string().min(1).optional(),
   intention: z.string().min(1).optional(),
+  id: z.string().min(1),
+  parentId: z.string().min(1).optional(),
   dimensions: dimensionsSchema.optional().describe('Dimensiones físicas disponibles del contenedor en píxeles'),
   qualities: qualitiesSchema,
 }).passthrough();
@@ -104,6 +86,7 @@ export const bodySchema = z.object({
   context: z.string().optional(),
   source: z.string().optional(),
   area: containerAreaSchema.optional().describe('Contenedor objetivo a particionar con sus dimensiones disponibles'),
+  siblingAreas: z.array(containerAreaSchema).optional().describe('Áreas hermanas ya definidas en el mismo contenedor padre'),
   areas: z.array(areaSchema).optional().describe('Áreas hijas generadas en la partición del layout'),
   browser: z.record(
     z.string(),

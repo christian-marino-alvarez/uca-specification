@@ -1,15 +1,7 @@
-import { SignalType } from './types.js';
-import { SignalType as PresentationSignalType } from '@uca/capability-presentation/types';
-import { Operation } from '../types.js';
-
 export const __ID__ = 'choice';
-export const OPERATIONS = {
-    [Operation.RENDER]: PresentationSignalType.RENDER,
-    [Operation.UPDATE]: PresentationSignalType.UPDATE,
-    [Operation.REMOVE]: PresentationSignalType.REMOVE,
-    [Operation.CHANGE]: SignalType.CHANGED,
-} as const;
 
-export const INVALID_BOUNDS = {
-    error: 'The value and bounds are inconsistent with the domain contract',
-} as const;
+export const DEFAULT_PURPOSE =
+  'Unidad autónoma de selección discreta que permite al usuario elegir una opción activa dentro de un conjunto definido de alternativas';
+
+export const DEFAULT_INTENTION =
+  'Materializar un selector desplegable en Material Design 3 (surfaceContainerLow, shape: small, outline: subtle) poblado obligatoriamente con las opciones en items, el valor activo en value y su nombre accesible en label, facilitando decisiones de configuración claras y sin ambigüedad';

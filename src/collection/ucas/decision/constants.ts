@@ -1,6 +1,9 @@
 export const __ID__ = 'decision';
 
-export const DEFAULT_IMAGINATION = 0;
+export const DEFAULT_PURPOSE =
+  'Realizar selección probabilística rápida y ligera de candidatos y decisiones arquitectónicas valorando el potencial emergente dentro de los límites del sistema';
+
+export const DEFAULT_IMAGINATION = 0.5;
 export const MAXIMUM_CANDIDATES = 64;
 export const PROBABILITY_TOLERANCE = 0.05;
 

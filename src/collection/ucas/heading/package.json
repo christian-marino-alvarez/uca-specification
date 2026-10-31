@@ -1,6 +1,7 @@
 {
   "name": "@uca/heading",
   "version": "0.1.0",
+  "description": "Unidad tipográfica autónoma que jerarquiza e identifica secciones de contenido según su nivel de importancia semántica",
   "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",
@@ -10,30 +11,46 @@
       "import": "./index.js",
       "default": "./index.ts"
     },
-    "./types": {
-      "types": "./types.d.ts",
-      "import": "./types.js",
-      "default": "./types.ts"
-    },
     "./schema": {
       "types": "./schema.d.ts",
       "import": "./schema.js",
       "default": "./schema.ts"
     },
+    "./schema.js": {
+      "types": "./schema.d.ts",
+      "import": "./schema.js",
+      "default": "./schema.ts"
+    },
+    "./types": {
+      "types": "./types.d.ts",
+      "import": "./types.js",
+      "default": "./types.ts"
+    },
+    "./types.js": {
+      "types": "./types.d.ts",
+      "import": "./types.js",
+      "default": "./types.ts"
+    },
     "./constants": {
+      "types": "./constants.d.ts",
+      "import": "./constants.js",
+      "default": "./constants.ts"
+    },
+    "./constants.js": {
       "types": "./constants.d.ts",
       "import": "./constants.js",
       "default": "./constants.ts"
     }
   },
   "dependencies": {
-    "@uca/core": "^0.1.0",
-    "@uca/capability-presentation": "^0.1.0",
-    "@uca/capability-web-component": "^0.1.0",
     "@uca/capability-css": "^0.1.0",
+    "@uca/capability-material": "^0.1.0",
+    "@uca/capability-web-component": "^0.1.0",
+    "@uca/core": "^0.1.0",
+    "@uca/llm": "^0.1.0",
     "zod": "^4.6.5"
   },
   "scripts": {
-    "test": "tsx tests/index.ts"
+    "test": "tsx tests/index.ts && tsx tests/schema.ts"
   }
 }

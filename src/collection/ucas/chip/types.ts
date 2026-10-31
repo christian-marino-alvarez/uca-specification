@@ -1,29 +1,23 @@
-export {
-    type Body,
-    type ChipVariant,
-    type Qualities,
+export type {
+  Body,
+  ChipVariant,
+  EventContext,
+  Qualities,
 } from './schema.js';
 
 export enum SignalType {
-    RENDER = 'render',
-    UPDATE = 'update',
-    REMOVE = 'remove',
-    CREATED = 'chip:created',
-    UPDATED = 'chip:updated',
-    REMOVED = 'chip:removed',
-    SELECTED = 'chip:selected',
-    ACTION = 'chip:action',
-    ERROR = 'chip:error',
+  RENDER = 'chip.render',
+  UPDATE = 'chip.update',
+  REMOVE = 'chip.remove',
+  CREATED = 'chip.created',
+  UPDATED = 'chip.updated',
+  REMOVED = 'chip.removed',
+  EVENT = 'chip.event',
+  ERROR = 'chip.error',
 }
 
 export enum DataType {
-    RENDER_PAYLOAD = 'chip.render-payload',
-    UPDATE_PAYLOAD = 'chip.update-payload',
-    REMOVE_PAYLOAD = 'chip.remove-payload',
-    CREATED_RESULT = 'chip.created-result',
-    UPDATED_RESULT = 'chip.updated-result',
-    REMOVED_RESULT = 'chip.removed-result',
-    SELECTED_RESULT = 'chip.selected-result',
-    ACTION_RESULT = 'chip.action-result',
-    UNKNOWN = 'unknown',
+  BODY = 'Body',
+  EVENT_CONTEXT = 'EventContext',
+  ERROR = 'Error',
 }

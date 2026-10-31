@@ -1,40 +1,11 @@
-import type { Qualities } from './schema.js';
-
 export const __ID__ = 'picture';
 
-export const DEFAULT_ALT = 'Visual representation image';
+export const DEFAULT_PURPOSE =
+  'Unidad visual autónoma que presenta recursos gráficos, ilustraciones o diagramas accesibles dentro de un contenedor redondeado';
 
-export const DEFAULT_LOADING = 'lazy' as const;
+export const DEFAULT_INTENTION =
+  'Renderizar contenido gráfico en Material Design 3 con bordes redondeados (shape: medium, overflow: hidden), origen en src y descripción alternativa en label o content, enriqueciendo visualmente la comprensión de la interfaz';
 
-export const DEFAULT_DIMENSION = 'small' as const;
+export const DEFAULT_ALT = '';
 
-export const DEFAULT_PICTURE_WIDTH = '32' as const;
-
-export const DEFAULT_PICTURE_HEIGHT = '32' as const;
-
-export const DEFAULT_PICTURE_QUALITIES: Qualities = {
-    width: DEFAULT_DIMENSION,
-    height: 'auto',
-    flex: 'none',
-    shape: 'small',
-};
-
-export const resolvePictureQualities = (qualities?: Qualities): Qualities => {
-    return {
-        ...DEFAULT_PICTURE_QUALITIES,
-        ...qualities,
-    };
-};
-
-export const PICTURE_VISUAL_DISPOSITION = {
-    role: 'media',
-    defaultQualities: DEFAULT_PICTURE_QUALITIES,
-    supportedQualities: [
-        'width',
-        'height',
-        'maxWidth',
-        'shape',
-        'flex',
-    ],
-    description: 'Elemento visual gráfico o logotipo vectorial',
-} as const;
+export const DEFAULT_LOADING = 'lazy';

@@ -1,201 +1,607 @@
-import { Uca } from '@uca/core/uca';
-import type { Cooky, Disposition, Signal } from '@uca/core/types';
+import { z } from 'zod';
+import { Css } from '@uca/capability-css';
+import {
+  SignalType as CssSignalType,
+  type ResolvedResult,
+} from '@uca/capability-css/types';
+import { Material } from '@uca/capability-material';
+import {
+  SignalType as MaterialSignalType,
+  type ResolvedQualities,
+} from '@uca/capability-material/types';
 import { WebComponent } from '@uca/capability-web-component';
 import { SignalType as WebComponentSignalType } from '@uca/capability-web-component/types';
-import { Css } from '@uca/capability-css';
-import { SignalType as CssSignalType, ControlType } from '@uca/capability-css/types';
+import { Uca } from '@uca/core/uca';
 import {
-    CHIP_VISUAL_DISPOSITION,
-    DEFAULT_EVENTS,
-    DEFAULT_TAG,
-    __ID__,
-    resolveChipContent,
-    resolveChipQualities,
-    resolveContainerSelector,
+  DispositionSignal,
+  type CapabilityConstructor,
+  type Cooky,
+  type Disposition,
+  type Signal,
+} from '@uca/core/types';
+import { Llm } from '@uca/llm';
+import {
+  SignalType as LlmSignalType,
+  type InferPayload,
+  type InferResult,
+} from '@uca/llm/types';
+import {
+  DEFAULT_INTENTION,
+  DEFAULT_PURPOSE,
+  __ID__,
 } from './constants.js';
 import {
-    type Body,
-    DataType,
-    SignalType,
+  bodySchema,
+  errorSchema,
+  eventContextSchema,
+  inferenceSchema,
+} from './schema.js';
+import {
+  DataType,
+  SignalType,
+  type Body,
+  type EventContext,
 } from './types.js';
 
 export class Chip extends Uca<Body> {
-    public static override purpose: string =
-        'Autonomous compact interaction pill representing discrete attributes, filters, inputs, or actions';
+  public static override purpose: string = DEFAULT_PURPOSE;
 
-    public static readonly visualDisposition = CHIP_VISUAL_DISPOSITION;
+  private static readonly outputSchema: Record<string, unknown> =
+    z.toJSONSchema(inferenceSchema);
 
-    public static override disposition: Disposition<Body> = {
-        aim: { description: Chip.purpose },
-        reactTo: [
-            SignalType.RENDER,
-            SignalType.UPDATE,
-            SignalType.REMOVE,
-            WebComponentSignalType.RENDERED,
-            WebComponentSignalType.UPDATED,
-            WebComponentSignalType.REMOVED,
-            WebComponentSignalType.ERROR,
-            WebComponentSignalType.EVENT,
-            ...WebComponent.disposition.reactTo ?? [],
-            ...Css.disposition.reactTo ?? [],
-        ],
-        inputs: [
-            {
-                signal: SignalType.RENDER,
-                type: DataType.RENDER_PAYLOAD,
-                description: 'Render the Material 3 chip element',
-            },
-            {
-                signal: SignalType.UPDATE,
-                type: DataType.UPDATE_PAYLOAD,
-                description: 'Update the chip properties',
-            },
-            {
-                signal: SignalType.REMOVE,
-                type: DataType.REMOVE_PAYLOAD,
-                description: 'Remove the chip element',
-            },
-        ],
-        outputs: [
-            {
-                signal: SignalType.CREATED,
-                type: DataType.CREATED_RESULT,
-                description: 'Chip created confirmation',
-            },
-            {
-                signal: SignalType.UPDATED,
-                type: DataType.UPDATED_RESULT,
-                description: 'Chip updated confirmation',
-            },
-            {
-                signal: SignalType.REMOVED,
-                type: DataType.REMOVED_RESULT,
-                description: 'Chip removed confirmation',
-            },
-            {
-                signal: SignalType.SELECTED,
-                type: DataType.SELECTED_RESULT,
-                description: 'Chip filter selection toggled',
-            },
-            {
-                signal: SignalType.ACTION,
-                type: DataType.ACTION_RESULT,
-                description: 'Chip clicked or activated',
-            },
-            {
-                signal: SignalType.ERROR,
-                type: DataType.UNKNOWN,
-                description: 'Chip error notification',
-            },
-        ],
+  public static override disposition: Disposition<Body> = {
+    aim: {
+      description: DEFAULT_INTENTION,
+      body: {},
+    },
+    reactTo: [
+      DispositionSignal.UPDATED,
+      SignalType.RENDER,
+      SignalType.UPDATE,
+      SignalType.REMOVE,
+      ...Chip.reactToWebComponent(),
+      ...Chip.reactToMaterial(),
+      ...Chip.reactToCss(),
+      ...Chip.reactToLlm(),
+    ],
+    inputs: [
+      {
+        signal: DispositionSignal.UPDATED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Continuar el flujo reactivo de la píldora tras actualizar su disposición',
+        handler: Chip.prototype.handleUpdated,
+      },
+      {
+        signal: SignalType.RENDER,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Materializar la píldora interactiva en el DOM aplicando su etiqueta y cualidades visuales',
+        handler: Chip.prototype.handleRender,
+      },
+      {
+        signal: SignalType.UPDATE,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Actualizar la etiqueta, estado de selección o cualidades visuales de la píldora',
+        handler: Chip.prototype.handleUpdate,
+      },
+      {
+        signal: SignalType.REMOVE,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Eliminar la píldora y sus estilos asociados del DOM',
+        handler: Chip.prototype.handleRemove,
+      },
+      {
+        signal: WebComponentSignalType.RENDERED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de elemento de píldora renderizado en el DOM',
+        handler: Chip.prototype.handleWebComponentRendered,
+      },
+      {
+        signal: WebComponentSignalType.UPDATED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de elemento de píldora actualizado en el DOM',
+        handler: Chip.prototype.handleWebComponentModified,
+      },
+      {
+        signal: WebComponentSignalType.REMOVED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de elemento de píldora eliminado del DOM',
+        handler: Chip.prototype.handleWebComponentRemoved,
+      },
+      {
+        signal: WebComponentSignalType.EVENT,
+        type: DataType.EVENT_CONTEXT,
+        schema: eventContextSchema,
+        description: 'Evento de interacción capturado desde la píldora',
+        handler: Chip.prototype.handleWebComponentEvent,
+      },
+      {
+        signal: WebComponentSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido por la capacidad de componente web',
+        handler: Chip.prototype.handleWebComponentError,
+      },
+      {
+        signal: MaterialSignalType.RESOLVED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Cualidades de Material Design 3 resueltas para el componente',
+        handler: Chip.prototype.handleMaterialResolved,
+      },
+      {
+        signal: MaterialSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido por la capacidad de Material Design 3',
+        handler: Chip.prototype.handleMaterialError,
+      },
+      {
+        signal: CssSignalType.MOUNTED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de hoja raíz de tokens CSS montada en el documento',
+        handler: Chip.prototype.handleCssMounted,
+      },
+      {
+        signal: CssSignalType.RESOLVED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Cualidades de dominio traducidas a declaraciones y regla CSS',
+        handler: Chip.prototype.handleCssResolved,
+      },
+      {
+        signal: CssSignalType.APPLIED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de regla CSS aplicada a la píldora en el DOM',
+        handler: Chip.prototype.handleCssApplied,
+      },
+      {
+        signal: CssSignalType.REMOVED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de reglas CSS retiradas de la píldora en el DOM',
+        handler: Chip.prototype.handleCssRemoved,
+      },
+      {
+        signal: CssSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido por la capacidad de estilos CSS',
+        handler: Chip.prototype.handleCssError,
+      },
+      {
+        signal: LlmSignalType.INFERRED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Propiedades de dominio inferidas para la píldora',
+        handler: Chip.prototype.handleLlmInferred,
+      },
+      {
+        signal: LlmSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido por la UCA de modelo de lenguaje',
+        handler: Chip.prototype.handleLlmError,
+      },
+    ],
+    outputs: [
+      {
+        signal: SignalType.CREATED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Píldora creada y estilizada en el DOM',
+      },
+      {
+        signal: SignalType.UPDATED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Píldora actualizada en el DOM',
+      },
+      {
+        signal: SignalType.REMOVED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Píldora eliminada del DOM',
+      },
+      {
+        signal: SignalType.EVENT,
+        type: DataType.EVENT_CONTEXT,
+        schema: eventContextSchema,
+        description: 'Evento de interacción emitido desde la píldora',
+      },
+      {
+        signal: SignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido durante la operación de la píldora',
+      },
+    ],
+  };
+
+  private static reactToWebComponent(): string[] {
+    const {
+      reactTo = [],
+    } = WebComponent.disposition;
+    return [
+      ...reactTo,
+      WebComponentSignalType.RENDERED,
+      WebComponentSignalType.UPDATED,
+      WebComponentSignalType.REMOVED,
+      WebComponentSignalType.EVENT,
+      WebComponentSignalType.ERROR,
+    ];
+  }
+
+  private static reactToMaterial(): string[] {
+    const {
+      reactTo = [],
+    } = Material.disposition;
+    return [
+      ...reactTo,
+      MaterialSignalType.RESOLVED,
+      MaterialSignalType.ERROR,
+    ];
+  }
+
+  private static reactToCss(): string[] {
+    const {
+      reactTo = [],
+    } = Css.disposition;
+    return [
+      ...reactTo,
+      CssSignalType.MOUNTED,
+      CssSignalType.RESOLVED,
+      CssSignalType.APPLIED,
+      CssSignalType.REMOVED,
+      CssSignalType.ERROR,
+    ];
+  }
+
+  private static reactToLlm(): string[] {
+    const {
+      reactTo = [],
+    } = Llm.disposition;
+    return [
+      ...reactTo,
+      LlmSignalType.INFERRED,
+      LlmSignalType.ERROR,
+    ];
+  }
+
+  public constructor(id: string = __ID__) {
+    super(id);
+  }
+
+  protected override catalog(): Cooky {
+    const webComponent = this.catalogWebComponent();
+    const material = this.catalogMaterial();
+    const css = this.catalogCss();
+    const llm = this.catalogLlm();
+    return [
+      webComponent,
+      material,
+      css,
+      llm,
+    ];
+  }
+
+  private catalogWebComponent(): Cooky[number] {
+    const disposition = this.createDisposition(
+      WebComponent.disposition,
+      WebComponent.AIM,
+      'web-component',
+    );
+    return [
+      WebComponent as unknown as CapabilityConstructor,
+      disposition,
+    ];
+  }
+
+  private catalogMaterial(): Cooky[number] {
+    const disposition = this.createDisposition(
+      Material.disposition,
+      Material.AIM,
+      'material',
+    );
+    return [
+      Material as unknown as CapabilityConstructor,
+      disposition,
+    ];
+  }
+
+  private catalogCss(): Cooky[number] {
+    const disposition = this.createDisposition(
+      Css.disposition,
+      Css.AIM,
+      'css',
+    );
+    return [
+      Css as unknown as CapabilityConstructor,
+      disposition,
+    ];
+  }
+
+  private catalogLlm(): Cooky[number] {
+    const disposition = this.createDisposition(
+      Llm.disposition,
+      Llm.purpose,
+      'llm',
+    );
+    return [
+      Llm as unknown as CapabilityConstructor,
+      disposition,
+    ];
+  }
+
+  private handleUpdated(): void {
+    const {
+      source = this.id,
+    } = this.body ?? {};
+    if (source !== this.id) {
+      this.handleSelfUpdated();
+    }
+  }
+
+  private handleRender(signal: Signal): void {
+    const {
+      source,
+      value,
+    } = signal;
+    const payload = this.extractPayload<Body>(value);
+    this.replaceDispositionBody({
+      ...payload,
+      source,
+    });
+  }
+
+  private handleUpdate(signal: Signal): void {
+    const {
+      source,
+      value,
+    } = signal;
+    const payload = this.extractPayload<Body>(value);
+    this.replaceDispositionBody({
+      ...this.body,
+      ...payload,
+      source,
+    });
+  }
+
+  private handleRemove(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const {
+      elementId = this.id,
+    } = this.extractPayload<Body>(value) ?? {};
+    this.pulse(CssSignalType.REMOVE, {
+      elementId,
+    });
+  }
+
+  private handleSelfUpdated(): void {
+    const payload = this.createWebComponentPayload();
+    this.pulse(WebComponentSignalType.RENDER, payload);
+  }
+
+  private handleWebComponentRendered(): void {
+    this.pulse(CssSignalType.MOUNT, {});
+  }
+
+  private handleWebComponentModified(): void {
+    this.pulse(CssSignalType.MOUNT, {});
+  }
+
+  private handleCssMounted(): void {
+    const {
+      qualities,
+    } = this.body ?? {};
+    this.pulse(MaterialSignalType.RESOLVE, {
+      component: __ID__,
+      qualities,
+    });
+  }
+
+  private handleMaterialResolved(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const {
+      qualities,
+    } = this.extractPayload<ResolvedQualities>(value) ?? {};
+    const {
+      elementId = this.id,
+    } = this.body ?? {};
+    this.pulse(CssSignalType.RESOLVE, {
+      elementId,
+      qualities,
+    });
+  }
+
+  private handleCssResolved(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const payload = this.extractPayload<ResolvedResult>(value);
+    this.pulse(CssSignalType.APPLY, payload);
+  }
+
+  private handleCssApplied(): void {
+    const shouldInfer = this.needsInference();
+    if (shouldInfer) {
+      const request = this.createInferRequest();
+      this.pulse(LlmSignalType.INFER, request);
+    }
+    else {
+      this.pulse(SignalType.CREATED, this.body);
+    }
+  }
+
+  private needsInference(): boolean {
+    const {
+      content,
+      intention,
+      label,
+      purpose,
+      source,
+      text,
+      title,
+    } = this.body ?? {};
+    const hasContent = !!(content || label || text || title);
+    return source !== `${this.id}:llm` && !hasContent && !!(purpose || intention);
+  }
+
+  private createInferRequest(): InferPayload {
+    const {
+      intention = DEFAULT_INTENTION,
+      purpose = DEFAULT_PURPOSE,
+    } = this.body ?? {};
+    return {
+      purpose,
+      intention,
+      id: __ID__,
+      context: {
+        ...this.body,
+      },
+      outputSchema: Chip.outputSchema,
     };
+  }
 
-    public constructor(id: string = __ID__) {
-        super(id);
-    }
+  private handleLlmInferred(signal: Signal): void {
+    const {
+      source,
+      value,
+    } = signal;
+    const {
+      data,
+      request,
+    } = this.extractPayload<InferResult>(value) ?? {};
+    const {
+      context,
+    } = request ?? {};
+    const origin = (context ?? this.body ?? {}) as Body;
+    const inferred = (data ?? {}) as Partial<Body>;
+    this.replaceDispositionBody({
+      ...origin,
+      ...inferred,
+      source,
+    });
+  }
 
-    protected override catalog(): Cooky {
-        const { id } = this;
-        return [
-            [
-                WebComponent,
-                {
-                    aim: { description: WebComponent.AIM, body: { id: `${id}:web-component` } },
-                    reactTo: [...WebComponent.disposition.reactTo ?? []],
-                },
-            ],
-            [
-                Css,
-                {
-                    aim: { description: Css.AIM, body: { id: `${id}:css` } },
-                    reactTo: [...Css.disposition.reactTo ?? []],
-                },
-            ],
-        ];
-    }
+  private handleLlmError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(SignalType.ERROR, value);
+  }
 
-    protected override react(signal: Signal): void {
-        const { property, value } = signal;
-        switch (property) {
-            case SignalType.RENDER:
-                this.handleRender(value);
-                break;
-            case SignalType.UPDATE:
-                this.handleUpdate(value);
-                break;
-            case SignalType.REMOVE:
-                this.handleRemove(value);
-                break;
-            case WebComponentSignalType.RENDERED:
-                this.handleComponentRendered(signal);
-                break;
-            case WebComponentSignalType.UPDATED:
-                this.handleComponentUpdated(signal);
-                break;
-            case WebComponentSignalType.ERROR:
-                this.handleComponentError(signal);
-                break;
-            case WebComponentSignalType.REMOVED:
-                this.handleComponentRemoved(signal);
-                break;
-            case WebComponentSignalType.EVENT:
-                this.handleComponentEvent(signal);
-                break;
-            default:
-                break;
-        }
-    }
+  private handleCssRemoved(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const {
+      elementId = this.id,
+    } = this.extractPayload<Body>(value) ?? {};
+    this.pulse(WebComponentSignalType.REMOVE, {
+      elementId,
+    });
+  }
 
-    private handleRender(value?: unknown): void {
-        const payload = (value ?? {}) as Body & { context?: unknown };
-        const { elementId = this.id, parentTo, containerElement, qualities, events = [...DEFAULT_EVENTS], context, variant, selected } = payload;
-        const targetContainer = resolveContainerSelector(containerElement, parentTo);
-        const resolvedQualities = resolveChipQualities(qualities, variant, selected);
-        const content = resolveChipContent(payload);
-        this.pulse(CssSignalType.APPLY, { elementId, qualities: resolvedQualities, control: ControlType.ACTION });
-        this.pulse(WebComponentSignalType.RENDER, { elementId, tag: DEFAULT_TAG, containerElement: targetContainer, content, events, context });
-    }
+  private handleWebComponentRemoved(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const payload = this.extractPayload<Body>(value);
+    this.pulse(SignalType.REMOVED, {
+      ...this.body,
+      ...payload,
+    });
+  }
 
-    private handleUpdate(value?: unknown): void {
-        const payload = (value ?? {}) as Body & { context?: unknown };
-        const { elementId = this.id, qualities, events, context, variant, selected } = payload;
-        const resolvedQualities = resolveChipQualities(qualities, variant, selected);
-        const content = resolveChipContent(payload);
-        this.pulse(CssSignalType.APPLY, { elementId, qualities: resolvedQualities, control: ControlType.ACTION });
-        this.pulse(WebComponentSignalType.UPDATE, { elementId, content, events, context });
-    }
+  private handleWebComponentEvent(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const payload = this.extractPayload<EventContext>(value);
+    this.pulse(SignalType.EVENT, payload);
+  }
 
-    private handleRemove(value?: unknown): void {
-        const { elementId = this.id, context } = (value ?? {}) as Body & { context?: unknown };
-        this.pulse(CssSignalType.REMOVE, { elementId });
-        this.pulse(WebComponentSignalType.REMOVE, { elementId, context });
-    }
+  private handleWebComponentError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(SignalType.ERROR, value);
+  }
 
-    private handleComponentRendered(signal: Signal): void {
-        const { value } = signal;
-        const { elementId = this.id } = (value ?? {}) as { elementId?: string };
-        this.pulse(SignalType.CREATED, { elementId, detail: value });
-    }
+  private handleMaterialError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(SignalType.ERROR, value);
+  }
 
-    private handleComponentUpdated(signal: Signal): void {
-        const { value } = signal;
-        const { elementId = this.id } = (value ?? {}) as { elementId?: string };
-        this.pulse(SignalType.UPDATED, { elementId, detail: value });
-    }
+  private handleCssError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(SignalType.ERROR, value);
+  }
 
-    private handleComponentRemoved(signal: Signal): void {
-        const { value } = signal;
-        const { elementId = this.id } = (value ?? {}) as { elementId?: string };
-        this.pulse(SignalType.REMOVED, { elementId, detail: value });
-    }
+  private createWebComponentPayload(): Record<string, unknown> {
+    const {
+      content,
+      disabled,
+      elementId = this.id,
+      events,
+      label,
+      parentTo,
+      selected,
+      text,
+      title,
+    } = this.body ?? {};
+    const containerElement = parentTo?.startsWith('#') ? parentTo : parentTo && `#${parentTo}`;
+    return {
+      attributes: {
+        ...(selected !== undefined && {
+          'aria-selected': String(selected),
+        }),
+        ...(disabled && {
+          disabled: 'disabled',
+        }),
+      },
+      containerElement,
+      content: content || label || text || title,
+      elementId,
+      events,
+    };
+  }
 
-    private handleComponentEvent(signal: Signal): void {
-        const { value } = signal;
-        this.pulse(SignalType.ACTION, value);
-    }
-
-    private handleComponentError(signal: Signal): void {
-        const { value } = signal;
-        this.pulse(SignalType.ERROR, value);
-    }
+  private replaceDispositionBody(body: Body): void {
+    const {
+      aim,
+    } = this.disposition;
+    const {
+      context,
+      id,
+    } = (this.body ?? {}) as Record<string, unknown>;
+    this.pulse(this.updateEvent, {
+      ...this.disposition,
+      aim: {
+        ...aim,
+        body: {
+          ...body,
+          context,
+          id,
+        },
+      },
+    });
+  }
 }

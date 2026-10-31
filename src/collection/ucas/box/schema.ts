@@ -3,11 +3,21 @@ import { qualitiesSchema as visualQualitiesSchema } from '@uca/capability-css/sc
 
 export const qualitiesSchema = visualQualitiesSchema.optional();
 
+export const dimensionsSchema = z.object({
+  width: z.number(),
+  height: z.number(),
+});
+
 export const bodySchema = z.object({
+  purpose: z.string().optional(),
+  intention: z.string().optional(),
+  id: z.string().optional(),
+  context: z.string().optional(),
   elementId: z.string().optional(),
   parentTo: z.string().optional(),
   content: z.string().optional(),
   qualities: qualitiesSchema,
+  dimensions: dimensionsSchema.optional(),
   events: z.array(z.string()).optional(),
   skeleton: z.boolean().optional(),
   source: z.string().optional(),

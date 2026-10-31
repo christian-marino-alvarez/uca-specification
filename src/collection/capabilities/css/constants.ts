@@ -16,6 +16,26 @@ export const STYLE_PREFIX = 'uca-style-';
 
 export const IDENTIFIED_DESCENDANT_SELECTOR = '[id]';
 
+export const WIDTH_ONLY_DIMENSIONS: readonly string[] = [
+  'narrow',
+  'compact',
+  'regular',
+  'wide',
+];
+
+export const HEIGHT_ONLY_DIMENSIONS: readonly string[] = [
+  'small',
+  'medium',
+  'large',
+  'xlarge',
+  'screen',
+];
+
+export const ELASTIC_DECLARATIONS: Readonly<Record<string, string>> = {
+  'min-height': '0',
+  'min-width': '0',
+};
+
 export const DESIGN_TOKENS = {
   dimensions: {
     $type: 'dimension',
@@ -49,15 +69,15 @@ export const DESIGN_TOKENS = {
     },
     narrow: {
       $value: '64px',
-      $description: 'Extensión estrecha compacta',
+      $description: 'Solo para width: carril lateral estrecho de iconos; nunca como height',
     },
     compact: {
       $value: '260px',
-      $description: 'Extensión de carril compacto',
+      $description: 'Solo para width: panel lateral compacto; nunca como height',
     },
     regular: {
       $value: '320px',
-      $description: 'Extensión de columna regular',
+      $description: 'Solo para width: panel lateral regular; nunca como height',
     },
     wide: {
       $value: '80%',
@@ -65,22 +85,22 @@ export const DESIGN_TOKENS = {
     },
     small: {
       $value: '2rem',
-      $description: 'Dimensión de escala pequeña compacta',
+      $description: 'Alto de control pequeño o barra fina',
     },
     medium: {
       $value: '2.5rem',
-      $description: 'Dimensión de escala media de control',
+      $description: 'Alto de control medio o barra de herramientas',
     },
     large: {
       $value: '3.5rem',
-      $description: 'Dimensión de escala grande de sección',
+      $description: 'Alto de cabecera o pie de sección',
     },
     xlarge: {
       $value: '4rem',
-      $description: 'Dimensión de escala extra grande',
+      $description: 'Alto de cabecera expresiva',
     },
     screen: {
-      $value: '100vh',
+      $value: '100dvh',
       $description: 'Altura completa del viewport',
     },
     content: {
@@ -258,19 +278,19 @@ export const DESIGN_TOKENS = {
       $description: 'Primer plano oscuro de alto contraste para superficies claras',
     },
     muted: {
-      $value: 'var(--md-sys-color-on-surface-variant, #5f6368)',
+      $value: 'var(--md-sys-color-on-surface-variant, #a8b3c5)',
       $description: 'Primer plano secundario legible atenuado',
     },
     brand: {
-      $value: 'var(--md-sys-color-primary, #1a73e8)',
+      $value: 'var(--md-sys-color-primary, #8ab4f8)',
       $description: 'Primer plano primario de marca',
     },
     accent: {
-      $value: 'var(--md-sys-color-primary, #1a73e8)',
+      $value: 'var(--md-sys-color-primary, #8ab4f8)',
       $description: 'Primer plano de acento para enlaces y elementos interactivos',
     },
     danger: {
-      $value: 'var(--md-sys-color-error, #d93025)',
+      $value: 'var(--md-sys-color-error, #f28b82)',
       $description: 'Primer plano de contraste para advertencias',
     },
   },
@@ -796,12 +816,22 @@ export const PROPERTY_MAPPINGS = [
 
 export const BASE_STYLES = [
   '*, *::before, *::after { box-sizing: border-box; }',
-  'html, body { width: 100%; height: 100%; min-block-size: 100vh; margin: 0; }',
-  'body { display: flex; flex-direction: column; min-block-size: 100vh; background-color: var(--uca-surface-default, #070a12); color: var(--uca-textColor-light, #ffffff); }',
+  'html, body { width: 100%; height: 100dvh; max-block-size: 100dvh; overflow: hidden; margin: 0; }',
+  'body { display: flex; flex-direction: column; height: 100dvh; max-block-size: 100dvh; overflow: hidden; background-color: var(--uca-surface-default, #070a12); color: var(--uca-textColor-light, #ffffff); font-family: var(--uca-typeface-sans, system-ui, sans-serif); }',
   'h1, h2, h3, h4, h5, h6, p, ul, ol, menu, figure, blockquote { margin: 0; }',
   'ul, ol, menu { padding: 0; list-style: none; }',
   'img, svg, video, canvas { max-width: 100%; height: auto; display: block; }',
   'input, button, select, textarea, a { font: inherit; color: inherit; background: transparent; border: none; padding: 0; margin: 0; text-decoration: none; outline: none; box-sizing: border-box; }',
+  'select option { background-color: var(--uca-surface-surfaceContainerHigh, #1a2030); color: var(--uca-textColor-light, #ffffff); }',
+  'hr { border: none; margin: 0; height: 1px; background-color: var(--uca-control-border, rgba(226, 232, 240, 0.16)); }',
+  'progress { appearance: none; -webkit-appearance: none; height: 0.5rem; border: none; border-radius: var(--uca-shape-full, 9999px); background-color: var(--uca-surface-surfaceVariant, #2a344a); overflow: hidden; }',
+  'progress::-webkit-progress-bar { background-color: var(--uca-surface-surfaceVariant, #2a344a); border-radius: var(--uca-shape-full, 9999px); }',
+  'progress::-webkit-progress-value { background-color: var(--uca-surface-primary, #8ab4f8); border-radius: var(--uca-shape-full, 9999px); }',
+  'progress::-moz-progress-bar { background-color: var(--uca-surface-primary, #8ab4f8); border-radius: var(--uca-shape-full, 9999px); }',
+  'input[type="range"], input[type="checkbox"] { accent-color: var(--uca-surface-primary, #8ab4f8); cursor: pointer; }',
+  'input[type="checkbox"] { width: 1.125rem; height: 1.125rem; flex-shrink: 0; }',
+  'ext-uca-symbol { font-family: "Material Symbols Outlined", var(--uca-typeface-sans, system-ui, sans-serif); font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24; font-size: 1.375rem; line-height: 1; display: inline-flex; align-items: center; justify-content: center; user-select: none; flex-shrink: 0; }',
+  'ext-uca-status, ext-uca-chip, button[id] { white-space: nowrap; flex-shrink: 0; height: fit-content; align-self: center; }',
   'input:focus-visible, button:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible { outline: auto; }',
   'input:disabled, button:disabled, select:disabled, textarea:disabled { cursor: not-allowed; }',
 ].join(' ');

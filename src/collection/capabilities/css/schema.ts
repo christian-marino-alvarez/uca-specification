@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { DESIGN_TOKENS } from './constants.js';
+import {
+  DESIGN_TOKENS,
+  HEIGHT_ONLY_DIMENSIONS,
+  WIDTH_ONLY_DIMENSIONS,
+} from './constants.js';
 import type { DesignToken } from './types.js';
 
 const tokenSchema = (
@@ -25,15 +29,28 @@ const tokenSchema = (
 };
 
 export const dimensionSchema = tokenSchema(
-  DESIGN_TOKENS.dimensions,
-  'Token de dimensión abstracta',
+  Object.fromEntries(
+    Object.entries(DESIGN_TOKENS.dimensions).filter(([
+      name,
+    ]) => !HEIGHT_ONLY_DIMENSIONS.includes(name)),
+  ),
+  'Token de dimensión horizontal abstracta',
+);
+
+export const heightDimensionSchema = tokenSchema(
+  Object.fromEntries(
+    Object.entries(DESIGN_TOKENS.dimensions).filter(([
+      name,
+    ]) => !WIDTH_ONLY_DIMENSIONS.includes(name)),
+  ),
+  'Token de dimensión vertical abstracta',
 );
 
 const maximumDimensionSchema = tokenSchema(
   Object.fromEntries(
     Object.entries(DESIGN_TOKENS.dimensions).filter(([
       name,
-    ]) => name !== 'auto'),
+    ]) => name !== 'auto' && !HEIGHT_ONLY_DIMENSIONS.includes(name)),
   ),
   'Token de dimensión máxima abstracta',
 );
@@ -46,10 +63,10 @@ export const designTokenSchema = z.object({
 
 export const qualitiesSchema = z.object({
   width: dimensionSchema.optional().describe('Ancho preferido de este elemento; no selecciona un layout para los hijos'),
-  height: dimensionSchema.optional().describe('Alto preferido de este elemento'),
+  height: heightDimensionSchema.optional().describe('Alto preferido de este elemento'),
   maxWidth: maximumDimensionSchema.optional().describe('Límite superior explícito de ancho; si se omite no se añade máximo'),
   minWidth: dimensionSchema.optional().describe('Límite inferior explícito de ancho'),
-  minHeight: dimensionSchema.optional().describe('Límite inferior explícito de alto'),
+  minHeight: heightDimensionSchema.optional().describe('Límite inferior explícito de alto'),
   spacing: tokenSchema(DESIGN_TOKENS.spacing, 'Relleno interno (padding) en todos los lados; no crea espacio (gap) entre hijos').optional(),
   spacingInline: tokenSchema(DESIGN_TOKENS.spacing, 'Relleno interno en ambos lados del eje en línea (inline); sobrescribe spacing en este eje').optional(),
   spacingBlock: tokenSchema(DESIGN_TOKENS.spacing, 'Relleno interno en ambos lados del eje en bloque (block); sobrescribe spacing en este eje').optional(),

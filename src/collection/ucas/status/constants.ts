@@ -1,43 +1,9 @@
-import { SignalType, type Qualities } from './types.js';
-import { SignalType as PresentationSignalType } from '@uca/capability-presentation/types';
-import { Operation } from '../types.js';
-
 export const __ID__ = 'status';
-export const OPERATIONS = {
-    [Operation.RENDER]: PresentationSignalType.RENDER,
-    [Operation.UPDATE]: PresentationSignalType.UPDATE,
-    [Operation.REMOVE]: PresentationSignalType.REMOVE,
-    [Operation.CHANGE]: SignalType.CHANGED,
-} as const;
 
-export const INVALID_BOUNDS = {
-    error: 'The value and bounds are inconsistent with the domain contract',
-} as const;
+export const DEFAULT_PURPOSE =
+  'Unidad indicadora autónoma que comunica un estado semántico, salud operativa, métrica resumida o condición viva del sistema';
 
-export const DEFAULT_STATUS_QUALITIES: Qualities = {
-    surface: 'card',
-    outline: 'subtle',
-    shape: 'full',
-    spacingInline: 'small',
-    spacingBlock: 'none',
-    textColor: 'light',
-    textSize: 'small',
-    fontWeight: 'medium',
-};
+export const DEFAULT_INTENTION =
+  'Mostrar una insignia tipo píldora ajustada a su contenido en Material Design 3 (shape: full, width: content) con tono cromático en tone (success, info, warning, error, neutral) y etiqueta concisa obligatoria en content, dando percepción instantánea del estado operativo';
 
-export const STATUS_VISUAL_DISPOSITION = {
-    role: 'badge',
-    defaultQualities: DEFAULT_STATUS_QUALITIES,
-    supportedQualities: [
-        'surface',
-        'outline',
-        'shape',
-        'spacingInline',
-        'spacingBlock',
-        'textColor',
-        'textSize',
-        'fontWeight',
-    ],
-    description: 'Etiqueta o indicador visual del estado de una entidad u operación',
-} as const;
-
+export const DEFAULT_TONE = 'neutral';

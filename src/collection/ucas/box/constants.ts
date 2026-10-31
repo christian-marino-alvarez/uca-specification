@@ -1,7 +1,7 @@
 export const __ID__ = 'box';
 
 export const DEFAULT_PURPOSE =
-  'Contenedor espacial autónomo que agrupa, distribuye y delimita elementos mediante cualidades de dimensión, flujo, apariencia y estado de carga';
+  'Contenedor espacial autónomo que agrupa, distribuye y alinea componentes o subregiones mediante cualidades de dimensión, flujo y ritmo espacial';
 
 export const DEFAULT_INTENTION =
-  'Materializar y actualizar contenedores espaciales en el DOM aplicando sus cualidades visuales y gestionando su marcador de carga (skeleton)';
+  'Articular agrupaciones estructurales limpias en fila, columna o cuadrícula (qualities: direction, division, gap, alignment, distribution) sin texto propio directo (sin content), organizando ergonómicamente la lectura e interacción de sus componentes hijos y gestionando el estado de carga (skeleton)';

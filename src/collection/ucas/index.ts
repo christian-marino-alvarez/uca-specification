@@ -2,9 +2,7 @@ export { App } from './app/index.js';
 export { Composition } from './composition/index.js';
 export { Decision } from './decision/index.js';
 export { Layout } from './layout/index.js';
-export { Memory } from './memory/index.js';
 export { Navigate } from './navigate/index.js';
-export { Render } from './render/index.js';
 export { View } from './view/index.js';
 
 export { Action } from './action/index.js';

@@ -1,37 +1,7 @@
-import { SignalType, type Qualities } from './types.js';
-import { SignalType as PresentationSignalType } from '@uca/capability-presentation/types';
-import { Operation } from '../types.js';
-
 export const __ID__ = 'symbol';
-export const OPERATIONS = {
-    [Operation.RENDER]: PresentationSignalType.RENDER,
-    [Operation.UPDATE]: PresentationSignalType.UPDATE,
-    [Operation.REMOVE]: PresentationSignalType.REMOVE,
-    [Operation.CHANGE]: SignalType.CHANGED,
-} as const;
 
-export const INVALID_BOUNDS = {
-    error: 'The value and bounds are inconsistent with the domain contract',
-} as const;
+export const DEFAULT_PURPOSE =
+  'Unidad icónica autónoma que representa visualmente conceptos, dominios o estados mediante un glifo de Material Symbols';
 
-export const DEFAULT_SYMBOL_QUALITIES: Qualities = {
-    textColor: 'light',
-    textSize: 'medium',
-    alignment: 'center',
-    distribution: 'center',
-};
-
-export const SYMBOL_VISUAL_DISPOSITION = {
-    role: 'icon',
-    defaultQualities: DEFAULT_SYMBOL_QUALITIES,
-    supportedQualities: [
-        'textColor',
-        'textSize',
-        'width',
-        'height',
-        'alignment',
-        'distribution',
-    ],
-    description: 'Glifo vectorial, icono simbólico o indicador representativo',
-} as const;
-
+export const DEFAULT_INTENTION =
+  'Renderizar un icono de la fuente Material Symbols Outlined indicando en content exclusivamente el identificador snake_case en inglés del glifo (ej. hub, memory, bolt, tune, sync, account_tree, visibility, schedule) y su descripción accesible en label, reforzando el reconocimiento visual rápido';

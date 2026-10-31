@@ -1,7 +1,7 @@
 {
   "name": "@uca/input",
   "version": "0.1.0",
-  "description": "Autonomous text entry unit that captures, validates, and emits user text input through a native input field",
+  "description": "Unidad autónoma de captura de texto que recibe, presenta y emite valores de entrada del usuario",
   "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",
@@ -44,11 +44,13 @@
   },
   "dependencies": {
     "@uca/capability-css": "^0.1.0",
+    "@uca/capability-material": "^0.1.0",
     "@uca/capability-web-component": "^0.1.0",
     "@uca/core": "^0.1.0",
+    "@uca/llm": "^0.1.0",
     "zod": "^4.6.5"
   },
   "scripts": {
-    "test": "tsx tests/index.ts"
+    "test": "tsx tests/index.ts && tsx tests/schema.ts"
   }
 }

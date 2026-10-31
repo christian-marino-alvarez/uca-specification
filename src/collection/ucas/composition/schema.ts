@@ -1,18 +1,16 @@
 import { z } from 'zod';
 import { specificationModelSchema } from '@uca/capability-specification/schema';
-import { decisionPayloadSchema } from '@uca/decision/schema';
 
 export const choiceSchema = z.enum([
   'LAYOUT',
   'VIEW',
 ]);
 
-
 export const areaTargetSchema = z.object({
-  id: z.string().min(1),
-  parentId: z.string().optional(),
   purpose: z.string().optional(),
   intention: z.string().optional(),
+  id: z.string().min(1),
+  parentId: z.string().optional(),
   qualities: z.record(
     z.string(),
     z.unknown(),
@@ -23,6 +21,13 @@ export const areaTargetSchema = z.object({
   ).optional(),
   limits: z.array(z.string().min(1)).optional(),
 }).strict();
+
+export const areaEntrySchema = z.object({
+  area: areaTargetSchema,
+  parentId: z.string().optional(),
+  depth: z.number().int().min(0),
+  choice: choiceSchema.optional(),
+});
 
 export const composeRequestSchema = z.object({
   url: z.string().min(1).optional(),
@@ -39,17 +44,17 @@ export const bodySchema = z.object({
   source: z.string().optional(),
   url: z.string().optional(),
   area: areaTargetSchema.optional(),
+  areas: z.array(areaEntrySchema).optional(),
   browser: z.record(
     z.string(),
     z.unknown(),
   ).optional(),
-  choice: choiceSchema.optional(),
-  decision: decisionPayloadSchema.optional(),
   specification: specificationModelSchema.optional(),
 }).strict();
 
 export type Choice = z.infer<typeof choiceSchema>;
 export type AreaTarget = z.infer<typeof areaTargetSchema>;
+export type AreaEntry = z.infer<typeof areaEntrySchema>;
 export type ComposeRequest = z.infer<typeof composeRequestSchema>;
 export type ErrorPayload = z.infer<typeof errorPayloadSchema>;
 export type Body = z.infer<typeof bodySchema>;

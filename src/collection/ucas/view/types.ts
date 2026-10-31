@@ -1,34 +1,25 @@
 export type {
-    Body,
-    BuildPayload,
-    BuiltResult,
-    ComponentItem,
-    CreatedResult,
-    RenderedResult,
-    ViewBody,
-    ViewComposition,
+  Area,
+  Body,
+  BuiltResult,
+  Component,
+  ComponentType,
+  Composition,
+  LogicUcaDescriptor,
+  PortSummary,
+  Qualities,
+  Specification,
+  WebUcaDescriptor,
 } from './schema.js';
 
-export interface ContractParams {
-    readonly purpose: string;
-    readonly goal: string;
-    readonly outputSchema: Record<string, unknown>;
-}
-
 export enum SignalType {
-    BUILD = 'view.build',
-    BUILT = 'view.built',
-    RENDERED = 'view.rendered',
-    CREATED = 'view.created',
-    ERROR = 'view.error',
+  BUILD = 'view.build',
+  BUILT = 'view.built',
+  ERROR = 'view.error',
 }
 
 export enum DataType {
-    BUILD_PAYLOAD = 'BuildPayload',
-    BUILT_RESULT = 'BuiltResult',
-    CREATED_RESULT = 'CreatedResult',
-    RENDERED_RESULT = 'RenderedResult',
-    BODY = 'Body',
-    ERROR = 'Error',
-    UNKNOWN = 'unknown',
+  BODY = 'Body',
+  BUILT_RESULT = 'BuiltResult',
+  ERROR = 'Error',
 }

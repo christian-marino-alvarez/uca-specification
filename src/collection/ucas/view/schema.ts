@@ -1,96 +1,153 @@
 import { z } from 'zod';
-import {
-    qualitiesSchema as visualQualitiesSchema,
-} from '@uca/capability-css/schema';
-import { areaSchema } from '@uca/layout/schema';
+import { qualitiesSchema as visualQualitiesSchema } from '@uca/capability-css/schema';
 
-export const qualitiesSchema = visualQualitiesSchema
-    .describe('Abstract visual Lego tokens; combine them to compose layout and appearance');
+export const componentTypeSchema = z.enum([
+  'box',
+  'card',
+  'list',
+  'heading',
+  'paragraph',
+  'separator',
+  'symbol',
+  'status',
+  'progress',
+  'picture',
+  'chip',
+  'action',
+  'access',
+  'input',
+  'toggle',
+  'choice',
+  'slider',
+  'range',
+  'quantity',
+  'moment',
+  'dialog',
+  'toast',
+]);
 
-export const componentItemSchema = z.object({
-    id: z.string().describe('Identificador único del componente en el grafo').optional(),
-    parentId: z.string().describe('Identificador del componente padre dentro de esta área, o vacío para el contenedor raíz de la vista. Prohibido usar "root" o áreas externas').optional(),
-    component: z.string().describe('Tipo ontológico de UCA disponible en visualPrimitives. Selecciona la primitiva cuyo propósito satisfaga el contenido, la interacción o la estructura requerida.').nullable().optional().default('box'),
-    content: z.string().describe('Texto visible, titular, etiqueta o descripción del elemento').nullable().optional(),
-    label: z.string().describe('Etiqueta textual visible para acciones o botones').nullable().optional(),
-    title: z.string().describe('Título textual del componente').nullable().optional(),
-    text: z.string().describe('Cuerpo de texto o contenido explicativo').nullable().optional(),
-    src: z.string().describe('Ruta de imagen: únicamente assets/uca-logo.svg o assets/favicon.svg; no inventar rutas').nullable().optional(),
-    items: z.array(z.unknown()).describe('Elementos o alternativas para choice, options, dropdown, list o collection').nullable().optional(),
-    value: z.unknown().describe('Valor numérico, seleccionado o actual para range, quantity, status o progress').nullable().optional(),
-    minimum: z.number().describe('Límite inferior para range o quantity').nullable().optional(),
-    maximum: z.number().describe('Límite superior para range o quantity').nullable().optional(),
-    unit: z.string().describe('Unidad de medida para quantity').nullable().optional(),
-    step: z.number().describe('Paso de incremento para range o quantity').nullable().optional(),
-    disabled: z.boolean().describe('Estado deshabilitado').nullable().optional(),
-    properties: z.record(
-        z.string(),
-        z.unknown(),
-    ).nullable().optional(),
-    qualities: qualitiesSchema
-        .describe('Cualidades visuales ontológicas del componente')
-        .nullable()
-        .optional(),
+export const componentQualitiesSchema = visualQualitiesSchema.pick({
+  alignment: true,
+  direction: true,
+  distribution: true,
+  division: true,
+  elevation: true,
+  flex: true,
+  fontWeight: true,
+  gap: true,
+  height: true,
+  outline: true,
+  overflow: true,
+  shape: true,
+  spacing: true,
+  surface: true,
+  textAlign: true,
+  textColor: true,
+  textSize: true,
+  variant: true,
+  width: true,
 });
 
-export const viewCompositionSchema = z.object({
-    components: z.array(componentItemSchema).min(2).describe('Árbol fractal completo de componentes ontológicos que materializan la vista. La jerarquía, primitivas y cualidades se infieren desde el propósito, el área, visualPrimitives y visualLanguage suministrados.'),
+export const portSummarySchema = z.object({
+  signal: z.string(),
+  type: z.string(),
+  description: z.string().optional(),
 });
 
-export const viewBodySchema = z.object({
-    id: z.string().optional(),
-    containerElement: z.string().optional(),
-    area: areaSchema.optional().describe('Especificación del área donde se materializan los componentes'),
-    browser: z.record(
-        z.string(),
-        z.unknown(),
-    ).optional().describe('Dimensiones y capacidades del navegador'),
-    specification: z.unknown().optional().describe('Especificación funcional del sistema'),
-    limits: z.record(
-        z.string(),
-        z.unknown(),
-    ).optional().describe('Límites operativos, dimensionales o de viewport definidos para el contexto'),
+export const webUcaDescriptorSchema = z.object({
+  purpose: z.string(),
+  intention: z.string(),
+  component: componentTypeSchema,
+  limits: z.array(z.string()),
+  inputs: z.array(portSummarySchema),
+  outputs: z.array(portSummarySchema),
 });
 
-export const bodySchema = viewBodySchema;
+export const logicUcaDescriptorSchema = z.object({
+  purpose: z.string(),
+  intention: z.string(),
+  id: z.string(),
+  limits: z.array(z.string()),
+  inputs: z.array(portSummarySchema),
+  outputs: z.array(portSummarySchema),
+});
 
-export const buildPayloadSchema = z.object({
-    aim: z.object({
-        description: z.string().min(1).describe('Intención cognitiva u objetivo del estímulo de vista'),
-        body: bodySchema.required({
-            area: true,
-        }).describe('Cuerpo de dominio con el área obligatoria a materializar y contexto'),
-    }),
+export const componentSchema = z.object({
+  purpose: z.string().min(10).max(90).describe('Propósito ontológico inmutable, acotado y directo del área o componente Web UCA (1 frase breve y directa de 4 a 12 palabras): define qué es dentro de su contenedor padre.'),
+  intention: z.string().min(120).describe('Intención modulada de cómo debe exponerse el área o componente Web UCA, articulando tres dimensiones: 1) Expectativa: qué expone (texto literal, titular, icono, ítems, rango, valores o destino) y qué resultado aporta al usuario; 2) Intención funcional: cómo responde al situarse encima (over/hover), qué ocurre al hacer click o interactuar (ej. abrir dialog modal, mostrar toast, filtrar o navegar), qué parámetros envía a otro componente (por su id) o UCA de lógica mediante outputs y cómo reacciona por inputs ante otra UCA visual; 3) Intención visual: tamaño de fuente (textSize), peso (fontWeight), color (textColor), superficie (surface), forma (shape), contorno (outline) y espaciado (spacing) en reposo, y a qué color o iluminación cambia en over/hover o activo.'),
+  id: z.string().min(1).describe('context.area.id al definir el contenedor del área visual en el primer elemento, o identificador kebab-case único para cada componente Web UCA hijo dentro del área'),
+  parentId: z.string().min(1).describe('context.area.id para el contenedor del área visual y los componentes de primer nivel, o id de un componente contenedor (box o card) emitido previamente'),
+  component: componentTypeSchema.describe('UCA Web especializada del catálogo (context.webUcas): contenedores estructurales (box, card), tipografía (heading, paragraph, separator), indicadores (symbol, status, progress, chip, picture, list) o controles interactivos (action, access, input, toggle, choice, slider, range, quantity, moment, dialog, toast)'),
+  qualities: componentQualitiesSchema.describe('Cualidades visuales, tipográficas y espaciales de Material Design 3 obligatorias que definen el diseño esperado del área o componente respetando el diseño global de la aplicación y sus límites'),
+});
+
+export const compositionSchema = z.object({
+  components: z.array(
+    componentSchema,
+  ).min(1).describe('Secuencia ordenada que comienza definiendo el área visual contenedora (id === context.area.id, component: box) seguida de los elementos Web UCA hijos de forma que cada contenedor padre (box o card) aparezca antes que sus hijos'),
+});
+
+export const repairCompositionSchema = z.object({
+  components: z.array(
+    componentSchema,
+  ).min(1).max(1).describe('Único componente reparado que sustituye al componente rechazado'),
+});
+
+export const areaSchema = z.object({
+  purpose: z.string().optional(),
+  intention: z.string().optional(),
+  id: z.string().min(1),
+  parentId: z.string().optional(),
+  dimensions: z.record(
+    z.string(),
+    z.unknown(),
+  ).optional(),
+  qualities: z.record(
+    z.string(),
+    z.unknown(),
+  ).optional(),
+}).passthrough();
+
+export const specificationSchema = z.object({
+  purpose: z.string().optional(),
+  intention: z.string().optional(),
+  tone: z.string().optional(),
+  interactiveFeatures: z.array(z.string()).optional(),
+  visualDispositions: z.unknown().optional(),
+  audience: z.unknown().optional(),
+  limits: z.array(z.string()).optional(),
+});
+
+export const bodySchema = z.object({
+  purpose: z.string().optional(),
+  intention: z.string().optional(),
+  id: z.string().optional(),
+  context: z.string().optional(),
+  source: z.string().optional(),
+  area: areaSchema.optional().describe('Área visual hija de un layout donde se define y materializa la vista'),
+  siblingAreas: z.array(areaSchema).optional().describe('Áreas hermanas del mismo layout para evitar duplicar paneles o funciones ya cubiertas'),
+  specification: specificationSchema.optional().describe('Especificación global de diseño, funcionalidad y límites de la aplicación'),
+  webUcas: z.array(webUcaDescriptorSchema).optional().describe('Catálogo de UCAs Web con sus propósitos, intenciones, límites, inputs y outputs'),
+  logicUcas: z.array(logicUcaDescriptorSchema).optional().describe('Catálogo de UCAs de Lógica con sus propósitos, intenciones, límites, inputs y outputs'),
+  components: z.array(componentSchema).optional().describe('Elementos Web UCA hidratados y materializados en la vista'),
+  pendingComponent: componentSchema.optional().describe('Componente Web UCA en curso de hidratación y renderizado reactivo'),
 });
 
 export const builtResultSchema = z.object({
-    composition: z.unknown(),
-    areaId: z.string().optional(),
-    parentId: z.string().optional(),
-    context: z.record(
-        z.string(),
-        z.unknown(),
-    ).optional(),
+  areaId: z.string(),
+  components: z.array(componentSchema),
 });
 
-export const createdResultSchema = z.object({
-    areaId: z.string().optional(),
-    context: z.record(
-        z.string(),
-        z.unknown(),
-    ).optional(),
-});
+export const errorSchema = z.unknown();
 
-export const renderedResultSchema = z.object({
-    elementId: z.string().optional(),
-    context: z.unknown().optional(),
-});
-
-export type ComponentItem = z.infer<typeof componentItemSchema>;
-export type ViewComposition = z.infer<typeof viewCompositionSchema>;
-export type ViewBody = z.infer<typeof viewBodySchema>;
-export type Body = ViewBody;
-export type BuildPayload = z.infer<typeof buildPayloadSchema>;
+export type ComponentType = z.infer<typeof componentTypeSchema>;
+export type PortSummary = z.infer<typeof portSummarySchema>;
+export type WebUcaDescriptor = z.infer<typeof webUcaDescriptorSchema>;
+export type LogicUcaDescriptor = z.infer<typeof logicUcaDescriptorSchema>;
+export type Qualities = z.infer<typeof componentQualitiesSchema>;
+export type Component = z.infer<typeof componentSchema>;
+export type Composition = z.infer<typeof compositionSchema>;
+export type Area = z.infer<typeof areaSchema>;
+export type Specification = z.infer<typeof specificationSchema>;
+export type Body = z.infer<typeof bodySchema>;
 export type BuiltResult = z.infer<typeof builtResultSchema>;
-export type CreatedResult = z.infer<typeof createdResultSchema>;
-export type RenderedResult = z.infer<typeof renderedResultSchema>;

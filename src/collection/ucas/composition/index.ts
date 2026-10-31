@@ -11,11 +11,15 @@ import {
 import { Decision } from '@uca/decision';
 import {
   SignalType as DecisionSignalType,
-  type Request as DecisionRequest,
   type Result as DecisionResult,
 } from '@uca/decision/types';
 import { Layout } from '@uca/layout';
-import { SignalType as LayoutSignalType } from '@uca/layout/types';
+import {
+  SignalType as LayoutSignalType,
+  type AreaCreated,
+} from '@uca/layout/types';
+import { View } from '@uca/view';
+import { SignalType as ViewSignalType } from '@uca/view/types';
 import { Uca } from '@uca/core/uca';
 import {
   DispositionSignal,
@@ -26,19 +30,26 @@ import {
 } from '@uca/core/types';
 import {
   AREA_DECISION_QUESTION,
-  DEFAULT_AREA_ID,
+  AREA_SEPARATOR,
+  BUILD_SIGNALS,
+  CHOICE_ROLES,
+  DEFAULT_INTENTION,
   DEFAULT_PURPOSE,
   DEFAULT_ROOT_AREA,
   DEFAULT_URL,
+  MAXIMUM_DEPTH,
   ROOT_DECISION_QUESTION,
   __ID__,
 } from './constants.js';
 import {
+  bodySchema,
+  choiceSchema,
   composeRequestSchema,
   errorPayloadSchema,
 } from './schema.js';
 import {
   DataType,
+  Role,
   SignalType,
   type AreaTarget,
   type Body,
@@ -49,9 +60,14 @@ import {
 export class Composition extends Uca<Body> {
   public static override purpose: string = DEFAULT_PURPOSE;
 
+  private static readonly builders = {
+    LAYOUT: Layout,
+    VIEW: View,
+  } as const;
+
   public static override disposition: Disposition<Body> = {
     aim: {
-      description: DEFAULT_PURPOSE,
+      description: DEFAULT_INTENTION,
       body: {
         area: DEFAULT_ROOT_AREA,
         url: DEFAULT_URL,
@@ -64,13 +80,78 @@ export class Composition extends Uca<Body> {
       ...Composition.reactToSpecification(),
       ...Composition.reactToDecision(),
       ...Composition.reactToLayout(),
+      ...Composition.reactToView(),
     ],
     inputs: [
+      {
+        signal: DispositionSignal.UPDATED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Continuar el flujo reactivo de la composición tras actualizar su disposición',
+        handler: Composition.prototype.handleUpdated,
+      },
       {
         signal: SignalType.COMPOSE,
         type: DataType.COMPOSE_REQUEST,
         schema: composeRequestSchema,
-        description: 'Analizar la especificación y decidir si componer el área objetivo como Layout o View',
+        description: 'Analizar la especificación y componer el área objetivo como Layout o View',
+        handler: Composition.prototype.handleCompose,
+      },
+      {
+        signal: BrowserSignalType.DETECTED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Contexto real del navegador y viewport detectado',
+        handler: Composition.prototype.handleBrowserDetected,
+      },
+      {
+        signal: SpecificationSignalType.PROVIDED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Especificación funcional y experiencial del sistema',
+        handler: Composition.prototype.handleSpecificationProvided,
+      },
+      {
+        signal: SpecificationSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorPayloadSchema,
+        description: 'Error emitido por la capacidad de especificación',
+        handler: Composition.prototype.handleSpecificationError,
+      },
+      {
+        signal: DecisionSignalType.DECIDED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Decisión probabilística LAYOUT o VIEW para un área',
+        handler: Composition.prototype.handleDecisionDecided,
+      },
+      {
+        signal: DecisionSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorPayloadSchema,
+        description: 'Error emitido por la UCA de decisión',
+        handler: Composition.prototype.handleDecisionError,
+      },
+      {
+        signal: LayoutSignalType.AREA_CREATED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Área hija montada por un Layout y lista para componerse',
+        handler: Composition.prototype.handleLayoutAreaCreated,
+      },
+      {
+        signal: LayoutSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorPayloadSchema,
+        description: 'Error emitido por un Layout de área',
+        handler: Composition.prototype.handleLayoutError,
+      },
+      {
+        signal: ViewSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorPayloadSchema,
+        description: 'Error emitido por una View de área',
+        handler: Composition.prototype.handleViewError,
       },
     ],
     outputs: [
@@ -78,7 +159,7 @@ export class Composition extends Uca<Body> {
         signal: SignalType.ERROR,
         type: DataType.ERROR,
         schema: errorPayloadSchema,
-        description: 'Error emitido durante la consulta de la especificación o la decisión de composición',
+        description: 'Error emitido durante la consulta de la especificación o la composición de áreas',
       },
     ],
   };
@@ -122,8 +203,17 @@ export class Composition extends Uca<Body> {
     return [
       ...reactTo,
       LayoutSignalType.AREA_CREATED,
-      LayoutSignalType.BUILT,
       LayoutSignalType.ERROR,
+    ];
+  }
+
+  private static reactToView(): string[] {
+    const {
+      reactTo = [],
+    } = View.disposition;
+    return [
+      ...reactTo,
+      ViewSignalType.ERROR,
     ];
   }
 
@@ -131,56 +221,24 @@ export class Composition extends Uca<Body> {
     super(id);
   }
 
-  protected override react(signal: Signal): void {
-    const {
-      property,
-    } = signal;
-    switch (property) {
-      case DispositionSignal.UPDATED:
-        this.handleUpdated();
-        break;
-      case SignalType.COMPOSE:
-        this.handleCompose(signal);
-        break;
-      case BrowserSignalType.DETECTED:
-        this.handleBrowserDetected(signal);
-        break;
-      case SpecificationSignalType.PROVIDED:
-        this.handleSpecificationProvided(signal);
-        break;
-      case SpecificationSignalType.ERROR:
-        this.handleSpecificationError(signal);
-        break;
-      case DecisionSignalType.DECIDED:
-        this.handleDecisionDecided(signal);
-        break;
-      case DecisionSignalType.ERROR:
-        this.handleDecisionError(signal);
-        break;
-      case LayoutSignalType.AREA_CREATED:
-        this.handleLayoutAreaCreated(signal);
-        break;
-      case LayoutSignalType.BUILT:
-        this.handleLayoutBuilt(signal);
-        break;
-      case LayoutSignalType.ERROR:
-        this.handleLayoutError(signal);
-        break;
-      default:
-        break;
-    }
-  }
-
   protected override catalog(): Cooky {
+    const {
+      areas = [],
+    } = this.body ?? {};
     const browser = this.catalogBrowser();
     const specification = this.catalogSpecification();
-    const decision = this.catalogDecision();
-    const layout = this.catalogLayout();
+    const decisions = areas.map(({
+      area,
+    }) => this.catalogDecision(area));
+    const builders = areas.flatMap(({
+      area,
+      choice,
+    }) => (choice ? [this.catalogBuilder(area, choice)] : []));
     return [
       browser,
       specification,
-      decision,
-      layout,
+      ...decisions,
+      ...builders,
     ];
   }
 
@@ -188,7 +246,7 @@ export class Composition extends Uca<Body> {
     const disposition = this.createDisposition(
       Browser.disposition,
       Browser.AIM,
-      'browser',
+      Role.BROWSER,
     );
     return [
       Browser as unknown as CapabilityConstructor,
@@ -200,7 +258,7 @@ export class Composition extends Uca<Body> {
     const disposition = this.createDisposition(
       SpecificationCapability.disposition,
       SpecificationCapability.AIM,
-      'specification',
+      Role.SPECIFICATION,
     );
     return [
       SpecificationCapability as unknown as CapabilityConstructor,
@@ -208,11 +266,17 @@ export class Composition extends Uca<Body> {
     ];
   }
 
-  private catalogDecision(): Cooky[number] {
+  private catalogDecision(area: AreaTarget): Cooky[number] {
+    const {
+      id,
+    } = area;
+    const {
+      aim,
+    } = Decision.disposition;
     const disposition = this.createDisposition(
       Decision.disposition,
-      Decision.purpose,
-      'decision',
+      aim.description,
+      `${Role.DECISION}${AREA_SEPARATOR}${id}`,
     );
     return [
       Decision as unknown as CapabilityConstructor,
@@ -220,14 +284,21 @@ export class Composition extends Uca<Body> {
     ];
   }
 
-  private catalogLayout(): Cooky[number] {
+  private catalogBuilder(area: AreaTarget, choice: Choice): Cooky[number] {
+    const {
+      id,
+    } = area;
+    const Builder = Composition.builders[choice];
+    const {
+      aim,
+    } = Builder.disposition;
     const disposition = this.createDisposition(
-      Layout.disposition,
-      Layout.purpose,
-      'layout',
+      Builder.disposition as Disposition,
+      aim.description,
+      `${CHOICE_ROLES[choice]}${AREA_SEPARATOR}${id}`,
     );
     return [
-      Layout as unknown as CapabilityConstructor,
+      Builder as unknown as CapabilityConstructor,
       disposition,
     ];
   }
@@ -236,19 +307,22 @@ export class Composition extends Uca<Body> {
     const {
       source = this.id,
     } = this.body ?? {};
-    switch (source) {
-      case this.id:
+    const {
+      role,
+    } = this.resolveSourceRoute(source);
+    switch (role) {
+      case Role.SELF:
         break;
-      case `${this.id}:browser`:
+      case Role.BROWSER:
         this.handleBrowserUpdated();
         break;
-      case `${this.id}:specification`:
+      case Role.SPECIFICATION:
         this.handleSpecificationUpdated();
         break;
-      case `${this.id}:decision`:
+      case Role.DECISION:
         this.handleDecisionUpdated();
         break;
-      case `${this.id}:layout`:
+      case Role.LAYOUT:
         this.handleLayoutUpdated();
         break;
       default:
@@ -268,8 +342,7 @@ export class Composition extends Uca<Body> {
     } = this.extractPayload<ComposeRequest>(value) ?? {};
     this.updateDispositionBody({
       area,
-      choice: undefined,
-      decision: undefined,
+      areas: [],
       source,
       url,
     });
@@ -319,7 +392,16 @@ export class Composition extends Uca<Body> {
       value,
     } = signal;
     const specification = this.extractPayload<SpecificationModel>(value);
+    const {
+      area = DEFAULT_ROOT_AREA,
+    } = this.body ?? {};
     this.updateDispositionBody({
+      areas: [
+        {
+          area,
+          depth: 0,
+        },
+      ],
       source,
       specification,
     });
@@ -327,41 +409,15 @@ export class Composition extends Uca<Body> {
 
   private handleSpecificationUpdated(): void {
     const {
-      area,
-      specification,
-      url = DEFAULT_URL,
+      areas = [],
     } = this.body ?? {};
-    if (specification) {
-      const request = this.createDecisionRequest(area, specification, url);
-      this.pulse(DecisionSignalType.DECIDE, request);
-    }
-  }
-
-  private createDecisionRequest(
-    area: AreaTarget | undefined,
-    specification: SpecificationModel,
-    url: string,
-  ): DecisionRequest {
-    const {
-      id: areaId = DEFAULT_AREA_ID,
-    } = area ?? {};
-    const {
-      intention,
-      interactiveFeatures,
-      limits,
-    } = specification;
-    return {
-      context: {
+    const [root] = areas;
+    if (root) {
+      const {
         area,
-        specification: {
-          intention,
-          interactiveFeatures,
-          limits,
-        },
-        url,
-      },
-      question: areaId === DEFAULT_AREA_ID ? ROOT_DECISION_QUESTION : AREA_DECISION_QUESTION,
-    };
+      } = root;
+      this.dispatchDecision(area);
+    }
   }
 
   private handleDecisionDecided(signal: Signal): void {
@@ -375,34 +431,188 @@ export class Composition extends Uca<Body> {
     const {
       choice,
     } = result ?? {};
+    const {
+      areaId,
+    } = this.resolveSourceRoute(source);
+    const {
+      areas = [],
+    } = this.body ?? {};
+    const decided = areas.map((entry) => {
+      const {
+        area: {
+          id,
+        },
+      } = entry;
+      return id === areaId ? {
+        ...entry,
+        choice: choice as Choice,
+      } : entry;
+    });
     this.updateDispositionBody({
-      choice: choice as Choice,
-      decision: result,
+      areas: decided,
       source,
     });
   }
 
   private handleDecisionUpdated(): void {
     const {
-      area = DEFAULT_ROOT_AREA,
-      choice,
-      specification,
+      areas = [],
+      source = this.id,
     } = this.body ?? {};
-    if (choice === 'LAYOUT') {
-      this.pulse(LayoutSignalType.BUILD, {
-        area,
-        specification,
+    const {
+      areaId,
+    } = this.resolveSourceRoute(source);
+    const {
+      area,
+      choice,
+    } = areas.find(({
+      area: {
+        id,
+      },
+    }) => id === areaId) ?? {};
+    if (area && choice) {
+      this.dispatchBuild(area, choice);
+    }
+  }
+
+  private handleLayoutAreaCreated(signal: Signal): void {
+    const {
+      source,
+      value,
+    } = signal;
+    const {
+      area,
+    } = this.extractPayload<AreaCreated>(value) ?? {};
+    const {
+      areaId: parentId,
+    } = this.resolveSourceRoute(source);
+    const {
+      areas = [],
+    } = this.body ?? {};
+    const {
+      depth: parentDepth = 0,
+    } = areas.find(({
+      area: {
+        id,
+      },
+    }) => id === parentId) ?? {};
+    const depth = parentDepth + 1;
+    if (area) {
+      this.updateDispositionBody({
+        areas: [
+          ...areas,
+          {
+            area: {
+              ...area,
+              parentId,
+            },
+            depth,
+            parentId,
+            ...(depth >= MAXIMUM_DEPTH && {
+              choice: choiceSchema.enum.VIEW,
+            }),
+          },
+        ],
+        source,
       });
     }
   }
 
   private handleLayoutUpdated(): void {
+    const {
+      areas = [],
+    } = this.body ?? {};
+    const {
+      area,
+      choice,
+      parentId,
+    } = areas.at(-1) ?? {};
+    if (area && choice) {
+      this.dispatchBuild(area, choice);
+    }
+    else if (area) {
+      this.dispatchDecision(area, parentId);
+    }
   }
 
-  private handleLayoutAreaCreated(_signal: Signal): void {
+  private dispatchDecision(area: AreaTarget, parentId?: string): void {
+    const {
+      id,
+    } = area;
+    const context = this.createDecisionContext(area);
+    this.pulse(DecisionSignalType.DECIDE, {
+      context,
+      question: parentId ? AREA_DECISION_QUESTION : ROOT_DECISION_QUESTION,
+    }, `${this.id}:${Role.DECISION}${AREA_SEPARATOR}${id}`);
   }
 
-  private handleLayoutBuilt(_signal: Signal): void {
+  private createDecisionContext(area: AreaTarget): Record<string, unknown> {
+    const {
+      dimensions,
+      intention,
+      purpose,
+    } = area;
+    const {
+      browser,
+      specification,
+    } = this.body ?? {};
+    const {
+      intention: specificationIntention,
+      limits,
+      purpose: specificationPurpose,
+    } = specification ?? {};
+    return {
+      purpose: purpose ?? specificationPurpose,
+      intention: intention ?? specificationIntention,
+      browser: dimensions ?? browser,
+      limits,
+    };
+  }
+
+  private dispatchBuild(area: AreaTarget, choice: Choice): void {
+    const {
+      id,
+      parentId,
+    } = area;
+    const {
+      specification,
+    } = this.body ?? {};
+    const siblingAreas = this.resolveSiblingAreas(id, parentId);
+    this.pulse(BUILD_SIGNALS[choice], {
+      area,
+      siblingAreas,
+      specification,
+    }, `${this.id}:${CHOICE_ROLES[choice]}${AREA_SEPARATOR}${id}`);
+  }
+
+  private resolveSiblingAreas(
+    targetId: string,
+    targetParentId?: string,
+  ): AreaTarget[] {
+    const {
+      areas = [],
+    } = this.body ?? {};
+    return areas
+      .filter(({
+        area: {
+          id,
+        },
+        parentId,
+      }) => id !== targetId && parentId === targetParentId)
+      .map(({
+        area,
+      }) => area);
+  }
+
+  private resolveSourceRoute(source: string): { role?: string; areaId?: string } {
+    const prefix = `${this.id}:`;
+    const [role, areaId] = source.startsWith(prefix)
+      ? source.slice(prefix.length).split(AREA_SEPARATOR)
+      : [];
+    return {
+      areaId,
+      role: source === this.id ? Role.SELF : role,
+    };
   }
 
   private handleSpecificationError(signal: Signal): void {
@@ -426,11 +636,21 @@ export class Composition extends Uca<Body> {
     this.pulse(SignalType.ERROR, value);
   }
 
+  private handleViewError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(SignalType.ERROR, value);
+  }
+
   private updateDispositionBody(partial: Partial<Body>): void {
+    const {
+      aim,
+    } = this.disposition;
     this.pulse(this.updateEvent, {
       ...this.disposition,
       aim: {
-        description: DEFAULT_PURPOSE,
+        ...aim,
         body: {
           ...this.body,
           ...partial,

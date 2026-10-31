@@ -10,10 +10,6 @@ import { Progress } from '@uca/progress';
 import { SignalType as ProgressSignalType } from '@uca/progress/types';
 import { Paragraph } from '@uca/paragraph';
 import { SignalType as ParagraphSignalType } from '@uca/paragraph/types';
-import { Dropdown } from '@uca/dropdown';
-import { SignalType as DropdownSignalType } from '@uca/dropdown/types';
-import { Options } from '@uca/options';
-import { SignalType as OptionsSignalType } from '@uca/options/types';
 import { Capability } from '@uca/core/capability';
 import { preparePrimitiveDom, emit, dispose } from '../../../../../tests/shared/primitive.js';
 
@@ -97,52 +93,6 @@ test('paragraph treats text as text, not executable HTML', () => {
     assert.equal(element?.textContent, '<strong>Literal</strong>');
     assert.equal(element?.querySelector('strong'), null);
     dispose(paragraph);
-});
-
-test('Dropdown preserves legacy command and interaction signal names through Choice', () => {
-    preparePrimitiveDom();
-    const bus = new EventTarget();
-    const dropdown = new Dropdown().innervate(bus);
-    const changed: unknown[] = [];
-    bus.addEventListener(DropdownSignalType.EVENT, (event) => changed.push(Capability.readPayload(event)));
-    emit(bus, dropdown.updateEvent, Dropdown.disposition);
-    emit(bus, DropdownSignalType.RENDER, {
-        parentId: 'app',
-        value: 'a',
-        action: 'choose',
-        items: [
-            { value: 'a', label: 'Alpha' },
-            { value: 'b', label: 'Beta' },
-        ],
-    });
-    const element = document.getElementById(dropdown.id) as HTMLSelectElement;
-    element.value = 'b';
-    change(element);
-    assert.equal(changed.length, 1);
-    assert.equal((changed[0] as { action: string }).action, 'choose');
-    assert.equal((changed[0] as { value: string }).value, 'b');
-    assert.ok(dropdown instanceof Choice);
-    dispose(dropdown);
-});
-
-test('Options preserves the legacy checked alternative while using the Choice domain', () => {
-    preparePrimitiveDom();
-    const bus = new EventTarget();
-    const options = new Options().innervate(bus);
-    emit(bus, options.updateEvent, Options.disposition);
-    emit(bus, OptionsSignalType.RENDER, {
-        parentId: 'app',
-        legend: 'Delivery',
-        items: [
-            { value: 'a', label: 'Alpha' },
-            { value: 'b', label: 'Beta', checked: true },
-        ],
-    });
-    const element = document.getElementById(options.id) as HTMLSelectElement;
-    assert.equal(element.value, 'b');
-    assert.equal(element.getAttribute('aria-label'), 'Delivery');
-    assert.ok(options instanceof Choice);
-    dispose(options);
 });
 
 test('one primitive can render multiple identities without retaining the previous body', async () => {

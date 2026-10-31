@@ -15,6 +15,7 @@ import {
 import {
   __ID__,
   DEFAULT_IMAGINATION,
+  DEFAULT_PURPOSE,
   INFERENCE_LIMITS,
   INVALID_PROBABILITIES,
   PROBABILITY_TOLERANCE,
@@ -35,8 +36,7 @@ import {
 } from './types.js';
 
 export class Decision extends Uca<Body> {
-  public static override purpose =
-    'Realizar selección probabilística rápida y ligera de candidatos y decisiones binarias sin imaginación';
+  public static override purpose = DEFAULT_PURPOSE;
 
   private static readonly outputSchema: Record<string, unknown> =
     Zod.toJsonSchema(choiceResultSchema);
@@ -225,12 +225,25 @@ export class Decision extends Uca<Body> {
       limit,
       requestContext = {},
     } = this.body ?? {};
+    const {
+      limits: contextLimits = [],
+      specification,
+      ...restContext
+    } = requestContext as {
+      limits?: readonly string[];
+      specification?: { limits?: readonly string[] };
+    };
+    const {
+      limits: specificationLimits = [],
+    } = specification ?? {};
     return {
       id: this.id,
       purpose: Decision.purpose,
       intention: prompt,
       limits: [
         ...INFERENCE_LIMITS,
+        ...contextLimits,
+        ...specificationLimits,
       ],
       imagination,
       ...(limit !== undefined && {
@@ -238,7 +251,7 @@ export class Decision extends Uca<Body> {
       }),
       outputSchema: Decision.outputSchema,
       context: {
-        ...requestContext,
+        ...restContext,
         question,
       },
     };

@@ -1,4 +1,5 @@
 export type {
+  AreaEntry,
   AreaTarget,
   Body,
   Choice,
@@ -15,4 +16,13 @@ export enum DataType {
   BODY = 'Body',
   COMPOSE_REQUEST = 'ComposeRequest',
   ERROR = 'Error',
+}
+
+export enum Role {
+  SELF = 'self',
+  BROWSER = 'browser',
+  SPECIFICATION = 'specification',
+  DECISION = 'decision',
+  LAYOUT = 'layout',
+  VIEW = 'view',
 }

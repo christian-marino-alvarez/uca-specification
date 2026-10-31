@@ -1,7 +1,7 @@
 {
   "name": "@uca/picture",
   "version": "0.1.0",
-  "description": "Autonomous visual representation unit that renders, adapts, and manages imagery, alternate text, and presentation qualities",
+  "description": "Unidad visual autónoma que presenta contenido gráfico o fotográfico accesible con sus cualidades espaciales y de forma",
   "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",
@@ -44,8 +44,10 @@
   },
   "dependencies": {
     "@uca/capability-css": "^0.1.0",
+    "@uca/capability-material": "^0.1.0",
     "@uca/capability-web-component": "^0.1.0",
     "@uca/core": "^0.1.0",
+    "@uca/llm": "^0.1.0",
     "zod": "^4.6.5"
   },
   "scripts": {

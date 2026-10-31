@@ -27,6 +27,7 @@ import type { z } from 'zod';
 import { inferenceSchema } from './schema.js';
 import {
   DEFAULT_ENDPOINT,
+  DEFAULT_IMAGINATION,
   __ID__,
 } from './constants.js';
 import {
@@ -46,7 +47,9 @@ export class Llm extends Uca<Body> {
   public static override disposition: Disposition<Body> = {
     aim: {
       description: Llm.purpose,
-      body: {},
+      body: {
+        imagination: DEFAULT_IMAGINATION,
+      },
     },
     reactTo: [
       SignalType.INFER,
@@ -288,10 +291,12 @@ export class Llm extends Uca<Body> {
       intention,
       ...request
     } = payload;
+    const resolvedIntention = intention ?? goal ?? '';
     return {
       ...this.body,
       ...request,
-      goal: goal ?? intention ?? '',
+      intention: resolvedIntention,
+      goal: goal ?? resolvedIntention,
     };
   }
 

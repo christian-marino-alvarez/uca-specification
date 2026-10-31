@@ -3,6 +3,11 @@ import {
   SignalType as CssSignalType,
   type ResolvedResult,
 } from '@uca/capability-css/types';
+import { Material } from '@uca/capability-material';
+import {
+  SignalType as MaterialSignalType,
+  type ResolvedQualities,
+} from '@uca/capability-material/types';
 import { Skeleton } from '@uca/capability-skeleton';
 import { SignalType as SkeletonSignalType } from '@uca/capability-skeleton/types';
 import { WebComponent } from '@uca/capability-web-component';
@@ -46,6 +51,7 @@ export class Box extends Uca<Body> {
       SignalType.UPDATE,
       SignalType.REMOVE,
       ...Box.reactToWebComponent(),
+      ...Box.reactToMaterial(),
       ...Box.reactToCss(),
       ...Box.reactToSkeleton(),
     ],
@@ -112,6 +118,20 @@ export class Box extends Uca<Body> {
         schema: errorSchema,
         description: 'Error emitido por la capacidad de componente web',
         handler: Box.prototype.handleWebComponentError,
+      },
+      {
+        signal: MaterialSignalType.RESOLVED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Cualidades visuales Material Design 3 resueltas para el contenedor espacial',
+        handler: Box.prototype.handleMaterialResolved,
+      },
+      {
+        signal: MaterialSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido por la capacidad de diseño Material',
+        handler: Box.prototype.handleMaterialError,
       },
       {
         signal: CssSignalType.MOUNTED,
@@ -225,6 +245,17 @@ export class Box extends Uca<Body> {
     ];
   }
 
+  private static reactToMaterial(): string[] {
+    const {
+      reactTo = [],
+    } = Material.disposition;
+    return [
+      ...reactTo,
+      MaterialSignalType.RESOLVED,
+      MaterialSignalType.ERROR,
+    ];
+  }
+
   private static reactToCss(): string[] {
     const {
       reactTo = [],
@@ -258,10 +289,12 @@ export class Box extends Uca<Body> {
 
   protected override catalog(): Cooky {
     const webComponent = this.catalogWebComponent();
+    const material = this.catalogMaterial();
     const css = this.catalogCss();
     const skeleton = this.catalogSkeleton();
     return [
       webComponent,
+      material,
       css,
       skeleton,
     ];
@@ -275,6 +308,18 @@ export class Box extends Uca<Body> {
     );
     return [
       WebComponent as unknown as CapabilityConstructor,
+      disposition,
+    ];
+  }
+
+  private catalogMaterial(): Cooky[number] {
+    const disposition = this.createDisposition(
+      Material.disposition,
+      Material.AIM,
+      'material',
+    );
+    return [
+      Material as unknown as CapabilityConstructor,
       disposition,
     ];
   }
@@ -307,21 +352,8 @@ export class Box extends Uca<Body> {
     const {
       source = this.id,
     } = this.body ?? {};
-    switch (source) {
-      case this.id:
-        break;
-      case `${this.id}:web-component`:
-        this.handleWebComponentUpdated();
-        break;
-      case `${this.id}:css`:
-        this.handleCssUpdated();
-        break;
-      case `${this.id}:skeleton`:
-        this.handleSkeletonUpdated();
-        break;
-      default:
-        this.handleSelfUpdated();
-        break;
+    if (source !== this.id) {
+      this.handleSelfUpdated();
     }
   }
 
@@ -330,21 +362,9 @@ export class Box extends Uca<Body> {
       source,
       value,
     } = signal;
-    const {
-      content,
-      elementId = this.id,
-      events,
-      parentTo,
-      qualities,
-      skeleton,
-    } = this.extractPayload<Body>(value) ?? {};
-    this.updateDispositionBody({
-      content,
-      elementId,
-      events,
-      parentTo,
-      qualities,
-      skeleton,
+    const payload = this.extractPayload<Body>(value);
+    this.replaceDispositionBody({
+      ...payload,
       source,
     });
   }
@@ -354,21 +374,10 @@ export class Box extends Uca<Body> {
       source,
       value,
     } = signal;
-    const {
-      content,
-      elementId = this.id,
-      events,
-      parentTo,
-      qualities,
-      skeleton,
-    } = this.extractPayload<Body>(value) ?? {};
-    this.updateDispositionBody({
-      content,
-      elementId,
-      events,
-      parentTo,
-      qualities,
-      skeleton,
+    const payload = this.extractPayload<Body>(value);
+    this.replaceDispositionBody({
+      ...this.body,
+      ...payload,
       source,
     });
   }
@@ -390,25 +399,7 @@ export class Box extends Uca<Body> {
     this.pulse(WebComponentSignalType.RENDER, payload);
   }
 
-  private handleWebComponentRendered(signal: Signal): void {
-    const {
-      source,
-    } = signal;
-    this.updateDispositionBody({
-      source,
-    });
-  }
-
-  private handleWebComponentModified(signal: Signal): void {
-    const {
-      source,
-    } = signal;
-    this.updateDispositionBody({
-      source,
-    });
-  }
-
-  private handleWebComponentUpdated(): void {
+  private handleWebComponentRendered(): void {
     const {
       qualities,
     } = this.body ?? {};
@@ -416,21 +407,48 @@ export class Box extends Uca<Body> {
       this.pulse(CssSignalType.MOUNT, {});
     }
     else {
-      this.handleCssUpdated();
+      this.handleCssApplied();
+    }
+  }
+
+  private handleWebComponentModified(): void {
+    const {
+      qualities,
+    } = this.body ?? {};
+    if (qualities) {
+      this.pulse(CssSignalType.MOUNT, {});
+    }
+    else {
+      this.handleCssApplied();
     }
   }
 
   private handleCssMounted(): void {
     const {
-      elementId = this.id,
       qualities,
     } = this.body ?? {};
     if (qualities) {
-      this.pulse(CssSignalType.RESOLVE, {
-        elementId,
+      this.pulse(MaterialSignalType.RESOLVE, {
+        component: __ID__,
         qualities,
       });
     }
+  }
+
+  private handleMaterialResolved(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const {
+      qualities,
+    } = this.extractPayload<ResolvedQualities>(value) ?? {};
+    const {
+      elementId = this.id,
+    } = this.body ?? {};
+    this.pulse(CssSignalType.RESOLVE, {
+      elementId,
+      qualities,
+    });
   }
 
   private handleCssResolved(signal: Signal): void {
@@ -441,16 +459,7 @@ export class Box extends Uca<Body> {
     this.pulse(CssSignalType.APPLY, payload);
   }
 
-  private handleCssApplied(signal: Signal): void {
-    const {
-      source,
-    } = signal;
-    this.updateDispositionBody({
-      source,
-    });
-  }
-
-  private handleCssUpdated(): void {
+  private handleCssApplied(): void {
     const {
       elementId = this.id,
       skeleton,
@@ -481,23 +490,20 @@ export class Box extends Uca<Body> {
 
   private handleSkeletonShown(signal: Signal): void {
     const {
-      source,
+      value,
     } = signal;
-    this.updateDispositionBody({
-      source,
-    });
-  }
-
-  private handleSkeletonRemoved(signal: Signal): void {
     const {
-      source,
-    } = signal;
-    this.updateDispositionBody({
-      source,
+      dimensions,
+    } = this.extractPayload<Body>(value) ?? {};
+    this.pulse(SignalType.CREATED, {
+      ...this.body,
+      ...(dimensions && {
+        dimensions,
+      }),
     });
   }
 
-  private handleSkeletonUpdated(): void {
+  private handleSkeletonRemoved(): void {
     this.pulse(SignalType.CREATED, this.body);
   }
 
@@ -539,6 +545,13 @@ export class Box extends Uca<Body> {
     this.pulse(SignalType.ERROR, value);
   }
 
+  private handleMaterialError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(SignalType.ERROR, value);
+  }
+
   private handleCssError(signal: Signal): void {
     const {
       value,
@@ -569,17 +582,22 @@ export class Box extends Uca<Body> {
     };
   }
 
-  private updateDispositionBody(partial: Partial<Body>): void {
+  private replaceDispositionBody(body: Body): void {
     const {
       aim,
     } = this.disposition;
+    const {
+      context,
+      id,
+    } = (this.body ?? {}) as Record<string, unknown>;
     this.pulse(this.updateEvent, {
       ...this.disposition,
       aim: {
         ...aim,
         body: {
-          ...this.body,
-          ...partial,
+          ...body,
+          context,
+          id,
         },
       },
     });

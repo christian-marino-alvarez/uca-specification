@@ -1,18 +1,22 @@
-export type { Body, Qualities, RenderPayload } from './schema.js';
+export type {
+  Body,
+  EventContext,
+  Qualities,
+} from './schema.js';
 
 export enum SignalType {
-    RENDER = 'toggle.render',
-    UPDATE = 'toggle.update',
-    REMOVE = 'toggle.remove',
-    CREATED = 'toggle.created',
-    UPDATED = 'toggle.updated',
-    REMOVED = 'toggle.removed',
-    CHANGED = 'toggle.changed',
-    ERROR = 'toggle.error',
+  RENDER = 'toggle.render',
+  UPDATE = 'toggle.update',
+  REMOVE = 'toggle.remove',
+  CREATED = 'toggle.created',
+  UPDATED = 'toggle.updated',
+  REMOVED = 'toggle.removed',
+  EVENT = 'toggle.event',
+  ERROR = 'toggle.error',
 }
 
 export enum DataType {
-    BODY = 'Body',
-    RENDER_PAYLOAD = 'RenderPayload',
-    ERROR = 'Error',
+  BODY = 'Body',
+  EVENT_CONTEXT = 'EventContext',
+  ERROR = 'Error',
 }

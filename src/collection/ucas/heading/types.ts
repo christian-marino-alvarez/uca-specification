@@ -1,18 +1,22 @@
-export type { Body, Qualities, RenderPayload } from './schema.js';
+export type {
+  Body,
+  EventContext,
+  Qualities,
+} from './schema.js';
 
 export enum SignalType {
-    RENDER = 'heading.render',
-    UPDATE = 'heading.update',
-    REMOVE = 'heading.remove',
-    CREATED = 'heading.created',
-    UPDATED = 'heading.updated',
-    REMOVED = 'heading.removed',
-    CHANGED = 'heading.changed',
-    ERROR = 'heading.error',
+  RENDER = 'heading.render',
+  UPDATE = 'heading.update',
+  REMOVE = 'heading.remove',
+  CREATED = 'heading.created',
+  UPDATED = 'heading.updated',
+  REMOVED = 'heading.removed',
+  EVENT = 'heading.event',
+  ERROR = 'heading.error',
 }
 
 export enum DataType {
-    BODY = 'Body',
-    RENDER_PAYLOAD = 'RenderPayload',
-    ERROR = 'Error',
+  BODY = 'Body',
+  EVENT_CONTEXT = 'EventContext',
+  ERROR = 'Error',
 }

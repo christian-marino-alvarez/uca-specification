@@ -20,6 +20,7 @@ import {
   shownResultSchema,
   showPayloadSchema,
   type Body,
+  type Dimensions,
   type RemovePayload,
   type ShowPayload,
 } from './schema.js';
@@ -119,8 +120,12 @@ export class Skeleton extends Capability<Body> {
     } = this.extractPayload<ShowPayload>(value) ?? {};
     const container = this.resolveContainer(containerElement ?? elementId);
     this.mountSkeleton(container, elementId);
+    const dimensions = this.measureContainer(container);
     this.pulse(SignalType.SHOWN, {
-      context,
+      ...(context !== undefined && {
+        context,
+      }),
+      dimensions,
       elementId,
     });
   }
@@ -135,7 +140,9 @@ export class Skeleton extends Capability<Body> {
     } = this.extractPayload<RemovePayload>(value) ?? {};
     this.unmountSkeleton(elementId);
     this.pulse(SignalType.REMOVED, {
-      context,
+      ...(context !== undefined && {
+        context,
+      }),
       elementId,
     });
   }
@@ -144,16 +151,12 @@ export class Skeleton extends Capability<Body> {
     const style = existing ?? document.createElement('style');
     style.id = STYLE_TAG_ID;
     style.textContent = DEFAULT_STYLES;
-    style.addEventListener('load', () => {
-      this.pulse(SignalType.MOUNTED, {
-        mounted: true,
-      });
-    }, {
-      once: true,
-    });
     if (!existing) {
       document.head.appendChild(style);
     }
+    this.pulse(SignalType.MOUNTED, {
+      mounted: true,
+    });
   }
 
   private resolveContainer(target: string): Element | null {
@@ -182,5 +185,18 @@ export class Skeleton extends Capability<Body> {
     nodes.forEach((node) => {
       node.remove();
     });
+  }
+
+  private measureContainer(container: Element | null): Dimensions | undefined {
+    const {
+      height = 0,
+      width = 0,
+    } = container?.getBoundingClientRect() ?? {};
+    return width > 0 && height > 0
+      ? {
+        height: Math.round(height),
+        width: Math.round(width),
+      }
+      : undefined;
   }
 }

@@ -18,8 +18,14 @@ export const removePayloadSchema = z.object({
   context: z.unknown().optional(),
 }).strict();
 
+export const dimensionsSchema = z.object({
+  width: z.number(),
+  height: z.number(),
+});
+
 export const shownResultSchema = z.object({
   elementId: z.string().min(1),
+  dimensions: dimensionsSchema.optional(),
   context: z.unknown().optional(),
 }).strict();
 
@@ -39,6 +45,7 @@ export const bodySchema = z.object({
 }).strict();
 
 export type Body = z.infer<typeof bodySchema>;
+export type Dimensions = z.infer<typeof dimensionsSchema>;
 export type MountPayload = z.infer<typeof mountPayloadSchema>;
 export type MountedResult = z.infer<typeof mountedResultSchema>;
 export type ShowPayload = z.infer<typeof showPayloadSchema>;

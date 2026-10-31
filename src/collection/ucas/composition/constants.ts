@@ -3,19 +3,50 @@ import {
   type OptionItem,
   type Question,
 } from '@uca/decision/types';
-import type { AreaTarget } from './types.js';
+import { SignalType as LayoutSignalType } from '@uca/layout/types';
+import { SignalType as ViewSignalType } from '@uca/view/types';
+import {
+  Role,
+  type AreaTarget,
+  type Choice,
+} from './types.js';
 
 export const __ID__ = 'composition';
 
 export const DEFAULT_PURPOSE =
-  'Orquestar la composición cognitiva de la interfaz consultando la especificación del sistema y decidiendo probabilísticamente entre partición espacial (Layout) o articulación de componentes (View)';
+  'Orquestar recursivamente la arquitectura espacial, visual y funcional de la interfaz, coordinando las decisiones probabilísticas entre partición de áreas (Layout) y materialización de componentes (View)';
+
+export const DEFAULT_INTENTION =
+  'Detectar las dimensiones reales del navegador, consultar la especificación integral del sistema (propósito, intención, tono, disposiciones visuales Material Design 3 y capacidades interactivas) y propagar a cada área el contexto, propósito e intención necesarios para articular una experiencia de usuario y funcional coherente de extremo a extremo';
 
 export const DEFAULT_URL = '/';
 
 export const DEFAULT_AREA_ID = 'body';
 
+export const AREA_SEPARATOR = '@';
+
+export const MAXIMUM_DEPTH = 2;
+
+export const BUILD_SIGNALS: Readonly<Record<Choice, string>> = {
+  LAYOUT: LayoutSignalType.BUILD,
+  VIEW: ViewSignalType.BUILD,
+} as const;
+
+export const CHOICE_ROLES: Readonly<Record<Choice, Role>> = {
+  LAYOUT: Role.LAYOUT,
+  VIEW: Role.VIEW,
+} as const;
+
 export const DEFAULT_ROOT_AREA: AreaTarget = {
   id: DEFAULT_AREA_ID,
+  qualities: {
+    direction: 'column',
+    flex: 'fill',
+    height: 'screen',
+    overflow: 'hidden',
+    surface: 'default',
+    width: 'full',
+  },
 };
 
 export const ROOT_DECISION_OPTIONS: readonly OptionItem[] = [

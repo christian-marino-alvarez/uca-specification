@@ -5,6 +5,7 @@ import type {
 } from '@uca/core/types';
 import {
   AIM,
+  ELASTIC_DECLARATIONS,
   IDENTIFIED_DESCENDANT_SELECTOR,
   PROPERTY_MAPPINGS,
   STYLE_PREFIX,
@@ -186,10 +187,31 @@ export class Css extends Capability<Body> {
       direction,
       distribution,
       division,
+      flex,
       gap,
       wrap,
     } = qualities;
     const isFlex = Boolean(direction || alignment || distribution || wrap || gap);
+    const isElastic = Boolean(flex || isFlex || division);
+    const mapped = this.mapQualityDeclarations(qualities, division);
+    return {
+      'box-sizing': 'border-box',
+      ...(isFlex && {
+        display: 'flex',
+      }),
+      ...(division && {
+        display: 'grid',
+        'grid-auto-rows': 'minmax(0, 1fr)',
+      }),
+      ...(isElastic && ELASTIC_DECLARATIONS),
+      ...mapped,
+    };
+  }
+
+  private mapQualityDeclarations(
+    qualities: Qualities,
+    division?: Qualities['division'],
+  ): Record<string, string> {
     const entries = PROPERTY_MAPPINGS
       .filter(([
         quality,
@@ -202,17 +224,7 @@ export class Css extends Capability<Body> {
         property,
         TOKEN_VARIABLES[`${group}:${String(qualities[quality])}`] ?? String(qualities[quality]),
       ]);
-    const mapped = Object.fromEntries(entries);
-    return {
-      'box-sizing': 'border-box',
-      ...(isFlex && {
-        display: 'flex',
-      }),
-      ...(division && {
-        display: 'grid',
-      }),
-      ...mapped,
-    };
+    return Object.fromEntries(entries);
   }
 
   private formatCssRule(
@@ -234,16 +246,12 @@ export class Css extends Capability<Body> {
     const style = existing ?? document.createElement('style');
     style.id = TOKENS_STYLE_ID;
     style.textContent = TOKENS_STYLESHEET;
-    style.addEventListener('load', () => {
-      this.pulse(SignalType.MOUNTED, {
-        mounted: true,
-      });
-    }, {
-      once: true,
-    });
     if (!existing) {
       document.head.prepend(style);
     }
+    this.pulse(SignalType.MOUNTED, {
+      mounted: true,
+    });
   }
 
   private mountElementStyle(
@@ -256,15 +264,11 @@ export class Css extends Capability<Body> {
     const style = document.createElement('style');
     style.id = styleId;
     style.textContent = cssText;
-    style.addEventListener('load', () => {
-      this.pulse(SignalType.APPLIED, {
-        declarations,
-        elementId,
-      });
-    }, {
-      once: true,
-    });
     document.head.appendChild(style);
+    this.pulse(SignalType.APPLIED, {
+      declarations,
+      elementId,
+    });
   }
 
   private unmountElementStyles(elementId: string): void {

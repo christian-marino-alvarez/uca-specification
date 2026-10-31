@@ -1,223 +1,607 @@
-import { Uca } from '@uca/core/uca';
-import type { Cooky, Disposition, Signal } from '@uca/core/types';
-import { Presentation } from '@uca/capability-presentation';
-import { Kind } from '@uca/capability-presentation/types';
-import { SignalType as ComponentSignalType } from '@uca/capability-web-component/types';
+import { z } from 'zod';
 import { Css } from '@uca/capability-css';
-import { SignalType as CssSignalType } from '@uca/capability-css/types';
-import { stylePayload, cssDeclaration, presentationDeclaration } from '../declaration.js';
-import { Operation, type Interaction, type Lifecycle } from '../types.js';
-import { bodySchema, renderPayloadSchema } from './schema.js';
 import {
-    __ID__,
-    OPERATIONS,
-    STATUS_VISUAL_DISPOSITION,
+  SignalType as CssSignalType,
+  type ResolvedResult,
+} from '@uca/capability-css/types';
+import { Material } from '@uca/capability-material';
+import {
+  SignalType as MaterialSignalType,
+  type ResolvedQualities,
+} from '@uca/capability-material/types';
+import { WebComponent } from '@uca/capability-web-component';
+import { SignalType as WebComponentSignalType } from '@uca/capability-web-component/types';
+import { Uca } from '@uca/core/uca';
+import {
+  DispositionSignal,
+  type CapabilityConstructor,
+  type Cooky,
+  type Disposition,
+  type Signal,
+} from '@uca/core/types';
+import { Llm } from '@uca/llm';
+import {
+  SignalType as LlmSignalType,
+  type InferPayload,
+  type InferResult,
+} from '@uca/llm/types';
+import {
+  DEFAULT_INTENTION,
+  DEFAULT_PURPOSE,
+  DEFAULT_TONE,
+  __ID__,
 } from './constants.js';
-import { DataType, SignalType, type Body } from './types.js';
+import {
+  bodySchema,
+  errorSchema,
+  eventContextSchema,
+  inferenceSchema,
+} from './schema.js';
+import {
+  DataType,
+  SignalType,
+  type Body,
+  type EventContext,
+} from './types.js';
 
 export class Status extends Uca<Body> {
-    public static override purpose = 'Communicate the current condition of an entity or operation';
+  public static override purpose: string = DEFAULT_PURPOSE;
 
-    public static readonly visualDisposition = STATUS_VISUAL_DISPOSITION;
+  private static readonly outputSchema: Record<string, unknown> =
+    z.toJSONSchema(inferenceSchema);
 
-    public static override disposition: Disposition<Body> = {
-        aim: {
-            description: Status.purpose,
-        },
-        reactTo: [
-            SignalType.RENDER,
-            SignalType.UPDATE,
-            SignalType.REMOVE,
-            ...Status.reactToPresentation(),
-            ...Status.reactToCss(),
-        ],
-        inputs: [
-            {
-                signal: SignalType.RENDER,
-                type: DataType.RENDER_PAYLOAD,
-                schema: renderPayloadSchema,
-            },
-            {
-                signal: SignalType.UPDATE,
-                type: DataType.BODY,
-                schema: bodySchema,
-            },
-            {
-                signal: SignalType.REMOVE,
-                type: DataType.BODY,
-                schema: bodySchema,
-            },
-        ],
-        outputs: [
-            {
-                signal: SignalType.CREATED,
-                type: DataType.BODY,
-                schema: bodySchema,
-            },
-            {
-                signal: SignalType.UPDATED,
-                type: DataType.BODY,
-                schema: bodySchema,
-            },
-            {
-                signal: SignalType.REMOVED,
-                type: DataType.BODY,
-                schema: bodySchema,
-            },
-            {
-                signal: SignalType.CHANGED,
-                type: DataType.BODY,
-                schema: bodySchema,
-            },
-            {
-                signal: SignalType.ERROR,
-                type: DataType.ERROR,
-            },
-        ],
+  public static override disposition: Disposition<Body> = {
+    aim: {
+      description: DEFAULT_INTENTION,
+      body: {},
+    },
+    reactTo: [
+      DispositionSignal.UPDATED,
+      SignalType.RENDER,
+      SignalType.UPDATE,
+      SignalType.REMOVE,
+      ...Status.reactToWebComponent(),
+      ...Status.reactToMaterial(),
+      ...Status.reactToCss(),
+      ...Status.reactToLlm(),
+    ],
+    inputs: [
+      {
+        signal: DispositionSignal.UPDATED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Continuar el flujo reactivo del indicador de estado tras actualizar su disposición',
+        handler: Status.prototype.handleUpdated,
+      },
+      {
+        signal: SignalType.RENDER,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Materializar el indicador de estado en el DOM aplicando su tono y cualidades visuales',
+        handler: Status.prototype.handleRender,
+      },
+      {
+        signal: SignalType.UPDATE,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Actualizar el texto, el tono o las cualidades visuales del indicador de estado',
+        handler: Status.prototype.handleUpdate,
+      },
+      {
+        signal: SignalType.REMOVE,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Eliminar el indicador de estado y sus estilos asociados del DOM',
+        handler: Status.prototype.handleRemove,
+      },
+      {
+        signal: WebComponentSignalType.RENDERED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de elemento de estado renderizado en el DOM',
+        handler: Status.prototype.handleWebComponentRendered,
+      },
+      {
+        signal: WebComponentSignalType.UPDATED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de elemento de estado actualizado en el DOM',
+        handler: Status.prototype.handleWebComponentModified,
+      },
+      {
+        signal: WebComponentSignalType.REMOVED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de elemento de estado eliminado del DOM',
+        handler: Status.prototype.handleWebComponentRemoved,
+      },
+      {
+        signal: WebComponentSignalType.EVENT,
+        type: DataType.EVENT_CONTEXT,
+        schema: eventContextSchema,
+        description: 'Evento de interacción capturado desde el indicador de estado',
+        handler: Status.prototype.handleWebComponentEvent,
+      },
+      {
+        signal: WebComponentSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido por la capacidad de componente web',
+        handler: Status.prototype.handleWebComponentError,
+      },
+      {
+        signal: MaterialSignalType.RESOLVED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Cualidades de Material Design 3 resueltas para el componente',
+        handler: Status.prototype.handleMaterialResolved,
+      },
+      {
+        signal: MaterialSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido por la capacidad de Material Design 3',
+        handler: Status.prototype.handleMaterialError,
+      },
+      {
+        signal: CssSignalType.MOUNTED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de hoja raíz de tokens CSS montada en el documento',
+        handler: Status.prototype.handleCssMounted,
+      },
+      {
+        signal: CssSignalType.RESOLVED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Cualidades de dominio traducidas a declaraciones y regla CSS',
+        handler: Status.prototype.handleCssResolved,
+      },
+      {
+        signal: CssSignalType.APPLIED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de regla CSS aplicada al indicador de estado en el DOM',
+        handler: Status.prototype.handleCssApplied,
+      },
+      {
+        signal: CssSignalType.REMOVED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Confirmación de reglas CSS retiradas del indicador de estado en el DOM',
+        handler: Status.prototype.handleCssRemoved,
+      },
+      {
+        signal: CssSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido por la capacidad de estilos CSS',
+        handler: Status.prototype.handleCssError,
+      },
+      {
+        signal: LlmSignalType.INFERRED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Propiedades de dominio inferidas para el indicador de estado',
+        handler: Status.prototype.handleLlmInferred,
+      },
+      {
+        signal: LlmSignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido por la UCA de modelo de lenguaje',
+        handler: Status.prototype.handleLlmError,
+      },
+    ],
+    outputs: [
+      {
+        signal: SignalType.CREATED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Indicador de estado creado y estilizado en el DOM',
+      },
+      {
+        signal: SignalType.UPDATED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Indicador de estado actualizado en el DOM',
+      },
+      {
+        signal: SignalType.REMOVED,
+        type: DataType.BODY,
+        schema: bodySchema,
+        description: 'Indicador de estado eliminado del DOM',
+      },
+      {
+        signal: SignalType.EVENT,
+        type: DataType.EVENT_CONTEXT,
+        schema: eventContextSchema,
+        description: 'Evento de interacción emitido desde el indicador de estado',
+      },
+      {
+        signal: SignalType.ERROR,
+        type: DataType.ERROR,
+        schema: errorSchema,
+        description: 'Error emitido durante la operación del indicador de estado',
+      },
+    ],
+  };
+
+  private static reactToWebComponent(): string[] {
+    const {
+      reactTo = [],
+    } = WebComponent.disposition;
+    return [
+      ...reactTo,
+      WebComponentSignalType.RENDERED,
+      WebComponentSignalType.UPDATED,
+      WebComponentSignalType.REMOVED,
+      WebComponentSignalType.EVENT,
+      WebComponentSignalType.ERROR,
+    ];
+  }
+
+  private static reactToMaterial(): string[] {
+    const {
+      reactTo = [],
+    } = Material.disposition;
+    return [
+      ...reactTo,
+      MaterialSignalType.RESOLVED,
+      MaterialSignalType.ERROR,
+    ];
+  }
+
+  private static reactToCss(): string[] {
+    const {
+      reactTo = [],
+    } = Css.disposition;
+    return [
+      ...reactTo,
+      CssSignalType.MOUNTED,
+      CssSignalType.RESOLVED,
+      CssSignalType.APPLIED,
+      CssSignalType.REMOVED,
+      CssSignalType.ERROR,
+    ];
+  }
+
+  private static reactToLlm(): string[] {
+    const {
+      reactTo = [],
+    } = Llm.disposition;
+    return [
+      ...reactTo,
+      LlmSignalType.INFERRED,
+      LlmSignalType.ERROR,
+    ];
+  }
+
+  public constructor(id: string = __ID__) {
+    super(id);
+  }
+
+  protected override catalog(): Cooky {
+    const webComponent = this.catalogWebComponent();
+    const material = this.catalogMaterial();
+    const css = this.catalogCss();
+    const llm = this.catalogLlm();
+    return [
+      webComponent,
+      material,
+      css,
+      llm,
+    ];
+  }
+
+  private catalogWebComponent(): Cooky[number] {
+    const disposition = this.createDisposition(
+      WebComponent.disposition,
+      WebComponent.AIM,
+      'web-component',
+    );
+    return [
+      WebComponent as unknown as CapabilityConstructor,
+      disposition,
+    ];
+  }
+
+  private catalogMaterial(): Cooky[number] {
+    const disposition = this.createDisposition(
+      Material.disposition,
+      Material.AIM,
+      'material',
+    );
+    return [
+      Material as unknown as CapabilityConstructor,
+      disposition,
+    ];
+  }
+
+  private catalogCss(): Cooky[number] {
+    const disposition = this.createDisposition(
+      Css.disposition,
+      Css.AIM,
+      'css',
+    );
+    return [
+      Css as unknown as CapabilityConstructor,
+      disposition,
+    ];
+  }
+
+  private catalogLlm(): Cooky[number] {
+    const disposition = this.createDisposition(
+      Llm.disposition,
+      Llm.purpose,
+      'llm',
+    );
+    return [
+      Llm as unknown as CapabilityConstructor,
+      disposition,
+    ];
+  }
+
+  private handleUpdated(): void {
+    const {
+      source = this.id,
+    } = this.body ?? {};
+    if (source !== this.id) {
+      this.handleSelfUpdated();
+    }
+  }
+
+  private handleRender(signal: Signal): void {
+    const {
+      source,
+      value,
+    } = signal;
+    const payload = this.extractPayload<Body>(value);
+    this.replaceDispositionBody({
+      ...payload,
+      source,
+    });
+  }
+
+  private handleUpdate(signal: Signal): void {
+    const {
+      source,
+      value,
+    } = signal;
+    const payload = this.extractPayload<Body>(value);
+    this.replaceDispositionBody({
+      ...this.body,
+      ...payload,
+      source,
+    });
+  }
+
+  private handleRemove(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const {
+      elementId = this.id,
+    } = this.extractPayload<Body>(value) ?? {};
+    this.pulse(CssSignalType.REMOVE, {
+      elementId,
+    });
+  }
+
+  private handleSelfUpdated(): void {
+    const payload = this.createWebComponentPayload();
+    this.pulse(WebComponentSignalType.RENDER, payload);
+  }
+
+  private handleWebComponentRendered(): void {
+    this.pulse(CssSignalType.MOUNT, {});
+  }
+
+  private handleWebComponentModified(): void {
+    this.pulse(CssSignalType.MOUNT, {});
+  }
+
+  private handleCssMounted(): void {
+    const {
+      qualities,
+      tone = DEFAULT_TONE,
+    } = this.body ?? {};
+    this.pulse(MaterialSignalType.RESOLVE, {
+      component: __ID__,
+      qualities,
+      tone,
+    });
+  }
+
+  private handleMaterialResolved(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const {
+      qualities,
+    } = this.extractPayload<ResolvedQualities>(value) ?? {};
+    const {
+      elementId = this.id,
+    } = this.body ?? {};
+    this.pulse(CssSignalType.RESOLVE, {
+      elementId,
+      qualities,
+    });
+  }
+
+  private handleCssResolved(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const payload = this.extractPayload<ResolvedResult>(value);
+    this.pulse(CssSignalType.APPLY, payload);
+  }
+
+  private handleCssApplied(): void {
+    const shouldInfer = this.needsInference();
+    if (shouldInfer) {
+      const request = this.createInferRequest();
+      this.pulse(LlmSignalType.INFER, request);
+    }
+    else {
+      this.pulse(SignalType.CREATED, this.body);
+    }
+  }
+
+  private needsInference(): boolean {
+    const {
+      content,
+      intention,
+      label,
+      purpose,
+      source,
+      text,
+      title,
+      value,
+    } = this.body ?? {};
+    const hasContent = !!(content || text || label || title || value !== undefined);
+    return source !== `${this.id}:llm` && !hasContent && !!(purpose || intention);
+  }
+
+  private createInferRequest(): InferPayload {
+    const {
+      intention = DEFAULT_INTENTION,
+      purpose = DEFAULT_PURPOSE,
+    } = this.body ?? {};
+    return {
+      purpose,
+      intention,
+      id: __ID__,
+      context: {
+        ...this.body,
+      },
+      outputSchema: Status.outputSchema,
     };
+  }
 
-    private static reactToPresentation(): string[] {
-        const {
-            reactTo = [],
-        } = Presentation.disposition;
-        return reactTo.concat(
-            ComponentSignalType.RENDERED,
-            ComponentSignalType.UPDATED,
-            ComponentSignalType.REMOVED,
-            ComponentSignalType.EVENT,
-            ComponentSignalType.ERROR,
-        );
-    }
+  private handleLlmInferred(signal: Signal): void {
+    const {
+      source,
+      value,
+    } = signal;
+    const {
+      data,
+      request,
+    } = this.extractPayload<InferResult>(value) ?? {};
+    const {
+      context,
+    } = request ?? {};
+    const origin = (context ?? this.body ?? {}) as Body;
+    const inferred = (data ?? {}) as Partial<Body>;
+    this.replaceDispositionBody({
+      ...origin,
+      ...inferred,
+      source,
+    });
+  }
 
-    private static reactToCss(): string[] {
-        const {
-            reactTo = [],
-        } = Css.disposition;
-        return [
-            ...reactTo,
-            CssSignalType.ERROR,
-        ];
-    }
+  private handleLlmError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(SignalType.ERROR, value);
+  }
 
-    public constructor(id: string = __ID__) {
-        super(id);
-    }
+  private handleCssRemoved(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const {
+      elementId = this.id,
+    } = this.extractPayload<Body>(value) ?? {};
+    this.pulse(WebComponentSignalType.REMOVE, {
+      elementId,
+    });
+  }
 
-    protected override react(signal: Signal): void {
-        const {
-            property,
-            value,
-        } = signal;
-        switch (property) {
-            case SignalType.RENDER:
-                this.handleRender(value);
-                break;
-            case SignalType.UPDATE:
-                this.handleUpdate(value);
-                break;
-            case SignalType.REMOVE:
-                this.handleRemove(value);
-                break;
-            case ComponentSignalType.RENDERED:
-                this.handleCreated(value as Lifecycle<Body>);
-                break;
-            case ComponentSignalType.UPDATED:
-                this.handleUpdated(value as Lifecycle<Body>);
-                break;
-            case ComponentSignalType.REMOVED:
-                this.handleRemoved(value as Lifecycle<Body>);
-                break;
-            case ComponentSignalType.EVENT:
-                this.handleInteraction(value);
-                break;
-            case ComponentSignalType.ERROR:
-                this.handlePresentationError(value);
-                break;
-            case CssSignalType.ERROR:
-                this.handleCssError(value);
-                break;
-        }
-    }
+  private handleWebComponentRemoved(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const payload = this.extractPayload<Body>(value);
+    this.pulse(SignalType.REMOVED, {
+      ...this.body,
+      ...payload,
+    });
+  }
 
-    protected override catalog(): Cooky {
-        const {
-            id,
-        } = this;
-        return [
-            presentationDeclaration(id, Kind.STATUS),
-            cssDeclaration(id),
-        ];
-    }
+  private handleWebComponentEvent(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    const payload = this.extractPayload<EventContext>(value);
+    this.pulse(SignalType.EVENT, payload);
+  }
 
-    private handleRender(value: unknown): void {
-        const body = this.domainBody(value);
-        this.pulse(OPERATIONS[Operation.RENDER], body);
-    }
+  private handleWebComponentError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(SignalType.ERROR, value);
+  }
 
-    private handleUpdate(value: unknown): void {
-        const body = this.domainBody(value);
-        this.pulse(OPERATIONS[Operation.UPDATE], body);
-    }
+  private handleMaterialError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(SignalType.ERROR, value);
+  }
 
-    private handleRemove(value: unknown): void {
-        const body = this.domainBody(value);
-        this.pulse(OPERATIONS[Operation.REMOVE], body);
-    }
+  private handleCssError(signal: Signal): void {
+    const {
+      value,
+    } = signal;
+    this.pulse(SignalType.ERROR, value);
+  }
 
-    private domainBody(value: unknown): Body {
-        const {
-            aim,
-        } = this.disposition;
-        const body = Object.assign({}, aim.body, value as Body);
-        const {
-            elementId = this.id,
-        } = body;
-        return Object.assign(body, {
-            elementId,
-        });
-    }
+  private createWebComponentPayload(): Record<string, unknown> {
+    const {
+      content,
+      elementId = this.id,
+      events,
+      label,
+      parentTo,
+      text,
+      title,
+      tone = DEFAULT_TONE,
+      value,
+    } = this.body ?? {};
+    const containerElement = parentTo?.startsWith('#') ? parentTo : parentTo && `#${parentTo}`;
+    return {
+      attributes: {
+        'data-tone': tone,
+        role: 'status',
+      },
+      containerElement,
+      content: content || text || label || title || (value !== undefined ? String(value) : undefined),
+      elementId,
+      events,
+    };
+  }
 
-    private handleCreated(payload: Lifecycle<Body>): void {
-        const {
-            context: body,
-        } = payload;
-        this.pulse(CssSignalType.APPLY, stylePayload(body));
-        this.pulse(SignalType.CREATED, body);
-    }
-
-    private handleUpdated(payload: Lifecycle<Body>): void {
-        const {
-            context: body,
-        } = payload;
-        this.pulse(CssSignalType.APPLY, stylePayload(body));
-        this.pulse(SignalType.UPDATED, body);
-    }
-
-    private handleRemoved(payload: Lifecycle<Body>): void {
-        const {
-            context: body,
-        } = payload;
-        const {
-            elementId,
-        } = body;
-        this.pulse(CssSignalType.REMOVE, {
-            elementId,
-        });
-        this.pulse(SignalType.REMOVED, body);
-    }
-
-    private handleInteraction(payload: unknown): void {
-        const {
-            context: body,
-        } = payload as Interaction<Body>;
-        this.pulse(OPERATIONS[Operation.CHANGE], body);
-    }
-
-    private handlePresentationError(value: unknown): void {
-        this.pulse(SignalType.ERROR, value);
-    }
-
-    private handleCssError(value: unknown): void {
-        this.pulse(SignalType.ERROR, value);
-    }
+  private replaceDispositionBody(body: Body): void {
+    const {
+      aim,
+    } = this.disposition;
+    const {
+      context,
+      id,
+    } = (this.body ?? {}) as Record<string, unknown>;
+    this.pulse(this.updateEvent, {
+      ...this.disposition,
+      aim: {
+        ...aim,
+        body: {
+          ...body,
+          context,
+          id,
+        },
+      },
+    });
+  }
 }

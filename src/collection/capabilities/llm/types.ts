@@ -47,6 +47,7 @@ export interface ValidationContext {
 }
 
 export interface InferResult {
+    readonly request?: InferPayload;
     readonly sessionId?: string;
     readonly response?: string;
     readonly data?: unknown;

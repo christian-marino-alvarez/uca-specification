@@ -7,6 +7,7 @@ import {
   AIM,
   DEFAULT_EVENTS,
   DEFAULT_TAG,
+  ELEMENT_TAGS,
   INPUT_TAG,
   TAG_PREFIX,
   __ID__,
@@ -166,7 +167,8 @@ export class WebComponent extends Capability<Body> {
     } = payload ?? {};
     const origin = source && source !== __ID__ ? source : this.id;
     const suffix = origin.split(':').filter((part) => part && part !== __ID__).pop();
-    const resolvedTag = tag ?? (suffix ? `${TAG_PREFIX}${suffix}` : DEFAULT_TAG);
+    const [ucaType] = (suffix ?? '').split('@');
+    const resolvedTag = tag ?? (ucaType ? ELEMENT_TAGS[ucaType] ?? `${TAG_PREFIX}${ucaType}` : DEFAULT_TAG);
     if (typeof customElements !== 'undefined' && resolvedTag.includes('-') && !customElements.get(resolvedTag)) {
       customElements.define(resolvedTag, class extends HTMLElement {});
     }
@@ -236,11 +238,22 @@ export class WebComponent extends Capability<Body> {
     element.abortController = controller;
     events.forEach((eventName) => {
       element.addEventListener(eventName, (event: Event) => {
-        this.emitDomEvent(elementId, eventName, event, context);
+        if (this.isDirectEventTarget(element, event)) {
+          this.emitDomEvent(elementId, eventName, event, context);
+        }
       }, {
         signal: controller.signal,
       });
     });
+  }
+
+  private isDirectEventTarget(element: HTMLElement, event: Event): boolean {
+    const {
+      target,
+    } = event;
+    const eventTarget = target as HTMLElement | null;
+    const resolved = eventTarget?.closest?.('[data-action], [id]') ?? eventTarget;
+    return !resolved || resolved === element;
   }
 
   private emitRenderOutcome(

@@ -14,11 +14,12 @@ export const jsonSchema = z.record(z.string(), z.unknown())
   .describe('Especificación estándar de JSON Schema');
 
 export const contractSchema = z.object({
-  id: z.string().optional().describe('Identificador de la UCA emisora'),
   purpose: z.string().min(1).describe('Propósito ontológico fundamental de la UCA'),
   intention: z.string().optional().describe('Intención operativa que guía la inferencia'),
+  id: z.string().optional().describe('Identificador de la UCA emisora'),
   goal: z.string().optional().describe('Objetivo operativo auxiliar o derivado de la intención'),
   limits: z.array(z.string()).optional().describe('Limitaciones y fronteras estrictas de la inferencia'),
+  imagination: z.number().optional().describe('Temperatura o grado de libertad estocástica'),
   outputSchema: z.union([
     z.instanceof(z.ZodType),
     jsonSchema,

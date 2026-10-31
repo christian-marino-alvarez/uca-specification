@@ -49,6 +49,9 @@ export const DEFAULT_STYLES = `
     box-sizing: border-box;
     animation: uca-skeleton-enter 200ms cubic-bezier(0.2, 0, 0, 1) both;
 }
+.uca-skeleton:not(:last-child) {
+    display: none;
+}
 .uca-skeleton-box {
     border-radius: var(--uca-shape-medium, 12px);
     background: linear-gradient(

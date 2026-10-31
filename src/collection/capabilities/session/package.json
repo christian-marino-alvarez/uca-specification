@@ -44,7 +44,6 @@
   },
   "dependencies": {
     "@uca/core": "^0.1.0",
-    "@uca/memory": "^0.1.0",
     "zod": "^4.6.7"
   }
 }

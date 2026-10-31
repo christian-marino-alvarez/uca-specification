@@ -1,42 +1,15 @@
-import type { Body, Qualities } from './schema.js';
-
 export const __ID__ = 'slider';
 
-export const DEFAULT_TAG = 'input' as const;
+export const DEFAULT_PURPOSE =
+  'Unidad autónoma de ajuste deslizante que captura y regula valores continuos o discretos a lo largo de una pista interactiva';
 
-export const DEFAULT_EVENTS: readonly string[] = ['input', 'change'] as const;
+export const DEFAULT_INTENTION =
+  'Presentar un deslizador interactivo en Material Design 3 con valor actual en value, cotas en minimum y maximum y nombre accesible en label, ofreciendo al usuario una experiencia táctil y visual inmediata para modular intensidades, frecuencias o parámetros';
 
-export const DEFAULT_SLIDER_QUALITIES: Qualities = {
-    width: 'full',
-    surface: 'transparent',
-    spacingBlock: 'small',
-    spacingInline: 'none',
-};
+export const DEFAULT_TYPE = 'range';
 
-export const resolveContainerSelector = (containerElement?: string, parentTo?: string): string | undefined =>
-    containerElement ?? (parentTo?.startsWith('#') ? parentTo : parentTo ? `#${parentTo}` : undefined);
+export const DEFAULT_MIN = 0;
 
-export const buildSliderAttributes = (payload: Body): Record<string, string> => {
-    const { min = 0, max = 100, step, value = 0, disabled } = payload;
-    return {
-        type: 'range',
-        min: String(min),
-        max: String(max),
-        value: String(value),
-        ...(step !== undefined && { step: String(step) }),
-        ...(disabled && { disabled: 'disabled' }),
-    };
-};
+export const DEFAULT_MAX = 100;
 
-export const SLIDER_VISUAL_DISPOSITION = {
-    role: 'control',
-    defaultQualities: DEFAULT_SLIDER_QUALITIES,
-    supportedQualities: [
-        'width',
-        'surface',
-        'spacingBlock',
-        'spacingInline',
-        'variant',
-    ],
-    description: 'Selector de valor en rango continuo o discreto de Material Design 3',
-} as const;
+export const DEFAULT_STEP = 1;

@@ -46,6 +46,49 @@ export const queryRequestSchema = z.object({
   dimensions: dimensionsSchema.optional(),
 }).optional();
 
+export const componentKindSchema = z.enum([
+  'access',
+  'action',
+  'box',
+  'card',
+  'chip',
+  'choice',
+  'dialog',
+  'heading',
+  'input',
+  'list',
+  'moment',
+  'paragraph',
+  'picture',
+  'progress',
+  'quantity',
+  'range',
+  'separator',
+  'slider',
+  'status',
+  'symbol',
+  'toast',
+  'toggle',
+]);
+
+export const resolveRequestSchema = z.object({
+  component: componentKindSchema,
+  importance: z.number().int().min(1).max(6).optional(),
+  qualities: z.record(
+    z.string(),
+    z.unknown(),
+  ).optional(),
+  tone: z.string().optional(),
+  variant: z.string().optional(),
+});
+
+export const resolvedQualitiesSchema = z.object({
+  qualities: z.record(
+    z.string(),
+    z.unknown(),
+  ),
+});
+
 export const errorSchema = z.object({
   error: z.string(),
 }).passthrough();
@@ -63,4 +106,7 @@ export type CanonicalLayouts = z.infer<typeof canonicalLayoutsSchema>;
 export type SpatialPrinciples = z.infer<typeof spatialPrinciplesSchema>;
 export type MaterialModel = z.infer<typeof materialModelSchema>;
 export type QueryRequest = z.infer<typeof queryRequestSchema>;
+export type ComponentKind = z.infer<typeof componentKindSchema>;
+export type ResolveRequest = z.infer<typeof resolveRequestSchema>;
+export type ResolvedQualities = z.infer<typeof resolvedQualitiesSchema>;
 export type Body = z.infer<typeof bodySchema>;

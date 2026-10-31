@@ -65,8 +65,8 @@ export function resolveModelCacheKey(payload: InferPayload): string | undefined 
     area,
     containerId,
   } = (context ?? {}) as { containerId?: string; area?: { id?: string; parentId?: string } };
-  const scopeId = area?.parentId ?? containerId ?? area?.id;
-  if (id && scopeId) {
+  const scopeId = area?.parentId ?? containerId ?? area?.id ?? 'body';
+  if (id) {
     return `model:${id}:${scopeId}`;
   }
   return undefined;
@@ -86,24 +86,28 @@ export function createModelSelectionEvaluation(
   const {
     context,
     goal,
+    imagination,
     intention,
     outputSchema,
     purpose,
   } = payload;
   const options = AVAILABLE_MODELS
     .filter(({ provider }) => provider !== 'jev')
-    .map(({ criteria, description, id, imagination, label, limit }) => ({
+    .map(({ criteria, description, id, imagination: modelImagination, label, limit }) => ({
       criteria,
-      description: `${description} [config: imagination=${imagination}, limit=${limit}]`,
+      description: `${description} [config: imagination=${modelImagination}, limit=${limit}]`,
       id,
       label,
     }));
   const prompt = outputSchema
-    ? 'Seleccionar el modelo y perfil óptimos según propósito, intención, contexto y capacidad de restricciones del esquema (debe soportar esquemas estructurados complejos sin superar límites de estados)'
-    : 'Seleccionar el modelo y perfil de configuración óptimos según propósito, intención y contexto';
+    ? 'Seleccionar el modelo y perfil óptimos según propósito, intención, nivel de imaginación requerido (imagination), contexto y capacidad de restricciones del esquema (debe soportar esquemas estructurados complejos sin superar límites de estados)'
+    : 'Seleccionar el modelo y perfil de configuración óptimos según propósito, intención, nivel de imaginación requerido (imagination) y contexto';
   return createEvaluation({
     context: {
       context,
+      ...(imagination !== undefined && {
+        imagination,
+      }),
       intention: goal ?? intention ?? purpose,
       purpose,
       question: {
@@ -114,6 +118,9 @@ export function createModelSelectionEvaluation(
       },
       requiresStructuredSchema: Boolean(outputSchema),
     },
+    ...(imagination !== undefined && {
+      imagination,
+    }),
     purpose,
     sessionId,
   });
@@ -162,6 +169,7 @@ export function createCommand(payload: InferPayload, stream = false): Command {
     outputSchema,
     model,
     limit,
+    limits,
     imagination,
     thinkingBudget,
     thinkingLevel,
@@ -170,12 +178,19 @@ export function createCommand(payload: InferPayload, stream = false): Command {
     contextSchema,
     context,
     purpose,
+    intention,
     goal,
   } = payload;
   const prompt = JSON.stringify({
-    context: context ?? (contextSchema as { const?: unknown })?.const,
     purpose,
-    goal,
+    intention: intention ?? goal,
+    ...(limits && {
+      limits,
+    }),
+    ...(imagination !== undefined && {
+      imagination,
+    }),
+    context: context ?? (contextSchema as { const?: unknown })?.const,
   });
   const value = {
     prompt,

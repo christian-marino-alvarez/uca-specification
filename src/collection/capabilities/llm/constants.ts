@@ -12,20 +12,31 @@ export const serializeRequest = (payload: import('./types.js').Contract): string
     intention,
     goal,
     limits,
+    imagination,
   } = payload;
   const resolvedContext = context ?? (contextSchema as { const?: unknown })?.const;
   return JSON.stringify({
-    outputSchema,
-    context: resolvedContext,
     purpose,
-    ...(intention && { intention }),
-    ...(goal && { goal }),
-    ...(limits && { limits }),
+    ...(intention && {
+      intention,
+    }),
+    ...(goal && {
+      goal,
+    }),
+    ...(limits && {
+      limits,
+    }),
+    ...(imagination !== undefined && {
+      imagination,
+    }),
+    context: resolvedContext,
+    outputSchema,
   });
 };
 
 
 export const DEFAULT_PROVIDER = 'gemini';
+export const DEFAULT_IMAGINATION = 0.75;
 export const DEFAULT_OPENAI_MODEL = 'gpt-4o';
 export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
 export const DEFAULT_GEMINI_FLASH_MODEL = 'gemini-3.5-flash';
@@ -69,7 +80,7 @@ export const AVAILABLE_MODELS = [
     model: DEFAULT_GEMINI_2_5_FLASH_LITE_MODEL,
     transport: 'stream' as const,
     imagination: 0.3,
-    limit: 4096,
+    limit: 8192,
   },
   {
     id: 'gemini-3.5-flash',
@@ -92,7 +103,7 @@ export const AVAILABLE_MODELS = [
     model: DEFAULT_GEMINI_FLASH_LITE_MODEL,
     transport: 'stream' as const,
     imagination: 0.4,
-    limit: 4096,
+    limit: 8192,
   },
   {
     id: 'gemini-3.8-flash',

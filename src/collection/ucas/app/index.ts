@@ -152,9 +152,12 @@ export class App extends Uca<Body> {
   }
 
   private catalogComposition(): Cooky[number] {
+    const {
+      aim,
+    } = Composition.disposition;
     const disposition = this.createDisposition(
       Composition.disposition,
-      Composition.purpose,
+      aim.description,
       'composition',
     );
     return [
@@ -191,9 +194,12 @@ export class App extends Uca<Body> {
 
   private catalogNavigate(): Cooky[number] {
     const extra = this.createNavigateExtraBody();
+    const {
+      aim,
+    } = Navigate.disposition;
     const disposition = this.createDisposition(
       Navigate.disposition,
-      Navigate.purpose,
+      aim.description,
       'navigate',
       extra,
     );

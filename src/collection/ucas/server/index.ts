@@ -655,8 +655,8 @@ export class Server extends Uca<Body> {
     const cacheKey = resolveModelCacheKey(payload);
     const cached = cacheKey ? this.getCachedModel(cacheKey) : undefined;
     const resolvedPayload = cached ? {
-      ...payload,
       ...cached,
+      ...payload,
     } : payload;
     if (needsModelSelection(resolvedPayload, stream)) {
       this.requestBackendModelSelection(resolvedPayload, requestId, stream, cacheKey);
@@ -852,7 +852,11 @@ export class Server extends Uca<Body> {
       this.cacheSelectedModel(cacheKey, config);
     }
     if (requestId !== WARMUP_SESSION_ID) {
-      this.executeInference({ ...payload, ...config, sessionId: requestId }, requestId, stream);
+      this.executeInference({
+        ...config,
+        ...payload,
+        sessionId: requestId,
+      }, requestId, stream);
     }
   }
 
