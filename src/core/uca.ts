@@ -60,9 +60,16 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
     } = signal;
     if (property === DispositionSignal.INNERVATED && source === this.id) {
       this.syncCatalog();
+      this.onReady();
     }
     await super.executeReaction(signal);
   }
+
+  /**
+   * Lifecycle hook executed synchronously once all catalog capabilities
+   * have been innervated, connected to the event target, and are ready to communicate.
+   */
+  protected onReady(): void {}
 
   protected override onDispositionUpdated(event: Event): void {
     this.syncCatalog();
