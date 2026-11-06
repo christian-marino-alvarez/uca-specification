@@ -1,14 +1,23 @@
 {
-  "name": "@uca/core",
+  "name": "@christian-marino-alvarez/uca-core",
   "version": "0.1.0",
   "description": "Core ontological primitives for Universal Cognitive Architecture",
   "type": "module",
   "main": "./index.js",
   "types": "./index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/christian-marino-alvarez/uca-specification.git",
+    "directory": "src/core"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
   "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepublishOnly": "npm run build",
     "test": "tsx tests/index.ts && tsx tests/uca.ts && tsx tests/capability.ts"
   },
-
   "exports": {
     ".": {
       "types": "./index.d.ts",
@@ -45,5 +54,24 @@
       "import": "./types.js",
       "default": "./types.ts"
     }
-  }
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "index.d.ts.map",
+    "index.js.map",
+    "capability.js",
+    "capability.d.ts",
+    "capability.d.ts.map",
+    "capability.js.map",
+    "uca.js",
+    "uca.d.ts",
+    "uca.d.ts.map",
+    "uca.js.map",
+    "types.js",
+    "types.d.ts",
+    "types.d.ts.map",
+    "types.js.map"
+  ],
+  "license": "Apache-2.0"
 }
