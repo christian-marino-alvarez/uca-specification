@@ -1,10 +1,10 @@
 {
   "name": "@christian-marino-alvarez/uca-core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Core ontological primitives for Universal Cognitive Architecture",
   "type": "module",
-  "main": "./index.js",
-  "types": "./index.d.ts",
+  "main": "./index.ts",
+  "types": "./index.ts",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/christian-marino-alvarez/uca-specification.git",
@@ -14,64 +14,35 @@
     "registry": "https://npm.pkg.github.com"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "prepublishOnly": "npm run build",
     "test": "tsx tests/index.ts && tsx tests/uca.ts && tsx tests/capability.ts"
   },
   "exports": {
     ".": {
-      "types": "./index.d.ts",
-      "import": "./index.js",
+      "types": "./index.ts",
+      "import": "./index.ts",
       "default": "./index.ts"
     },
     "./capability": {
-      "types": "./capability.d.ts",
-      "import": "./capability.js",
-      "default": "./capability.ts"
-    },
-    "./capability.js": {
-      "types": "./capability.d.ts",
-      "import": "./capability.js",
+      "types": "./capability.ts",
+      "import": "./capability.ts",
       "default": "./capability.ts"
     },
     "./uca": {
-      "types": "./uca.d.ts",
-      "import": "./uca.js",
-      "default": "./uca.ts"
-    },
-    "./uca.js": {
-      "types": "./uca.d.ts",
-      "import": "./uca.js",
+      "types": "./uca.ts",
+      "import": "./uca.ts",
       "default": "./uca.ts"
     },
     "./types": {
-      "types": "./types.d.ts",
-      "import": "./types.js",
-      "default": "./types.ts"
-    },
-    "./types.js": {
-      "types": "./types.d.ts",
-      "import": "./types.js",
+      "types": "./types.ts",
+      "import": "./types.ts",
       "default": "./types.ts"
     }
   },
   "files": [
-    "index.js",
-    "index.d.ts",
-    "index.d.ts.map",
-    "index.js.map",
-    "capability.js",
-    "capability.d.ts",
-    "capability.d.ts.map",
-    "capability.js.map",
-    "uca.js",
-    "uca.d.ts",
-    "uca.d.ts.map",
-    "uca.js.map",
-    "types.js",
-    "types.d.ts",
-    "types.d.ts.map",
-    "types.js.map"
+    "index.ts",
+    "capability.ts",
+    "uca.ts",
+    "types.ts"
   ],
   "license": "Apache-2.0"
 }

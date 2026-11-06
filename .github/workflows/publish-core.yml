@@ -26,14 +26,7 @@ jobs:
           registry-url: 'https://npm.pkg.github.com'
           scope: '@christian-marino-alvarez'
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build Core
-        run: npm run build -w src/core
-
       - name: Publish to GitHub Packages
         run: npm publish -w src/core
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
