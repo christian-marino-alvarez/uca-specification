@@ -71,7 +71,9 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
         this._disposition = this.initialDisposition();
     }
 
-    protected onInnervated(): void {}
+    protected onInnervated(): void { }
+
+    protected onDenervated(): void { }
 
     private attachCoreListeners(): void {
         this.target?.addEventListener(this.updateEvent, this);
@@ -95,7 +97,7 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
     }
 
 
-    protected react(_signal: Signal): void | Promise<void> {}
+    protected react(_signal: Signal): void | Promise<void> { }
 
     public handleEvent(event: Event): void {
         switch (event.type) {

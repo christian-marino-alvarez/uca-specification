@@ -148,9 +148,15 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
 
   private syncCatalogEntry(Factory: CapabilityConstructor, declared: Disposition): void {
     const { reactTo = [] } = this.disposition;
-    const { reactTo: signals = [], aim } = declared;
+    const { reactTo: signals = [], outputs = [] } = declared;
     const id = this.resolveCapabilityId(Factory, declared);
-    const isActive = signals.some((signal) => reactTo.includes(signal) || signal === '*');
+    const shortId = (Factory as { __ID__?: string }).__ID__ ?? Factory.name.toLowerCase();
+    const isActive =
+      reactTo.includes('*') ||
+      reactTo.includes(id) ||
+      reactTo.includes(shortId) ||
+      outputs.some((output) => reactTo.includes(output.signal)) ||
+      signals.some((signal) => reactTo.includes(signal) || signal === '*');
     if (!isActive) { return void this.getCapability(id)?.denervate(); }
     const capability = this.getCapability(id) ?? this.registerCapability(Factory, id);
     this.connectCapability(capability, declared);
