@@ -8,6 +8,7 @@ import {
     type Signal,
     type SignalHandler,
 } from './types.js';
+import { dispatchDispositionChanges } from './decorators.js';
 
 export abstract class Capability<TBody = unknown> implements ICapability<TBody>, EventListenerObject {
     public static disposition: Disposition<unknown> = {
@@ -133,6 +134,26 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
 
     protected get entityKind(): EntityKind {
         return EntityKind.CAPABILITY;
+    }
+
+    /**
+     * Updates the disposition body reactively, pulsing `updateEvent` only if the body
+     * or disposition values actually changed.
+     *
+     * @param partial Partial body attributes to merge into `disposition.aim.body`.
+     */
+    public updateDisposition(partial: Partial<TBody>): void {
+        const aim = {
+            ...this.disposition.aim,
+            body: {
+                ...(this.disposition.aim.body as object),
+                ...partial,
+            },
+        };
+        this.pulse(this.updateEvent, {
+            ...this.disposition,
+            aim,
+        });
     }
 
     protected onDispositionUpdated(_event: Event): void {
@@ -268,9 +289,11 @@ export abstract class Capability<TBody = unknown> implements ICapability<TBody>,
         if (!disposition) { return; }
         const hasChanged = this.isDispositionChanged(this.disposition, disposition);
         if (!hasChanged) { return; }
+        const prevBody = this.body;
         this.disconnectReceptors();
         this.disposition = disposition;
         this.connectReceptors();
+        dispatchDispositionChanges(this, prevBody as Record<string, unknown> | undefined, this.body as Record<string, unknown> | undefined);
         this.onDispositionUpdated(event);
     }
 

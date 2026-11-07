@@ -1,6 +1,6 @@
 {
   "name": "@christian-marino-alvarez/uca-core",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Core ontological primitives for Universal Cognitive Architecture",
   "type": "module",
   "main": "./index.ts",
@@ -42,7 +42,8 @@
     "index.ts",
     "capability.ts",
     "uca.ts",
-    "types.ts"
+    "types.ts",
+    "decorators.ts"
   ],
   "license": "Apache-2.0"
 }
