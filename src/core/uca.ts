@@ -86,6 +86,25 @@ export abstract class Uca<TBody = unknown> extends Capability<TBody> {
     this.pulse(DispositionSignal.PROVIDE, payload);
   }
 
+
+  /**
+   * Helper simplificado para registrar una Capability o UCA hija en catalog().
+   * Infiere automáticamente su disposition por defecto, su descripción (AIM) y su ID (__ID__ o nombre).
+   *
+   * @param Factory Clase constructora de la Capability o UCA hija.
+   * @param extraBody Propiedades opcionales para extender o sobreescribir disposition.aim.body.
+   */
+  protected addToCatalog<TCapBody = unknown>(
+    Factory: any,
+    extraBody?: Record<string, unknown>,
+  ): Cooky[number] {
+    const rawDisposition = Factory.disposition ?? { aim: { description: Factory.name } };
+    const description = Factory.AIM ?? rawDisposition.aim?.description ?? Factory.name;
+    const identity = Factory.__ID__ ?? (Factory as any).ID ?? Factory.name.toLowerCase();
+    const disposition = this.createDisposition(rawDisposition, description, identity, extraBody);
+    return [Factory as unknown as CapabilityConstructor, disposition];
+  }
+
   protected catalog(): Cooky {
     const declarations: Cooky = [];
     return declarations;

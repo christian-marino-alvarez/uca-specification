@@ -1,6 +1,6 @@
 {
   "name": "@christian-marino-alvarez/uca-core",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Core ontological primitives for Universal Cognitive Architecture",
   "type": "module",
   "main": "./index.ts",
@@ -14,7 +14,7 @@
     "registry": "https://npm.pkg.github.com"
   },
   "scripts": {
-    "test": "tsx tests/index.ts && tsx tests/uca.ts && tsx tests/capability.ts"
+    "test": "tsx tests/decorators.ts && tsx tests/add-to-catalog.ts"
   },
   "exports": {
     ".": {
